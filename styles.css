@@ -284,6 +284,25 @@ body.modal-open{overflow:hidden}
 .json-section summary code{font-size:12px;color:var(--accent);font-weight:650}
 .json-section pre{margin:0;padding:12px;border-top:1px solid var(--line);overflow:auto;white-space:pre-wrap;color:var(--muted);font-weight:450}
 .json-editor{width:100%;min-height:360px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:14px;font-family:"Cascadia Code","SFMono-Regular",Consolas,monospace;font-size:13px;line-height:1.6;resize:vertical;outline:0;font-weight:450}
+.followup-panel{margin-top:24px;border-top:1px solid var(--line);padding-top:18px}
+.followup-list{display:grid;gap:12px;margin-bottom:12px}
+.followup-empty{border:1px dashed var(--line2);border-radius:10px;color:var(--soft);background:color-mix(in srgb,var(--panel2) 60%,transparent);padding:14px;font-size:15px}
+.followup-item{border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:14px;display:grid;gap:10px}
+.followup-question{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
+.followup-question b{width:28px;height:28px;border-radius:999px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:13px;font-weight:800}
+.followup-question span{font-size:16px;color:var(--text);font-weight:650;line-height:1.55}
+.followup-answer{margin-left:44px;color:var(--muted);font-size:15px;line-height:1.7}
+.followup-answer p{margin:0 0 8px}
+.followup-answer p:last-child{margin-bottom:0}
+.followup-answer ul{margin:0 0 8px;padding-left:20px}
+.followup-answer li{margin:3px 0}
+.followup-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.followup-actions .plain-btn,.followup-actions .danger-btn{min-width:74px;padding:7px 10px;font-size:14px}
+.followup-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.followup-compose textarea,.followup-edit-input{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:11px 12px;font-size:15px;line-height:1.55;resize:vertical;outline:0}
+.followup-compose textarea:focus,.followup-edit-input:focus{border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
+.followup-edit-input.answer{min-height:140px}
+body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-out infinite}
 .confirm-layer{position:fixed;inset:0;z-index:3600;display:none;place-items:center;padding:24px;background:rgba(0,0,0,.32);backdrop-filter:blur(12px)}
 .confirm-layer.open{display:grid}
 .confirm-card{width:min(420px,calc(100vw - 32px));border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 24px 80px rgba(0,0,0,.25);padding:18px;display:grid;gap:12px;animation:enter .16s ease both}
@@ -320,6 +339,8 @@ body.modal-open{overflow:hidden}
   .modal-layer{padding:12px}
   .modal-card{width:100%;max-height:calc(100vh - 24px)}
   .modal-head{align-items:flex-start}
+  .followup-compose{grid-template-columns:1fr}
+  .followup-answer{margin-left:0}
   .about-hero,.about-grid{grid-template-columns:1fr}
   .about-version{height:auto;min-height:110px}
   .about-hero h2{font-size:32px}

@@ -21,11 +21,15 @@ let cloudClient=null;
 let cloudUser=null;
 let activeView='home';
 let currentResult=null;
+let currentHistoryId=null;
+let currentFollowups=[];
 let modalResult=null;
 let modalHistoryId=null;
 let configInfo=null;
 let confirmResolver=null;
 let lookupBusy=false;
+let followupBusy=false;
+let editingFollowup=null;
 const historyState={
   query:'',
   sort:'time-desc',
@@ -38,12 +42,18 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:''};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.6.0',
+  version:'0.7.0',
   releaseDate:'2026-04-25',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.7.0',
+    date:'2026-04-25',
+    title:'新增词条追问对话',
+    items:['结果页下方支持基于当前词条继续追问。','追问回答会保存进对应历史记录，并可在历史详情中继续查看。','追问支持卡片内编辑和删除。'],
+  },
   {
     version:'0.6.0',
     date:'2026-04-25',
@@ -366,9 +376,9 @@ function renderLookupLoading(query,settings){
 function renderResult(result){
   currentResult=result;
   els.resultJson.innerHTML=renderStructuredJSON(result);
-  els.resultCard.innerHTML=renderResultHTML(result);
+  els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current');
 }
-function renderResultHTML(result){
+function renderResultHTML(result,followups=[],scope='current'){
   const head=result.headword||{};
   const meta=result.meta||{};
   const senses=result.senses||[];
@@ -413,6 +423,7 @@ function renderResultHTML(result){
       </div>
     </div>
     ${renderConfusions(confusions)}
+    ${renderFollowupHTML(followups,scope)}
   `;
 }
 function renderItems(title,items,renderer){
@@ -437,6 +448,191 @@ function renderStructuredJSON(result){
       <pre>${escapeHTML(JSON.stringify(value??(Array.isArray(value)?[]:{}),null,2))}</pre>
     </details>
   `).join('')}</div>`;
+}
+function renderFollowupHTML(followups=[],scope='current'){
+  const list=Array.isArray(followups)?followups:[];
+  const inputId=scope==='modal'?'modal-followup-input':'followup-input';
+  const buttonCall=scope==='modal'?'askModalFollowup()':'askCurrentFollowup()';
+  return `
+    <div class="followup-panel">
+      <div class="block-title">追问</div>
+      <div class="followup-list">
+        ${list.length?list.map(item=>renderFollowupItem(item,scope)).join(''):'<div class="followup-empty">可以继续追问这个词条，回答会保存在历史记录里。</div>'}
+      </div>
+      <div class="followup-compose">
+        <textarea id="${inputId}" rows="2" placeholder="针对这个结果继续问，比如：这个词写作里怎么用？和另一个词差在哪？"></textarea>
+        <button class="plain-btn primary-btn" onclick="${buttonCall}">发送</button>
+      </div>
+    </div>
+  `;
+}
+function renderFollowupItem(item,scope){
+  const id=Number(item.id);
+  if(editingFollowup&&editingFollowup.scope===scope&&Number(editingFollowup.id)===id){
+    return `
+      <article class="followup-item editing">
+        <label class="setting-field">
+          <span>问题</span>
+          <textarea class="followup-edit-input" id="followup-edit-question-${scope}-${id}">${escapeHTML(item.question)}</textarea>
+        </label>
+        <label class="setting-field">
+          <span>回答</span>
+          <textarea class="followup-edit-input answer" id="followup-edit-answer-${scope}-${id}">${escapeHTML(item.answer)}</textarea>
+        </label>
+        <div class="followup-actions">
+          <button class="plain-btn primary-btn" onclick="saveFollowupEdit('${scope}',${id})">保存</button>
+          <button class="plain-btn ghost-btn" onclick="cancelFollowupEdit('${scope}')">取消</button>
+        </div>
+      </article>
+    `;
+  }
+  return `
+    <article class="followup-item">
+      <div class="followup-question"><b>问</b><span>${escapeHTML(item.question)}</span></div>
+      <div class="followup-answer">${formatFollowupAnswer(item.answer)}</div>
+      <div class="followup-actions">
+        <button class="plain-btn ghost-btn" onclick="editFollowup('${scope}',${id})">编辑</button>
+        <button class="danger-btn" onclick="deleteFollowup('${scope}',${id})">删除</button>
+      </div>
+    </article>
+  `;
+}
+function formatFollowupAnswer(answer){
+  const text=String(answer||'').trim();
+  if(!text)return '<p>无内容</p>';
+  const blocks=text.split(/\n{2,}/).map(block=>block.trim()).filter(Boolean);
+  return blocks.map(block=>{
+    const lines=block.split('\n').map(line=>line.trim()).filter(Boolean);
+    if(lines.length>1&&lines.every(line=>/^[-*•]\s+/.test(line))){
+      return `<ul>${lines.map(line=>`<li>${escapeHTML(line.replace(/^[-*•]\s+/,''))}</li>`).join('')}</ul>`;
+    }
+    return `<p>${escapeHTML(block).replace(/\n/g,'<br>')}</p>`;
+  }).join('');
+}
+function getCurrentHistoryItem(){
+  return getHistory().find(item=>Number(item.id)===Number(currentHistoryId));
+}
+function saveFollowupsForCurrent(followups){
+  currentFollowups=followups;
+  const history=getHistory().map(item=>Number(item.id)===Number(currentHistoryId)?{...item,followups,updatedAt:new Date().toISOString()}:item);
+  setHistory(history);
+  renderResult(currentResult);
+}
+function saveFollowupsForModal(followups){
+  const history=getHistory().map(item=>Number(item.id)===Number(modalHistoryId)?{...item,followups,updatedAt:new Date().toISOString()}:item);
+  setHistory(history);
+  const updated=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
+  if(updated){
+    els.modalCardPage.innerHTML=renderResultHTML(updated.result,updated.followups||[],'modal');
+  }
+  if(Number(modalHistoryId)===Number(currentHistoryId))saveFollowupsForCurrent(followups);
+}
+async function requestFollowup(question,baseItem){
+  const settings=getSettings();
+  const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
+  const response=await fetch('/api/followup',{
+    method:'POST',
+    headers:await analyzeHeaders(hasLocalEndpoint),
+    body:JSON.stringify({
+      question,
+      result:baseItem.result,
+      followups:baseItem.followups||[],
+      apiUrl:hasLocalEndpoint?settings.apiUrl:'',
+      apiKey:hasLocalEndpoint?settings.apiKey:'',
+      model:hasLocalEndpoint?settings.model:'',
+    }),
+  });
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||'追问失败');
+  return data.answer;
+}
+async function askCurrentFollowup(){
+  if(followupBusy)return;
+  const input=document.getElementById('followup-input');
+  const question=input?.value.trim()||'';
+  if(!question)return notify('请输入追问内容。','bad','追问');
+  const baseItem=getCurrentHistoryItem()||{id:currentHistoryId,result:currentResult,followups:currentFollowups};
+  if(!baseItem.result)return notify('还没有可追问的结果。','bad','追问');
+  followupBusy=true;
+  document.body.classList.add('followup-busy');
+  try{
+    notify('正在追问，会把回答保存到当前记录。','info','追问中');
+    const answer=await requestFollowup(question,baseItem);
+    const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
+    saveFollowupsForCurrent(followups);
+    input.value='';
+    notify('追问已保存。','good','追问完成');
+  }catch(error){
+    notify(error.message||'追问失败。','bad','追问失败');
+  }finally{
+    followupBusy=false;
+    document.body.classList.remove('followup-busy');
+  }
+}
+async function askModalFollowup(){
+  if(followupBusy)return;
+  const input=document.getElementById('modal-followup-input');
+  const question=input?.value.trim()||'';
+  if(!question)return notify('请输入追问内容。','bad','追问');
+  const baseItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
+  if(!baseItem)return notify('找不到这条历史记录。','bad','追问');
+  followupBusy=true;
+  document.body.classList.add('followup-busy');
+  try{
+    notify('正在追问，会保存到这条历史记录。','info','追问中');
+    const answer=await requestFollowup(question,baseItem);
+    const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
+    saveFollowupsForModal(followups);
+    input.value='';
+    notify('追问已保存。','good','追问完成');
+  }catch(error){
+    notify(error.message||'追问失败。','bad','追问失败');
+  }finally{
+    followupBusy=false;
+    document.body.classList.remove('followup-busy');
+  }
+}
+async function deleteFollowup(scope,id){
+  if(!await askConfirm('确认删除这条追问？','删除追问'))return;
+  if(scope==='modal'){
+    const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+    saveFollowupsForModal((item?.followups||[]).filter(row=>Number(row.id)!==Number(id)));
+  }else{
+    saveFollowupsForCurrent((currentFollowups||[]).filter(row=>Number(row.id)!==Number(id)));
+  }
+  notify('追问已删除。','good','追问');
+}
+function editFollowup(scope,id){
+  editingFollowup={scope,id};
+  rerenderFollowupScope(scope);
+}
+function cancelFollowupEdit(scope){
+  editingFollowup=null;
+  rerenderFollowupScope(scope);
+}
+function saveFollowupEdit(scope,id){
+  const source=scope==='modal'
+    ? (getHistory().find(row=>Number(row.id)===Number(modalHistoryId))?.followups||[])
+    : currentFollowups;
+  const question=document.getElementById(`followup-edit-question-${scope}-${id}`)?.value.trim()||'';
+  const answer=document.getElementById(`followup-edit-answer-${scope}-${id}`)?.value.trim()||'';
+  if(!question||!answer){
+    notify('问题和回答都不能为空。','bad','保存失败');
+    return;
+  }
+  const next=source.map(row=>Number(row.id)===Number(id)?{...row,question,answer,updatedAt:new Date().toISOString()}:row);
+  editingFollowup=null;
+  if(scope==='modal')saveFollowupsForModal(next);
+  else saveFollowupsForCurrent(next);
+  notify('追问已编辑。','good','追问');
+}
+function rerenderFollowupScope(scope){
+  if(scope==='modal'){
+    const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+    if(item)els.modalCardPage.innerHTML=renderResultHTML(item.result,item.followups||[],'modal');
+    return;
+  }
+  if(currentResult)renderResult(currentResult);
 }
 async function runLookup(){
   if(lookupBusy)return;
@@ -463,8 +659,10 @@ async function runLookup(){
     });
     const data=await response.json();
     if(!response.ok)throw new Error(data.error||'查询失败');
+    currentHistoryId=Date.now();
+    currentFollowups=[];
     renderResult(data);
-    addHistory({id:Date.now(),query,result:data,createdAt:new Date().toISOString()});
+    addHistory({id:currentHistoryId,query,result:data,followups:[],createdAt:new Date().toISOString()});
     notify('结果已生成。','good','查询完成');
   }catch(error){
     notify(error.message||'查询失败。','bad','查询失败');
@@ -540,6 +738,7 @@ function historySearchText(item){
     item.query,
     item.createdAt,
     item.result,
+    item.followups,
   ]));
 }
 function flattenText(value){
@@ -561,7 +760,7 @@ function openHistoryModal(id){
   modalHistoryId=Number(item.id);
   els.modalTitle.textContent=item.query;
   els.modalSubtitle.textContent=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
-  els.modalCardPage.innerHTML=renderResultHTML(item.result);
+  els.modalCardPage.innerHTML=renderResultHTML(item.result,item.followups||[],'modal');
   els.modalJsonPage.innerHTML=renderStructuredJSON(item.result);
   els.modalQueryEdit.value=item.query;
   els.modalJsonEdit.value=JSON.stringify(item.result,null,2);
@@ -586,12 +785,13 @@ function saveHistoryEdit(){
   const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
   const history=getHistory().map(item=>{
     if(Number(item.id)!==Number(modalHistoryId))return item;
-    return {...item,query,result:parsed,updatedAt:new Date().toISOString()};
+    return {...item,query,result:parsed,followups:item.followups||[],updatedAt:new Date().toISOString()};
   });
   setHistory(history);
   modalResult=parsed;
   els.modalTitle.textContent=query;
-  els.modalCardPage.innerHTML=renderResultHTML(parsed);
+  const updatedFollowups=getHistory().find(item=>Number(item.id)===Number(modalHistoryId))?.followups||[];
+  els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal');
   els.modalJsonPage.innerHTML=renderStructuredJSON(parsed);
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
   setModalTab('card',document.getElementById('modal-card-tab'));
@@ -674,6 +874,8 @@ async function factoryReset(){
   localStorage.removeItem(STORAGE_KEYS.layout);
   localStorage.removeItem(STORAGE_KEYS.logs);
   currentResult=null;
+  currentHistoryId=null;
+  currentFollowups=[];
   modalResult=null;
   historyState.query='';
   if(els.historySearch)els.historySearch.value='';
