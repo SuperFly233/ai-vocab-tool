@@ -48,7 +48,7 @@
     </div>
     <div class="topbar-actions">
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()">账号</button>
-      <button class="theme-btn" id="theme-toggle-btn" onclick="cycleTheme()" aria-label="切换主题"></button>
+      <button class="theme-btn" id="theme-toggle-btn" data-tip="切换主题" onclick="cycleTheme()" aria-label="切换主题"></button>
     </div>
   </div>
 
@@ -71,7 +71,6 @@
       <button class="plain-btn ghost-btn" onclick="resetCloudPassword('account')">忘记密码</button>
     </div>
     <div class="account-actions cloud-only">
-      <button class="plain-btn" onclick="syncAllToCloud()">同步</button>
       <button class="plain-btn ghost-btn" onclick="logoutCloud()">退出</button>
     </div>
     <div class="account-actions offline-only">
@@ -80,25 +79,28 @@
   </div>
 
   <section class="view active" id="view-home">
-    <section class="workspace">
+    <section class="workspace layout-top" id="workspace">
       <div class="editor-pane panel">
         <textarea id="query-input" placeholder="输入单词、短语、表达或句子"></textarea>
         <div class="input-row">
           <input id="direction-input" type="text" placeholder="语言方向，可不填">
           <input id="note-input" type="text" placeholder="补充要求，可不填">
-        </div>
-        <div class="action-row">
-          <button class="plain-btn primary-btn" onclick="runLookup()">查询</button>
-          <button class="plain-btn" onclick="clearEditor()">清空</button>
-          <button class="plain-btn" onclick="copyJSON()">复制 JSON</button>
-          <button class="plain-btn" onclick="exportCurrent()">导出</button>
+          <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">⌕</button>
+          <button class="icon-btn" data-tip="清空" onclick="clearEditor()">×</button>
+          <button class="icon-btn" id="layout-toggle" data-tip="切换布局" onclick="toggleLayout()">▤</button>
         </div>
       </div>
 
       <div class="result-pane panel">
-        <div class="result-tabs">
-          <button class="tab-btn active" onclick="setResultTab('card',this)">排版</button>
-          <button class="tab-btn" onclick="setResultTab('json',this)">JSON</button>
+        <div class="result-toolbar">
+          <div class="result-tabs">
+            <button class="tab-btn active" onclick="setResultTab('card',this)">排版</button>
+            <button class="tab-btn" onclick="setResultTab('json',this)">JSON</button>
+          </div>
+          <div class="result-icons">
+            <button class="icon-btn" data-tip="复制 JSON" onclick="copyJSON()">⧉</button>
+            <button class="icon-btn" data-tip="导出 JSON" onclick="exportCurrent()">⇩</button>
+          </div>
         </div>
         <section class="result-page active" id="result-card"></section>
         <pre class="result-page json-view" id="result-json"></pre>
@@ -114,9 +116,25 @@
           <div class="section-sub" id="history-count">0 条</div>
         </div>
         <div class="action-row compact">
-          <button class="plain-btn" onclick="exportHistory()">导出历史</button>
-          <button class="plain-btn danger-btn" onclick="clearHistory()">清空</button>
+          <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()">⇩</button>
+          <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">×</button>
         </div>
+      </div>
+      <div class="history-tools">
+        <label class="history-search">
+          <span>⌕</span>
+          <input id="history-search" type="search" placeholder="搜索历史、释义、例句、搭配、辨析">
+          <button class="icon-btn" data-tip="清空搜索" onclick="clearHistorySearch()">×</button>
+        </label>
+        <label class="history-sort">
+          <span>↕</span>
+          <select id="history-sort">
+            <option value="time-desc">时间：新到旧</option>
+            <option value="time-asc">时间：旧到新</option>
+            <option value="text-asc">文本：A 到 Z</option>
+            <option value="text-desc">文本：Z 到 A</option>
+          </select>
+        </label>
       </div>
       <div class="history-list" id="history-list"></div>
     </div>
@@ -139,14 +157,15 @@
           <input class="cloud-input" id="api-model" type="text" placeholder="gpt-4o-mini">
         </label>
         <button class="plain-btn primary-btn" onclick="saveSettings()">保存设置</button>
+        <div class="env-card" id="env-card">正在读取环境变量...</div>
       </div>
 
       <div class="setting-group">
         <div class="setting-title">外观</div>
         <div class="seg">
-          <button id="th-auto" onclick="setTheme('auto')">自动</button>
-          <button id="th-light" onclick="setTheme('light')">浅色</button>
-          <button id="th-dark" onclick="setTheme('dark')">深色</button>
+          <button id="th-auto" data-tip="自动" onclick="setTheme('auto')">◐</button>
+          <button id="th-light" data-tip="浅色" onclick="setTheme('light')">☀</button>
+          <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">☾</button>
         </div>
       </div>
 
@@ -154,12 +173,28 @@
         <div class="setting-title">数据</div>
         <div class="setting-row">
           <span id="storage-status">localStorage，本机本浏览器记录。</span>
-          <button class="plain-btn" onclick="syncAllToCloud()">同步到云端</button>
         </div>
       </div>
     </div>
   </section>
 </main>
+
+<div class="modal-layer" id="history-modal" onclick="closeHistoryModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div>
+        <div class="section-title" id="modal-title">历史记录</div>
+        <div class="section-sub" id="modal-subtitle"></div>
+      </div>
+      <div class="result-icons">
+        <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">⧉</button>
+        <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">⇩</button>
+        <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">×</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
 
 <div class="toast-stack" id="toast-stack"></div>
 

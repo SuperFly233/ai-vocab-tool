@@ -8,6 +8,7 @@ const STORAGE_KEYS={
   settings:'ai_vocab_tool_settings_v1',
   theme:'ai_vocab_tool_theme',
   offline:'ai_vocab_tool_offline_mode',
+  layout:'ai_vocab_tool_layout',
 };
 const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
@@ -19,6 +20,17 @@ let cloudClient=null;
 let cloudUser=null;
 let activeView='home';
 let currentResult=null;
+let modalResult=null;
+let configInfo=null;
+const historyState={
+  query:'',
+  sort:'time-desc',
+};
+const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
+  numeric:true,
+  sensitivity:'base',
+  ignorePunctuation:true,
+});
 
 const els={
   authStatus:document.getElementById('auth-status'),
@@ -30,11 +42,20 @@ const els={
   note:document.getElementById('note-input'),
   resultCard:document.getElementById('result-card'),
   resultJson:document.getElementById('result-json'),
+  historyModal:document.getElementById('history-modal'),
+  modalTitle:document.getElementById('modal-title'),
+  modalSubtitle:document.getElementById('modal-subtitle'),
+  modalBody:document.getElementById('modal-body'),
+  workspace:document.getElementById('workspace'),
+  layoutToggle:document.getElementById('layout-toggle'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
+  historySearch:document.getElementById('history-search'),
+  historySort:document.getElementById('history-sort'),
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
   apiModel:document.getElementById('api-model'),
+  envCard:document.getElementById('env-card'),
   storageStatus:document.getElementById('storage-status'),
 };
 
@@ -76,7 +97,7 @@ function renderAuthGate(){
     els.authStatus.textContent=cloudClient?'未登录。可以登录或离线使用。':'Supabase 未配置。可以离线使用。';
   }
   if(els.storageStatus){
-    els.storageStatus.textContent=cloudUser?'localStorage + Supabase 云端同步':'localStorage，本机本浏览器记录。';
+    els.storageStatus.textContent=cloudUser?'localStorage + Supabase 自动同步':'localStorage，本机本浏览器记录。';
   }
 }
 function authRedirectTo(){
@@ -165,7 +186,7 @@ function setHistory(items){
   renderHistory();
   syncAllToCloud(true);
 }
-function getSettings(){return readJSON(STORAGE_KEYS.settings,{apiUrl:'',apiKey:'',model:'gpt-4o-mini'})}
+function getSettings(){return readJSON(STORAGE_KEYS.settings,{apiUrl:'',apiKey:'',model:''})}
 function setSettings(settings){
   writeJSON(STORAGE_KEYS.settings,settings);
   syncAllToCloud(true);
@@ -201,6 +222,30 @@ async function syncAllToCloud(silent=false){
   if(error)return notify(error.message,'bad','同步失败');
   if(!silent)notify('已同步到云端。','good','同步完成');
 }
+async function loadConfigInfo(){
+  try{
+    const response=await fetch('/api/config');
+    if(!response.ok)throw new Error('config unavailable');
+    configInfo=await response.json();
+  }catch{
+    configInfo={hasApiUrl:false,hasApiKey:false,model:''};
+  }
+  renderConfigInfo();
+}
+function renderConfigInfo(){
+  if(!els.envCard)return;
+  const settings=getSettings();
+  const localModel=settings.model||'';
+  const envModel=configInfo?.model||'';
+  const source=localModel&&settings.apiUrl&&settings.apiKey?'网页设置':'Vercel 环境变量';
+  els.envCard.innerHTML=`
+    <div><b>当前来源</b><span>${escapeHTML(source)}</span></div>
+    <div><b>环境变量 API URL</b><span>${configInfo?.hasApiUrl?'已配置':'未配置'}</span></div>
+    <div><b>环境变量 API Key</b><span>${configInfo?.hasApiKey?'已配置':'未配置'}</span></div>
+    <div><b>环境变量 Model</b><span>${escapeHTML(envModel||'未配置')}</span></div>
+    <div><b>管理员限制</b><span>${configInfo?.adminRestricted?'已开启':'未开启'}</span></div>
+  `;
+}
 
 function showView(id,button){
   activeView=id;
@@ -222,13 +267,16 @@ function renderEmpty(){
 function renderResult(result){
   currentResult=result;
   els.resultJson.textContent=JSON.stringify(result,null,2);
+  els.resultCard.innerHTML=renderResultHTML(result);
+}
+function renderResultHTML(result){
   const head=result.headword||{};
   const meta=result.meta||{};
   const senses=result.senses||[];
   const collocations=result.collocations||[];
   const register=result.register||{};
   const confusions=result.confusions||[];
-  els.resultCard.innerHTML=`
+  return `
     <div class="entry-head">
       <div class="entry-tag">${escapeHTML(head.languageTag||meta.language||'')}</div>
       <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
@@ -270,17 +318,18 @@ async function runLookup(){
   if(!query)return notify('请输入要查的内容。','bad','无法查询');
   const settings=getSettings();
   notify('正在查询。','info','模型调用');
+  const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   try{
     const response=await fetch('/api/analyze',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:await analyzeHeaders(hasLocalEndpoint),
       body:JSON.stringify({
         query,
         direction:els.direction.value.trim(),
         note:els.note.value.trim(),
-        apiUrl:settings.apiUrl,
-        apiKey:settings.apiKey,
-        model:settings.model,
+        apiUrl:hasLocalEndpoint?settings.apiUrl:'',
+        apiKey:hasLocalEndpoint?settings.apiKey:'',
+        model:hasLocalEndpoint?settings.model:'',
       }),
     });
     const data=await response.json();
@@ -292,16 +341,26 @@ async function runLookup(){
     notify(error.message||'查询失败。','bad','查询失败');
   }
 }
+async function analyzeHeaders(hasLocalEndpoint){
+  const headers={'Content-Type':'application/json'};
+  if(!hasLocalEndpoint&&cloudClient){
+    const {data}=await cloudClient.auth.getSession();
+    const token=data.session?.access_token;
+    if(token)headers.Authorization=`Bearer ${token}`;
+  }
+  return headers;
+}
 function addHistory(item){
   const history=getHistory().filter(existing=>existing.query!==item.query);
   history.unshift(item);
   setHistory(history.slice(0,120));
 }
 function renderHistory(){
-  const history=getHistory();
-  els.historyCount.textContent=`${history.length} 条`;
+  const history=filterAndSortHistory(getHistory());
+  const total=getHistory().length;
+  els.historyCount.textContent=historyState.query?`${history.length}/${total} 条`:`${total} 条`;
   if(!history.length){
-    els.historyList.innerHTML='<div class="empty">暂无历史记录</div>';
+    els.historyList.innerHTML=`<div class="empty">${historyState.query?'没有匹配记录':'暂无历史记录'}</div>`;
     return;
   }
   els.historyList.innerHTML=history.map(item=>`
@@ -311,18 +370,76 @@ function renderHistory(){
         <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</div>
       </div>
       <div class="history-actions">
-        <button class="plain-btn" onclick="loadHistory(${Number(item.id)})">查看</button>
-        <button class="plain-btn danger-btn" onclick="deleteHistory(${Number(item.id)})">删除</button>
+        <button class="icon-btn" data-tip="查看" onclick="openHistoryModal(${Number(item.id)})">↗</button>
+        <button class="icon-btn danger-icon" data-tip="删除" onclick="deleteHistory(${Number(item.id)})">×</button>
       </div>
     </div>
   `).join('');
 }
-function loadHistory(id){
+function filterAndSortHistory(history){
+  const query=normalizeSearch(historyState.query);
+  const filtered=query
+    ? history.filter(item=>historySearchText(item).includes(query))
+    : [...history];
+  return filtered.sort((a,b)=>{
+    if(historyState.sort==='time-asc')return new Date(a.createdAt)-new Date(b.createdAt);
+    if(historyState.sort==='text-asc')return compareHistoryText(a,b);
+    if(historyState.sort==='text-desc')return compareHistoryText(b,a);
+    return new Date(b.createdAt)-new Date(a.createdAt);
+  });
+}
+function compareHistoryText(a,b){
+  return historyCollator.compare(historySortTitle(a),historySortTitle(b));
+}
+function historySortTitle(item){
+  return item.result?.meta?.normalized||item.result?.headword?.title||item.query||'';
+}
+function normalizeSearch(value){
+  return String(value||'').toLocaleLowerCase().normalize('NFKC').trim();
+}
+function historySearchText(item){
+  return normalizeSearch(flattenText([
+    item.query,
+    item.createdAt,
+    item.result,
+  ]));
+}
+function flattenText(value){
+  if(value==null)return '';
+  if(typeof value==='string'||typeof value==='number'||typeof value==='boolean')return String(value);
+  if(Array.isArray(value))return value.map(flattenText).join(' ');
+  if(typeof value==='object')return Object.values(value).map(flattenText).join(' ');
+  return '';
+}
+function clearHistorySearch(){
+  historyState.query='';
+  if(els.historySearch)els.historySearch.value='';
+  renderHistory();
+}
+function openHistoryModal(id){
   const item=getHistory().find(row=>Number(row.id)===Number(id));
   if(!item)return;
-  els.query.value=item.query;
-  renderResult(item.result);
-  showView('home',document.getElementById('nav-home'));
+  modalResult=item.result;
+  els.modalTitle.textContent=item.query;
+  els.modalSubtitle.textContent=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
+  els.modalBody.innerHTML=renderResultHTML(item.result);
+  els.historyModal.classList.add('open');
+  document.body.classList.add('modal-open');
+}
+function closeHistoryModal(event){
+  if(event&&event.target!==els.historyModal)return;
+  els.historyModal.classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+function copyModalJSON(){
+  if(!modalResult)return;
+  navigator.clipboard.writeText(JSON.stringify(modalResult,null,2));
+  notify('JSON 已复制。','good','复制完成');
+}
+function exportModalJSON(){
+  if(!modalResult)return;
+  const name=(modalResult.meta?.normalized||modalResult.meta?.query||'history').replace(/[\\/:*?"<>|]/g,'_');
+  downloadText(`${name}.json`,JSON.stringify(modalResult,null,2));
 }
 function deleteHistory(id){setHistory(getHistory().filter(item=>Number(item.id)!==Number(id)))}
 function clearHistory(){
@@ -358,14 +475,18 @@ function hydrateSettings(){
   const settings=getSettings();
   els.apiUrl.value=settings.apiUrl||'';
   els.apiKey.value=settings.apiKey||'';
-  els.apiModel.value=settings.model||'gpt-4o-mini';
+  els.apiModel.value=settings.model||'';
+  els.apiModel.placeholder=configInfo?.model||'gpt-4o-mini';
+  renderConfigInfo();
 }
 function saveSettings(){
   setSettings({apiUrl:els.apiUrl.value.trim(),apiKey:els.apiKey.value.trim(),model:els.apiModel.value.trim()||'gpt-4o-mini'});
+  renderConfigInfo();
   notify('设置已保存。','good','设置');
 }
 function applyTheme(theme){
   document.documentElement.dataset.theme=theme==='auto'?'':theme;
+  document.body.dataset.themeMode=theme;
   document.querySelectorAll('.seg button').forEach(btn=>btn.classList.remove('active'));
   document.getElementById(`th-${theme}`)?.classList.add('active');
 }
@@ -379,9 +500,46 @@ function cycleTheme(){
   const current=localStorage.getItem(STORAGE_KEYS.theme)||'auto';
   setTheme(order[(order.indexOf(current)+1)%order.length]);
 }
+function applyLayout(layout){
+  const next=layout==='split'?'split':'top';
+  els.workspace.classList.toggle('layout-split',next==='split');
+  els.workspace.classList.toggle('layout-top',next==='top');
+  if(els.layoutToggle)els.layoutToggle.textContent=next==='split'?'▤':'▥';
+}
+function toggleLayout(){
+  const current=localStorage.getItem(STORAGE_KEYS.layout)||'top';
+  const next=current==='top'?'split':'top';
+  localStorage.setItem(STORAGE_KEYS.layout,next);
+  applyLayout(next);
+}
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&els.historyModal.classList.contains('open'))closeHistoryModal();
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
+    event.preventDefault();
+    showView('history',document.getElementById('nav-history'));
+    requestAnimationFrame(()=>els.historySearch?.focus());
+  }
+  if(activeView==='history'&&event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
+    const tag=document.activeElement?.tagName;
+    if(tag!=='INPUT'&&tag!=='TEXTAREA'&&tag!=='SELECT'){
+      event.preventDefault();
+      els.historySearch?.focus();
+    }
+  }
+});
+els.historySearch?.addEventListener('input',event=>{
+  historyState.query=event.target.value;
+  renderHistory();
+});
+els.historySort?.addEventListener('change',event=>{
+  historyState.sort=event.target.value;
+  renderHistory();
+});
 
 renderEmpty();
 hydrateSettings();
 renderHistory();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
+applyLayout(localStorage.getItem(STORAGE_KEYS.layout)||'top');
+loadConfigInfo();
 initCloud();

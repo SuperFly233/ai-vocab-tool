@@ -31,7 +31,26 @@ AI_API_KEY=你的 API Key
 AI_MODEL=gpt-4o-mini
 ```
 
-网页设置里的 API Key 会保存在浏览器 localStorage，并会随云同步保存到 Supabase。只适合个人自用项目；公开多人使用时建议只使用 Vercel 环境变量。
+网页设置里的 API Key 会保存在浏览器 localStorage，并会随云同步保存到 Supabase。只适合个人自用或可信设备。
+
+## 权限策略
+
+如果把 `AI_API_KEY` 放在 Vercel 环境变量里，默认等于“使用服务端统一 API”。公开部署时不要让所有注册用户都共享这个 Key。
+
+当前后端支持一个简单的管理员限制：
+
+```text
+ADMIN_EMAILS=你的登录邮箱@example.com
+```
+
+开启后，只有 `ADMIN_EMAILS` 里的 Supabase 登录账号可以使用 Vercel 环境变量里的 API。其他用户仍可登录保存历史，但调用模型时必须在设置页填写自己的 API URL / API Key。
+
+如果以后要做多人产品，可以再升级为更完整的权限模型：
+
+- 管理员：可使用服务端环境变量 API。
+- 普通用户：只能使用自己的 API Key。
+- 访客/离线模式：只能使用本地保存，不能调用服务端环境变量 API。
+- 可选：增加额度、审计日志、禁用注册或邀请制。
 
 ## Supabase
 

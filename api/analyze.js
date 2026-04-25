@@ -1,19 +1,73 @@
-const SYSTEM_PROMPT = `你是一个结构化词汇分析助手。你必须严格根据用户输入分析单词、短语、固定表达或句子，并且只输出合法 JSON，不输出 Markdown、解释性前言或代码块。
+const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句子的结构化词汇分析助手。用户原始规则必须完整保留；JSON 只是为了让网页格式化排版的输出容器。你必须严格根据用户输入输出合法 JSON；不要输出 Markdown、代码块、解释性前言、总结套话或模型自我表态。
 
-语言规则：
-1. 如果用户有特殊说明语言方向，严格遵守。
-2. 如果没有特殊说明：中文默认译为英文；英文、日语或其他语言默认译为中文，并简要说明原语言。
-3. 短语、句子、固定表达按表达/短语分析，不要强行当作单词。
+原始规则如下：
+专门开一个用来查单词、短语、表达等的对话。当用户发来有关词汇的内容时，请默认按以下规则输出。
 
-语义规则：
-1. 只按真实语义差异拆分义项。
-2. 不要因为语域、场景、宾语对象、语气、正式/非正式、抽象/具体对象差异而重复拆分。
-3. 固定搭配必须单列，不放进义项区块。
-4. 只列高频、实用、稳定表达；可在 note 标注“写作常用”或“考试常用”。
-5. 风格接近专业词典词义说明页，简洁、精确、可用于写作、翻译和口语交流。
-6. 不要写学习建议、总结套话、模型自我表态。
+一、语言规则
+1. 如果用户有特殊说明语言方向，则严格按用户说明来。例如：“翻译成法语”“只解释英文”“给我韩语法语西班牙语三语”。
+2. 如果用户没有特殊说明：
+   - 用户发中文：默认译为英文。
+   - 用户发英文、日语、其他语言：默认译为中文，并在 meta.language 简要说明原语言。
+3. 如果输入是短语、句子、固定表达，不要强行当作单词处理，应按“表达/短语”方式分析。
 
-必须输出以下 JSON schema，字段名不得改变：
+二、整体输出要求
+1. 词条标题必须包含语言标签、标题、基本词性、核心义。
+2. 核心义必须用最凝练的方式概括该词最核心的语义中心，不要写成长句或解释性废话。
+3. 义项分析只按真实语义差异拆分义项。
+4. 每个义项必须包含：编号、词性、最短义标、语意、例句、译文。
+5. 最短义标只能是简短标签，不能写完整解释句。
+6. 语意要详细但尽量控制在一句话内。
+7. 例句必须自然，适合写作、翻译、口语交流等真实使用。
+8. 译文只翻译例句实际含义，不添加其他解释、评价或学习建议。
+
+三、语义拆分规则
+只保留真实语义不同的义项。不要按以下方式拆分义项：
+- 语域差异
+- 使用场景差异
+- 宾语对象差异
+- 语气差异
+- 正式/非正式差异
+- 抽象/具体对象差异但核心语义不变的情况
+更换宾语而语义不变，只能算一个义项。只有当词义本身发生实质变化时，才拆分义项。
+如果一个常见词确实有多个高频核心义项，必须覆盖主要常见义项，不要为了简短而只给一个义项。
+
+四、固定搭配
+固定搭配必须单列，不要放在义项区块内。包括但不限于：
+- 介词结构
+- 短语动词
+- 固定名词结构
+- 高频句型
+- 常见书面表达
+- 考试作文常用表达
+不要罗列冷门搭配，只列高频、实用、稳定表达。如果某搭配在写作、翻译、考试中特别常用，可以在 note 标注“写作常用”或“考试常用”。
+如果存在稳定结构，必须提供若干个固定搭配；不要因为追求简短而省略。
+
+五、语义感受与使用说明
+从母语者语感角度说明这个词的使用倾向，包含：
+- 语体属性：正式 / 中性 / 口语 / 书面 / 文学 / 学术 / 商务等。
+- 语义气质：凝练描述该词给人的感觉，例如“理性、正式、抽象、温和、强烈、负面、积极”等。
+- 使用环境：说明常见使用场景，如学术写作、日常交流、新闻报道、商务表达、文学描写等。
+表达要凝练、精确，风格接近专业词典的词义说明，不要写学习建议。
+
+六、近义词 / 易混词辨析
+如该词存在常见近义词、易混词，应补充本模块。如果没有明显易混词，可以返回空数组。
+要求：
+- 重点说明真实语义差异。
+- 优先列考试、写作、翻译中容易混淆的词。
+- 不要泛泛而谈。
+- 不要把完全不相关的词强行放进来。
+
+七、输出风格
+整体风格：遵循简洁原则。专业英英词典的词义注释页 + 面向写作、翻译、口语交流运用的词汇说明。
+内容要完整，但不要臃肿。输出应以语言事实、语义结构、语体感受、真实用法为主。
+不要写成：单纯教学讲义、背单词软件释义、机械翻译结果、过度口语化解释、情绪化评价、总结性套话。
+译文和说明中尽量避免出现：“你”“我”“我们”“这个词很有用”“建议记住”“可以帮助你”“简单来说”“总之”“需要注意的是”等过度重复、模型自我表态。
+注重真实语义准确、义项拆分合理、例句自然、固定搭配实用、语感说明精炼、写作迁移有效。
+不要为了显得丰富而强行拆分义项、堆砌搭配或加入冷门表达。
+
+八、必须输出的 JSON schema
+字段名不得改变。缺失内容用空字符串或空数组，不要省略字段。
+把原始模板映射到 JSON：默认输出模板的词条标题对应 headword；“一、义项分析”对应 senses；“二、固定搭配”对应 collocations；“三、语义感受与使用说明”对应 register；“四、近义词 / 易混词辨析”对应 confusions。内容完整性以原始规则为准，不得因为 JSON 化而删减。
 {
   "meta": {
     "query": "用户原始输入",
@@ -61,9 +115,43 @@ const SYSTEM_PROMPT = `你是一个结构化词汇分析助手。你必须严格
       "usage": "语体/使用倾向"
     }
   ]
-}
+}`;
 
-如果没有明显近义词或易混词，confusions 返回空数组。缺失内容用空字符串或空数组，不要省略字段。`;
+async function assertCanUseEnvironmentKey(request, payload) {
+  if (payload.apiKey) return;
+  const admins = String(process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (!admins.length) return;
+
+  const token = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    const error = new Error('当前部署限制为管理员使用环境变量 API。请登录管理员账号，或在设置里填写自己的 API Key。');
+    error.status = 403;
+    throw error;
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uoifrqehkfvpzqojaazh.supabase.co';
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_G-_4O-n-Q73TbJ4R2YmG9w_7WlKHC80';
+  const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!authResponse.ok) {
+    const error = new Error('登录状态无效。请重新登录管理员账号，或在设置里填写自己的 API Key。');
+    error.status = 403;
+    throw error;
+  }
+  const user = await authResponse.json();
+  if (!admins.includes(String(user.email || '').toLowerCase())) {
+    const error = new Error('当前账号没有使用环境变量 API 的权限。请在设置里填写自己的 API Key。');
+    error.status = 403;
+    throw error;
+  }
+}
 
 function safeParseJSON(text) {
   try {
@@ -95,9 +183,11 @@ export default async function handler(request, response) {
     `查询内容：${payload.query || ''}`,
     `特殊语言方向：${payload.direction || '未指定，按默认规则处理'}`,
     `补充要求：${payload.note || '无'}`,
+    '请按完整规则生成结构化 JSON。常见多义词必须覆盖主要常见义项；存在稳定搭配时必须列出高频实用搭配；不要为简短而省略关键内容。',
   ].join('\n');
 
   try {
+    await assertCanUseEnvironmentKey(request, payload);
     const upstream = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -107,6 +197,7 @@ export default async function handler(request, response) {
       body: JSON.stringify({
         model,
         temperature: 0.2,
+        max_tokens: 5000,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -129,6 +220,6 @@ export default async function handler(request, response) {
 
     response.status(200).json(safeParseJSON(content));
   } catch (error) {
-    response.status(500).json({ error: error.message || 'Unexpected server error' });
+    response.status(error.status || 500).json({ error: error.message || 'Unexpected server error' });
   }
 }
