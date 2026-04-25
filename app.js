@@ -370,7 +370,7 @@ function renderHistory(){
         <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</div>
       </div>
       <div class="history-actions">
-        <button class="icon-btn" data-tip="查看" onclick="openHistoryModal(${Number(item.id)})">↗</button>
+        <button class="icon-btn" data-tip="查看" onclick="openHistoryModal(${Number(item.id)})">↗️</button>
         <button class="icon-btn danger-icon" data-tip="删除" onclick="deleteHistory(${Number(item.id)})">×</button>
       </div>
     </div>
@@ -489,6 +489,8 @@ function applyTheme(theme){
   document.body.dataset.themeMode=theme;
   document.querySelectorAll('.seg button').forEach(btn=>btn.classList.remove('active'));
   document.getElementById(`th-${theme}`)?.classList.add('active');
+  const themeToggle=document.getElementById('theme-toggle-btn');
+  if(themeToggle)themeToggle.textContent=theme==='light'?'☀️':theme==='dark'?'🌙':'◐';
 }
 function setTheme(theme){
   localStorage.setItem(STORAGE_KEYS.theme,theme);
@@ -504,7 +506,7 @@ function applyLayout(layout){
   const next=layout==='split'?'split':'top';
   els.workspace.classList.toggle('layout-split',next==='split');
   els.workspace.classList.toggle('layout-top',next==='top');
-  if(els.layoutToggle)els.layoutToggle.textContent=next==='split'?'▤':'▥';
+  if(els.layoutToggle)els.layoutToggle.textContent=next==='split'?'↔️':'↕️';
 }
 function toggleLayout(){
   const current=localStorage.getItem(STORAGE_KEYS.layout)||'top';

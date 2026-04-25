@@ -48,7 +48,7 @@
     </div>
     <div class="topbar-actions">
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()">账号</button>
-      <button class="theme-btn" id="theme-toggle-btn" data-tip="切换主题" onclick="cycleTheme()" aria-label="切换主题"></button>
+      <button class="theme-btn" id="theme-toggle-btn" data-tip="切换主题" onclick="cycleTheme()" aria-label="切换主题">◐</button>
     </div>
   </div>
 
@@ -83,11 +83,11 @@
       <div class="editor-pane panel">
         <textarea id="query-input" placeholder="输入单词、短语、表达或句子"></textarea>
         <div class="input-row">
-          <input id="direction-input" type="text" placeholder="语言方向，可不填">
-          <input id="note-input" type="text" placeholder="补充要求，可不填">
-          <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">⌕</button>
-          <button class="icon-btn" data-tip="清空" onclick="clearEditor()">×</button>
-          <button class="icon-btn" id="layout-toggle" data-tip="切换布局" onclick="toggleLayout()">▤</button>
+          <input id="direction-input" type="text" placeholder="语言方向：译成英文 / 只解释英文">
+          <input id="note-input" type="text" placeholder="侧重点：写作 / 考试 / 口语">
+          <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
+          <button class="icon-btn" data-tip="清空" onclick="clearEditor()">✕</button>
+          <button class="icon-btn" id="layout-toggle" data-tip="切换布局" onclick="toggleLayout()">⇄</button>
         </div>
       </div>
 
@@ -98,8 +98,8 @@
             <button class="tab-btn" onclick="setResultTab('json',this)">JSON</button>
           </div>
           <div class="result-icons">
-            <button class="icon-btn" data-tip="复制 JSON" onclick="copyJSON()">⧉</button>
-            <button class="icon-btn" data-tip="导出 JSON" onclick="exportCurrent()">⇩</button>
+            <button class="icon-btn" data-tip="复制 JSON" onclick="copyJSON()">📋</button>
+            <button class="icon-btn" data-tip="导出 JSON" onclick="exportCurrent()">💾</button>
           </div>
         </div>
         <section class="result-page active" id="result-card"></section>
@@ -116,15 +116,15 @@
           <div class="section-sub" id="history-count">0 条</div>
         </div>
         <div class="action-row compact">
-          <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()">⇩</button>
-          <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">×</button>
+          <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()">💾</button>
+          <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">✕</button>
         </div>
       </div>
       <div class="history-tools">
         <label class="history-search">
-          <span>⌕</span>
+          <span>🔎</span>
           <input id="history-search" type="search" placeholder="搜索历史、释义、例句、搭配、辨析">
-          <button class="icon-btn" data-tip="清空搜索" onclick="clearHistorySearch()">×</button>
+          <button class="icon-btn" data-tip="清空搜索" onclick="clearHistorySearch()">✕</button>
         </label>
         <label class="history-sort">
           <span>↕</span>
@@ -164,8 +164,8 @@
         <div class="setting-title">外观</div>
         <div class="seg">
           <button id="th-auto" data-tip="自动" onclick="setTheme('auto')">◐</button>
-          <button id="th-light" data-tip="浅色" onclick="setTheme('light')">☀</button>
-          <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">☾</button>
+          <button id="th-light" data-tip="浅色" onclick="setTheme('light')">☀️</button>
+          <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">🌙</button>
         </div>
       </div>
 
@@ -187,9 +187,9 @@
         <div class="section-sub" id="modal-subtitle"></div>
       </div>
       <div class="result-icons">
-        <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">⧉</button>
-        <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">⇩</button>
-        <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">×</button>
+        <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">📋</button>
+        <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">💾</button>
+        <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
       </div>
     </div>
     <div class="modal-body" id="modal-body"></div>
