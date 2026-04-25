@@ -22,7 +22,9 @@ let cloudUser=null;
 let activeView='home';
 let currentResult=null;
 let modalResult=null;
+let modalHistoryId=null;
 let configInfo=null;
+let confirmResolver=null;
 const historyState={
   query:'',
   sort:'time-desc',
@@ -68,9 +70,14 @@ const els={
   historyModal:document.getElementById('history-modal'),
   modalTitle:document.getElementById('modal-title'),
   modalSubtitle:document.getElementById('modal-subtitle'),
-  modalBody:document.getElementById('modal-body'),
+  modalCardPage:document.getElementById('modal-card-page'),
+  modalJsonPage:document.getElementById('modal-json-page'),
+  modalEditPage:document.getElementById('modal-edit-page'),
+  modalQueryEdit:document.getElementById('modal-query-edit'),
+  modalJsonEdit:document.getElementById('modal-json-edit'),
   workspace:document.getElementById('workspace'),
-  layoutToggle:document.getElementById('layout-toggle'),
+  layoutTopBtn:document.getElementById('layout-top-btn'),
+  layoutSplitBtn:document.getElementById('layout-split-btn'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historySearch:document.getElementById('history-search'),
@@ -82,6 +89,12 @@ const els={
   storageStatus:document.getElementById('storage-status'),
   logList:document.getElementById('log-list'),
   aboutContainer:document.getElementById('about-container'),
+  clearQueryBtn:document.getElementById('clear-query-btn'),
+  confirmLayer:document.getElementById('confirm-layer'),
+  confirmTitle:document.getElementById('confirm-title'),
+  confirmMessage:document.getElementById('confirm-message'),
+  confirmCancel:document.getElementById('confirm-cancel'),
+  confirmOk:document.getElementById('confirm-ok'),
 };
 
 function readJSON(key,fallback){
@@ -103,6 +116,18 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
   toast.innerHTML=`<div class="toast-title">${escapeHTML(title)}</div><div class="toast-msg">${escapeHTML(message)}</div>`;
   document.getElementById('toast-stack').appendChild(toast);
   setTimeout(()=>toast.remove(),3200);
+}
+function askConfirm(message,title='确认操作'){
+  if(!els.confirmLayer)return Promise.resolve(false);
+  els.confirmTitle.textContent=title;
+  els.confirmMessage.textContent=message;
+  els.confirmLayer.classList.add('open');
+  return new Promise(resolve=>{confirmResolver=resolve});
+}
+function closeConfirm(result=false){
+  els.confirmLayer?.classList.remove('open');
+  if(confirmResolver)confirmResolver(result);
+  confirmResolver=null;
 }
 function getLogs(){return readJSON(STORAGE_KEYS.logs,[])}
 function setLogs(items){
@@ -303,6 +328,11 @@ function setResultTab(id,button){
   document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
   button.classList.add('active');
 }
+function setModalTab(id,button){
+  document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id===`modal-${id}-page`));
+  document.querySelectorAll('.modal-head .tab-btn').forEach(btn=>btn.classList.remove('active'));
+  button.classList.add('active');
+}
 function renderEmpty(){
   els.resultCard.innerHTML='<div class="empty">等待查询</div>';
   els.resultJson.textContent='';
@@ -463,9 +493,14 @@ function openHistoryModal(id){
   const item=getHistory().find(row=>Number(row.id)===Number(id));
   if(!item)return;
   modalResult=item.result;
+  modalHistoryId=Number(item.id);
   els.modalTitle.textContent=item.query;
   els.modalSubtitle.textContent=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
-  els.modalBody.innerHTML=renderResultHTML(item.result);
+  els.modalCardPage.innerHTML=renderResultHTML(item.result);
+  els.modalJsonPage.textContent=JSON.stringify(item.result,null,2);
+  els.modalQueryEdit.value=item.query;
+  els.modalJsonEdit.value=JSON.stringify(item.result,null,2);
+  setModalTab('card',document.getElementById('modal-card-tab'));
   els.historyModal.classList.add('open');
   document.body.classList.add('modal-open');
 }
@@ -473,6 +508,29 @@ function closeHistoryModal(event){
   if(event&&event.target!==els.historyModal)return;
   els.historyModal.classList.remove('open');
   document.body.classList.remove('modal-open');
+}
+function saveHistoryEdit(){
+  if(!modalHistoryId)return;
+  let parsed;
+  try{
+    parsed=JSON.parse(els.modalJsonEdit.value);
+  }catch(error){
+    notify(`JSON 格式不对：${error.message}`,'bad','保存失败');
+    return;
+  }
+  const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
+  const history=getHistory().map(item=>{
+    if(Number(item.id)!==Number(modalHistoryId))return item;
+    return {...item,query,result:parsed,updatedAt:new Date().toISOString()};
+  });
+  setHistory(history);
+  modalResult=parsed;
+  els.modalTitle.textContent=query;
+  els.modalCardPage.innerHTML=renderResultHTML(parsed);
+  els.modalJsonPage.textContent=JSON.stringify(parsed,null,2);
+  els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
+  setModalTab('card',document.getElementById('modal-card-tab'));
+  notify('历史记录已保存。','good','编辑完成');
 }
 function copyModalJSON(){
   if(!modalResult)return;
@@ -484,9 +542,13 @@ function exportModalJSON(){
   const name=(modalResult.meta?.normalized||modalResult.meta?.query||'history').replace(/[\\/:*?"<>|]/g,'_');
   downloadText(`${name}.json`,JSON.stringify(modalResult,null,2));
 }
-function deleteHistory(id){setHistory(getHistory().filter(item=>Number(item.id)!==Number(id)))}
-function clearHistory(){
-  if(!confirm('确认清空历史记录？'))return;
+async function deleteHistory(id){
+  if(!await askConfirm('确认删除这条历史记录？','删除记录'))return;
+  setHistory(getHistory().filter(item=>Number(item.id)!==Number(id)));
+  notify('记录已删除。','good','历史记录');
+}
+async function clearHistory(){
+  if(!await askConfirm('确认清空历史记录？','清空历史'))return;
   setHistory([]);
   notify('历史记录已清空。','good','历史记录');
 }
@@ -514,6 +576,7 @@ function clearEditor(){
   els.query.value='';
   els.direction.value='';
   els.note.value='';
+  updateEditorState();
 }
 function hydrateSettings(){
   const settings=getSettings();
@@ -532,14 +595,14 @@ function saveSettings(){
   renderConfigInfo();
   notify('设置已保存。','good','设置');
 }
-function resetModelSettings(){
-  if(!confirm('确认恢复接口默认设置？这会清空自定义 API URL、Key 和 Model。'))return;
+async function resetModelSettings(){
+  if(!await askConfirm('这会清空自定义 API URL、Key 和 Model。','恢复接口默认'))return;
   setSettings(DEFAULT_SETTINGS);
   hydrateSettings();
   notify('接口配置已恢复默认。','good','设置');
 }
-function factoryReset(){
-  if(!confirm('确认恢复出厂设置？这会清空本机历史、接口配置、主题、布局和日志。'))return;
+async function factoryReset(){
+  if(!await askConfirm('这会清空本机历史、接口配置、主题、布局和日志。','恢复出厂设置'))return;
   localStorage.removeItem(STORAGE_KEYS.history);
   localStorage.removeItem(STORAGE_KEYS.settings);
   localStorage.removeItem(STORAGE_KEYS.theme);
@@ -630,15 +693,20 @@ function applyLayout(layout){
   const next=layout==='split'?'split':'top';
   els.workspace.classList.toggle('layout-split',next==='split');
   els.workspace.classList.toggle('layout-top',next==='top');
-  if(els.layoutToggle)els.layoutToggle.textContent=next==='split'?'↔️':'↕️';
+  els.layoutTopBtn?.classList.toggle('active',next==='top');
+  els.layoutSplitBtn?.classList.toggle('active',next==='split');
 }
-function toggleLayout(){
-  const current=localStorage.getItem(STORAGE_KEYS.layout)||'top';
-  const next=current==='top'?'split':'top';
+function setLayout(layout){
+  const next=layout==='split'?'split':'top';
   localStorage.setItem(STORAGE_KEYS.layout,next);
   applyLayout(next);
 }
+function updateEditorState(){
+  const hasText=Boolean(els.query.value.trim()||els.direction.value.trim()||els.note.value.trim());
+  els.clearQueryBtn?.classList.toggle('hidden',!hasText);
+}
 document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open'))closeConfirm(false);
   if(event.key==='Escape'&&els.historyModal.classList.contains('open'))closeHistoryModal();
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
     event.preventDefault();
@@ -661,11 +729,20 @@ els.historySort?.addEventListener('change',event=>{
   historyState.sort=event.target.value;
   renderHistory();
 });
+els.query?.addEventListener('input',updateEditorState);
+els.direction?.addEventListener('input',updateEditorState);
+els.note?.addEventListener('input',updateEditorState);
+els.confirmCancel?.addEventListener('click',()=>closeConfirm(false));
+els.confirmOk?.addEventListener('click',()=>closeConfirm(true));
+els.confirmLayer?.addEventListener('click',event=>{
+  if(event.target===els.confirmLayer)closeConfirm(false);
+});
 
 renderEmpty();
 hydrateSettings();
 renderHistory();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
 applyLayout(localStorage.getItem(STORAGE_KEYS.layout)||'top');
+updateEditorState();
 loadConfigInfo();
 initCloud();

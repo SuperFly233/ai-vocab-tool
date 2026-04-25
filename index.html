@@ -83,16 +83,17 @@
     <section class="workspace layout-top" id="workspace">
       <div class="editor-pane panel">
         <div class="query-row">
-          <textarea id="query-input" placeholder="输入单词、短语、表达或句子"></textarea>
+          <label class="query-shell">
+            <textarea id="query-input" rows="1" placeholder="输入单词、短语、表达或句子"></textarea>
+          </label>
+          <div class="assist-fields">
+            <input id="direction-input" type="text" placeholder="语言方向，侧重点">
+            <input id="note-input" type="text" placeholder="侧重点：写作 / 考试 / 口语">
+          </div>
           <div class="query-actions">
             <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
-            <button class="icon-btn" data-tip="清空" onclick="clearEditor()">✕</button>
-            <button class="icon-btn" id="layout-toggle" data-tip="切换布局" onclick="toggleLayout()">⇄</button>
+            <button class="icon-btn clear-query-btn hidden" id="clear-query-btn" data-tip="清空" onclick="clearEditor()">✕</button>
           </div>
-        </div>
-        <div class="input-row">
-          <input id="direction-input" type="text" placeholder="语言方向：译成英文 / 只解释英文">
-          <input id="note-input" type="text" placeholder="侧重点：写作 / 考试 / 口语">
         </div>
       </div>
 
@@ -183,6 +184,13 @@
             <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">🌙</button>
           </div>
         </div>
+        <div class="setting-row">
+          <div><div class="setting-label">首页布局</div><div class="setting-sub">顶部布局更适合快速查词；左右布局会保留更大的输入空间。</div></div>
+          <div class="seg layout-seg">
+            <button id="layout-top-btn" onclick="setLayout('top')">顶部</button>
+            <button id="layout-split-btn" onclick="setLayout('split')">左右</button>
+          </div>
+        </div>
       </div>
 
       <div class="setting-group">
@@ -216,12 +224,42 @@
         <div class="section-sub" id="modal-subtitle"></div>
       </div>
       <div class="result-icons">
+        <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">排版</button>
+        <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">JSON</button>
+        <button class="tab-btn" id="modal-edit-tab" onclick="setModalTab('edit',this)">编辑</button>
         <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">📋</button>
         <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">💾</button>
         <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
       </div>
     </div>
-    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-body">
+      <section class="modal-page active" id="modal-card-page"></section>
+      <pre class="modal-page json-view" id="modal-json-page"></pre>
+      <section class="modal-page edit-page" id="modal-edit-page">
+        <label class="setting-field">
+          <span>记录标题</span>
+          <input class="cloud-input" id="modal-query-edit" type="text">
+        </label>
+        <label class="setting-field">
+          <span>JSON 内容</span>
+          <textarea class="json-editor" id="modal-json-edit"></textarea>
+        </label>
+        <div class="setting-actions">
+          <button class="plain-btn primary-btn" onclick="saveHistoryEdit()">保存修改</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-layer" id="confirm-layer">
+  <div class="confirm-card">
+    <div class="confirm-title" id="confirm-title">确认操作</div>
+    <div class="confirm-message" id="confirm-message"></div>
+    <div class="confirm-actions">
+      <button class="plain-btn ghost-btn" id="confirm-cancel">取消</button>
+      <button class="danger-btn" id="confirm-ok">确认</button>
+    </div>
   </div>
 </div>
 
