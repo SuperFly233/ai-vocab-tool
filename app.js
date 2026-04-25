@@ -25,6 +25,7 @@ let modalResult=null;
 let modalHistoryId=null;
 let configInfo=null;
 let confirmResolver=null;
+let lookupBusy=false;
 const historyState={
   query:'',
   sort:'time-desc',
@@ -37,12 +38,18 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:''};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.5.0',
+  version:'0.6.0',
   releaseDate:'2026-04-25',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.6.0',
+    date:'2026-04-25',
+    title:'优化查询反馈、历史编辑和结果排版',
+    items:['首页输入框取消伸缩特效，支持回车快速查询。','历史记录整块可点击进入详情，并保留删除按钮独立操作。','结果排版和 JSON 视图重做层级，减少全局粗体，突出义项、词性和重点内容。'],
+  },
   {
     version:'0.5.0',
     date:'2026-04-25',
@@ -335,11 +342,30 @@ function setModalTab(id,button){
 }
 function renderEmpty(){
   els.resultCard.innerHTML='<div class="empty">等待查询</div>';
-  els.resultJson.textContent='';
+  els.resultJson.innerHTML='<div class="empty">等待 JSON</div>';
+}
+function renderLookupLoading(query,settings){
+  const source=settings.apiUrl&&settings.apiKey?'自定义接口':'环境变量接口';
+  els.resultCard.innerHTML=`
+    <div class="lookup-state">
+      <div class="lookup-spinner"></div>
+      <div>
+        <div class="lookup-title">正在分析：${escapeHTML(query)}</div>
+        <div class="lookup-steps">
+          <span>准备请求</span>
+          <span>调用模型</span>
+          <span>校验 JSON</span>
+          <span>生成排版</span>
+        </div>
+        <p>当前来源：${escapeHTML(source)}。复杂词条可能需要几秒钟。</p>
+      </div>
+    </div>
+  `;
+  els.resultJson.innerHTML='<div class="empty">等待模型返回 JSON</div>';
 }
 function renderResult(result){
   currentResult=result;
-  els.resultJson.textContent=JSON.stringify(result,null,2);
+  els.resultJson.innerHTML=renderStructuredJSON(result);
   els.resultCard.innerHTML=renderResultHTML(result);
 }
 function renderResultHTML(result){
@@ -351,46 +377,76 @@ function renderResultHTML(result){
   const confusions=result.confusions||[];
   return `
     <div class="entry-head">
-      <div class="entry-tag">${escapeHTML(head.languageTag||meta.language||'')}</div>
+      <div class="entry-kicker">${escapeHTML(head.languageTag||meta.language||'词条')}</div>
       <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
-      <div class="entry-meta">基本词性：${escapeHTML(head.basicPartOfSpeech||'')}　核心义：${escapeHTML(head.coreMeaning||'')}</div>
+      <div class="entry-meta-grid">
+        <span><b>词性</b>${escapeHTML(head.basicPartOfSpeech||'')}</span>
+        <span><b>核心义</b><mark>${escapeHTML(head.coreMeaning||'')}</mark></span>
+        <span><b>方向</b>${escapeHTML(meta.defaultDirection||'')}</span>
+      </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
-    ${renderItems('一、义项分析',senses,item=>`
-      <div class="item-title">${escapeHTML(item.index)}. ${escapeHTML(item.partOfSpeech)}: ${escapeHTML(item.shortestLabel)}</div>
-      <div class="line"><b>语意：</b>${escapeHTML(item.meaning)}</div>
-      <div class="line"><b>例句：</b>${escapeHTML(item.example)}</div>
-      <div class="line"><b>译文：</b>${escapeHTML(item.translation)}</div>
+    ${renderItems('义项分析',senses,item=>`
+      <div class="item-index">${escapeHTML(item.index)}</div>
+      <div class="item-body">
+        <div class="item-title"><span class="pos-pill">${escapeHTML(item.partOfSpeech)}</span><mark>${escapeHTML(item.shortestLabel)}</mark></div>
+        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning)}</span></div>
+        <div class="line"><b>例句</b><span>${escapeHTML(item.example)}</span></div>
+        <div class="line"><b>译文</b><span>${escapeHTML(item.translation)}</span></div>
+      </div>
     `)}
-    ${renderItems('二、固定搭配',collocations,item=>`
-      <div class="item-title">${escapeHTML(item.index)}. ${escapeHTML(item.phrase)}${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
-      <div class="line"><b>语意：</b>${escapeHTML(item.meaning)}</div>
-      <div class="line"><b>例句：</b>${escapeHTML(item.example)}</div>
-      <div class="line"><b>译文：</b>${escapeHTML(item.translation)}</div>
+    ${renderItems('固定搭配',collocations,item=>`
+      <div class="item-index">${escapeHTML(item.index)}</div>
+      <div class="item-body">
+        <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
+        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning)}</span></div>
+        <div class="line"><b>例句</b><span>${escapeHTML(item.example)}</span></div>
+        <div class="line"><b>译文</b><span>${escapeHTML(item.translation)}</span></div>
+      </div>
     `)}
     <div class="block">
-      <div class="block-title">三、语义感受与使用说明</div>
-      <div class="item">
-        <div class="line"><b>语体属性：</b>${escapeHTML(register.style||'')}</div>
-        <div class="line"><b>语义气质：</b>${escapeHTML(register.tone||'')}</div>
-        <div class="line"><b>使用环境：</b>${escapeHTML(register.environment||'')}</div>
+      <div class="block-title">语义感受与使用说明</div>
+      <div class="register-grid">
+        <div><b>语体属性</b><span>${escapeHTML(register.style||'')}</span></div>
+        <div><b>语义气质</b><span>${escapeHTML(register.tone||'')}</span></div>
+        <div><b>使用环境</b><span>${escapeHTML(register.environment||'')}</span></div>
       </div>
     </div>
     ${renderConfusions(confusions)}
   `;
 }
 function renderItems(title,items,renderer){
-  return `<div class="block"><div class="block-title">${title}</div>${items.length?items.map(item=>`<div class="item">${renderer(item)}</div>`).join(''):'<div class="item"><div class="line">无</div></div>'}</div>`;
+  return `<div class="block"><div class="block-title">${title}</div>${items.length?items.map(item=>`<div class="item">${renderer(item)}</div>`).join(''):'<div class="item empty-item">无</div>'}</div>`;
 }
 function renderConfusions(items){
   if(!items.length)return '';
-  return `<div class="block"><div class="block-title">四、近义词 / 易混词辨析</div><table class="confusion-table"><thead><tr><th>词</th><th>核心区别</th><th>语体/使用倾向</th></tr></thead><tbody>${items.map(item=>`<tr><td>${escapeHTML(item.term)}</td><td>${escapeHTML(item.difference)}</td><td>${escapeHTML(item.usage)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="block"><div class="block-title">近义词 / 易混词辨析</div><table class="confusion-table"><thead><tr><th>词</th><th>核心区别</th><th>语体/使用倾向</th></tr></thead><tbody>${items.map(item=>`<tr><td><mark>${escapeHTML(item.term)}</mark></td><td>${escapeHTML(item.difference)}</td><td>${escapeHTML(item.usage)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function renderStructuredJSON(result){
+  const sections=[
+    ['meta','元信息',result.meta],
+    ['headword','词条标题',result.headword],
+    ['senses','义项分析',result.senses],
+    ['collocations','固定搭配',result.collocations],
+    ['register','语感说明',result.register],
+    ['confusions','易混辨析',result.confusions],
+  ];
+  return `<div class="json-sections">${sections.map(([key,title,value])=>`
+    <details class="json-section" open>
+      <summary><span>${escapeHTML(title)}</span><code>${escapeHTML(key)}</code></summary>
+      <pre>${escapeHTML(JSON.stringify(value??(Array.isArray(value)?[]:{}),null,2))}</pre>
+    </details>
+  `).join('')}</div>`;
 }
 async function runLookup(){
+  if(lookupBusy)return;
   const query=els.query.value.trim();
   if(!query)return notify('请输入要查的内容。','bad','无法查询');
   const settings=getSettings();
-  notify('正在查询。','info','模型调用');
+  lookupBusy=true;
+  document.body.classList.add('lookup-busy');
+  renderLookupLoading(query,settings);
+  notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   try{
     const response=await fetch('/api/analyze',{
@@ -412,6 +468,9 @@ async function runLookup(){
     notify('结果已生成。','good','查询完成');
   }catch(error){
     notify(error.message||'查询失败。','bad','查询失败');
+  }finally{
+    lookupBusy=false;
+    document.body.classList.remove('lookup-busy');
   }
 }
 async function analyzeHeaders(hasLocalEndpoint){
@@ -437,17 +496,23 @@ function renderHistory(){
     return;
   }
   els.historyList.innerHTML=history.map(item=>`
-    <div class="history-item">
+    <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div>
         <div class="history-word">${escapeHTML(item.query)}</div>
         <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</div>
       </div>
       <div class="history-actions">
-        <button class="icon-btn" data-tip="查看" onclick="openHistoryModal(${Number(item.id)})">↗️</button>
-        <button class="icon-btn danger-icon" data-tip="删除" onclick="deleteHistory(${Number(item.id)})">×</button>
+        <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
+        <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
       </div>
     </div>
   `).join('');
+}
+function handleHistoryItemKey(event,id){
+  if(event.key==='Enter'||event.key===' '){
+    event.preventDefault();
+    openHistoryModal(id);
+  }
 }
 function filterAndSortHistory(history){
   const query=normalizeSearch(historyState.query);
@@ -497,7 +562,7 @@ function openHistoryModal(id){
   els.modalTitle.textContent=item.query;
   els.modalSubtitle.textContent=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
   els.modalCardPage.innerHTML=renderResultHTML(item.result);
-  els.modalJsonPage.textContent=JSON.stringify(item.result,null,2);
+  els.modalJsonPage.innerHTML=renderStructuredJSON(item.result);
   els.modalQueryEdit.value=item.query;
   els.modalJsonEdit.value=JSON.stringify(item.result,null,2);
   setModalTab('card',document.getElementById('modal-card-tab'));
@@ -527,7 +592,7 @@ function saveHistoryEdit(){
   modalResult=parsed;
   els.modalTitle.textContent=query;
   els.modalCardPage.innerHTML=renderResultHTML(parsed);
-  els.modalJsonPage.textContent=JSON.stringify(parsed,null,2);
+  els.modalJsonPage.innerHTML=renderStructuredJSON(parsed);
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
   setModalTab('card',document.getElementById('modal-card-tab'));
   notify('历史记录已保存。','good','编辑完成');
@@ -730,6 +795,12 @@ els.historySort?.addEventListener('change',event=>{
   renderHistory();
 });
 els.query?.addEventListener('input',updateEditorState);
+els.query?.addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&!event.shiftKey){
+    event.preventDefault();
+    runLookup();
+  }
+});
 els.direction?.addEventListener('input',updateEditorState);
 els.note?.addEventListener('input',updateEditorState);
 els.confirmCancel?.addEventListener('click',()=>closeConfirm(false));

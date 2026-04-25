@@ -1,6 +1,6 @@
 # ai-vocab-tool
 
-`ai-vocab-tool` 是一个极简 AI 查词工具：左侧输入单词、短语、表达或句子，右侧展示模型返回的结构化词条。模型输出强制为 JSON，前端再渲染成词典式页面。
+`ai-vocab-tool` 是一个个人 AI 查词工具：输入单词、短语、表达或句子后，模型返回结构化词条，前端再渲染成更像词典页的排版。它同时保留 JSON 视图，方便修改、导出和复用。
 
 ## 命名
 
@@ -8,9 +8,10 @@
 
 ## 功能
 
-- 首页：左侧大输入框，右侧结果区，支持排版视图和 JSON 视图。
-- 历史记录：自动保存查询结果，支持查看、删除、导出、清空。
-- 设置：填写 API URL、API Key、Model，并可切换主题。
+- 首页：输入条支持回车快速查询；查询中会显示请求阶段和当前接口来源。
+- 结果：支持排版视图和分区 JSON 视图；义项、词性、核心义、搭配和易混词都有更清晰的层级。
+- 历史记录：自动保存查询结果，整条记录可点击查看详情，支持排版 / JSON / 编辑保存。
+- 设置：填写 API URL、API Key、Model，切换主题和首页布局，支持恢复默认。
 - 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后同步历史、设置和主题。
 
 ## AI 配置
@@ -64,7 +65,11 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 
 ## 文件
 
-- [index.html](/d:/Files/Projects/ai-vocab-tool/index.html)
-- [styles.css](/d:/Files/Projects/ai-vocab-tool/styles.css)
-- [app.js](/d:/Files/Projects/ai-vocab-tool/app.js)
-- [api/analyze.js](/d:/Files/Projects/ai-vocab-tool/api/analyze.js)
+- [index.html](/d:/Files/Projects/lexi-glass/index.html)
+- [styles.css](/d:/Files/Projects/lexi-glass/styles.css)
+- [app.js](/d:/Files/Projects/lexi-glass/app.js)
+- [api/analyze.js](/d:/Files/Projects/lexi-glass/api/analyze.js)
+
+## 更新记录
+
+完整记录见 [CHANGELOG.md](/d:/Files/Projects/lexi-glass/CHANGELOG.md)。
