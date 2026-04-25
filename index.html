@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lexi-glass</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body class="auth-required">
+<section class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-kicker">lexi-glass</div>
+    <h1>先登录，再查词</h1>
+    <p>登录后同步历史记录和设置；也可以只在这台设备离线使用。</p>
+    <div class="auth-form">
+      <input class="cloud-input" id="auth-email" type="email" placeholder="邮箱">
+      <input class="cloud-input" id="auth-password" type="password" placeholder="密码，至少 6 位">
+      <button class="plain-btn primary-btn auth-main-btn" onclick="loginPassword('auth')">登录</button>
+    </div>
+    <div class="auth-links">
+      <button onclick="signupPassword('auth')">注册</button>
+      <button onclick="resetCloudPassword('auth')">忘记密码</button>
+    </div>
+    <div class="auth-divider"><span>也可以</span></div>
+    <div class="auth-alt">
+      <button onclick="loginMagic('auth')">邮箱链接登录</button>
+      <button onclick="useOfflineMode()">离线模式</button>
+    </div>
+    <div class="auth-note" id="auth-status">正在检查登录状态...</div>
+  </div>
+</section>
+
+<aside class="sidebar">
+  <div class="brand">lexi-glass</div>
+  <nav class="nav">
+    <button class="nav-item active" id="nav-home" onclick="showView('home',this)">首页</button>
+    <button class="nav-item" id="nav-history" onclick="showView('history',this)">历史记录</button>
+    <button class="nav-item" id="nav-settings" onclick="showView('settings',this)">设置</button>
+  </nav>
+  <div class="side-note">本地保存。登录后云端同步。</div>
+</aside>
+
+<main class="app">
+  <div class="topbar">
+    <div class="title-wrap">
+      <div class="app-title">lexi-glass</div>
+      <div class="app-sub" id="app-sub">词汇结构化查询</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()">账号</button>
+      <button class="theme-btn" id="theme-toggle-btn" onclick="cycleTheme()" aria-label="切换主题"></button>
+    </div>
+  </div>
+
+  <div class="account-panel" id="account-panel">
+    <div class="account-head">
+      <div>
+        <div class="account-title">云端账号</div>
+        <div class="account-sub" id="account-status">Supabase 未配置</div>
+      </div>
+      <button class="account-close" onclick="closeAccountPanel()" aria-label="关闭账号面板">×</button>
+    </div>
+    <div class="account-form">
+      <input class="cloud-input" id="account-email" type="email" placeholder="邮箱">
+      <input class="cloud-input" id="account-password" type="password" placeholder="密码，至少 6 位">
+    </div>
+    <div class="account-actions logged-out-only">
+      <button class="plain-btn primary-btn" onclick="loginPassword('account')">密码登录</button>
+      <button class="plain-btn" onclick="signupPassword('account')">注册</button>
+      <button class="plain-btn" onclick="loginMagic('account')">邮箱链接</button>
+      <button class="plain-btn ghost-btn" onclick="resetCloudPassword('account')">忘记密码</button>
+    </div>
+    <div class="account-actions cloud-only">
+      <button class="plain-btn" onclick="syncAllToCloud()">同步</button>
+      <button class="plain-btn ghost-btn" onclick="logoutCloud()">退出</button>
+    </div>
+    <div class="account-actions offline-only">
+      <button class="plain-btn primary-btn" onclick="exitOfflineMode()">退出离线模式</button>
+    </div>
+  </div>
+
+  <section class="view active" id="view-home">
+    <section class="workspace">
+      <div class="editor-pane panel">
+        <textarea id="query-input" placeholder="输入单词、短语、表达或句子"></textarea>
+        <div class="input-row">
+          <input id="direction-input" type="text" placeholder="语言方向，可不填">
+          <input id="note-input" type="text" placeholder="补充要求，可不填">
+        </div>
+        <div class="action-row">
+          <button class="plain-btn primary-btn" onclick="runLookup()">查询</button>
+          <button class="plain-btn" onclick="clearEditor()">清空</button>
+          <button class="plain-btn" onclick="copyJSON()">复制 JSON</button>
+          <button class="plain-btn" onclick="exportCurrent()">导出</button>
+        </div>
+      </div>
+
+      <div class="result-pane panel">
+        <div class="result-tabs">
+          <button class="tab-btn active" onclick="setResultTab('card',this)">排版</button>
+          <button class="tab-btn" onclick="setResultTab('json',this)">JSON</button>
+        </div>
+        <section class="result-page active" id="result-card"></section>
+        <pre class="result-page json-view" id="result-json"></pre>
+      </div>
+    </section>
+  </section>
+
+  <section class="view" id="view-history">
+    <div class="panel history-panel">
+      <div class="section-head">
+        <div>
+          <div class="section-title">历史记录</div>
+          <div class="section-sub" id="history-count">0 条</div>
+        </div>
+        <div class="action-row compact">
+          <button class="plain-btn" onclick="exportHistory()">导出历史</button>
+          <button class="plain-btn danger-btn" onclick="clearHistory()">清空</button>
+        </div>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <div class="settings-wrap">
+      <div class="setting-group">
+        <div class="setting-title">模型接口</div>
+        <label class="setting-field">
+          <span>API URL</span>
+          <input class="cloud-input" id="api-url" type="url" placeholder="https://api.openai.com/v1/chat/completions">
+        </label>
+        <label class="setting-field">
+          <span>API Key</span>
+          <input class="cloud-input" id="api-key" type="password" placeholder="sk-...">
+        </label>
+        <label class="setting-field">
+          <span>Model</span>
+          <input class="cloud-input" id="api-model" type="text" placeholder="gpt-4o-mini">
+        </label>
+        <button class="plain-btn primary-btn" onclick="saveSettings()">保存设置</button>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-title">外观</div>
+        <div class="seg">
+          <button id="th-auto" onclick="setTheme('auto')">自动</button>
+          <button id="th-light" onclick="setTheme('light')">浅色</button>
+          <button id="th-dark" onclick="setTheme('dark')">深色</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-title">数据</div>
+        <div class="setting-row">
+          <span id="storage-status">localStorage，本机本浏览器记录。</span>
+          <button class="plain-btn" onclick="syncAllToCloud()">同步到云端</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./app.js"></script>
+</body>
+</html>
