@@ -1,10 +1,10 @@
-# lexi-glass
+# ai-vocab-tool
 
-`lexi-glass` 是一个极简词汇查询工作台：左侧输入单词、短语、表达或句子，右侧展示模型返回的结构化词条。模型输出强制为 JSON，前端再渲染成词典式页面。
+`ai-vocab-tool` 是一个极简 AI 查词工具：左侧输入单词、短语、表达或句子，右侧展示模型返回的结构化词条。模型输出强制为 JSON，前端再渲染成词典式页面。
 
 ## 命名
 
-`lexi` 来自 lexicon / lexical，指词汇；`glass` 表示透明、清晰、像玻璃一样把语义结构看清楚。这个名字短、好记，也比较贴合“把词义拆开看”的用途。
+`ai-vocab-tool` 直接说明项目用途：AI + vocab + tool，就是一个 AI 词汇查询工具。名字不追求文艺感，优先清楚、好搜、好部署。
 
 ## 功能
 
@@ -35,17 +35,17 @@ AI_MODEL=gpt-4o-mini
 
 ## Supabase
 
-当前前端已配置为和 `study-kanban` 同一个 Supabase 项目，并使用同一张 `study_store` 表。SQL 在 [supabase.sql](/d:/Files/Projects/lexi-glass/supabase.sql)。
+当前前端已配置为和 `study-kanban` 同一个 Supabase 项目，并使用同一张 `study_store` 表。SQL 在 [supabase.sql](/d:/Files/Projects/ai-vocab-tool/supabase.sql)。
 
 使用的 key：
 
-- `lexi_glass_history`
-- `lexi_glass_settings`
-- `lexi_glass_theme`
+- `ai_vocab_tool_history`
+- `ai_vocab_tool_settings`
+- `ai_vocab_tool_theme`
 
 ## 文件
 
-- [index.html](/d:/Files/Projects/lexi-glass/index.html)
-- [styles.css](/d:/Files/Projects/lexi-glass/styles.css)
-- [app.js](/d:/Files/Projects/lexi-glass/app.js)
-- [api/analyze.js](/d:/Files/Projects/lexi-glass/api/analyze.js)
+- [index.html](/d:/Files/Projects/ai-vocab-tool/index.html)
+- [styles.css](/d:/Files/Projects/ai-vocab-tool/styles.css)
+- [app.js](/d:/Files/Projects/ai-vocab-tool/app.js)
+- [api/analyze.js](/d:/Files/Projects/ai-vocab-tool/api/analyze.js)

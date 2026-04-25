@@ -4,15 +4,15 @@ const SUPABASE_CONFIG={
 };
 
 const STORAGE_KEYS={
-  history:'lexi_glass_history_v2',
-  settings:'lexi_glass_settings_v2',
-  theme:'lexi_glass_theme',
-  offline:'lexi_glass_offline_mode',
+  history:'ai_vocab_tool_history_v1',
+  settings:'ai_vocab_tool_settings_v1',
+  theme:'ai_vocab_tool_theme',
+  offline:'ai_vocab_tool_offline_mode',
 };
 const CLOUD_KEYS={
-  history:'lexi_glass_history',
-  settings:'lexi_glass_settings',
-  theme:'lexi_glass_theme',
+  history:'ai_vocab_tool_history',
+  settings:'ai_vocab_tool_settings',
+  theme:'ai_vocab_tool_theme',
 };
 
 let cloudClient=null;
@@ -50,7 +50,7 @@ function writeJSON(key,value){localStorage.setItem(key,JSON.stringify(value))}
 function escapeHTML(value){
   return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
-function notify(message,type='info',title='lexi-glass'){
+function notify(message,type='info',title='ai-vocab-tool'){
   const toast=document.createElement('div');
   toast.className=`toast ${type}`;
   toast.innerHTML=`<div class="toast-title">${escapeHTML(title)}</div><div class="toast-msg">${escapeHTML(message)}</div>`;
@@ -329,10 +329,10 @@ function clearHistory(){
   if(!confirm('确认清空历史记录？'))return;
   setHistory([]);
 }
-function exportHistory(){downloadText('lexi-glass-history.json',JSON.stringify(getHistory(),null,2))}
+function exportHistory(){downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2))}
 function exportCurrent(){
   if(!currentResult)return notify('还没有结果。','bad','无法导出');
-  const name=(currentResult.meta?.normalized||currentResult.meta?.query||'lexi-glass').replace(/[\\/:*?"<>|]/g,'_');
+  const name=(currentResult.meta?.normalized||currentResult.meta?.query||'ai-vocab-tool').replace(/[\\/:*?"<>|]/g,'_');
   downloadText(`${name}.json`,JSON.stringify(currentResult,null,2));
 }
 function copyJSON(){
