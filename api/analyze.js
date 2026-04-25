@@ -154,12 +154,61 @@ async function assertCanUseEnvironmentKey(request, payload) {
 }
 
 function safeParseJSON(text) {
+  const cleaned = String(text || '')
+    .trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .trim();
   try {
-    return JSON.parse(text);
-  } catch {
-    const match = String(text).match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Model response is not valid JSON');
+    return JSON.parse(cleaned);
+  } catch (firstError) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) throw firstError;
     return JSON.parse(match[0]);
+  }
+}
+
+async function repairJSON({ apiUrl, apiKey, model, content }) {
+  const upstream = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      max_tokens: 9000,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: '你是 JSON 修复器。只返回合法 JSON，不要 Markdown、不要解释。保留原始字段名和内容；只修复逗号、引号、转义、括号闭合等格式问题。',
+        },
+        {
+          role: 'user',
+          content: `修复下面这段 JSON，使它可以被 JSON.parse 解析：\n${String(content || '').slice(0, 24000)}`,
+        },
+      ],
+    }),
+  });
+  if (!upstream.ok) throw new Error('模型返回的 JSON 格式有误，自动修复也没有成功。请重试一次。');
+  const data = await upstream.json();
+  const repaired = data.choices?.[0]?.message?.content;
+  if (!repaired) throw new Error('模型返回的 JSON 格式有误，自动修复返回为空。请重试一次。');
+  return safeParseJSON(repaired);
+}
+
+async function parseModelJSON({ apiUrl, apiKey, model, content }) {
+  try {
+    return safeParseJSON(content);
+  } catch (error) {
+    try {
+      return await repairJSON({ apiUrl, apiKey, model, content });
+    } catch {
+      const message = error.message || 'JSON parse failed';
+      throw new Error(`模型返回了不完整或不合法的 JSON：${message}。已建议自动重试；如果连续出现，换一个模型或缩短输入会更稳。`);
+    }
   }
 }
 
@@ -197,7 +246,7 @@ export default async function handler(request, response) {
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_tokens: 5000,
+        max_tokens: 9000,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -218,7 +267,7 @@ export default async function handler(request, response) {
       return;
     }
 
-    response.status(200).json(safeParseJSON(content));
+    response.status(200).json(await parseModelJSON({ apiUrl, apiKey, model, content }));
   } catch (error) {
     response.status(error.status || 500).json({ error: error.message || 'Unexpected server error' });
   }
