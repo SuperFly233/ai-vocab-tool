@@ -9,6 +9,7 @@ const STORAGE_KEYS={
   theme:'ai_vocab_tool_theme',
   offline:'ai_vocab_tool_offline_mode',
   layout:'ai_vocab_tool_layout',
+  logs:'ai_vocab_tool_logs_v1',
 };
 const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
@@ -31,6 +32,28 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   sensitivity:'base',
   ignorePunctuation:true,
 });
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:''};
+const APP_INFO={
+  name:'ai-vocab-tool',
+  version:'0.5.0',
+  releaseDate:'2026-04-25',
+  site:'https://ai-vocab-tool.vercel.app',
+  repo:'https://github.com/SuperFly233/ai-vocab-tool',
+};
+const CHANGELOG=[
+  {
+    version:'0.5.0',
+    date:'2026-04-25',
+    title:'统一本地交互与设置体验',
+    items:['首页输入区改为主输入框右侧工具按钮。','历史清空改为垃圾桶图标，单条删除保留 X。','新增自定义接口配置、恢复默认、运行日志和关于页。'],
+  },
+  {
+    version:'0.4.0',
+    date:'2026-04-25',
+    title:'历史搜索与结果布局优化',
+    items:['增强历史记录搜索和排序。','优化结果卡片与 JSON 查看体验。','加入云端设置同步。'],
+  },
+];
 
 const els={
   authStatus:document.getElementById('auth-status'),
@@ -57,6 +80,8 @@ const els={
   apiModel:document.getElementById('api-model'),
   envCard:document.getElementById('env-card'),
   storageStatus:document.getElementById('storage-status'),
+  logList:document.getElementById('log-list'),
+  aboutContainer:document.getElementById('about-container'),
 };
 
 function readJSON(key,fallback){
@@ -71,12 +96,28 @@ function writeJSON(key,value){localStorage.setItem(key,JSON.stringify(value))}
 function escapeHTML(value){
   return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
-function notify(message,type='info',title='ai-vocab-tool'){
+function notify(message,type='info',title='ai-vocab-tool',record=true){
+  if(record)pushLog(message,type,title);
   const toast=document.createElement('div');
   toast.className=`toast ${type}`;
   toast.innerHTML=`<div class="toast-title">${escapeHTML(title)}</div><div class="toast-msg">${escapeHTML(message)}</div>`;
   document.getElementById('toast-stack').appendChild(toast);
   setTimeout(()=>toast.remove(),3200);
+}
+function getLogs(){return readJSON(STORAGE_KEYS.logs,[])}
+function setLogs(items){
+  writeJSON(STORAGE_KEYS.logs,items.slice(0,80));
+  renderLogs();
+}
+function pushLog(message,type='info',title='ai-vocab-tool'){
+  const logs=getLogs();
+  logs.unshift({id:Date.now(),time:new Date().toISOString(),type,title,message});
+  writeJSON(STORAGE_KEYS.logs,logs.slice(0,80));
+  renderLogs();
+}
+function clearLogs(){
+  setLogs([]);
+  notify('日志已清空。','good','日志',false);
 }
 function offlineMode(){return localStorage.getItem(STORAGE_KEYS.offline)==='1'}
 function canEnterApp(){return Boolean(cloudUser)||offlineMode()}
@@ -186,7 +227,7 @@ function setHistory(items){
   renderHistory();
   syncAllToCloud(true);
 }
-function getSettings(){return readJSON(STORAGE_KEYS.settings,{apiUrl:'',apiKey:'',model:''})}
+function getSettings(){return {...DEFAULT_SETTINGS,...readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS)}}
 function setSettings(settings){
   writeJSON(STORAGE_KEYS.settings,settings);
   syncAllToCloud(true);
@@ -253,6 +294,8 @@ function showView(id,button){
   document.querySelectorAll('.nav-item').forEach(item=>item.classList.remove('active'));
   if(button)button.classList.add('active');
   if(id==='history')renderHistory();
+  if(id==='settings')renderSettings();
+  if(id==='about')renderAbout();
 }
 function setResultTab(id,button){
   document.querySelectorAll('.result-page').forEach(page=>page.classList.remove('active'));
@@ -445,6 +488,7 @@ function deleteHistory(id){setHistory(getHistory().filter(item=>Number(item.id)!
 function clearHistory(){
   if(!confirm('确认清空历史记录？'))return;
   setHistory([]);
+  notify('历史记录已清空。','good','历史记录');
 }
 function exportHistory(){downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2))}
 function exportCurrent(){
@@ -479,10 +523,90 @@ function hydrateSettings(){
   els.apiModel.placeholder=configInfo?.model||'gpt-4o-mini';
   renderConfigInfo();
 }
+function renderSettings(){
+  hydrateSettings();
+  renderLogs();
+}
 function saveSettings(){
-  setSettings({apiUrl:els.apiUrl.value.trim(),apiKey:els.apiKey.value.trim(),model:els.apiModel.value.trim()||'gpt-4o-mini'});
+  setSettings({apiUrl:els.apiUrl.value.trim(),apiKey:els.apiKey.value.trim(),model:els.apiModel.value.trim()});
   renderConfigInfo();
   notify('设置已保存。','good','设置');
+}
+function resetModelSettings(){
+  if(!confirm('确认恢复接口默认设置？这会清空自定义 API URL、Key 和 Model。'))return;
+  setSettings(DEFAULT_SETTINGS);
+  hydrateSettings();
+  notify('接口配置已恢复默认。','good','设置');
+}
+function factoryReset(){
+  if(!confirm('确认恢复出厂设置？这会清空本机历史、接口配置、主题、布局和日志。'))return;
+  localStorage.removeItem(STORAGE_KEYS.history);
+  localStorage.removeItem(STORAGE_KEYS.settings);
+  localStorage.removeItem(STORAGE_KEYS.theme);
+  localStorage.removeItem(STORAGE_KEYS.layout);
+  localStorage.removeItem(STORAGE_KEYS.logs);
+  currentResult=null;
+  modalResult=null;
+  historyState.query='';
+  if(els.historySearch)els.historySearch.value='';
+  hydrateSettings();
+  renderEmpty();
+  renderHistory();
+  renderLogs();
+  applyTheme('auto');
+  applyLayout('top');
+  syncAllToCloud(true);
+  notify('已恢复默认设置。','good','恢复出厂',false);
+}
+function renderLogs(){
+  if(!els.logList)return;
+  const logs=getLogs();
+  if(!logs.length){
+    els.logList.innerHTML='<div class="empty small-empty">暂无日志</div>';
+    return;
+  }
+  els.logList.innerHTML=logs.slice(0,18).map(item=>`
+    <article class="log-item ${escapeHTML(item.type)}">
+      <div class="log-head"><b>${escapeHTML(item.title)}</b><span>${new Date(item.time).toLocaleString('zh-CN',{hour12:false})}</span></div>
+      <p>${escapeHTML(item.message)}</p>
+    </article>
+  `).join('');
+}
+function renderAbout(){
+  if(!els.aboutContainer)return;
+  const latest=CHANGELOG[0];
+  els.aboutContainer.innerHTML=`
+    <div class="about-hero">
+      <div>
+        <div class="setting-title">关于</div>
+        <h2>${escapeHTML(APP_INFO.name)}</h2>
+        <p>一个面向写作、考试和日常阅读的词汇结构化查询工具。它把释义、搭配、例句、语体和易混辨析整理成可以回看、导出和同步的记录。</p>
+      </div>
+      <div class="about-version">
+        <span>当前版本</span>
+        <strong>v${escapeHTML(APP_INFO.version)}</strong>
+        <em>${escapeHTML(APP_INFO.releaseDate)}</em>
+      </div>
+    </div>
+    <div class="about-grid">
+      <a class="about-link" href="${APP_INFO.site}" target="_blank" rel="noopener noreferrer"><b>线上地址</b><span>${escapeHTML(APP_INFO.site)}</span></a>
+      <a class="about-link" href="${APP_INFO.repo}" target="_blank" rel="noopener noreferrer"><b>GitHub 仓库</b><span>${escapeHTML(APP_INFO.repo)}</span></a>
+      <div class="about-link"><b>数据存储</b><span>localStorage + Supabase Auth / Postgres</span></div>
+      <div class="about-link"><b>最近更新</b><span>v${escapeHTML(latest.version)} · ${escapeHTML(latest.title)}</span></div>
+    </div>
+    <div class="about-card">
+      <div class="setting-title">更新记录</div>
+      <div class="release-list">
+        ${CHANGELOG.map(entry=>`
+          <article class="release-item">
+            <div class="release-head"><b>v${escapeHTML(entry.version)}</b><span>${escapeHTML(entry.date)}</span></div>
+            <h3>${escapeHTML(entry.title)}</h3>
+            <ul>${entry.items.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul>
+          </article>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 function applyTheme(theme){
   document.documentElement.dataset.theme=theme==='auto'?'':theme;

@@ -36,6 +36,7 @@
     <button class="nav-item active" id="nav-home" onclick="showView('home',this)">首页</button>
     <button class="nav-item" id="nav-history" onclick="showView('history',this)">历史记录</button>
     <button class="nav-item" id="nav-settings" onclick="showView('settings',this)">设置</button>
+    <button class="nav-item" id="nav-about" onclick="showView('about',this)">关于</button>
   </nav>
   <div class="side-note">本地保存。登录后云端同步。</div>
 </aside>
@@ -81,13 +82,17 @@
   <section class="view active" id="view-home">
     <section class="workspace layout-top" id="workspace">
       <div class="editor-pane panel">
-        <textarea id="query-input" placeholder="输入单词、短语、表达或句子"></textarea>
+        <div class="query-row">
+          <textarea id="query-input" placeholder="输入单词、短语、表达或句子"></textarea>
+          <div class="query-actions">
+            <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
+            <button class="icon-btn" data-tip="清空" onclick="clearEditor()">✕</button>
+            <button class="icon-btn" id="layout-toggle" data-tip="切换布局" onclick="toggleLayout()">⇄</button>
+          </div>
+        </div>
         <div class="input-row">
           <input id="direction-input" type="text" placeholder="语言方向：译成英文 / 只解释英文">
           <input id="note-input" type="text" placeholder="侧重点：写作 / 考试 / 口语">
-          <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
-          <button class="icon-btn" data-tip="清空" onclick="clearEditor()">✕</button>
-          <button class="icon-btn" id="layout-toggle" data-tip="切换布局" onclick="toggleLayout()">⇄</button>
         </div>
       </div>
 
@@ -117,7 +122,7 @@
         </div>
         <div class="action-row compact">
           <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()">💾</button>
-          <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">✕</button>
+          <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">🗑️</button>
         </div>
       </div>
       <div class="history-tools">
@@ -144,38 +149,62 @@
     <div class="settings-wrap">
       <div class="setting-group">
         <div class="setting-title">模型接口</div>
-        <label class="setting-field">
-          <span>API URL</span>
-          <input class="cloud-input" id="api-url" type="url" placeholder="https://api.openai.com/v1/chat/completions">
-        </label>
-        <label class="setting-field">
-          <span>API Key</span>
-          <input class="cloud-input" id="api-key" type="password" placeholder="sk-...">
-        </label>
-        <label class="setting-field">
-          <span>Model</span>
-          <input class="cloud-input" id="api-model" type="text" placeholder="gpt-4o-mini">
-        </label>
-        <button class="plain-btn primary-btn" onclick="saveSettings()">保存设置</button>
+        <div class="setting-row stack-row">
+          <div><div class="setting-label">自定义配置</div><div class="setting-sub">留空时使用 Vercel 环境变量；填入 URL、Key 和 Model 后，本机优先走这里。</div></div>
+          <div class="settings-grid">
+            <label class="setting-field">
+              <span>API URL</span>
+              <input class="cloud-input" id="api-url" type="url" placeholder="https://api.openai.com/v1/chat/completions">
+            </label>
+            <label class="setting-field">
+              <span>API Key</span>
+              <input class="cloud-input" id="api-key" type="password" placeholder="sk-...">
+            </label>
+            <label class="setting-field">
+              <span>Model</span>
+              <input class="cloud-input" id="api-model" type="text" placeholder="gpt-4o-mini">
+            </label>
+          </div>
+          <div class="setting-actions">
+            <button class="plain-btn primary-btn" onclick="saveSettings()">保存设置</button>
+            <button class="plain-btn ghost-btn" onclick="resetModelSettings()">恢复接口默认</button>
+          </div>
+        </div>
         <div class="env-card" id="env-card">正在读取环境变量...</div>
       </div>
 
       <div class="setting-group">
         <div class="setting-title">外观</div>
-        <div class="seg">
-          <button id="th-auto" data-tip="自动" onclick="setTheme('auto')">◐</button>
-          <button id="th-light" data-tip="浅色" onclick="setTheme('light')">☀️</button>
-          <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">🌙</button>
+        <div class="setting-row">
+          <div><div class="setting-label">主题</div><div class="setting-sub">自动跟随系统，也可以固定浅色或深色。</div></div>
+          <div class="seg">
+            <button id="th-auto" data-tip="自动" onclick="setTheme('auto')">◐</button>
+            <button id="th-light" data-tip="浅色" onclick="setTheme('light')">☀️</button>
+            <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">🌙</button>
+          </div>
         </div>
       </div>
 
       <div class="setting-group">
         <div class="setting-title">数据</div>
-        <div class="setting-row">
-          <span id="storage-status">localStorage，本机本浏览器记录。</span>
+        <div class="setting-row"><div><div class="setting-label">当前存储</div><div class="setting-sub" id="storage-status">localStorage，本机本浏览器记录。</div></div></div>
+        <div class="setting-row"><div><div class="setting-label">导出历史</div><div class="setting-sub">备份当前浏览器里的所有查询记录。</div></div><button class="plain-btn" onclick="exportHistory()">导出</button></div>
+        <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
+        <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-title">日志</div>
+        <div class="log-list" id="log-list"></div>
+        <div class="setting-actions">
+          <button class="plain-btn ghost-btn" onclick="clearLogs()">清空日志</button>
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="view" id="view-about">
+    <div class="about-wrap" id="about-container"></div>
   </section>
 </main>
 
