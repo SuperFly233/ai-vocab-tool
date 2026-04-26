@@ -32,11 +32,13 @@ let lookupBusy=false;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudBootstrapped=false;
+let passwordRecoveryMode=false;
 let editingFollowup=null;
 let pendingFollowup=null;
 const activeToasts=new Map();
 const historyState={
   query:'',
+  scope:'all',
   sort:'time',
   sortDir:'desc',
   filters:{
@@ -118,6 +120,7 @@ const els={
   historyFilterPos:document.getElementById('history-filter-pos'),
   historyFilterStyle:document.getElementById('history-filter-style'),
   historySortbar:document.getElementById('history-sortbar'),
+  historyScope:document.getElementById('history-scope'),
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
   apiModel:document.getElementById('api-model'),
@@ -234,12 +237,14 @@ function renderAuthGate(){
   document.body.classList.toggle('auth-required',!canEnterApp());
   document.body.classList.toggle('offline-mode',offlineMode()&&!cloudUser);
   document.body.classList.toggle('cloud-logged-in',Boolean(cloudUser));
+  document.body.classList.toggle('password-recovery',passwordRecoveryMode);
   if(els.accountToggle){
     els.accountToggle.classList.toggle('signed-in',Boolean(cloudUser));
     els.accountToggle.textContent=cloudUser?'已登录':offlineMode()?'离线':'账号';
   }
   if(els.accountStatus){
-    if(cloudUser)els.accountStatus.textContent=`已登录：${cloudUser.email}`;
+    if(cloudUser&&passwordRecoveryMode)els.accountStatus.textContent=`重设密码：${cloudUser.email}`;
+    else if(cloudUser)els.accountStatus.textContent=`已登录：${cloudUser.email}`;
     else if(offlineMode())els.accountStatus.textContent='当前为离线模式';
     else els.accountStatus.textContent=cloudClient?'未登录':'Supabase 未配置';
   }
@@ -269,15 +274,24 @@ async function initCloud(){
   cloudClient=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey,{
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
   });
-  cloudClient.auth.onAuthStateChange(async (_event,session)=>{
+  cloudClient.auth.onAuthStateChange((_event,session)=>{
     cloudUser=session?.user||null;
+    if(_event==='PASSWORD_RECOVERY'){
+      passwordRecoveryMode=true;
+      els.accountPanel?.classList.add('open');
+    }
     renderAuthGate();
-    if(cloudUser&&!cloudBootstrapped)await bootstrapCloudSync('ask');
   });
+  const params=new URLSearchParams(location.search);
+  const hasAuthCallback=params.has('code')||location.hash.includes('access_token')||location.hash.includes('type=');
+  if(params.has('code')){
+    const {error}=await cloudClient.auth.exchangeCodeForSession(params.get('code'));
+    if(!error)history.replaceState({},document.title,location.pathname);
+  }
   const {data}=await cloudClient.auth.getSession();
   cloudUser=data.session?.user||null;
   renderAuthGate();
-  if(cloudUser)await bootstrapCloudSync('ask');
+  if(cloudUser)await bootstrapCloudSync(hasAuthCallback?'ask':'cloud');
 }
 async function loginPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法登录');
@@ -287,6 +301,7 @@ async function loginPassword(source='account'){
   const {data,error}=await cloudClient.auth.signInWithPassword({email,password});
   if(error){setCloudStatus(`登录失败：${error.message}`,'bad');return notify(error.message,'bad','登录失败')}
   cloudUser=data.session?.user||null;
+  passwordRecoveryMode=false;
   localStorage.removeItem(STORAGE_KEYS.offline);
   renderAuthGate();
   if(cloudUser)await bootstrapCloudSync('ask',true);
@@ -299,6 +314,7 @@ async function signupPassword(source='account'){
   const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:authRedirectTo()}});
   if(error){setCloudStatus(`注册失败：${error.message}`,'bad');return notify(error.message,'bad','注册失败')}
   cloudUser=data.session?.user||cloudUser;
+  passwordRecoveryMode=false;
   localStorage.removeItem(STORAGE_KEYS.offline);
   renderAuthGate();
   if(cloudUser)await bootstrapCloudSync('ask',true);
@@ -314,16 +330,46 @@ async function loginMagic(source='account'){
 }
 async function resetCloudPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法重置');
-  const {email}=credentials(source);
+  const {email}=source==='current'&&cloudUser?{email:cloudUser.email}:credentials(source);
   if(!email)return notify('请输入邮箱。','bad','重置失败');
   const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:authRedirectTo()});
   if(error)return notify(error.message,'bad','重置失败');
-  notify('重置邮件已发送。','good','检查邮箱');
+  notify('重置邮件已发送，打开邮件后回到这里输入新密码。','good','检查邮箱');
+}
+async function setCloudPassword(){
+  if(!cloudClient)return notify('Supabase 未配置。','bad','无法重设');
+  if(!cloudUser)return notify('请先登录。','bad','还没登录');
+  if(!passwordRecoveryMode){
+    passwordRecoveryMode=true;
+    renderAuthGate();
+    notify('输入新密码后，再点一次“重设密码”。','good','准备重设密码');
+    return;
+  }
+  const {password}=credentials('account');
+  if(!password||password.length<6)return notify('请输入至少 6 位新密码。','bad','重设失败');
+  const email=cloudUser.email;
+  const {error}=await cloudClient.auth.updateUser({password});
+  if(error)return notify(error.message,'bad','重设失败');
+  const {error:logoutError}=await cloudClient.auth.signOut();
+  if(logoutError)return notify(logoutError.message,'bad','验证失败');
+  const {data,error:loginError}=await cloudClient.auth.signInWithPassword({email,password});
+  if(loginError){
+    cloudUser=null;
+    passwordRecoveryMode=false;
+    renderAuthGate();
+    return notify(`密码已提交，但自动验证失败：${loginError.message}`,'bad','验证失败');
+  }
+  cloudUser=data.session?.user||null;
+  passwordRecoveryMode=false;
+  renderAuthGate();
+  await bootstrapCloudSync('cloud',true);
+  notify('以后可以直接用新密码登录。','good','密码已重设');
 }
 async function logoutCloud(){
   if(cloudClient)await cloudClient.auth.signOut();
   cloudUser=null;
   cloudBootstrapped=false;
+  passwordRecoveryMode=false;
   renderAuthGate();
   setCloudStatus('已退出云端账号，本机数据仍保留。','info');
 }
@@ -472,6 +518,8 @@ function mergeHistoryItems(localHistory,remoteHistory){
       ...normalized,
       id:existing.id||normalized.id,
       query:existing.query||normalized.query,
+      favorite:Boolean(existing.favorite||normalized.favorite),
+      favoriteAt:[existing.favoriteAt,normalized.favoriteAt].filter(Boolean).sort().pop()||'',
       createdAt:new Date(Math.min(new Date(existing.createdAt||Date.now()),new Date(normalized.createdAt||Date.now()))).toISOString(),
       updatedAt:new Date(Math.max(new Date(existing.updatedAt||existing.createdAt||0),new Date(normalized.updatedAt||normalized.createdAt||0))).toISOString(),
       result:latest.result,
@@ -525,7 +573,7 @@ function normalizeHistoryItem(item){
       modelSource:base.modelSource||'unknown',
     })]);
   const latest=rolls[0]||makeHistoryRoll(base.result,createdAt);
-  return {...base,createdAt,result:base.result||latest.result,rolls};
+  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',createdAt,result:base.result||latest.result,rolls};
 }
 function getHistoryRolls(item){
   return normalizeHistoryItem(item).rolls;
@@ -610,9 +658,16 @@ async function bootstrapCloudSync(mode='ask',manual=false){
   if(error){setCloudStatus(`同步失败：${error.message}`,'bad');notify(error.message,'bad','同步失败');return}
   const remote=cloudRawMap(data);
   if(mode==='cloud'){
+    if(!Object.keys(remote).length){
+      const result=await uploadItemsToCloud(local);
+      if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
+      setCloudStatus(`云端为空，已上传 ${result.count} 项本机数据。`,'good');
+      if(manual)notify(`已保存 ${result.count} 项本机数据到云端。`,'good','同步完成');
+      return;
+    }
     replaceLocalWithItems(remote);
     setCloudStatus('已读取云端最新数据。','good');
-    notify('已读取云端最新数据。','good','云端同步');
+    if(manual)notify('已读取云端最新数据。','good','云端同步');
     return;
   }
   if(!Object.keys(remote).length){
@@ -1170,12 +1225,14 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
 function renderHistory(){
   renderHistoryFilterOptions(getHistory());
   renderHistorySortControls();
+  renderHistoryScopeControls();
   const history=filterAndSortHistory(getHistory());
   const total=getHistory().length;
-  const constrained=historyState.query||Object.values(historyState.filters).some(Boolean);
+  const favoriteTotal=getHistory().filter(item=>normalizeHistoryItem(item).favorite).length;
+  const constrained=historyState.scope!=='all'||historyState.query||Object.values(historyState.filters).some(Boolean);
   els.historyCount.textContent=constrained?`${history.length}/${total} 条`:`${total} 条`;
   if(!history.length){
-    els.historyList.innerHTML=`<div class="empty">${constrained?'没有匹配记录':'暂无历史记录'}</div>`;
+    els.historyList.innerHTML=`<div class="empty">${historyState.scope==='favorites'&&!favoriteTotal?'暂无收藏记录':constrained?'没有匹配记录':'暂无历史记录'}</div>`;
     return;
   }
   els.historyList.innerHTML=history.map(item=>`
@@ -1185,6 +1242,7 @@ function renderHistory(){
         <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}${getHistoryRolls(item).length>1?` · ${getHistoryRolls(item).length} 个版本`:''}</div>
       </div>
       <div class="history-actions">
+        <button class="icon-btn favorite-icon ${normalizeHistoryItem(item).favorite?'active':''}" data-tip="${normalizeHistoryItem(item).favorite?'取消收藏':'收藏'}" aria-label="${normalizeHistoryItem(item).favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalizeHistoryItem(item).favorite?'★':'☆'}</button>
         <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
         <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
@@ -1200,9 +1258,12 @@ function handleHistoryItemKey(event,id){
 }
 function filterAndSortHistory(history){
   const query=normalizeSearch(historyState.query);
-  const filteredByText=query
-    ? history.filter(item=>historySearchText(item).includes(query))
+  const scoped=historyState.scope==='favorites'
+    ? history.filter(item=>normalizeHistoryItem(item).favorite)
     : [...history];
+  const filteredByText=query
+    ? scoped.filter(item=>historySearchText(item).includes(query))
+    : scoped;
   const filtered=filteredByText.filter(item=>historyMatchesFilters(item));
   return filtered.sort((a,b)=>{
     let value=0;
@@ -1276,6 +1337,10 @@ function setHistoryFilter(key,value){
   historyState.filters[key]=value;
   renderHistory();
 }
+function setHistoryScope(scope){
+  historyState.scope=scope==='favorites'?'favorites':'all';
+  renderHistory();
+}
 function setHistorySort(sort){
   if(historyState.sort===sort)historyState.sortDir=historyState.sortDir==='asc'?'desc':'asc';
   else{
@@ -1290,6 +1355,11 @@ function renderHistorySortControls(){
     button.classList.toggle('active',active);
     const mark=button.querySelector('span');
     if(mark)mark.textContent=active?(historyState.sortDir==='asc'?'↑':'↓'):'';
+  });
+}
+function renderHistoryScopeControls(){
+  els.historyScope?.querySelectorAll('.scope-btn').forEach(button=>{
+    button.classList.toggle('active',button.dataset.scope===historyState.scope);
   });
 }
 function normalizeSearch(value){
@@ -1315,6 +1385,18 @@ function clearHistorySearch(){
   if(els.historySearch)els.historySearch.value='';
   updateHistorySearchState();
   renderHistory();
+}
+function toggleFavoriteHistory(id){
+  const now=new Date().toISOString();
+  let favorite=false;
+  const history=getHistory().map(item=>{
+    if(Number(item.id)!==Number(id))return item;
+    const normalized=normalizeHistoryItem(item);
+    favorite=!normalized.favorite;
+    return {...normalized,favorite,favoriteAt:favorite?now:'',updatedAt:now};
+  });
+  setHistory(history);
+  notify(favorite?'已收藏。':'已取消收藏。','good','收藏');
 }
 function updateHistorySearchState(){
   const hasText=Boolean(els.historySearch?.value.trim());
@@ -1536,6 +1618,7 @@ async function factoryReset(){
   currentFollowups=[];
   modalResult=null;
   historyState.query='';
+  historyState.scope='all';
   if(els.historySearch)els.historySearch.value='';
   hydrateSettings();
   renderEmpty();

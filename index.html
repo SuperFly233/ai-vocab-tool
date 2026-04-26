@@ -72,9 +72,7 @@
       <button class="plain-btn ghost-btn" onclick="resetCloudPassword('account')">忘记密码</button>
     </div>
     <div class="account-actions cloud-only">
-      <button class="plain-btn primary-btn" onclick="bootstrapCloudSync('ask',true)">立即同步</button>
-      <button class="plain-btn" onclick="uploadCloud()">上传本机</button>
-      <button class="plain-btn" onclick="downloadCloud()">恢复云端</button>
+      <button class="plain-btn" onclick="setCloudPassword()">重设密码</button>
       <button class="plain-btn ghost-btn" onclick="logoutCloud()">退出</button>
     </div>
     <div class="account-actions offline-only">
@@ -131,6 +129,10 @@
         </div>
       </div>
       <div class="history-tools">
+        <div class="history-scope" id="history-scope">
+          <button class="scope-btn active" data-scope="all" onclick="setHistoryScope('all')">全部</button>
+          <button class="scope-btn" data-scope="favorites" onclick="setHistoryScope('favorites')">收藏</button>
+        </div>
         <label class="history-search">
           <span>🔎</span>
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
