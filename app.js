@@ -732,9 +732,9 @@ function renderEmpty(){
 function renderLookupLoading(query,settings){
   const source=settings.apiUrl&&settings.apiKey?'自定义接口':'环境变量接口';
   els.resultCard.innerHTML=`
-    <div class="lookup-state">
-      <div class="lookup-spinner"></div>
-      <div>
+    <div class="lookup-state lookup-loading">
+      <div class="lookup-orbit"><div class="lookup-spinner"></div></div>
+      <div class="lookup-copy">
         <div class="lookup-title">正在分析：${escapeHTML(query)}</div>
         <div class="lookup-steps">
           <span>准备请求</span>
@@ -742,7 +742,8 @@ function renderLookupLoading(query,settings){
           <span>校验 JSON</span>
           <span>生成排版</span>
         </div>
-        <p>当前来源：${escapeHTML(source)}。复杂词条可能需要几秒钟。</p>
+        <div class="lookup-progress" aria-hidden="true"><i></i></div>
+        <p><b>正在调用模型并等待返回。</b> 当前来源：${escapeHTML(source)}；下方进度是预估动画，完成后会自动切换到结果。</p>
       </div>
     </div>
   `;
