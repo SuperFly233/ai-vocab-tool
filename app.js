@@ -33,6 +33,7 @@ let followupBusy=false;
 let cloudBusy=false;
 let cloudBootstrapped=false;
 let editingFollowup=null;
+let pendingFollowup=null;
 const activeToasts=new Map();
 const historyState={
   query:'',
@@ -104,6 +105,7 @@ const els={
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historySearch:document.getElementById('history-search'),
+  historyClearBtn:document.getElementById('history-clear-btn'),
   historySort:document.getElementById('history-sort'),
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
@@ -490,8 +492,8 @@ function dedupeRolls(rolls){
     })
     .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
 }
-function makeHistoryRoll(result,createdAt=new Date().toISOString(),id=null){
-  return {id:id||Date.now()+Math.floor(Math.random()*1000),createdAt,result};
+function makeHistoryRoll(result,createdAt=new Date().toISOString(),id=null,meta={}){
+  return {id:id||Date.now()+Math.floor(Math.random()*1000),createdAt,result,...meta};
 }
 function normalizeHistoryItems(items){
   return Array.isArray(items)?items.map(normalizeHistoryItem).filter(item=>item.query||item.result):[];
@@ -500,8 +502,17 @@ function normalizeHistoryItem(item){
   const base={...item};
   const createdAt=base.createdAt||new Date().toISOString();
   const rolls=dedupeRolls(Array.isArray(base.rolls)&&base.rolls.length
-    ? base.rolls.map(roll=>({...roll,createdAt:roll.createdAt||createdAt,result:roll.result||base.result}))
-    : [makeHistoryRoll(base.result,createdAt,base.id||Date.parse(createdAt))]);
+    ? base.rolls.map(roll=>({
+      ...roll,
+      createdAt:roll.createdAt||createdAt,
+      result:roll.result||base.result,
+      model:roll.model||roll.modelName||base.model||base.result?.meta?.model||'未记录',
+      modelSource:roll.modelSource||base.modelSource||'unknown',
+    }))
+    : [makeHistoryRoll(base.result,createdAt,base.id||Date.parse(createdAt),{
+      model:base.model||base.result?.meta?.model||'未记录',
+      modelSource:base.modelSource||'unknown',
+    })]);
   const latest=rolls[0]||makeHistoryRoll(base.result,createdAt);
   return {...base,createdAt,result:base.result||latest.result,rolls};
 }
@@ -821,7 +832,8 @@ function renderStructuredJSON(result){
   `).join('')}</div>`;
 }
 function renderFollowupHTML(followups=[],scope='current'){
-  const list=Array.isArray(followups)?followups:[];
+  const list=Array.isArray(followups)?[...followups]:[];
+  if(pendingFollowup?.scope===scope)list.push(pendingFollowup.item);
   const inputId=scope==='modal'?'modal-followup-input':'followup-input';
   const buttonCall=scope==='modal'?'askModalFollowup()':'askCurrentFollowup()';
   return `
@@ -858,12 +870,14 @@ function renderFollowupItem(item,scope){
     `;
   }
   return `
-    <article class="followup-item">
+    <article class="followup-item ${item.pending?'pending':''}">
       <div class="followup-question"><b>问</b><span>${escapeHTML(item.question)}</span></div>
       <div class="followup-answer">${formatFollowupAnswer(item.answer)}</div>
       <div class="followup-actions">
-        <button class="plain-btn ghost-btn" onclick="editFollowup('${scope}',${id})">编辑</button>
-        <button class="danger-btn" onclick="deleteFollowup('${scope}',${id})">删除</button>
+        ${item.pending?'':`
+          <button class="plain-btn ghost-btn" onclick="editFollowup('${scope}',${id})">编辑</button>
+          <button class="danger-btn" onclick="deleteFollowup('${scope}',${id})">删除</button>
+        `}
       </div>
     </article>
   `;
@@ -874,11 +888,23 @@ function formatFollowupAnswer(answer){
   const blocks=text.split(/\n{2,}/).map(block=>block.trim()).filter(Boolean);
   return blocks.map(block=>{
     const lines=block.split('\n').map(line=>line.trim()).filter(Boolean);
-    if(lines.length>1&&lines.every(line=>/^[-*•]\s+/.test(line))){
-      return `<ul>${lines.map(line=>`<li>${escapeHTML(line.replace(/^[-*•]\s+/,''))}</li>`).join('')}</ul>`;
+    if(lines.length===1&&/^#{1,4}\s+/.test(lines[0])){
+      return `<h4>${formatInlineMarkdown(lines[0].replace(/^#{1,4}\s+/,''))}</h4>`;
     }
-    return `<p>${escapeHTML(block).replace(/\n/g,'<br>')}</p>`;
+    if(lines.every(line=>/^[-*•]\s+/.test(line))){
+      return `<ul>${lines.map(line=>`<li>${formatInlineMarkdown(line.replace(/^[-*•]\s+/,''))}</li>`).join('')}</ul>`;
+    }
+    if(lines.every(line=>/^\d+[.)]\s+/.test(line))){
+      return `<ol>${lines.map(line=>`<li>${formatInlineMarkdown(line.replace(/^\d+[.)]\s+/,''))}</li>`).join('')}</ol>`;
+    }
+    return `<p>${formatInlineMarkdown(block).replace(/\n/g,'<br>')}</p>`;
   }).join('');
+}
+function formatInlineMarkdown(value){
+  return escapeHTML(value)
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g,'<em>$1</em>');
 }
 function getCurrentHistoryItem(){
   return getHistory().find(item=>Number(item.id)===Number(currentHistoryId));
@@ -898,6 +924,16 @@ function saveFollowupsForModal(followups){
     renderModalRollbar(updated);
   }
   if(Number(modalHistoryId)===Number(currentHistoryId))saveFollowupsForCurrent(followups);
+}
+function setPendingFollowup(scope,question){
+  pendingFollowup={
+    scope,
+    item:{id:Date.now(),question,answer:'正在生成回答...',createdAt:new Date().toISOString(),pending:true},
+  };
+  rerenderFollowupScope(scope);
+}
+function clearPendingFollowup(scope){
+  if(pendingFollowup?.scope===scope)pendingFollowup=null;
 }
 async function requestFollowup(question,baseItem){
   const settings=getSettings();
@@ -925,16 +961,20 @@ async function askCurrentFollowup(){
   if(!question)return notify('请输入追问内容。','bad','追问');
   const baseItem=getCurrentHistoryItem()||{id:currentHistoryId,result:currentResult,followups:currentFollowups};
   if(!baseItem.result)return notify('还没有可追问的结果。','bad','追问');
+  input.value='';
+  setPendingFollowup('current',question);
   followupBusy=true;
   document.body.classList.add('followup-busy');
   try{
     notify('正在追问，会把回答保存到当前记录。','info','追问中');
     const answer=await requestFollowup(question,baseItem);
     const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
+    clearPendingFollowup('current');
     saveFollowupsForCurrent(followups);
-    input.value='';
     notify('追问已保存。','good','追问完成');
   }catch(error){
+    clearPendingFollowup('current');
+    rerenderFollowupScope('current');
     notify(error.message||'追问失败。','bad','追问失败');
   }finally{
     followupBusy=false;
@@ -948,16 +988,20 @@ async function askModalFollowup(){
   if(!question)return notify('请输入追问内容。','bad','追问');
   const baseItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   if(!baseItem)return notify('找不到这条历史记录。','bad','追问');
+  input.value='';
+  setPendingFollowup('modal',question);
   followupBusy=true;
   document.body.classList.add('followup-busy');
   try{
     notify('正在追问，会保存到这条历史记录。','info','追问中');
     const answer=await requestFollowup(question,baseItem);
     const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
+    clearPendingFollowup('modal');
     saveFollowupsForModal(followups);
-    input.value='';
     notify('追问已保存。','good','追问完成');
   }catch(error){
+    clearPendingFollowup('modal');
+    rerenderFollowupScope('modal');
     notify(error.message||'追问失败。','bad','追问失败');
   }finally{
     followupBusy=false;
@@ -1029,6 +1073,7 @@ async function performLookup({query,existingId=null,sourceItem=null}){
   renderLookupLoading(query,settings);
   notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
+  const modelInfo=lookupModelInfo(settings,hasLocalEndpoint);
   try{
     const response=await fetch('/api/analyze',{
       method:'POST',
@@ -1049,7 +1094,7 @@ async function performLookup({query,existingId=null,sourceItem=null}){
       throw new Error(`接口返回不是合法 JSON：${error.message}`);
     }
     if(!response.ok)throw new Error(data.error||'查询失败');
-    const saved=saveLookupResult({query,result:data,existingId,sourceItem});
+    const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo});
     currentHistoryId=saved.id;
     currentFollowups=saved.followups||[];
     renderResult(data);
@@ -1061,6 +1106,13 @@ async function performLookup({query,existingId=null,sourceItem=null}){
     lookupBusy=false;
     document.body.classList.remove('lookup-busy');
   }
+}
+function lookupModelInfo(settings,hasLocalEndpoint){
+  const model=(hasLocalEndpoint?settings.model:configInfo?.model)||'未配置';
+  return {
+    model,
+    modelSource:hasLocalEndpoint?'网页设置':'Vercel 环境变量',
+  };
 }
 async function analyzeHeaders(hasLocalEndpoint){
   const headers={'Content-Type':'application/json'};
@@ -1080,11 +1132,11 @@ function findHistoryByQuery(query){
   const normalized=normalizeSearch(query);
   return getHistory().find(item=>normalizeSearch(item.query)===normalized);
 }
-function saveLookupResult({query,result,existingId=null,sourceItem=null}){
+function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={}}){
   const now=new Date().toISOString();
   const history=getHistory();
   const existing=sourceItem||history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query);
-  const roll=makeHistoryRoll(result,now);
+  const roll=makeHistoryRoll(result,now,null,modelInfo);
   let saved;
   if(existing){
     saved={
@@ -1170,7 +1222,12 @@ function flattenText(value){
 function clearHistorySearch(){
   historyState.query='';
   if(els.historySearch)els.historySearch.value='';
+  updateHistorySearchState();
   renderHistory();
+}
+function updateHistorySearchState(){
+  const hasText=Boolean(els.historySearch?.value.trim());
+  els.historyClearBtn?.classList.toggle('hidden',!hasText);
 }
 function openHistoryModal(id){
   const item=getHistory().find(row=>Number(row.id)===Number(id));
@@ -1250,6 +1307,7 @@ function renderModalRollbar(item){
         <button class="roll-btn ${Number(roll.id)===Number(modalRollId)?'active':''}" onclick="setModalRoll(${Number(roll.id)})">
           <span>版本 ${rolls.length-index}</span>
           <em>${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN',{hour12:false}))}</em>
+          <strong>${escapeHTML(roll.model||'未记录')}</strong>
         </button>
       `).join('')}
     </div>
@@ -1493,6 +1551,7 @@ document.addEventListener('keydown',event=>{
 });
 els.historySearch?.addEventListener('input',event=>{
   historyState.query=event.target.value;
+  updateHistorySearchState();
   renderHistory();
 });
 els.historySort?.addEventListener('change',event=>{
@@ -1521,5 +1580,6 @@ renderHistory();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
 applyLayout(localStorage.getItem(STORAGE_KEYS.layout)||'top');
 updateEditorState();
+updateHistorySearchState();
 loadConfigInfo();
 initCloud();

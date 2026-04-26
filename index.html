@@ -87,10 +87,10 @@
     <section class="workspace layout-top" id="workspace">
       <div class="editor-pane panel">
         <div class="query-row">
-          <label class="query-shell">
+          <div class="query-shell">
             <textarea id="query-input" rows="1" placeholder="输入单词、短语、表达或句子"></textarea>
             <button class="clear-query-btn hidden" id="clear-query-btn" data-tip="清空" onclick="clearEditor()" type="button" aria-label="清空输入">✕</button>
-          </label>
+          </div>
           <div class="assist-fields">
             <input id="direction-input" type="text" placeholder="语言方向，侧重点">
             <input id="note-input" type="text" placeholder="侧重点：写作 / 考试 / 口语">
@@ -133,7 +133,8 @@
       <div class="history-tools">
         <label class="history-search">
           <span>🔎</span>
-          <input id="history-search" type="search" placeholder="搜索历史、释义、例句、搭配、辨析">
+          <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
+          <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
         </label>
         <label class="history-sort">
           <span>↕</span>
