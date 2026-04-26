@@ -72,11 +72,15 @@
       <button class="plain-btn ghost-btn" onclick="resetCloudPassword('account')">忘记密码</button>
     </div>
     <div class="account-actions cloud-only">
+      <button class="plain-btn primary-btn" onclick="bootstrapCloudSync('ask',true)">立即同步</button>
+      <button class="plain-btn" onclick="uploadCloud()">上传本机</button>
+      <button class="plain-btn" onclick="downloadCloud()">恢复云端</button>
       <button class="plain-btn ghost-btn" onclick="logoutCloud()">退出</button>
     </div>
     <div class="account-actions offline-only">
       <button class="plain-btn primary-btn" onclick="exitOfflineMode()">退出离线模式</button>
     </div>
+    <div class="sync-status" id="account-sync-status">同步状态会显示在这里</div>
   </div>
 
   <section class="view active" id="view-home">
@@ -85,6 +89,7 @@
         <div class="query-row">
           <label class="query-shell">
             <textarea id="query-input" rows="1" placeholder="输入单词、短语、表达或句子"></textarea>
+            <button class="clear-query-btn hidden" id="clear-query-btn" data-tip="清空" onclick="clearEditor()" type="button" aria-label="清空输入">✕</button>
           </label>
           <div class="assist-fields">
             <input id="direction-input" type="text" placeholder="语言方向，侧重点">
@@ -92,7 +97,6 @@
           </div>
           <div class="query-actions">
             <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
-            <button class="icon-btn clear-query-btn hidden" id="clear-query-btn" data-tip="清空" onclick="clearEditor()">✕</button>
           </div>
         </div>
       </div>
@@ -195,6 +199,14 @@
       <div class="setting-group">
         <div class="setting-title">数据</div>
         <div class="setting-row"><div><div class="setting-label">当前存储</div><div class="setting-sub" id="storage-status">localStorage，本机本浏览器记录。</div></div></div>
+        <div class="setting-row cloud-row">
+          <div><div class="setting-label">云端同步</div><div class="setting-sub" id="settings-sync-status">登录后会显示同步状态和冲突处理结果。</div></div>
+          <div class="cloud-actions">
+            <button class="plain-btn primary-btn" onclick="bootstrapCloudSync('ask',true)">立即同步</button>
+            <button class="plain-btn" onclick="uploadCloud()">上传本机</button>
+            <button class="plain-btn" onclick="downloadCloud()">恢复云端</button>
+          </div>
+        </div>
         <div class="setting-row"><div><div class="setting-label">导出历史</div><div class="setting-sub">备份当前浏览器里的所有查询记录。</div></div><button class="plain-btn" onclick="exportHistory()">导出</button></div>
         <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
         <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
@@ -231,6 +243,7 @@
       </div>
     </div>
     <div class="modal-body">
+      <div class="modal-rollbar" id="modal-rollbar"></div>
       <section class="modal-page active" id="modal-card-page"></section>
       <section class="modal-page edit-page" id="modal-json-page">
         <label class="setting-field">
@@ -251,7 +264,7 @@
 </div>
 
 <div class="confirm-layer" id="confirm-layer">
-  <div class="confirm-card">
+  <div class="confirm-card" id="confirm-card">
     <div class="confirm-title" id="confirm-title">确认操作</div>
     <div class="confirm-message" id="confirm-message"></div>
     <div class="confirm-actions">

@@ -25,10 +25,13 @@ let currentHistoryId=null;
 let currentFollowups=[];
 let modalResult=null;
 let modalHistoryId=null;
+let modalRollId=null;
 let configInfo=null;
 let confirmResolver=null;
 let lookupBusy=false;
 let followupBusy=false;
+let cloudBusy=false;
+let cloudBootstrapped=false;
 let editingFollowup=null;
 const activeToasts=new Map();
 const historyState={
@@ -80,6 +83,7 @@ const els={
   accountPanel:document.getElementById('account-panel'),
   accountToggle:document.getElementById('account-toggle'),
   accountStatus:document.getElementById('account-status'),
+  accountSyncStatus:document.getElementById('account-sync-status'),
   query:document.getElementById('query-input'),
   direction:document.getElementById('direction-input'),
   note:document.getElementById('note-input'),
@@ -88,6 +92,7 @@ const els={
   historyModal:document.getElementById('history-modal'),
   modalTitle:document.getElementById('modal-title'),
   modalSubtitle:document.getElementById('modal-subtitle'),
+  modalRollbar:document.getElementById('modal-rollbar'),
   modalCardPage:document.getElementById('modal-card-page'),
   modalJsonPage:document.getElementById('modal-json-page'),
   modalQueryEdit:document.getElementById('modal-query-edit'),
@@ -105,6 +110,7 @@ const els={
   apiModel:document.getElementById('api-model'),
   envCard:document.getElementById('env-card'),
   storageStatus:document.getElementById('storage-status'),
+  settingsSyncStatus:document.getElementById('settings-sync-status'),
   logList:document.getElementById('log-list'),
   aboutContainer:document.getElementById('about-container'),
   clearQueryBtn:document.getElementById('clear-query-btn'),
@@ -139,10 +145,7 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
     void existing.element.offsetWidth;
     existing.element.classList.add('bump');
     clearTimeout(existing.timer);
-    existing.timer=setTimeout(()=>{
-      existing.element.remove();
-      activeToasts.delete(key);
-    },3200);
+    existing.timer=setTimeout(()=>dismissToast(key),3200);
     return;
   }
   const toast=document.createElement('div');
@@ -155,14 +158,23 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
     <div class="toast-msg">${escapeHTML(message)}</div>
   `;
   document.getElementById('toast-stack').appendChild(toast);
-  const timer=setTimeout(()=>{
+  const timer=setTimeout(()=>dismissToast(key),3200);
+  activeToasts.set(key,{element:toast,count:1,timer});
+}
+function dismissToast(key){
+  const toastState=activeToasts.get(key);
+  const toast=toastState?.element;
+  if(!toast)return activeToasts.delete(key);
+  if(toast.classList.contains('leaving'))return;
+  toast.classList.add('leaving');
+  toast.addEventListener('animationend',()=>{
     toast.remove();
     activeToasts.delete(key);
-  },3200);
-  activeToasts.set(key,{element:toast,count:1,timer});
+  },{once:true});
 }
 function askConfirm(message,title='确认操作'){
   if(!els.confirmLayer)return Promise.resolve(false);
+  resetConfirmUI();
   els.confirmTitle.textContent=title;
   els.confirmMessage.textContent=message;
   els.confirmLayer.classList.add('open');
@@ -172,6 +184,21 @@ function closeConfirm(result=false){
   els.confirmLayer?.classList.remove('open');
   if(confirmResolver)confirmResolver(result);
   confirmResolver=null;
+}
+function resetConfirmUI(){
+  const card=document.getElementById('confirm-card');
+  card?.classList.remove('sync-card');
+  document.getElementById('sync-merge')?.remove();
+  if(els.confirmLayer)els.confirmLayer.onclick=null;
+  if(els.confirmOk){
+    els.confirmOk.textContent='确认';
+    els.confirmOk.className='danger-btn';
+    els.confirmOk.onclick=null;
+  }
+  if(els.confirmCancel){
+    els.confirmCancel.textContent='取消';
+    els.confirmCancel.onclick=null;
+  }
 }
 function getLogs(){return readJSON(STORAGE_KEYS.logs,[])}
 function setLogs(items){
@@ -222,40 +249,46 @@ function credentials(source){
 }
 async function initCloud(){
   if(!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey||!window.supabase){
+    setCloudStatus('Supabase 未配置，只使用本机数据。','bad');
     renderAuthGate();
     return;
   }
-  cloudClient=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
+  cloudClient=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
+  });
   cloudClient.auth.onAuthStateChange(async (_event,session)=>{
     cloudUser=session?.user||null;
     renderAuthGate();
-    if(cloudUser)await pullCloud();
+    if(cloudUser&&!cloudBootstrapped)await bootstrapCloudSync('ask');
   });
   const {data}=await cloudClient.auth.getSession();
   cloudUser=data.session?.user||null;
   renderAuthGate();
-  if(cloudUser)await pullCloud();
+  if(cloudUser)await bootstrapCloudSync('ask');
 }
 async function loginPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法登录');
   const {email,password}=credentials(source);
   if(!email||!password)return notify('请输入邮箱和密码。','bad','登录失败');
+  setCloudStatus('正在登录并准备同步...','info',true);
   const {data,error}=await cloudClient.auth.signInWithPassword({email,password});
-  if(error)return notify(error.message,'bad','登录失败');
+  if(error){setCloudStatus(`登录失败：${error.message}`,'bad');return notify(error.message,'bad','登录失败')}
   cloudUser=data.session?.user||null;
   localStorage.removeItem(STORAGE_KEYS.offline);
   renderAuthGate();
-  await pullCloud();
+  if(cloudUser)await bootstrapCloudSync('ask',true);
 }
 async function signupPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法注册');
   const {email,password}=credentials(source);
   if(!email||password.length<6)return notify('密码至少 6 位。','bad','注册失败');
+  setCloudStatus('正在注册账号...','info',true);
   const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:authRedirectTo()}});
-  if(error)return notify(error.message,'bad','注册失败');
+  if(error){setCloudStatus(`注册失败：${error.message}`,'bad');return notify(error.message,'bad','注册失败')}
   cloudUser=data.session?.user||cloudUser;
   localStorage.removeItem(STORAGE_KEYS.offline);
   renderAuthGate();
+  if(cloudUser)await bootstrapCloudSync('ask',true);
   notify(cloudUser?'注册并登录成功。':'注册邮件已发送。','good','注册');
 }
 async function loginMagic(source='account'){
@@ -277,7 +310,9 @@ async function resetCloudPassword(source='account'){
 async function logoutCloud(){
   if(cloudClient)await cloudClient.auth.signOut();
   cloudUser=null;
+  cloudBootstrapped=false;
   renderAuthGate();
+  setCloudStatus('已退出云端账号，本机数据仍保留。','info');
 }
 function useOfflineMode(){
   localStorage.setItem(STORAGE_KEYS.offline,'1');
@@ -301,36 +336,326 @@ function setSettings(settings){
   writeJSON(STORAGE_KEYS.settings,settings);
   syncAllToCloud(true);
 }
-async function pullCloud(){
-  if(!cloudClient||!cloudUser)return;
-  const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',Object.values(CLOUD_KEYS));
-  if(error)return notify(error.message,'bad','同步失败');
-  const rows=Object.fromEntries((data||[]).map(row=>[row.key,row.value?.raw]));
-  if(rows[CLOUD_KEYS.history]){
-    const remoteHistory=JSON.parse(rows[CLOUD_KEYS.history]);
-    const merged=[...remoteHistory,...getHistory()]
-      .filter((item,index,list)=>list.findIndex(row=>String(row.id)===String(item.id)||row.query===item.query)===index)
-      .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))
-      .slice(0,120);
-    writeJSON(STORAGE_KEYS.history,merged);
+function cloudReady(){
+  if(!cloudClient){notify('Supabase 未配置。','bad','云端不可用');return false}
+  if(!cloudUser){notify('请先登录云端账号。','bad','还没登录');return false}
+  return true;
+}
+function setCloudStatus(message,type='info',busy=false){
+  cloudBusy=Boolean(busy);
+  document.body.classList.toggle('cloud-syncing',cloudBusy);
+  const text=message||'同步状态会显示在这里';
+  [els.accountSyncStatus,els.settingsSyncStatus].forEach(node=>{
+    if(!node)return;
+    node.textContent=text;
+    node.classList.remove('good','bad','info');
+    node.classList.add(type);
+  });
+}
+function syncableItems(){
+  return {
+    [CLOUD_KEYS.history]:JSON.stringify(getHistory()),
+    [CLOUD_KEYS.settings]:JSON.stringify(getSettings()),
+    [CLOUD_KEYS.theme]:localStorage.getItem(STORAGE_KEYS.theme)||'auto',
+  };
+}
+function cloudRawMap(rows){
+  const allowed=new Set(Object.values(CLOUD_KEYS));
+  const out={};
+  (rows||[]).forEach(row=>{
+    if(allowed.has(row.key))out[row.key]=String(row.value?.raw??'');
+  });
+  return out;
+}
+function mapsEqual(a,b){
+  const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+  for(const key of keys){
+    if((a[key]??null)!==(b[key]??null))return false;
   }
-  if(rows[CLOUD_KEYS.settings])writeJSON(STORAGE_KEYS.settings,JSON.parse(rows[CLOUD_KEYS.settings]));
-  if(rows[CLOUD_KEYS.theme])localStorage.setItem(STORAGE_KEYS.theme,rows[CLOUD_KEYS.theme]);
+  return true;
+}
+function replaceLocalWithItems(items){
+  localStorage.removeItem(STORAGE_KEYS.history);
+  localStorage.removeItem(STORAGE_KEYS.settings);
+  localStorage.removeItem(STORAGE_KEYS.theme);
+  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.history)){
+    writeJSON(STORAGE_KEYS.history,safeHistoryFromRaw(items[CLOUD_KEYS.history]));
+  }
+  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.settings)){
+    writeJSON(STORAGE_KEYS.settings,safeObjectFromRaw(items[CLOUD_KEYS.settings],DEFAULT_SETTINGS));
+  }
+  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.theme)){
+    localStorage.setItem(STORAGE_KEYS.theme,items[CLOUD_KEYS.theme]||'auto');
+  }
   hydrateSettings();
   renderHistory();
   applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
-  await syncAllToCloud(true);
+  renderAuthGate();
+}
+function safeObjectFromRaw(raw,fallback={}){
+  try{return {...fallback,...JSON.parse(raw||'{}')}}catch{return fallback}
+}
+function safeHistoryFromRaw(raw){
+  try{return normalizeHistoryItems(JSON.parse(raw||'[]'))}catch{return []}
+}
+function syncKind(key){
+  if(key===CLOUD_KEYS.history)return '历史记录';
+  if(key===CLOUD_KEYS.settings)return '模型设置';
+  if(key===CLOUD_KEYS.theme)return '主题';
+  return '数据';
+}
+function syncValuePreview(key,value){
+  if(value===''||value===undefined||value===null)return '无';
+  if(key===CLOUD_KEYS.history){
+    const history=safeHistoryFromRaw(value);
+    const rolls=history.reduce((sum,item)=>sum+getHistoryRolls(item).length,0);
+    return `${history.length} 条历史，${rolls} 个结果版本`;
+  }
+  if(key===CLOUD_KEYS.settings){
+    const settings=safeObjectFromRaw(value,DEFAULT_SETTINGS);
+    return `API URL ${settings.apiUrl?'已填':'空'}，API Key ${settings.apiKey?'已填':'空'}，Model ${settings.model||'空'}`;
+  }
+  return String(value).replace(/\s+/g,' ').trim().slice(0,120);
+}
+function syncDiffStats(local,remote){
+  const keys=[...new Set([...Object.keys(local),...Object.keys(remote)])].sort();
+  const stats={localTotal:Object.keys(local).length,remoteTotal:Object.keys(remote).length,localOnly:0,remoteOnly:0,changed:0,diffs:[],kinds:{}};
+  const ensure=kind=>stats.kinds[kind]||(stats.kinds[kind]={local:0,remote:0,diff:0});
+  Object.keys(local).forEach(key=>ensure(syncKind(key)).local+=1);
+  Object.keys(remote).forEach(key=>ensure(syncKind(key)).remote+=1);
+  keys.forEach(key=>{
+    const inLocal=Object.prototype.hasOwnProperty.call(local,key);
+    const inRemote=Object.prototype.hasOwnProperty.call(remote,key);
+    const kind=ensure(syncKind(key));
+    if(!inRemote){stats.localOnly+=1;kind.diff+=1;stats.diffs.push({key,type:'本机独有',local:local[key],remote:''});return}
+    if(!inLocal){stats.remoteOnly+=1;kind.diff+=1;stats.diffs.push({key,type:'云端独有',local:'',remote:remote[key]});return}
+    if(local[key]!==remote[key]){stats.changed+=1;kind.diff+=1;stats.diffs.push({key,type:'同名不同',local:local[key],remote:remote[key]})}
+  });
+  stats.diffTotal=stats.localOnly+stats.remoteOnly+stats.changed;
+  return stats;
+}
+function mergeSyncItems(local,remote){
+  const merged={...remote,...local};
+  if(remote[CLOUD_KEYS.history]||local[CLOUD_KEYS.history]){
+    const remoteHistory=safeHistoryFromRaw(remote[CLOUD_KEYS.history]);
+    const localHistory=safeHistoryFromRaw(local[CLOUD_KEYS.history]);
+    merged[CLOUD_KEYS.history]=JSON.stringify(mergeHistoryItems(localHistory,remoteHistory));
+  }
+  if(!local[CLOUD_KEYS.settings]&&remote[CLOUD_KEYS.settings])merged[CLOUD_KEYS.settings]=remote[CLOUD_KEYS.settings];
+  if(!local[CLOUD_KEYS.theme]&&remote[CLOUD_KEYS.theme])merged[CLOUD_KEYS.theme]=remote[CLOUD_KEYS.theme];
+  return merged;
+}
+function mergeHistoryItems(localHistory,remoteHistory){
+  const map=new Map();
+  const put=item=>{
+    const normalized=normalizeHistoryItem(item);
+    const key=normalizeSearch(normalized.query||normalized.result?.meta?.query||normalized.result?.headword?.title||normalized.id);
+    const existing=map.get(key);
+    if(!existing){map.set(key,normalized);return}
+    const rolls=dedupeRolls([...getHistoryRolls(existing),...getHistoryRolls(normalized)]);
+    const latest=rolls[0]||makeHistoryRoll(normalized.result,normalized.createdAt);
+    map.set(key,{
+      ...existing,
+      ...normalized,
+      id:existing.id||normalized.id,
+      query:existing.query||normalized.query,
+      createdAt:new Date(Math.min(new Date(existing.createdAt||Date.now()),new Date(normalized.createdAt||Date.now()))).toISOString(),
+      updatedAt:new Date(Math.max(new Date(existing.updatedAt||existing.createdAt||0),new Date(normalized.updatedAt||normalized.createdAt||0))).toISOString(),
+      result:latest.result,
+      followups:dedupeFollowups([...(existing.followups||[]),...(normalized.followups||[])]),
+      rolls,
+    });
+  };
+  remoteHistory.forEach(put);
+  localHistory.forEach(put);
+  return [...map.values()].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt)).slice(0,120);
+}
+function dedupeFollowups(items){
+  const seen=new Set();
+  return items.filter(item=>{
+    const key=String(item.id||`${item.question}|${item.answer}`);
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+}
+function dedupeRolls(rolls){
+  const seen=new Set();
+  return rolls
+    .filter(roll=>{
+      const key=JSON.stringify(roll.result||{});
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+}
+function makeHistoryRoll(result,createdAt=new Date().toISOString(),id=null){
+  return {id:id||Date.now()+Math.floor(Math.random()*1000),createdAt,result};
+}
+function normalizeHistoryItems(items){
+  return Array.isArray(items)?items.map(normalizeHistoryItem).filter(item=>item.query||item.result):[];
+}
+function normalizeHistoryItem(item){
+  const base={...item};
+  const createdAt=base.createdAt||new Date().toISOString();
+  const rolls=dedupeRolls(Array.isArray(base.rolls)&&base.rolls.length
+    ? base.rolls.map(roll=>({...roll,createdAt:roll.createdAt||createdAt,result:roll.result||base.result}))
+    : [makeHistoryRoll(base.result,createdAt,base.id||Date.parse(createdAt))]);
+  const latest=rolls[0]||makeHistoryRoll(base.result,createdAt);
+  return {...base,createdAt,result:base.result||latest.result,rolls};
+}
+function getHistoryRolls(item){
+  return normalizeHistoryItem(item).rolls;
+}
+async function askSyncConflict(local,remote){
+  return new Promise(resolve=>{
+    const layer=els.confirmLayer;
+    const card=document.getElementById('confirm-card');
+    const actions=card?.querySelector('.confirm-actions');
+    if(!layer||!els.confirmOk||!els.confirmCancel||!actions){
+      resolve(window.confirm('检测到本机和云端数据不一致。确认保留本机，取消保留云端。')?'local':'remote');
+      return;
+    }
+    resetConfirmUI();
+    const mergeBtn=document.createElement('button');
+    mergeBtn.className='plain-btn merge-btn';
+    mergeBtn.id='sync-merge';
+    mergeBtn.textContent='合并';
+    actions.insertBefore(mergeBtn,els.confirmOk);
+    const stats=syncDiffStats(local,remote);
+    const kinds=['历史记录','模型设置','主题'].map(kind=>{
+      const row=stats.kinds[kind]||{local:0,remote:0,diff:0};
+      return `<div class="sync-kind"><b>${kind}</b><span>本机 ${row.local}</span><span>云端 ${row.remote}</span><em>${row.diff} 项不一致</em></div>`;
+    }).join('');
+    const rows=stats.diffs.map(item=>`
+      <div class="sync-data-row">
+        <div class="sync-data-head"><b>${escapeHTML(syncKind(item.key))}</b><em>${escapeHTML(item.type)}</em></div>
+        <div class="sync-data-cols">
+          <div><span>本机</span><p>${escapeHTML(syncValuePreview(item.key,item.local))}</p></div>
+          <div><span>云端</span><p>${escapeHTML(syncValuePreview(item.key,item.remote))}</p></div>
+        </div>
+      </div>
+    `).join('');
+    card.classList.add('sync-card');
+    els.confirmTitle.textContent='同步冲突';
+    els.confirmMessage.innerHTML=`
+      <div class="sync-simple">
+        <div class="sync-side local"><span>本机</span><strong>${stats.localTotal}</strong><em>当前浏览器</em></div>
+        <div class="sync-vs">不同步</div>
+        <div class="sync-side remote"><span>云端</span><strong>${stats.remoteTotal}</strong><em>Supabase</em></div>
+      </div>
+      <div class="sync-plain">检测到 <b>${stats.diffTotal}</b> 项不一致。推荐“合并”：历史会按词条合并，多次生成结果都会保留。</div>
+      <button class="sync-toggle" type="button" id="sync-detail-toggle">展开详细</button>
+      <div class="sync-detail" id="sync-detail">
+        <div class="sync-help"><b>本机独有</b> 只在当前浏览器；<b>云端独有</b> 只在 Supabase；<b>同名不同</b> 两边都有但内容不一样。</div>
+        <div class="sync-breakdown">
+          <div><b>${stats.localOnly}</b><span>本机独有</span></div>
+          <div><b>${stats.remoteOnly}</b><span>云端独有</span></div>
+          <div><b>${stats.changed}</b><span>同名不同</span></div>
+        </div>
+        <div class="sync-kinds">${kinds}</div>
+        <div class="sync-data-list">${rows||'<div class="sync-help">没有不同的数据项。</div>'}</div>
+      </div>
+    `;
+    els.confirmMessage.querySelector('#sync-detail-toggle')?.addEventListener('click',event=>{
+      const detail=els.confirmMessage.querySelector('#sync-detail');
+      const open=detail?.classList.toggle('open');
+      event.currentTarget.textContent=open?'收起详细':'展开详细';
+    });
+    els.confirmOk.textContent='保留本机';
+    els.confirmOk.className='plain-btn primary-btn';
+    els.confirmCancel.textContent='保留云端';
+    layer.classList.add('open');
+    const close=value=>{
+      layer.classList.remove('open');
+      resetConfirmUI();
+      resolve(value);
+    };
+    mergeBtn.onclick=()=>close('merge');
+    els.confirmOk.onclick=()=>close('local');
+    els.confirmCancel.onclick=()=>close('remote');
+    layer.onclick=event=>{if(event.target===layer)close('remote')};
+  });
+}
+async function bootstrapCloudSync(mode='ask',manual=false){
+  if(!cloudReady())return;
+  if(cloudBusy&&!manual)return;
+  cloudBootstrapped=true;
+  setCloudStatus('正在读取云端数据...','info',true);
+  const local=syncableItems();
+  const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',Object.values(CLOUD_KEYS));
+  if(error){setCloudStatus(`同步失败：${error.message}`,'bad');notify(error.message,'bad','同步失败');return}
+  const remote=cloudRawMap(data);
+  if(mode==='cloud'){
+    replaceLocalWithItems(remote);
+    setCloudStatus('已读取云端最新数据。','good');
+    notify('已读取云端最新数据。','good','云端同步');
+    return;
+  }
+  if(!Object.keys(remote).length){
+    const result=await uploadItemsToCloud(local);
+    if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
+    setCloudStatus(`云端为空，已上传 ${result.count} 项本机数据。`,'good');
+    notify(`已保存 ${result.count} 项本机数据到云端。`,'good','同步完成');
+    return;
+  }
+  if(mapsEqual(local,remote)){
+    setCloudStatus('本机和云端已经一致。','good');
+    if(manual)notify('本机和云端已经一致。','good','同步完成');
+    return;
+  }
+  setCloudStatus('检测到本机和云端不一致，等待你选择处理方式。','info');
+  const action=await askSyncConflict(local,remote);
+  setCloudStatus('正在处理同步选择...','info',true);
+  if(action==='local'){
+    const result=await replaceCloudWithItems(local);
+    if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
+    setCloudStatus('已保留本机并覆盖云端。','good');
+    notify('已保留本机并覆盖云端。','good','同步完成');
+  }else if(action==='merge'){
+    const merged=mergeSyncItems(local,remote);
+    const result=await replaceCloudWithItems(merged);
+    if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
+    replaceLocalWithItems(merged);
+    setCloudStatus('已合并本机和云端数据。','good');
+    notify('已合并本机和云端数据。','good','同步完成');
+  }else{
+    replaceLocalWithItems(remote);
+    setCloudStatus('已恢复云端数据到本机。','good');
+    notify('已恢复云端数据到本机。','good','同步完成');
+  }
+}
+async function uploadItemsToCloud(items){
+  const rows=Object.entries(items).map(([key,raw])=>({user_id:cloudUser.id,key,value:{raw}}));
+  if(!rows.length)return {count:0};
+  const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
+  return {error,count:rows.length};
+}
+async function replaceCloudWithItems(items){
+  return uploadItemsToCloud(items);
 }
 async function syncAllToCloud(silent=false){
-  if(!cloudClient||!cloudUser)return;
-  const rows=[
-    {user_id:cloudUser.id,key:CLOUD_KEYS.history,value:{raw:JSON.stringify(getHistory())}},
-    {user_id:cloudUser.id,key:CLOUD_KEYS.settings,value:{raw:JSON.stringify(getSettings())}},
-    {user_id:cloudUser.id,key:CLOUD_KEYS.theme,value:{raw:localStorage.getItem(STORAGE_KEYS.theme)||'auto'}},
-  ];
-  const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
-  if(error)return notify(error.message,'bad','同步失败');
+  if(!cloudClient||!cloudUser||cloudBusy)return;
+  setCloudStatus('正在保存到云端...','info',true);
+  const result=await uploadItemsToCloud(syncableItems());
+  if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
+  setCloudStatus(`已同步 ${result.count} 项到云端。`,'good');
   if(!silent)notify('已同步到云端。','good','同步完成');
+}
+async function uploadCloud(){
+  if(!cloudReady())return;
+  if(!await askConfirm('确认用本机数据覆盖云端的 ai-vocab-tool 数据？study-kanban 的数据不会被动到。','上传本机'))return;
+  setCloudStatus('正在上传本机数据...','info',true);
+  const result=await replaceCloudWithItems(syncableItems());
+  if(result.error){setCloudStatus(`上传失败：${result.error.message}`,'bad');notify(result.error.message,'bad','上传失败');return}
+  setCloudStatus(`已上传 ${result.count} 项本机数据。`,'good');
+  notify('本机数据已覆盖云端。','good','上传完成');
+}
+async function downloadCloud(){
+  if(!cloudReady())return;
+  if(!await askConfirm('确认用云端 ai-vocab-tool 数据覆盖当前浏览器本机数据？','恢复云端'))return;
+  await bootstrapCloudSync('cloud',true);
 }
 async function loadConfigInfo(){
   try{
@@ -400,6 +725,24 @@ function renderLookupLoading(query,settings){
     </div>
   `;
   els.resultJson.innerHTML='<div class="empty">等待模型返回 JSON</div>';
+}
+function renderLookupError(query,error,stage='查询失败'){
+  const message=error?.message||String(error||'未知错误');
+  els.resultCard.innerHTML=`
+    <div class="lookup-state lookup-error">
+      <div class="lookup-error-mark">!</div>
+      <div>
+        <div class="lookup-title">${escapeHTML(stage)}：${escapeHTML(query)}</div>
+        <div class="lookup-steps">
+          <span>请求已结束</span>
+          <span>未保存历史</span>
+          <span>可修改设置后重试</span>
+        </div>
+        <p>${escapeHTML(message)}</p>
+      </div>
+    </div>
+  `;
+  els.resultJson.innerHTML=`<pre class="error-pre">${escapeHTML(JSON.stringify({ok:false,stage,query,error:message},null,2))}</pre>`;
 }
 function renderResult(result){
   currentResult=result;
@@ -551,7 +894,8 @@ function saveFollowupsForModal(followups){
   setHistory(history);
   const updated=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   if(updated){
-    els.modalCardPage.innerHTML=renderResultHTML(updated.result,updated.followups||[],'modal');
+    els.modalCardPage.innerHTML=renderResultHTML(modalResult||updated.result,updated.followups||[],'modal');
+    renderModalRollbar(updated);
   }
   if(Number(modalHistoryId)===Number(currentHistoryId))saveFollowupsForCurrent(followups);
 }
@@ -657,7 +1001,7 @@ function saveFollowupEdit(scope,id){
 function rerenderFollowupScope(scope){
   if(scope==='modal'){
     const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
-    if(item)els.modalCardPage.innerHTML=renderResultHTML(item.result,item.followups||[],'modal');
+    if(item)els.modalCardPage.innerHTML=renderResultHTML(modalResult||item.result,item.followups||[],'modal');
     return;
   }
   if(currentResult)renderResult(currentResult);
@@ -666,6 +1010,19 @@ async function runLookup(){
   if(lookupBusy)return;
   const query=els.query.value.trim();
   if(!query)return notify('请输入要查的内容。','bad','无法查询');
+  const existing=findHistoryByQuery(query);
+  if(existing){
+    const rolls=getHistoryRolls(existing).length;
+    const ok=await askConfirm(`“${query}” 已经有历史记录${rolls>1?`（${rolls} 个版本）`:''}。确认重新生成并保留为新版本？取消则打开已有记录。`,'已有记录');
+    if(!ok){
+      showView('history',document.getElementById('nav-history'));
+      openHistoryModal(existing.id);
+      return;
+    }
+  }
+  await performLookup({query,existingId:existing?.id||null});
+}
+async function performLookup({query,existingId=null,sourceItem=null}){
   const settings=getSettings();
   lookupBusy=true;
   document.body.classList.add('lookup-busy');
@@ -685,14 +1042,20 @@ async function runLookup(){
         model:hasLocalEndpoint?settings.model:'',
       }),
     });
-    const data=await response.json();
+    let data;
+    try{
+      data=await response.json();
+    }catch(error){
+      throw new Error(`接口返回不是合法 JSON：${error.message}`);
+    }
     if(!response.ok)throw new Error(data.error||'查询失败');
-    currentHistoryId=Date.now();
-    currentFollowups=[];
+    const saved=saveLookupResult({query,result:data,existingId,sourceItem});
+    currentHistoryId=saved.id;
+    currentFollowups=saved.followups||[];
     renderResult(data);
-    addHistory({id:currentHistoryId,query,result:data,followups:[],createdAt:new Date().toISOString()});
-    notify('结果已生成。','good','查询完成');
+    notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
   }catch(error){
+    renderLookupError(query,error);
     notify(error.message||'查询失败。','bad','查询失败');
   }finally{
     lookupBusy=false;
@@ -709,9 +1072,36 @@ async function analyzeHeaders(hasLocalEndpoint){
   return headers;
 }
 function addHistory(item){
-  const history=getHistory().filter(existing=>existing.query!==item.query);
-  history.unshift(item);
+  const history=getHistory().filter(existing=>normalizeSearch(existing.query)!==normalizeSearch(item.query));
+  history.unshift(normalizeHistoryItem(item));
   setHistory(history.slice(0,120));
+}
+function findHistoryByQuery(query){
+  const normalized=normalizeSearch(query);
+  return getHistory().find(item=>normalizeSearch(item.query)===normalized);
+}
+function saveLookupResult({query,result,existingId=null,sourceItem=null}){
+  const now=new Date().toISOString();
+  const history=getHistory();
+  const existing=sourceItem||history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query);
+  const roll=makeHistoryRoll(result,now);
+  let saved;
+  if(existing){
+    saved={
+      ...normalizeHistoryItem(existing),
+      query,
+      result,
+      updatedAt:now,
+      rolls:dedupeRolls([roll,...getHistoryRolls(existing)]),
+    };
+    setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item));
+  }else{
+    saved={id:Date.now(),query,result,followups:[],createdAt:now,updatedAt:now,rolls:[roll]};
+    const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
+    next.unshift(saved);
+    setHistory(next.slice(0,120));
+  }
+  return saved;
 }
 function renderHistory(){
   const history=filterAndSortHistory(getHistory());
@@ -725,9 +1115,10 @@ function renderHistory(){
     <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div>
         <div class="history-word">${escapeHTML(item.query)}</div>
-        <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</div>
+        <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}${getHistoryRolls(item).length>1?` · ${getHistoryRolls(item).length} 个版本`:''}</div>
       </div>
       <div class="history-actions">
+        <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
         <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
       </div>
@@ -784,13 +1175,17 @@ function clearHistorySearch(){
 function openHistoryModal(id){
   const item=getHistory().find(row=>Number(row.id)===Number(id));
   if(!item)return;
-  modalResult=item.result;
+  const normalized=normalizeHistoryItem(item);
+  const latest=getHistoryRolls(normalized)[0];
+  modalResult=latest?.result||normalized.result;
   modalHistoryId=Number(item.id);
-  els.modalTitle.textContent=item.query;
-  els.modalSubtitle.textContent=historyModalMeta(item);
-  els.modalCardPage.innerHTML=renderResultHTML(item.result,item.followups||[],'modal');
-  els.modalQueryEdit.value=item.query;
-  els.modalJsonEdit.value=JSON.stringify(item.result,null,2);
+  modalRollId=latest?.id||null;
+  els.modalTitle.textContent=normalized.query;
+  els.modalSubtitle.textContent=historyModalMeta(normalized);
+  renderModalRollbar(normalized);
+  els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal');
+  els.modalQueryEdit.value=normalized.query;
+  els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
   validateModalJSON(false);
   setModalTab('card',document.getElementById('modal-card-tab'));
   els.historyModal.classList.add('open');
@@ -814,7 +1209,11 @@ function saveHistoryEdit(){
   const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
   const history=getHistory().map(item=>{
     if(Number(item.id)!==Number(modalHistoryId))return item;
-    return {...item,query,result:parsed,followups:item.followups||[],updatedAt:new Date().toISOString()};
+    const rolls=getHistoryRolls(item);
+    const updatedRolls=rolls.map((roll,index)=>Number(roll.id)===Number(modalRollId)||(!modalRollId&&index===0)
+      ? {...roll,result:parsed,updatedAt:new Date().toISOString()}
+      : roll);
+    return {...normalizeHistoryItem(item),query,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:new Date().toISOString()};
   });
   setHistory(history);
   modalResult=parsed;
@@ -822,6 +1221,7 @@ function saveHistoryEdit(){
   const updatedItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   const updatedFollowups=updatedItem?.followups||[];
   els.modalSubtitle.textContent=historyModalMeta(updatedItem);
+  renderModalRollbar(updatedItem);
   els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal');
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
   updateModalJSONStatus(true,'语法正确，已保存');
@@ -832,8 +1232,41 @@ function historyModalMeta(item){
   if(!item)return '';
   const created=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
   const followupCount=(item.followups||[]).length;
+  const rollCount=getHistoryRolls(item).length;
   const updated=item.updatedAt?` · 已编辑 ${new Date(item.updatedAt).toLocaleString('zh-CN',{hour12:false})}`:'';
-  return `${created}${followupCount?` · ${followupCount} 条追问`:''}${updated}`;
+  return `${created}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${updated}`;
+}
+function renderModalRollbar(item){
+  if(!els.modalRollbar)return;
+  const normalized=normalizeHistoryItem(item||{});
+  const rolls=getHistoryRolls(normalized);
+  if(!rolls.length){
+    els.modalRollbar.innerHTML='';
+    return;
+  }
+  els.modalRollbar.innerHTML=`
+    <div class="roll-tabs">
+      ${rolls.map((roll,index)=>`
+        <button class="roll-btn ${Number(roll.id)===Number(modalRollId)?'active':''}" onclick="setModalRoll(${Number(roll.id)})">
+          <span>版本 ${rolls.length-index}</span>
+          <em>${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN',{hour12:false}))}</em>
+        </button>
+      `).join('')}
+    </div>
+    <button class="plain-btn primary-btn reroll-btn" onclick="regenerateModalHistory()">重新生成</button>
+  `;
+}
+function setModalRoll(rollId){
+  const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+  if(!item)return;
+  const roll=getHistoryRolls(item).find(row=>Number(row.id)===Number(rollId));
+  if(!roll)return;
+  modalRollId=Number(roll.id);
+  modalResult=roll.result;
+  els.modalCardPage.innerHTML=renderResultHTML(roll.result,item.followups||[],'modal');
+  els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
+  renderModalRollbar(item);
+  validateModalJSON(false);
 }
 function validateModalJSON(showSuccess=true){
   if(!els.modalJsonEdit)return false;
@@ -856,6 +1289,21 @@ function copyModalJSON(){
   if(!modalResult)return;
   navigator.clipboard.writeText(JSON.stringify(modalResult,null,2));
   notify('JSON 已复制。','good','复制完成');
+}
+async function regenerateHistory(id){
+  const item=getHistory().find(row=>Number(row.id)===Number(id));
+  if(!item)return notify('找不到这条历史记录。','bad','重新生成');
+  const ok=await askConfirm(`确认重新生成“${item.query}”？新结果会保存为一个新版本，旧版本仍可切换查看。`,'重新生成');
+  if(!ok)return;
+  els.query.value=item.query;
+  updateEditorState();
+  showView('home',document.getElementById('nav-home'));
+  await performLookup({query:item.query,existingId:item.id,sourceItem:item});
+}
+async function regenerateModalHistory(){
+  if(!modalHistoryId)return;
+  closeHistoryModal();
+  await regenerateHistory(modalHistoryId);
 }
 function exportModalJSON(){
   if(!modalResult)return;
