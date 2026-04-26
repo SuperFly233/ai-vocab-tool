@@ -30,6 +30,7 @@ let confirmResolver=null;
 let lookupBusy=false;
 let followupBusy=false;
 let editingFollowup=null;
+const activeToasts=new Map();
 const historyState={
   query:'',
   sort:'time-desc',
@@ -89,9 +90,9 @@ const els={
   modalSubtitle:document.getElementById('modal-subtitle'),
   modalCardPage:document.getElementById('modal-card-page'),
   modalJsonPage:document.getElementById('modal-json-page'),
-  modalEditPage:document.getElementById('modal-edit-page'),
   modalQueryEdit:document.getElementById('modal-query-edit'),
   modalJsonEdit:document.getElementById('modal-json-edit'),
+  modalJsonStatus:document.getElementById('modal-json-status'),
   workspace:document.getElementById('workspace'),
   layoutTopBtn:document.getElementById('layout-top-btn'),
   layoutSplitBtn:document.getElementById('layout-split-btn'),
@@ -128,11 +129,37 @@ function escapeHTML(value){
 }
 function notify(message,type='info',title='ai-vocab-tool',record=true){
   if(record)pushLog(message,type,title);
+  const key=`${type}|${title}|${message}`;
+  const existing=activeToasts.get(key);
+  if(existing?.element?.isConnected){
+    existing.count+=1;
+    existing.element.querySelector('.toast-count').textContent=`×${existing.count}`;
+    existing.element.classList.add('counted');
+    existing.element.classList.remove('bump');
+    void existing.element.offsetWidth;
+    existing.element.classList.add('bump');
+    clearTimeout(existing.timer);
+    existing.timer=setTimeout(()=>{
+      existing.element.remove();
+      activeToasts.delete(key);
+    },3200);
+    return;
+  }
   const toast=document.createElement('div');
   toast.className=`toast ${type}`;
-  toast.innerHTML=`<div class="toast-title">${escapeHTML(title)}</div><div class="toast-msg">${escapeHTML(message)}</div>`;
+  toast.innerHTML=`
+      <div class="toast-row">
+        <div class="toast-title">${escapeHTML(title)}</div>
+      <div class="toast-count" aria-live="polite"></div>
+    </div>
+    <div class="toast-msg">${escapeHTML(message)}</div>
+  `;
   document.getElementById('toast-stack').appendChild(toast);
-  setTimeout(()=>toast.remove(),3200);
+  const timer=setTimeout(()=>{
+    toast.remove();
+    activeToasts.delete(key);
+  },3200);
+  activeToasts.set(key,{element:toast,count:1,timer});
 }
 function askConfirm(message,title='确认操作'){
   if(!els.confirmLayer)return Promise.resolve(false);
@@ -349,6 +376,7 @@ function setModalTab(id,button){
   document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id===`modal-${id}-page`));
   document.querySelectorAll('.modal-head .tab-btn').forEach(btn=>btn.classList.remove('active'));
   button.classList.add('active');
+  if(id==='json')validateModalJSON(false);
 }
 function renderEmpty(){
   els.resultCard.innerHTML='<div class="empty">等待查询</div>';
@@ -759,11 +787,11 @@ function openHistoryModal(id){
   modalResult=item.result;
   modalHistoryId=Number(item.id);
   els.modalTitle.textContent=item.query;
-  els.modalSubtitle.textContent=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
+  els.modalSubtitle.textContent=historyModalMeta(item);
   els.modalCardPage.innerHTML=renderResultHTML(item.result,item.followups||[],'modal');
-  els.modalJsonPage.innerHTML=renderStructuredJSON(item.result);
   els.modalQueryEdit.value=item.query;
   els.modalJsonEdit.value=JSON.stringify(item.result,null,2);
+  validateModalJSON(false);
   setModalTab('card',document.getElementById('modal-card-tab'));
   els.historyModal.classList.add('open');
   document.body.classList.add('modal-open');
@@ -779,6 +807,7 @@ function saveHistoryEdit(){
   try{
     parsed=JSON.parse(els.modalJsonEdit.value);
   }catch(error){
+    updateModalJSONStatus(false,error.message);
     notify(`JSON 格式不对：${error.message}`,'bad','保存失败');
     return;
   }
@@ -790,12 +819,38 @@ function saveHistoryEdit(){
   setHistory(history);
   modalResult=parsed;
   els.modalTitle.textContent=query;
-  const updatedFollowups=getHistory().find(item=>Number(item.id)===Number(modalHistoryId))?.followups||[];
+  const updatedItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
+  const updatedFollowups=updatedItem?.followups||[];
+  els.modalSubtitle.textContent=historyModalMeta(updatedItem);
   els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal');
-  els.modalJsonPage.innerHTML=renderStructuredJSON(parsed);
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
+  updateModalJSONStatus(true,'语法正确，已保存');
   setModalTab('card',document.getElementById('modal-card-tab'));
   notify('历史记录已保存。','good','编辑完成');
+}
+function historyModalMeta(item){
+  if(!item)return '';
+  const created=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
+  const followupCount=(item.followups||[]).length;
+  const updated=item.updatedAt?` · 已编辑 ${new Date(item.updatedAt).toLocaleString('zh-CN',{hour12:false})}`:'';
+  return `${created}${followupCount?` · ${followupCount} 条追问`:''}${updated}`;
+}
+function validateModalJSON(showSuccess=true){
+  if(!els.modalJsonEdit)return false;
+  try{
+    JSON.parse(els.modalJsonEdit.value);
+    updateModalJSONStatus(true,showSuccess?'语法正确':'可编辑，保存时会再次检查');
+    return true;
+  }catch(error){
+    updateModalJSONStatus(false,error.message);
+    return false;
+  }
+}
+function updateModalJSONStatus(isValid,message){
+  if(!els.modalJsonStatus)return;
+  els.modalJsonStatus.classList.toggle('good',isValid);
+  els.modalJsonStatus.classList.toggle('bad',!isValid);
+  els.modalJsonStatus.textContent=isValid?message:`JSON 错误：${message}`;
 }
 function copyModalJSON(){
   if(!modalResult)return;
@@ -1005,6 +1060,7 @@ els.query?.addEventListener('keydown',event=>{
 });
 els.direction?.addEventListener('input',updateEditorState);
 els.note?.addEventListener('input',updateEditorState);
+els.modalJsonEdit?.addEventListener('input',()=>validateModalJSON(false));
 els.confirmCancel?.addEventListener('click',()=>closeConfirm(false));
 els.confirmOk?.addEventListener('click',()=>closeConfirm(true));
 els.confirmLayer?.addEventListener('click',event=>{

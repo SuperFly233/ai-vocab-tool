@@ -218,14 +218,13 @@
 <div class="modal-layer" id="history-modal" onclick="closeHistoryModal(event)">
   <div class="modal-card" onclick="event.stopPropagation()">
     <div class="modal-head">
-      <div>
+      <div class="modal-title-block">
         <div class="section-title" id="modal-title">历史记录</div>
         <div class="section-sub" id="modal-subtitle"></div>
       </div>
       <div class="result-icons">
-        <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">排版</button>
-        <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">JSON</button>
-        <button class="tab-btn" id="modal-edit-tab" onclick="setModalTab('edit',this)">编辑</button>
+        <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">预览</button>
+        <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
         <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">📋</button>
         <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">💾</button>
         <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
@@ -233,17 +232,17 @@
     </div>
     <div class="modal-body">
       <section class="modal-page active" id="modal-card-page"></section>
-      <section class="modal-page json-view" id="modal-json-page"></section>
-      <section class="modal-page edit-page" id="modal-edit-page">
+      <section class="modal-page edit-page" id="modal-json-page">
         <label class="setting-field">
           <span>记录标题</span>
           <input class="cloud-input" id="modal-query-edit" type="text">
         </label>
-        <label class="setting-field">
+        <label class="setting-field modal-json-field">
           <span>JSON 内容</span>
           <textarea class="json-editor" id="modal-json-edit"></textarea>
         </label>
-        <div class="setting-actions">
+        <div class="modal-edit-footer">
+          <div class="json-status" id="modal-json-status">等待检查</div>
           <button class="plain-btn primary-btn" onclick="saveHistoryEdit()">保存修改</button>
         </div>
       </section>
