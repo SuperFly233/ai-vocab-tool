@@ -1402,6 +1402,12 @@ function clearEditor(){
   els.query.value='';
   els.direction.value='';
   els.note.value='';
+  currentResult=null;
+  currentHistoryId=null;
+  currentFollowups=[];
+  pendingFollowup=null;
+  editingFollowup=null;
+  renderEmpty();
   updateEditorState();
 }
 function hydrateSettings(){
