@@ -37,7 +37,14 @@ let pendingFollowup=null;
 const activeToasts=new Map();
 const historyState={
   query:'',
-  sort:'time-desc',
+  sort:'time',
+  sortDir:'desc',
+  filters:{
+    language:'',
+    direction:'',
+    pos:'',
+    style:'',
+  },
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
   numeric:true,
@@ -106,7 +113,11 @@ const els={
   historyCount:document.getElementById('history-count'),
   historySearch:document.getElementById('history-search'),
   historyClearBtn:document.getElementById('history-clear-btn'),
-  historySort:document.getElementById('history-sort'),
+  historyFilterLanguage:document.getElementById('history-filter-language'),
+  historyFilterDirection:document.getElementById('history-filter-direction'),
+  historyFilterPos:document.getElementById('history-filter-pos'),
+  historyFilterStyle:document.getElementById('history-filter-style'),
+  historySortbar:document.getElementById('history-sortbar'),
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
   apiModel:document.getElementById('api-model'),
@@ -1156,11 +1167,14 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
   return saved;
 }
 function renderHistory(){
+  renderHistoryFilterOptions(getHistory());
+  renderHistorySortControls();
   const history=filterAndSortHistory(getHistory());
   const total=getHistory().length;
-  els.historyCount.textContent=historyState.query?`${history.length}/${total} 条`:`${total} 条`;
+  const constrained=historyState.query||Object.values(historyState.filters).some(Boolean);
+  els.historyCount.textContent=constrained?`${history.length}/${total} 条`:`${total} 条`;
   if(!history.length){
-    els.historyList.innerHTML=`<div class="empty">${historyState.query?'没有匹配记录':'暂无历史记录'}</div>`;
+    els.historyList.innerHTML=`<div class="empty">${constrained?'没有匹配记录':'暂无历史记录'}</div>`;
     return;
   }
   els.historyList.innerHTML=history.map(item=>`
@@ -1185,21 +1199,97 @@ function handleHistoryItemKey(event,id){
 }
 function filterAndSortHistory(history){
   const query=normalizeSearch(historyState.query);
-  const filtered=query
+  const filteredByText=query
     ? history.filter(item=>historySearchText(item).includes(query))
     : [...history];
+  const filtered=filteredByText.filter(item=>historyMatchesFilters(item));
   return filtered.sort((a,b)=>{
-    if(historyState.sort==='time-asc')return new Date(a.createdAt)-new Date(b.createdAt);
-    if(historyState.sort==='text-asc')return compareHistoryText(a,b);
-    if(historyState.sort==='text-desc')return compareHistoryText(b,a);
-    return new Date(b.createdAt)-new Date(a.createdAt);
+    let value=0;
+    if(historyState.sort==='text')value=compareHistoryText(a,b);
+    else if(historyState.sort==='language')value=historyCollator.compare(historyField(a,'language'),historyField(b,'language'));
+    else if(historyState.sort==='rolls')value=getHistoryRolls(a).length-getHistoryRolls(b).length;
+    else if(historyState.sort==='followups')value=(a.followups||[]).length-(b.followups||[]).length;
+    else value=new Date(a.createdAt)-new Date(b.createdAt);
+    return historyState.sortDir==='asc'?value:-value;
   });
+}
+function historyMatchesFilters(item){
+  const filters=historyState.filters;
+  return (!filters.language||normalizeSearch(historyField(item,'language'))===filters.language)
+    && (!filters.direction||normalizeSearch(historyField(item,'direction'))===filters.direction)
+    && (!filters.pos||historyFieldList(item,'pos').map(normalizeSearch).includes(filters.pos))
+    && (!filters.style||normalizeSearch(historyField(item,'style'))===filters.style);
 }
 function compareHistoryText(a,b){
   return historyCollator.compare(historySortTitle(a),historySortTitle(b));
 }
 function historySortTitle(item){
   return item.result?.meta?.normalized||item.result?.headword?.title||item.query||'';
+}
+function historyField(item,key){
+  const result=item.result||{};
+  if(key==='language')return result.headword?.languageTag||result.meta?.language||'';
+  if(key==='direction')return result.meta?.defaultDirection||result.meta?.direction||'';
+  if(key==='style')return result.register?.style||'';
+  return '';
+}
+function historyFieldList(item,key){
+  const result=item.result||{};
+  if(key==='pos'){
+    return [
+      result.headword?.basicPartOfSpeech,
+      ...(Array.isArray(result.senses)?result.senses.map(sense=>sense.partOfSpeech):[]),
+    ].filter(Boolean);
+  }
+  return [];
+}
+function collectHistoryOptions(history){
+  const sets={language:new Set(),direction:new Set(),pos:new Set(),style:new Set()};
+  history.forEach(item=>{
+    ['language','direction','style'].forEach(key=>{
+      const value=historyField(item,key);
+      if(value)sets[key].add(value);
+    });
+    historyFieldList(item,'pos').forEach(value=>sets.pos.add(value));
+  });
+  return Object.fromEntries(Object.entries(sets).map(([key,set])=>[key,[...set].sort(historyCollator.compare)]));
+}
+function renderHistoryFilterOptions(history){
+  const options=collectHistoryOptions(history);
+  setFilterOptions(els.historyFilterLanguage,'language','全部语言',options.language);
+  setFilterOptions(els.historyFilterDirection,'direction','全部方向',options.direction);
+  setFilterOptions(els.historyFilterPos,'pos','全部词性',options.pos);
+  setFilterOptions(els.historyFilterStyle,'style','全部语体',options.style);
+}
+function setFilterOptions(select,key,label,values=[]){
+  if(!select)return;
+  const current=historyState.filters[key];
+  select.innerHTML=`<option value="">${label}</option>${values.map(value=>`<option value="${escapeHTML(normalizeSearch(value))}">${escapeHTML(value)}</option>`).join('')}`;
+  if(current&&values.map(normalizeSearch).includes(current))select.value=current;
+  else{
+    select.value='';
+    historyState.filters[key]='';
+  }
+}
+function setHistoryFilter(key,value){
+  historyState.filters[key]=value;
+  renderHistory();
+}
+function setHistorySort(sort){
+  if(historyState.sort===sort)historyState.sortDir=historyState.sortDir==='asc'?'desc':'asc';
+  else{
+    historyState.sort=sort;
+    historyState.sortDir=(sort==='time'||sort==='rolls'||sort==='followups')?'desc':'asc';
+  }
+  renderHistory();
+}
+function renderHistorySortControls(){
+  els.historySortbar?.querySelectorAll('.sort-btn').forEach(button=>{
+    const active=button.dataset.sort===historyState.sort;
+    button.classList.toggle('active',active);
+    const mark=button.querySelector('span');
+    if(mark)mark.textContent=active?(historyState.sortDir==='asc'?'↑':'↓'):'';
+  });
 }
 function normalizeSearch(value){
   return String(value||'').toLocaleLowerCase().normalize('NFKC').trim();
@@ -1560,10 +1650,10 @@ els.historySearch?.addEventListener('input',event=>{
   updateHistorySearchState();
   renderHistory();
 });
-els.historySort?.addEventListener('change',event=>{
-  historyState.sort=event.target.value;
-  renderHistory();
-});
+els.historyFilterLanguage?.addEventListener('change',event=>setHistoryFilter('language',event.target.value));
+els.historyFilterDirection?.addEventListener('change',event=>setHistoryFilter('direction',event.target.value));
+els.historyFilterPos?.addEventListener('change',event=>setHistoryFilter('pos',event.target.value));
+els.historyFilterStyle?.addEventListener('change',event=>setHistoryFilter('style',event.target.value));
 els.query?.addEventListener('input',updateEditorState);
 els.query?.addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){

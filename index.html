@@ -136,15 +136,19 @@
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
           <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
         </label>
-        <label class="history-sort">
-          <span>↕</span>
-          <select id="history-sort">
-            <option value="time-desc">时间：新到旧</option>
-            <option value="time-asc">时间：旧到新</option>
-            <option value="text-asc">文本：A 到 Z</option>
-            <option value="text-desc">文本：Z 到 A</option>
-          </select>
-        </label>
+        <div class="history-filterbar">
+          <label><span>语言</span><select id="history-filter-language"></select></label>
+          <label><span>方向</span><select id="history-filter-direction"></select></label>
+          <label><span>词性</span><select id="history-filter-pos"></select></label>
+          <label><span>语体</span><select id="history-filter-style"></select></label>
+        </div>
+        <div class="history-sortbar" id="history-sortbar">
+          <button class="sort-btn active" data-sort="time" onclick="setHistorySort('time')">时间 <span>↓</span></button>
+          <button class="sort-btn" data-sort="text" onclick="setHistorySort('text')">词条 <span>↑</span></button>
+          <button class="sort-btn" data-sort="language" onclick="setHistorySort('language')">语言 <span>↑</span></button>
+          <button class="sort-btn" data-sort="rolls" onclick="setHistorySort('rolls')">版本 <span>↓</span></button>
+          <button class="sort-btn" data-sort="followups" onclick="setHistorySort('followups')">追问 <span>↓</span></button>
+        </div>
       </div>
       <div class="history-list" id="history-list"></div>
     </div>

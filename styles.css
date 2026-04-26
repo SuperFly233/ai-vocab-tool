@@ -214,9 +214,17 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
 .section-title{font-size:24px;font-weight:850}
 .section-sub{font-size:14px;color:var(--muted);font-weight:600}
-.history-tools{display:grid;grid-template-columns:minmax(260px,1fr) minmax(190px,260px);gap:10px;margin-bottom:14px}
+.history-tools{display:grid;grid-template-columns:minmax(260px,1fr);gap:10px;margin-bottom:14px}
 .history-search,.history-sort{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:7px 8px}
-.history-sort{grid-template-columns:auto 1fr}
+.history-filterbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px}
+.history-filterbar label{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:7px 9px}
+.history-filterbar span{font-size:12px;color:var(--soft);font-weight:800;white-space:nowrap}
+.history-filterbar select{min-width:0;width:100%;border:0;background:transparent;color:var(--text);font-size:14px;font-weight:650;outline:0;cursor:pointer}
+.history-sortbar{display:flex;gap:8px;flex-wrap:wrap}
+.sort-btn{border:1px solid var(--line);border-radius:999px;background:var(--panel2);color:var(--muted);padding:7px 11px;font-size:13px;font-weight:800;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
+.sort-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--accent)}
+.sort-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.sort-btn span{display:inline-block;min-width:12px;text-align:center}
 .history-search{position:relative;width:100%;max-width:100%;overflow:visible;padding-right:44px}
 .history-search:focus-within,.history-search:hover{border-color:var(--accent);box-shadow:0 12px 30px color-mix(in srgb,var(--accent) 10%,transparent)}
 .history-search span,.history-sort span{color:var(--accent);font-size:18px;font-weight:700;padding-left:4px}
@@ -226,9 +234,8 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .history-clear-btn.hidden{display:grid!important;opacity:0;pointer-events:none;transform:translateY(-50%) scale(.68)}
 .history-clear-btn:hover,.history-clear-btn:focus-visible{opacity:1;transform:translateY(-50%) scale(1.08);background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 36%,var(--line));color:var(--bad);box-shadow:0 6px 16px color-mix(in srgb,var(--bad) 12%,transparent);outline:0}
 .history-clear-btn:active{transform:translateY(-50%) scale(.88)}
-.history-sort select{appearance:none;cursor:pointer;background:var(--panel2);color:var(--text)}
-.history-sort select option{background:var(--panel);color:var(--text)}
-[data-theme="dark"] .history-sort select option{background:#20211d;color:#eeeee7}
+.history-filterbar select option{background:var(--panel);color:var(--text)}
+[data-theme="dark"] .history-filterbar select option{background:#20211d;color:#eeeee7}
 .history-list{display:grid;gap:10px}
 .history-item{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:13px 14px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;cursor:pointer}
 .history-item:hover{transform:translateY(-1px);border-color:var(--line2);box-shadow:0 10px 26px rgba(0,0,0,.07)}
@@ -426,6 +433,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .section-head,.setting-row{display:grid;align-items:stretch}
   .settings-grid{grid-template-columns:1fr}
   .history-tools{grid-template-columns:1fr}
+  .history-filterbar{grid-template-columns:1fr 1fr}
   .history-search{width:100%}
   .action-row.compact{justify-content:flex-start}
   .plain-btn,.danger-btn{min-height:46px}
@@ -452,5 +460,6 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   #query-input{font-size:18px;padding:13px 46px 13px 18px}
   .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:1fr}
   .query-actions{justify-content:flex-start}
+  .history-filterbar{grid-template-columns:1fr}
   .result-toolbar{align-items:flex-start}
 }
