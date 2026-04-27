@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -54,6 +54,9 @@ Expected behavior:
 - Added a clickable brand icon and home-focus behavior so opening the app or returning home puts the cursor in the query box.
 - Highlighted favorited history items in the all-history view with a warmer card background and visual marker.
 - Normalized history filter fields and changed language/direction/POS/style filters to multi-select. The prompt now asks the model to use fixed enum values for these fields.
+- Simplified the settings page by removing the environment/status card and centralizing API profile actions into add, save changes, delete current, and restore default from the profile menu.
+- Fixed toast progress/timer reset behavior when the same notification is triggered repeatedly or manually closed.
+- Simplified lookup loading feedback to a single linear progress bar with a cleaner waiting card.
 
 ## Working Rules
 

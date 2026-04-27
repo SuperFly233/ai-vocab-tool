@@ -62,12 +62,24 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.3',
-  releaseDate:'2026-04-27',
+  version:'0.9.5',
+  releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.5',
+    date:'2026-04-28',
+    title:'修复 toast 进度与加载态',
+    items:['重复触发同一条 toast 时会重置关闭计时和底部进度条动画。','手动关闭 toast 时会清理对应计时器。','查询加载态去掉圆形 spinner，只保留更清爽的直线进度条。'],
+  },
+  {
+    version:'0.9.4',
+    date:'2026-04-27',
+    title:'精简 API 配置管理',
+    items:['设置页移除环境变量状态卡，减少无用信息干扰。','API 配置组操作改为新增、保存修改、删除当前。','恢复默认移入配置下拉菜单，配置管理更集中。'],
+  },
   {
     version:'0.9.3',
     date:'2026-04-27',
@@ -168,7 +180,6 @@ const els={
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
   apiModel:document.getElementById('api-model'),
-  envCard:document.getElementById('env-card'),
   storageStatus:document.getElementById('storage-status'),
   settingsSyncStatus:document.getElementById('settings-sync-status'),
   logList:document.getElementById('log-list'),
@@ -198,15 +209,20 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
   const key=`${type}|${title}|${message}`;
   const existing=activeToasts.get(key);
   if(existing?.element?.isConnected){
-    existing.count+=1;
-    existing.element.querySelector('.toast-count').textContent=`×${existing.count}`;
-    existing.element.classList.add('counted');
-    existing.element.classList.remove('bump');
-    void existing.element.offsetWidth;
-    existing.element.classList.add('bump');
-    clearTimeout(existing.timer);
-    existing.timer=setTimeout(()=>dismissToast(key),3200);
-    return;
+    if(existing.element.classList.contains('leaving')){
+      clearTimeout(existing.timer);
+      existing.element.remove();
+      activeToasts.delete(key);
+    }else{
+      existing.count+=1;
+      existing.element.querySelector('.toast-count').textContent=`×${existing.count}`;
+      existing.element.classList.add('counted');
+      existing.element.classList.remove('bump');
+      void existing.element.offsetWidth;
+      existing.element.classList.add('bump');
+      armToastTimer(key,existing);
+      return;
+    }
   }
   const toast=document.createElement('div');
   toast.className=`toast ${type}`;
@@ -222,8 +238,21 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
   `;
   document.getElementById('toast-stack').appendChild(toast);
   toast.querySelector('.toast-close')?.addEventListener('click',()=>dismissToast(key));
-  const timer=setTimeout(()=>dismissToast(key),3200);
-  activeToasts.set(key,{element:toast,count:1,timer});
+  const state={element:toast,count:1,timer:null};
+  activeToasts.set(key,state);
+  armToastTimer(key,state);
+}
+function restartToastProgress(toast){
+  const progress=toast?.querySelector('.toast-progress');
+  if(!progress)return;
+  progress.style.animation='none';
+  void progress.offsetWidth;
+  progress.style.animation='';
+}
+function armToastTimer(key,state,duration=3200){
+  clearTimeout(state.timer);
+  restartToastProgress(state.element);
+  state.timer=setTimeout(()=>dismissToast(key),duration);
 }
 function toastIcon(type){
   if(type==='good')return '✓';
@@ -236,6 +265,7 @@ function dismissToast(key){
   const toast=toastState?.element;
   if(!toast)return activeToasts.delete(key);
   if(toast.classList.contains('leaving'))return;
+  clearTimeout(toastState.timer);
   toast.classList.add('leaving');
   toast.addEventListener('animationend',()=>{
     toast.remove();
@@ -925,23 +955,7 @@ async function loadConfigInfo(){
   }catch{
     configInfo={hasApiUrl:false,hasApiKey:false,model:''};
   }
-  renderConfigInfo();
-}
-function renderConfigInfo(){
-  if(!els.envCard)return;
-  const settings=currentApiSettings();
-  const profileCount=getSettings().apiProfiles.length;
-  const localModel=settings.model||'';
-  const envModel=configInfo?.model||'';
-  const source=localModel&&settings.apiUrl&&settings.apiKey?`网页配置：${settings.apiProfileName}`:'Vercel 环境变量';
-  els.envCard.innerHTML=`
-    <div><b>当前来源</b><span>${escapeHTML(source)}</span></div>
-    <div><b>已保存配置组</b><span>${profileCount} 组</span></div>
-    <div><b>环境变量 API URL</b><span>${configInfo?.hasApiUrl?'已配置':'未配置'}</span></div>
-    <div><b>环境变量 API Key</b><span>${configInfo?.hasApiKey?'已配置':'未配置'}</span></div>
-    <div><b>环境变量 Model</b><span>${escapeHTML(envModel||'未配置')}</span></div>
-    <div><b>管理员限制</b><span>${configInfo?.adminRestricted?'已开启':'未开启'}</span></div>
-  `;
+  hydrateSettings();
 }
 
 function showView(id,button){
@@ -987,7 +1001,6 @@ function renderLookupLoading(query,settings){
   const source=apiSettings.apiUrl&&apiSettings.apiKey?`自定义接口：${apiSettings.apiProfileName}`:'环境变量接口';
   els.resultCard.innerHTML=`
     <div class="lookup-state lookup-loading">
-      <div class="lookup-orbit"><div class="lookup-spinner"></div></div>
       <div class="lookup-copy">
         <div class="lookup-title">正在分析：${escapeHTML(query)}</div>
         <div class="lookup-steps">
@@ -1895,7 +1908,10 @@ function hydrateSettings(){
   const settings=getSettings();
   const profile=activeApiProfile(settings);
   if(els.apiProfileSelect){
-    els.apiProfileSelect.innerHTML=settings.apiProfiles.map(item=>`<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}${item.apiUrl&&item.apiKey?'':' · 未完整'}</option>`).join('');
+    els.apiProfileSelect.innerHTML=[
+      ...settings.apiProfiles.map(item=>`<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}${item.apiUrl&&item.apiKey?'':' · 未完整'}</option>`),
+      '<option value="__reset__">恢复默认（清空配置）</option>',
+    ].join('');
     els.apiProfileSelect.value=profile.id;
   }
   if(els.apiProfileName)els.apiProfileName.value=profile.name||'';
@@ -1903,7 +1919,6 @@ function hydrateSettings(){
   els.apiKey.value=profile.apiKey||'';
   els.apiModel.value=profile.model||'';
   els.apiModel.placeholder=configInfo?.model||'gpt-4o-mini';
-  renderConfigInfo();
 }
 function renderSettings(){
   hydrateSettings();
@@ -1923,8 +1938,7 @@ function saveSettings(){
   }:profile);
   setSettings({...settings,apiProfiles:profiles,activeApiProfileId:activeId,updatedAt:now});
   hydrateSettings();
-  renderConfigInfo();
-  notify('设置已保存。','good','设置');
+  notify('当前 API 配置已保存。','good','设置');
 }
 async function resetModelSettings(){
   if(!await askConfirm('这会清空所有自定义 API 配置组，改回 Vercel 环境变量。','恢复接口默认'))return;
@@ -1932,7 +1946,12 @@ async function resetModelSettings(){
   hydrateSettings();
   notify('接口配置已恢复默认。','good','设置');
 }
-function selectApiProfile(id){
+async function selectApiProfile(id){
+  if(id==='__reset__'){
+    await resetModelSettings();
+    hydrateSettings();
+    return;
+  }
   const settings=getSettings();
   if(!settings.apiProfiles.some(profile=>profile.id===id))return;
   setSettings({...settings,activeApiProfileId:id,updatedAt:new Date().toISOString()});
