@@ -51,6 +51,7 @@ Expected behavior:
 - Added this project context file for future conversation continuity.
 - Polished right-top toast notifications with manual close buttons, status icons, progress animation, and richer entrance/exit effects.
 - Added multi-profile API settings: settings now support multiple named API URL/API Key/Model profiles, with legacy single settings migrated to the default profile.
+- Added a clickable brand icon and home-focus behavior so opening the app or returning home puts the cursor in the query box.
 
 ## Working Rules
 

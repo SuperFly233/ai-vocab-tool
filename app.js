@@ -62,12 +62,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.0',
+  version:'0.9.1',
   releaseDate:'2026-04-27',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.1',
+    date:'2026-04-27',
+    title:'优化首页聚焦体验',
+    items:['左上角品牌区新增可点击的网页图标。','进入主界面、点击品牌或首页按钮时自动聚焦搜索框。','减少查词前的额外点击，直接输入或回车即可开始查询。'],
+  },
   {
     version:'0.9.0',
     date:'2026-04-27',
@@ -273,6 +279,7 @@ function clearLogs(){
 function offlineMode(){return localStorage.getItem(STORAGE_KEYS.offline)==='1'}
 function canEnterApp(){return Boolean(cloudUser)||offlineMode()}
 function renderAuthGate(){
+  const couldEnter=!document.body.classList.contains('auth-required');
   document.body.classList.toggle('auth-required',!canEnterApp());
   document.body.classList.toggle('offline-mode',offlineMode()&&!cloudUser);
   document.body.classList.toggle('cloud-logged-in',Boolean(cloudUser));
@@ -293,6 +300,7 @@ function renderAuthGate(){
   if(els.storageStatus){
     els.storageStatus.textContent=cloudUser?'localStorage + Supabase 自动同步':'localStorage，本机本浏览器记录。';
   }
+  if(!couldEnter&&canEnterApp())focusQueryInput();
 }
 function authRedirectTo(){
   return `${location.origin}${location.pathname}`;
@@ -932,6 +940,19 @@ function showView(id,button){
   if(id==='history')renderHistory();
   if(id==='settings')renderSettings();
   if(id==='about')renderAbout();
+  if(id==='home')focusQueryInput();
+}
+function goHomeAndFocus(){
+  showView('home',document.getElementById('nav-home'));
+  focusQueryInput();
+}
+function focusQueryInput(){
+  requestAnimationFrame(()=>{
+    if(!canEnterApp()||activeView!=='home'||document.body.classList.contains('modal-open'))return;
+    els.query?.focus({preventScroll:true});
+    const length=els.query?.value.length||0;
+    els.query?.setSelectionRange(length,length);
+  });
 }
 function setResultTab(id,button){
   document.querySelectorAll('.result-page').forEach(page=>page.classList.remove('active'));
@@ -1694,7 +1715,7 @@ async function regenerateHistory(id){
   if(!ok)return;
   els.query.value=item.query;
   updateEditorState();
-  showView('home',document.getElementById('nav-home'));
+  goHomeAndFocus();
   await performLookup({query:item.query,existingId:item.id,sourceItem:item});
 }
 async function regenerateModalHistory(){
@@ -1981,3 +2002,4 @@ updateEditorState();
 updateHistorySearchState();
 loadConfigInfo();
 initCloud();
+focusQueryInput();

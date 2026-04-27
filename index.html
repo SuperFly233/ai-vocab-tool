@@ -31,9 +31,12 @@
 </section>
 
 <aside class="sidebar">
-  <div class="brand">ai-vocab-tool</div>
+  <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
+    <span class="brand-icon" aria-hidden="true"><i>词</i></span>
+    <span class="brand-text">ai-vocab-tool</span>
+  </button>
   <nav class="nav">
-    <button class="nav-item active" id="nav-home" onclick="showView('home',this)">首页</button>
+    <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()">首页</button>
     <button class="nav-item" id="nav-history" onclick="showView('history',this)">历史记录</button>
     <button class="nav-item" id="nav-settings" onclick="showView('settings',this)">设置</button>
     <button class="nav-item" id="nav-about" onclick="showView('about',this)">关于</button>
