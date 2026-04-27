@@ -61,12 +61,18 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:''};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.8.0',
+  version:'0.8.1',
   releaseDate:'2026-04-27',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.8.1',
+    date:'2026-04-27',
+    title:'优化右上角通知弹窗',
+    items:['通知弹窗新增手动关闭按钮。','重做 toast 视觉层次、状态色、进度条和进入/退出动效。','通知仍会自动消失，但用户可以立即关闭当前消息。'],
+  },
   {
     version:'0.8.0',
     date:'2026-04-27',
@@ -179,14 +185,24 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
   toast.className=`toast ${type}`;
   toast.innerHTML=`
       <div class="toast-row">
+        <div class="toast-mark" aria-hidden="true">${toastIcon(type)}</div>
         <div class="toast-title">${escapeHTML(title)}</div>
-      <div class="toast-count" aria-live="polite"></div>
+        <div class="toast-count" aria-live="polite"></div>
+        <button class="toast-close" type="button" aria-label="关闭通知">×</button>
     </div>
     <div class="toast-msg">${escapeHTML(message)}</div>
+    <div class="toast-progress" aria-hidden="true"></div>
   `;
   document.getElementById('toast-stack').appendChild(toast);
+  toast.querySelector('.toast-close')?.addEventListener('click',()=>dismissToast(key));
   const timer=setTimeout(()=>dismissToast(key),3200);
   activeToasts.set(key,{element:toast,count:1,timer});
+}
+function toastIcon(type){
+  if(type==='good')return '✓';
+  if(type==='bad')return '!';
+  if(type==='warn')return '!';
+  return 'i';
 }
 function dismissToast(key){
   const toastState=activeToasts.get(key);

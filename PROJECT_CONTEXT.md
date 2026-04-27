@@ -49,6 +49,7 @@ Expected behavior:
 - Reworked cloud sync to include history, favorites, API settings, theme, layout, and logs.
 - Replaced normal startup conflict prompts with automatic merge behavior.
 - Added this project context file for future conversation continuity.
+- Polished right-top toast notifications with manual close buttons, status icons, progress animation, and richer entrance/exit effects.
 
 ## Working Rules
 
