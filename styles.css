@@ -240,15 +240,18 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .scope-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--accent)}
 .scope-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
 .history-search,.history-sort{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:7px 8px}
-.history-filterbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px}
-.history-filterbar label{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:7px 9px}
-.history-filterbar span{font-size:12px;color:var(--soft);font-weight:800;white-space:nowrap}
-.history-filterbar select{min-width:0;width:100%;border:0;background:transparent;color:var(--text);font-size:14px;font-weight:650;outline:0;cursor:pointer}
-.history-sortbar{display:flex;gap:8px;flex-wrap:wrap}
-.sort-btn{border:1px solid var(--line);border-radius:999px;background:var(--panel2);color:var(--muted);padding:7px 11px;font-size:13px;font-weight:800;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
+.history-filterbar{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:10px;align-items:stretch}
+.history-filterbar label{display:grid;grid-template-rows:auto 1fr;align-items:stretch;gap:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:8px 9px;min-width:0}
+.history-filterbar span{font-size:12px;color:var(--soft);font-weight:800;white-space:nowrap;text-align:center}
+.history-filterbar select{min-width:0;width:100%;height:92px;border:0;border-radius:8px;background:color-mix(in srgb,var(--panel) 54%,transparent);color:var(--text);font-size:13px;font-weight:650;outline:0;cursor:pointer;text-align:center}
+.history-filterbar select option{padding:4px 6px;text-align:center}
+.history-filterbar select option:checked{background:var(--accent-bg);color:var(--accent)}
+.history-sortbar{display:grid;grid-template-columns:repeat(5,minmax(82px,1fr));gap:8px}
+.sort-btn{border:1px solid var(--line);border-radius:999px;background:var(--panel2);color:var(--muted);padding:7px 10px;font-size:13px;font-weight:800;display:grid;grid-template-columns:1fr 14px 1fr;align-items:center;justify-items:center;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
 .sort-btn:hover{transform:translateY(-1px);border-color:var(--accent);color:var(--accent)}
 .sort-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
-.sort-btn span{display:inline-block;min-width:12px;text-align:center}
+.sort-btn span{grid-column:2;display:inline-block;min-width:14px;text-align:center}
+.sort-btn:before{content:"";grid-column:1}
 .history-search{position:relative;width:100%;max-width:100%;overflow:visible;padding-right:44px}
 .history-search:focus-within,.history-search:hover{border-color:var(--accent);box-shadow:0 12px 30px color-mix(in srgb,var(--accent) 10%,transparent)}
 .history-search span,.history-sort span{color:var(--accent);font-size:18px;font-weight:700;padding-left:4px}
@@ -483,6 +486,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .settings-grid{grid-template-columns:1fr}
   .history-tools{grid-template-columns:1fr}
   .history-filterbar{grid-template-columns:1fr 1fr}
+  .history-sortbar{grid-template-columns:repeat(2,minmax(0,1fr))}
   .history-search{width:100%}
   .action-row.compact{justify-content:flex-start}
   .plain-btn,.danger-btn{min-height:46px}
@@ -510,5 +514,6 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:1fr}
   .query-actions{justify-content:flex-start}
   .history-filterbar{grid-template-columns:1fr}
+  .history-sortbar{grid-template-columns:1fr}
   .result-toolbar{align-items:flex-start}
 }

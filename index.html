@@ -142,10 +142,10 @@
           <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
         </label>
         <div class="history-filterbar">
-          <label><span>语言</span><select id="history-filter-language"></select></label>
-          <label><span>方向</span><select id="history-filter-direction"></select></label>
-          <label><span>词性</span><select id="history-filter-pos"></select></label>
-          <label><span>语体</span><select id="history-filter-style"></select></label>
+          <label><span>语言</span><select id="history-filter-language" multiple size="4" aria-label="按语言筛选，支持多选"></select></label>
+          <label><span>方向</span><select id="history-filter-direction" multiple size="4" aria-label="按方向筛选，支持多选"></select></label>
+          <label><span>词性</span><select id="history-filter-pos" multiple size="4" aria-label="按词性筛选，支持多选"></select></label>
+          <label><span>语体</span><select id="history-filter-style" multiple size="4" aria-label="按语体筛选，支持多选"></select></label>
         </div>
         <div class="history-sortbar" id="history-sortbar">
           <button class="sort-btn active" data-sort="time" onclick="setHistorySort('time')">时间 <span>↓</span></button>

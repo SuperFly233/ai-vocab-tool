@@ -53,6 +53,7 @@ Expected behavior:
 - Added multi-profile API settings: settings now support multiple named API URL/API Key/Model profiles, with legacy single settings migrated to the default profile.
 - Added a clickable brand icon and home-focus behavior so opening the app or returning home puts the cursor in the query box.
 - Highlighted favorited history items in the all-history view with a warmer card background and visual marker.
+- Normalized history filter fields and changed language/direction/POS/style filters to multi-select. The prompt now asks the model to use fixed enum values for these fields.
 
 ## Working Rules
 

@@ -68,6 +68,12 @@ const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句
 八、必须输出的 JSON schema
 字段名不得改变。缺失内容用空字符串或空数组，不要省略字段。
 把原始模板映射到 JSON：默认输出模板的词条标题对应 headword；“一、义项分析”对应 senses；“二、固定搭配”对应 collocations；“三、语义感受与使用说明”对应 register；“四、近义词 / 易混词辨析”对应 confusions。内容完整性以原始规则为准，不得因为 JSON 化而删减。
+用于筛选的字段必须使用固定枚举，不要自由发挥：
+- meta.language 只能输出 en / zh / ja / ko / fr / es / de / other。
+- meta.defaultDirection 只能输出 en-zh / zh-en / ja-zh / zh-ja / ko-zh / zh-ko / fr-zh / zh-fr / es-zh / zh-es / de-zh / zh-de / other。
+- headword.languageTag 使用与 meta.language 相同的值，不要写 EN、English、英文、[英语1] 等变体。
+- headword.basicPartOfSpeech 和 senses[].partOfSpeech 只能从 n / v / adj / adv / prep / conj / pron / det / aux / interj / phrase / sentence / other 中选择。一个义项只有一个词性；同一个词有多个词性时拆成多个 senses。
+- register.style 只能从 neutral / formal / informal / spoken / written / academic / business / literary / slang / technical / archaic / offensive / other 中选择；如确有多个，用 "/" 连接这些枚举值，例如 "formal/written"。
 {
   "meta": {
     "query": "用户原始输入",

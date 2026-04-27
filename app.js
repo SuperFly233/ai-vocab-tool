@@ -47,10 +47,10 @@ const historyState={
   sort:'time',
   sortDir:'desc',
   filters:{
-    language:'',
-    direction:'',
-    pos:'',
-    style:'',
+    language:[],
+    direction:[],
+    pos:[],
+    style:[],
   },
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
@@ -62,12 +62,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.2',
+  version:'0.9.3',
   releaseDate:'2026-04-27',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.3',
+    date:'2026-04-27',
+    title:'规范历史筛选字段',
+    items:['历史筛选改为多选，并将语言、方向、词性和语体归一化。','排序按钮文字和箭头保持居中，移动端筛选控件宽度更统一。','强化清空历史的二次确认文案。'],
+  },
   {
     version:'0.9.2',
     date:'2026-04-27',
@@ -1422,7 +1428,7 @@ function renderHistory(){
   const history=filterAndSortHistory(getHistory());
   const total=getHistory().length;
   const favoriteTotal=getHistory().filter(item=>normalizeHistoryItem(item).favorite).length;
-  const constrained=historyState.scope!=='all'||historyState.query||Object.values(historyState.filters).some(Boolean);
+  const constrained=historyState.scope!=='all'||historyState.query||Object.values(historyState.filters).some(filterHasValues);
   els.historyCount.textContent=constrained?`${history.length}/${total} 条`:`${total} 条`;
   if(!history.length){
     els.historyList.innerHTML=`<div class="empty">${historyState.scope==='favorites'&&!favoriteTotal?'暂无收藏记录':constrained?'没有匹配记录':'暂无历史记录'}</div>`;
@@ -1474,10 +1480,18 @@ function filterAndSortHistory(history){
 }
 function historyMatchesFilters(item){
   const filters=historyState.filters;
-  return (!filters.language||normalizeSearch(historyField(item,'language'))===filters.language)
-    && (!filters.direction||normalizeSearch(historyField(item,'direction'))===filters.direction)
-    && (!filters.pos||historyFieldList(item,'pos').map(normalizeSearch).includes(filters.pos))
-    && (!filters.style||normalizeSearch(historyField(item,'style'))===filters.style);
+  return filterMatches(historyCanonicalValues(item,'language'),filters.language)
+    && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
+    && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
+    && filterMatches(historyCanonicalValues(item,'style'),filters.style);
+}
+function filterMatches(values,selected){
+  const picks=Array.isArray(selected)?selected:[selected].filter(Boolean);
+  if(!picks.length)return true;
+  return values.some(value=>picks.includes(value));
+}
+function filterHasValues(value){
+  return Array.isArray(value)?value.length>0:Boolean(value);
 }
 function compareHistoryText(a,b){
   return historyCollator.compare(historySortTitle(a),historySortTitle(b));
@@ -1502,16 +1516,109 @@ function historyFieldList(item,key){
   }
   return [];
 }
-function collectHistoryOptions(history){
-  const sets={language:new Set(),direction:new Set(),pos:new Set(),style:new Set()};
-  history.forEach(item=>{
-    ['language','direction','style'].forEach(key=>{
-      const value=historyField(item,key);
-      if(value)sets[key].add(value);
-    });
-    historyFieldList(item,'pos').forEach(value=>sets.pos.add(value));
+const LABELS={
+  language:{en:'英语',zh:'中文',ja:'日语',ko:'韩语',fr:'法语',es:'西语',de:'德语',other:'其他'},
+  direction:{'en-zh':'英译中','zh-en':'中译英','ja-zh':'日译中','zh-ja':'中译日','ko-zh':'韩译中','zh-ko':'中译韩','fr-zh':'法译中','zh-fr':'中译法','es-zh':'西译中','zh-es':'中译西','de-zh':'德译中','zh-de':'中译德','other':'其他'},
+  pos:{n:'名词',v:'动词',adj:'形容词',adv:'副词',prep:'介词',conj:'连词',pron:'代词',det:'限定词',aux:'助动词',interj:'感叹词',phrase:'短语',sentence:'句子',other:'其他'},
+  style:{neutral:'中性',formal:'正式',informal:'非正式',spoken:'口语',written:'书面',academic:'学术',business:'商务',literary:'文学',slang:'俚语',technical:'专业',archaic:'古旧',offensive:'冒犯',other:'其他'},
+};
+function historyCanonicalOptions(item,key){
+  return historyCanonicalValues(item,key).map(value=>({value,label:LABELS[key]?.[value]||value}));
+}
+function historyCanonicalValues(item,key){
+  if(key==='language')return uniq([canonicalLanguage(historyField(item,'language'))]);
+  if(key==='direction')return uniq([canonicalDirection(historyField(item,'direction'),item)]);
+  if(key==='style')return uniq(canonicalStyleTokens(historyField(item,'style')));
+  if(key==='pos')return uniq(historyFieldList(item,'pos').flatMap(canonicalPosTokens));
+  return [];
+}
+function canonicalLanguage(value){
+  const text=normalizeSearch(value).replace(/\[[^\]]*\]/g,'').replace(/[0-9]/g,'');
+  if(/\b(en|eng|english)\b|英语|英文|英/.test(text))return 'en';
+  if(/\b(zh|zho|chi|chinese|cn)\b|中文|汉语|漢語|中/.test(text))return 'zh';
+  if(/\b(ja|jpn|japanese)\b|日语|日文|日/.test(text))return 'ja';
+  if(/\b(ko|kor|korean)\b|韩语|韓語|韩文|韓文|韩|韓/.test(text))return 'ko';
+  if(/\b(fr|fra|fre|french)\b|法语|法文|法/.test(text))return 'fr';
+  if(/\b(es|spa|spanish)\b|西语|西班牙语|西文/.test(text))return 'es';
+  if(/\b(de|deu|ger|german)\b|德语|德文|德/.test(text))return 'de';
+  return text?'other':'';
+}
+function canonicalDirection(value,item){
+  const text=normalizeSearch([value,item?.result?.meta?.direction,item?.result?.meta?.language,item?.result?.headword?.languageTag].filter(Boolean).join(' '));
+  const targetZh=/译为中文|翻成中文|翻译成中文|to chinese|into chinese|中文|中/.test(text);
+  if((/英译中|英文.*中|英语.*中|english.*chinese|en[-_ ]?zh|英.*译/.test(text)||canonicalLanguage(text)==='en')&&targetZh)return 'en-zh';
+  if(/中译英|中文.*英|汉语.*英|chinese.*english|zh[-_ ]?en/.test(text))return 'zh-en';
+  if(/日译中|日文.*中|日语.*中|japanese.*chinese|ja[-_ ]?zh/.test(text))return 'ja-zh';
+  if(/中译日|中文.*日|chinese.*japanese|zh[-_ ]?ja/.test(text))return 'zh-ja';
+  if(/韩译中|韓譯中|韩文.*中|韩语.*中|korean.*chinese|ko[-_ ]?zh/.test(text))return 'ko-zh';
+  if(/中译韩|中文.*韩|chinese.*korean|zh[-_ ]?ko/.test(text))return 'zh-ko';
+  if(/法译中|法文.*中|法语.*中|french.*chinese|fr[-_ ]?zh/.test(text))return 'fr-zh';
+  if(/中译法|中文.*法|chinese.*french|zh[-_ ]?fr/.test(text))return 'zh-fr';
+  if(/西译中|西班牙.*中|spanish.*chinese|es[-_ ]?zh/.test(text))return 'es-zh';
+  if(/中译西|中文.*西班牙|chinese.*spanish|zh[-_ ]?es/.test(text))return 'zh-es';
+  if(/德译中|德文.*中|德语.*中|german.*chinese|de[-_ ]?zh/.test(text))return 'de-zh';
+  if(/中译德|中文.*德|chinese.*german|zh[-_ ]?de/.test(text))return 'zh-de';
+  const language=canonicalLanguage(text);
+  if(language&&language!=='zh'&&targetZh)return `${language}-zh`;
+  return text?'other':'';
+}
+function canonicalPosTokens(value){
+  const text=normalizeSearch(value).replace(/[()（）]/g,' ');
+  const chunks=text.split(/[、,，/／;；|+&\s]+/).filter(Boolean);
+  const out=[];
+  chunks.forEach(chunk=>{
+    if(/^n\.?$|noun|名词|名$/.test(chunk))out.push('n');
+    else if(/^v\.?$|verb|动词|動詞|动$|動$/.test(chunk))out.push('v');
+    else if(/^adj\.?$|adjective|形容词|形容詞/.test(chunk))out.push('adj');
+    else if(/^adv\.?$|adverb|副词|副詞/.test(chunk))out.push('adv');
+    else if(/^prep\.?$|preposition|介词|介詞/.test(chunk))out.push('prep');
+    else if(/^conj\.?$|conjunction|连词|連詞/.test(chunk))out.push('conj');
+    else if(/^pron\.?$|pronoun|代词|代詞/.test(chunk))out.push('pron');
+    else if(/^det\.?$|determiner|限定词|限定詞|冠词|冠詞/.test(chunk))out.push('det');
+    else if(/^aux\.?$|auxiliary|助动词|助動詞/.test(chunk))out.push('aux');
+    else if(/^interj\.?$|interjection|感叹词|感嘆詞/.test(chunk))out.push('interj');
+    else if(/phrase|短语|短語|词组|詞組|表达/.test(chunk))out.push('phrase');
+    else if(/sentence|句子|整句/.test(chunk))out.push('sentence');
+    else if(chunk)out.push('other');
   });
-  return Object.fromEntries(Object.entries(sets).map(([key,set])=>[key,[...set].sort(historyCollator.compare)]));
+  return out.length?uniq(out):[];
+}
+function canonicalStyleTokens(value){
+  const text=normalizeSearch(value);
+  const out=[];
+  if(/中性|neutral|通用|一般/.test(text))out.push('neutral');
+  if(/正式|formal/.test(text))out.push('formal');
+  if(/非正式|informal|随意|casual/.test(text))out.push('informal');
+  if(/口语|口語|spoken|oral|日常/.test(text))out.push('spoken');
+  if(/书面|書面|written/.test(text))out.push('written');
+  if(/学术|學術|academic/.test(text))out.push('academic');
+  if(/商务|商務|business|职场|職場/.test(text))out.push('business');
+  if(/文学|文學|literary/.test(text))out.push('literary');
+  if(/俚语|俚語|slang/.test(text))out.push('slang');
+  if(/专业|專業|technical|术语|術語/.test(text))out.push('technical');
+  if(/古旧|古舊|archaic/.test(text))out.push('archaic');
+  if(/冒犯|offensive|粗俗|vulgar/.test(text))out.push('offensive');
+  if(!out.length&&text)out.push('other');
+  return uniq(out);
+}
+function uniq(items){
+  return [...new Set(items.filter(Boolean))];
+}
+function collectHistoryOptions(history){
+  const maps={language:new Map(),direction:new Map(),pos:new Map(),style:new Map()};
+  history.forEach(item=>{
+    Object.keys(maps).forEach(key=>{
+      historyCanonicalOptions(item,key).forEach(option=>{
+        if(option.value&&!maps[key].has(option.value))maps[key].set(option.value,option.label);
+      });
+    });
+  });
+  return Object.fromEntries(Object.entries(maps).map(([key,map])=>[
+    key,
+    [...map.entries()]
+      .map(([value,label])=>({value,label}))
+      .sort((a,b)=>historyCollator.compare(a.label,b.label)),
+  ]));
 }
 function renderHistoryFilterOptions(history){
   const options=collectHistoryOptions(history);
@@ -1522,17 +1629,20 @@ function renderHistoryFilterOptions(history){
 }
 function setFilterOptions(select,key,label,values=[]){
   if(!select)return;
-  const current=historyState.filters[key];
-  select.innerHTML=`<option value="">${label}</option>${values.map(value=>`<option value="${escapeHTML(normalizeSearch(value))}">${escapeHTML(value)}</option>`).join('')}`;
-  if(current&&values.map(normalizeSearch).includes(current))select.value=current;
-  else{
-    select.value='';
-    historyState.filters[key]='';
-  }
+  const current=Array.isArray(historyState.filters[key])?historyState.filters[key]:[];
+  const valid=new Set(values.map(option=>option.value));
+  const next=current.filter(value=>valid.has(value));
+  historyState.filters[key]=next;
+  select.innerHTML=`<option value="">${label}</option>${values.map(option=>`<option value="${escapeHTML(option.value)}">${escapeHTML(option.label)}</option>`).join('')}`;
+  [...select.options].forEach(option=>{option.selected=next.includes(option.value)});
 }
 function setHistoryFilter(key,value){
-  historyState.filters[key]=value;
+  const next=Array.isArray(value)?value:[value].filter(Boolean);
+  historyState.filters[key]=next.includes('')?[]:next;
   renderHistory();
+}
+function selectedFilterValues(select){
+  return [...select.selectedOptions].map(option=>option.value).filter(Boolean);
 }
 function setHistoryScope(scope){
   historyState.scope=scope==='favorites'?'favorites':'all';
@@ -1744,7 +1854,8 @@ async function deleteHistory(id){
   notify('记录已删除。','good','历史记录');
 }
 async function clearHistory(){
-  if(!await askConfirm('确认清空历史记录？','清空历史'))return;
+  const count=getHistory().length;
+  if(!await askConfirm(`确认清空全部 ${count} 条历史记录？这会同步到云端，所有设备都会清空。`,'危险操作：清空历史'))return;
   setHistory([]);
   notify('历史记录已清空。','good','历史记录');
 }
@@ -1859,6 +1970,7 @@ async function factoryReset(){
   modalResult=null;
   historyState.query='';
   historyState.scope='all';
+  Object.keys(historyState.filters).forEach(key=>{historyState.filters[key]=[]});
   if(els.historySearch)els.historySearch.value='';
   hydrateSettings();
   renderEmpty();
@@ -1983,10 +2095,10 @@ els.historySearch?.addEventListener('input',event=>{
   updateHistorySearchState();
   renderHistory();
 });
-els.historyFilterLanguage?.addEventListener('change',event=>setHistoryFilter('language',event.target.value));
-els.historyFilterDirection?.addEventListener('change',event=>setHistoryFilter('direction',event.target.value));
-els.historyFilterPos?.addEventListener('change',event=>setHistoryFilter('pos',event.target.value));
-els.historyFilterStyle?.addEventListener('change',event=>setHistoryFilter('style',event.target.value));
+els.historyFilterLanguage?.addEventListener('change',event=>setHistoryFilter('language',selectedFilterValues(event.target)));
+els.historyFilterDirection?.addEventListener('change',event=>setHistoryFilter('direction',selectedFilterValues(event.target)));
+els.historyFilterPos?.addEventListener('change',event=>setHistoryFilter('pos',selectedFilterValues(event.target)));
+els.historyFilterStyle?.addEventListener('change',event=>setHistoryFilter('style',selectedFilterValues(event.target)));
 els.query?.addEventListener('input',updateEditorState);
 els.query?.addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){
