@@ -15,6 +15,8 @@ const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
   settings:'ai_vocab_tool_settings',
   theme:'ai_vocab_tool_theme',
+  layout:'ai_vocab_tool_layout',
+  logs:'ai_vocab_tool_logs',
 };
 
 let cloudClient=null;
@@ -32,7 +34,10 @@ let lookupBusy=false;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudBootstrapped=false;
+let cloudSyncQueued=false;
+let cloudAutoTimer=null;
 let passwordRecoveryMode=false;
+const cloudDirtyKeys=new Set();
 let editingFollowup=null;
 let pendingFollowup=null;
 const activeToasts=new Map();
@@ -219,12 +224,15 @@ function resetConfirmUI(){
 function getLogs(){return readJSON(STORAGE_KEYS.logs,[])}
 function setLogs(items){
   writeJSON(STORAGE_KEYS.logs,items.slice(0,80));
+  markCloudDirty(CLOUD_KEYS.logs);
   renderLogs();
+  syncAllToCloud(true);
 }
 function pushLog(message,type='info',title='ai-vocab-tool'){
   const logs=getLogs();
   logs.unshift({id:Date.now(),time:new Date().toISOString(),type,title,message});
   writeJSON(STORAGE_KEYS.logs,logs.slice(0,80));
+  markCloudDirty(CLOUD_KEYS.logs);
   renderLogs();
 }
 function clearLogs(){
@@ -276,6 +284,7 @@ async function initCloud(){
   });
   cloudClient.auth.onAuthStateChange((_event,session)=>{
     cloudUser=session?.user||null;
+    if(!cloudUser)stopCloudAutoSync();
     if(_event==='PASSWORD_RECOVERY'){
       passwordRecoveryMode=true;
       els.accountPanel?.classList.add('open');
@@ -291,7 +300,7 @@ async function initCloud(){
   const {data}=await cloudClient.auth.getSession();
   cloudUser=data.session?.user||null;
   renderAuthGate();
-  if(cloudUser)await bootstrapCloudSync(hasAuthCallback?'ask':'cloud');
+  if(cloudUser)await bootstrapCloudSync('merge',hasAuthCallback);
 }
 async function loginPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法登录');
@@ -304,7 +313,7 @@ async function loginPassword(source='account'){
   passwordRecoveryMode=false;
   localStorage.removeItem(STORAGE_KEYS.offline);
   renderAuthGate();
-  if(cloudUser)await bootstrapCloudSync('ask',true);
+  if(cloudUser)await bootstrapCloudSync('merge',true);
 }
 async function signupPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法注册');
@@ -317,7 +326,7 @@ async function signupPassword(source='account'){
   passwordRecoveryMode=false;
   localStorage.removeItem(STORAGE_KEYS.offline);
   renderAuthGate();
-  if(cloudUser)await bootstrapCloudSync('ask',true);
+  if(cloudUser)await bootstrapCloudSync('merge',true);
   notify(cloudUser?'注册并登录成功。':'注册邮件已发送。','good','注册');
 }
 async function loginMagic(source='account'){
@@ -362,7 +371,7 @@ async function setCloudPassword(){
   cloudUser=data.session?.user||null;
   passwordRecoveryMode=false;
   renderAuthGate();
-  await bootstrapCloudSync('cloud',true);
+  await bootstrapCloudSync('merge',true);
   notify('以后可以直接用新密码登录。','good','密码已重设');
 }
 async function logoutCloud(){
@@ -370,6 +379,7 @@ async function logoutCloud(){
   cloudUser=null;
   cloudBootstrapped=false;
   passwordRecoveryMode=false;
+  stopCloudAutoSync();
   renderAuthGate();
   setCloudStatus('已退出云端账号，本机数据仍保留。','info');
 }
@@ -387,12 +397,14 @@ function closeAccountPanel(){els.accountPanel.classList.remove('open')}
 function getHistory(){return readJSON(STORAGE_KEYS.history,[])}
 function setHistory(items){
   writeJSON(STORAGE_KEYS.history,items);
+  markCloudDirty(CLOUD_KEYS.history);
   renderHistory();
   syncAllToCloud(true);
 }
 function getSettings(){return {...DEFAULT_SETTINGS,...readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS)}}
 function setSettings(settings){
   writeJSON(STORAGE_KEYS.settings,settings);
+  markCloudDirty(CLOUD_KEYS.settings);
   syncAllToCloud(true);
 }
 function cloudReady(){
@@ -411,11 +423,23 @@ function setCloudStatus(message,type='info',busy=false){
     node.classList.add(type);
   });
 }
+function setCloudBusy(busy,visible=false){
+  cloudBusy=Boolean(busy);
+  document.body.classList.toggle('cloud-syncing',cloudBusy&&visible);
+}
+function markCloudDirty(key){
+  if(key)cloudDirtyKeys.add(key);
+}
+function clearCloudDirty(keys=Object.values(CLOUD_KEYS)){
+  keys.forEach(key=>cloudDirtyKeys.delete(key));
+}
 function syncableItems(){
   return {
     [CLOUD_KEYS.history]:JSON.stringify(getHistory()),
     [CLOUD_KEYS.settings]:JSON.stringify(getSettings()),
     [CLOUD_KEYS.theme]:localStorage.getItem(STORAGE_KEYS.theme)||'auto',
+    [CLOUD_KEYS.layout]:localStorage.getItem(STORAGE_KEYS.layout)||'top',
+    [CLOUD_KEYS.logs]:JSON.stringify(getLogs()),
   };
 }
 function cloudRawMap(rows){
@@ -437,6 +461,8 @@ function replaceLocalWithItems(items){
   localStorage.removeItem(STORAGE_KEYS.history);
   localStorage.removeItem(STORAGE_KEYS.settings);
   localStorage.removeItem(STORAGE_KEYS.theme);
+  localStorage.removeItem(STORAGE_KEYS.layout);
+  localStorage.removeItem(STORAGE_KEYS.logs);
   if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.history)){
     writeJSON(STORAGE_KEYS.history,safeHistoryFromRaw(items[CLOUD_KEYS.history]));
   }
@@ -446,9 +472,17 @@ function replaceLocalWithItems(items){
   if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.theme)){
     localStorage.setItem(STORAGE_KEYS.theme,items[CLOUD_KEYS.theme]||'auto');
   }
+  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.layout)){
+    localStorage.setItem(STORAGE_KEYS.layout,items[CLOUD_KEYS.layout]||'top');
+  }
+  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.logs)){
+    writeJSON(STORAGE_KEYS.logs,safeLogsFromRaw(items[CLOUD_KEYS.logs]));
+  }
   hydrateSettings();
   renderHistory();
+  renderLogs();
   applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
+  applyLayout(localStorage.getItem(STORAGE_KEYS.layout)||'top');
   renderAuthGate();
 }
 function safeObjectFromRaw(raw,fallback={}){
@@ -457,10 +491,18 @@ function safeObjectFromRaw(raw,fallback={}){
 function safeHistoryFromRaw(raw){
   try{return normalizeHistoryItems(JSON.parse(raw||'[]'))}catch{return []}
 }
+function safeLogsFromRaw(raw){
+  try{
+    const logs=JSON.parse(raw||'[]');
+    return Array.isArray(logs)?logs.slice(0,80):[];
+  }catch{return []}
+}
 function syncKind(key){
   if(key===CLOUD_KEYS.history)return '历史记录';
   if(key===CLOUD_KEYS.settings)return '模型设置';
   if(key===CLOUD_KEYS.theme)return '主题';
+  if(key===CLOUD_KEYS.layout)return '布局';
+  if(key===CLOUD_KEYS.logs)return '日志';
   return '数据';
 }
 function syncValuePreview(key,value){
@@ -474,6 +516,7 @@ function syncValuePreview(key,value){
     const settings=safeObjectFromRaw(value,DEFAULT_SETTINGS);
     return `API URL ${settings.apiUrl?'已填':'空'}，API Key ${settings.apiKey?'已填':'空'}，Model ${settings.model||'空'}`;
   }
+  if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
 }
 function syncDiffStats(local,remote){
@@ -500,9 +543,22 @@ function mergeSyncItems(local,remote){
     const localHistory=safeHistoryFromRaw(local[CLOUD_KEYS.history]);
     merged[CLOUD_KEYS.history]=JSON.stringify(mergeHistoryItems(localHistory,remoteHistory));
   }
-  if(!local[CLOUD_KEYS.settings]&&remote[CLOUD_KEYS.settings])merged[CLOUD_KEYS.settings]=remote[CLOUD_KEYS.settings];
-  if(!local[CLOUD_KEYS.theme]&&remote[CLOUD_KEYS.theme])merged[CLOUD_KEYS.theme]=remote[CLOUD_KEYS.theme];
+  if(remote[CLOUD_KEYS.settings]&&!cloudDirtyKeys.has(CLOUD_KEYS.settings))merged[CLOUD_KEYS.settings]=remote[CLOUD_KEYS.settings];
+  if(remote[CLOUD_KEYS.theme]&&!cloudDirtyKeys.has(CLOUD_KEYS.theme))merged[CLOUD_KEYS.theme]=remote[CLOUD_KEYS.theme];
+  if(remote[CLOUD_KEYS.layout]&&!cloudDirtyKeys.has(CLOUD_KEYS.layout))merged[CLOUD_KEYS.layout]=remote[CLOUD_KEYS.layout];
+  if(remote[CLOUD_KEYS.logs]||local[CLOUD_KEYS.logs]){
+    merged[CLOUD_KEYS.logs]=JSON.stringify(mergeLogs(safeLogsFromRaw(local[CLOUD_KEYS.logs]),safeLogsFromRaw(remote[CLOUD_KEYS.logs])));
+  }
   return merged;
+}
+function mergeLogs(localLogs,remoteLogs){
+  const map=new Map();
+  [...remoteLogs,...localLogs].forEach(item=>{
+    if(!item)return;
+    const key=String(item.id||`${item.time}|${item.type}|${item.title}|${item.message}`);
+    if(!map.has(key))map.set(key,item);
+  });
+  return [...map.values()].sort((a,b)=>new Date(b.time||0)-new Date(a.time||0)).slice(0,80);
 }
 function mergeHistoryItems(localHistory,remoteHistory){
   const map=new Map();
@@ -594,7 +650,7 @@ async function askSyncConflict(local,remote){
     mergeBtn.textContent='合并';
     actions.insertBefore(mergeBtn,els.confirmOk);
     const stats=syncDiffStats(local,remote);
-    const kinds=['历史记录','模型设置','主题'].map(kind=>{
+    const kinds=['历史记录','模型设置','主题','布局','日志'].map(kind=>{
       const row=stats.kinds[kind]||{local:0,remote:0,diff:0};
       return `<div class="sync-kind"><b>${kind}</b><span>本机 ${row.local}</span><span>云端 ${row.remote}</span><em>${row.diff} 项不一致</em></div>`;
     }).join('');
@@ -650,75 +706,66 @@ async function askSyncConflict(local,remote){
 }
 async function bootstrapCloudSync(mode='ask',manual=false){
   if(!cloudReady())return;
-  if(cloudBusy&&!manual)return;
+  if(cloudBusy){cloudSyncQueued=true;return}
   cloudBootstrapped=true;
-  setCloudStatus('正在读取云端数据...','info',true);
+  if(manual)setCloudStatus('正在读取云端数据...','info',true);
+  else setCloudBusy(true,false);
   const local=syncableItems();
   const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',Object.values(CLOUD_KEYS));
   if(error){setCloudStatus(`同步失败：${error.message}`,'bad');notify(error.message,'bad','同步失败');return}
   const remote=cloudRawMap(data);
   if(mode==='cloud'){
-    if(!Object.keys(remote).length){
-      const result=await uploadItemsToCloud(local);
-      if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
-      setCloudStatus(`云端为空，已上传 ${result.count} 项本机数据。`,'good');
-      if(manual)notify(`已保存 ${result.count} 项本机数据到云端。`,'good','同步完成');
-      return;
-    }
     replaceLocalWithItems(remote);
     setCloudStatus('已读取云端最新数据。','good');
     if(manual)notify('已读取云端最新数据。','good','云端同步');
+    startCloudAutoSync();
+    flushQueuedCloudSync();
     return;
   }
-  if(!Object.keys(remote).length){
-    const result=await uploadItemsToCloud(local);
-    if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
-    setCloudStatus(`云端为空，已上传 ${result.count} 项本机数据。`,'good');
-    notify(`已保存 ${result.count} 项本机数据到云端。`,'good','同步完成');
-    return;
-  }
-  if(mapsEqual(local,remote)){
-    setCloudStatus('本机和云端已经一致。','good');
-    if(manual)notify('本机和云端已经一致。','good','同步完成');
-    return;
-  }
-  setCloudStatus('检测到本机和云端不一致，等待你选择处理方式。','info');
-  const action=await askSyncConflict(local,remote);
-  setCloudStatus('正在处理同步选择...','info',true);
-  if(action==='local'){
-    const result=await replaceCloudWithItems(local);
-    if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
-    setCloudStatus('已保留本机并覆盖云端。','good');
-    notify('已保留本机并覆盖云端。','good','同步完成');
-  }else if(action==='merge'){
-    const merged=mergeSyncItems(local,remote);
+  const merged=Object.keys(remote).length?mergeSyncItems(local,remote):local;
+  if(!mapsEqual(local,merged))replaceLocalWithItems(merged);
+  if(!Object.keys(remote).length||!mapsEqual(remote,merged)){
     const result=await replaceCloudWithItems(merged);
     if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
-    replaceLocalWithItems(merged);
-    setCloudStatus('已合并本机和云端数据。','good');
-    notify('已合并本机和云端数据。','good','同步完成');
-  }else{
-    replaceLocalWithItems(remote);
-    setCloudStatus('已恢复云端数据到本机。','good');
-    notify('已恢复云端数据到本机。','good','同步完成');
   }
+  setCloudStatus('已自动同步本机和云端数据。','good');
+  if(manual)notify('已自动同步本机和云端数据。','good','同步完成');
+  startCloudAutoSync();
+  flushQueuedCloudSync();
 }
 async function uploadItemsToCloud(items){
   const rows=Object.entries(items).map(([key,raw])=>({user_id:cloudUser.id,key,value:{raw}}));
   if(!rows.length)return {count:0};
   const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
+  if(!error)clearCloudDirty(Object.keys(items));
   return {error,count:rows.length};
 }
 async function replaceCloudWithItems(items){
   return uploadItemsToCloud(items);
 }
 async function syncAllToCloud(silent=false){
-  if(!cloudClient||!cloudUser||cloudBusy)return;
+  if(!cloudClient||!cloudUser)return;
+  if(cloudBusy){cloudSyncQueued=true;return}
   setCloudStatus('正在保存到云端...','info',true);
   const result=await uploadItemsToCloud(syncableItems());
   if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
   setCloudStatus(`已同步 ${result.count} 项到云端。`,'good');
   if(!silent)notify('已同步到云端。','good','同步完成');
+  flushQueuedCloudSync();
+}
+function flushQueuedCloudSync(){
+  if(!cloudSyncQueued||cloudBusy)return;
+  cloudSyncQueued=false;
+  syncAllToCloud(true);
+}
+function startCloudAutoSync(){
+  if(cloudAutoTimer)clearInterval(cloudAutoTimer);
+  if(!cloudClient||!cloudUser)return;
+  cloudAutoTimer=setInterval(()=>bootstrapCloudSync('merge',false),15000);
+}
+function stopCloudAutoSync(){
+  if(cloudAutoTimer)clearInterval(cloudAutoTimer);
+  cloudAutoTimer=null;
 }
 async function uploadCloud(){
   if(!cloudReady())return;
@@ -1689,6 +1736,7 @@ function applyTheme(theme){
 }
 function setTheme(theme){
   localStorage.setItem(STORAGE_KEYS.theme,theme);
+  markCloudDirty(CLOUD_KEYS.theme);
   applyTheme(theme);
   syncAllToCloud(true);
 }
@@ -1707,7 +1755,9 @@ function applyLayout(layout){
 function setLayout(layout){
   const next=layout==='split'?'split':'top';
   localStorage.setItem(STORAGE_KEYS.layout,next);
+  markCloudDirty(CLOUD_KEYS.layout);
   applyLayout(next);
+  syncAllToCloud(true);
 }
 function updateEditorState(){
   const hasText=Boolean(els.query.value.trim()||els.direction.value.trim()||els.note.value.trim());
@@ -1728,6 +1778,12 @@ document.addEventListener('keydown',event=>{
       els.historySearch?.focus();
     }
   }
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&cloudClient&&cloudUser)bootstrapCloudSync('merge',false);
+});
+window.addEventListener('focus',()=>{
+  if(cloudClient&&cloudUser)bootstrapCloudSync('merge',false);
 });
 els.historySearch?.addEventListener('input',event=>{
   historyState.query=event.target.value;
