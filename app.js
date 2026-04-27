@@ -62,12 +62,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.1',
+  version:'0.9.2',
   releaseDate:'2026-04-27',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.2',
+    date:'2026-04-27',
+    title:'增强收藏历史辨识度',
+    items:['在全部历史视图中，已收藏条目会显示更醒目的背景和左侧高亮。','收藏条目保留星标按钮，同时用卡片质感体现特殊状态。','收藏筛选视图保持克制，避免整页高亮过载。'],
+  },
   {
     version:'0.9.1',
     date:'2026-04-27',
@@ -1422,20 +1428,24 @@ function renderHistory(){
     els.historyList.innerHTML=`<div class="empty">${historyState.scope==='favorites'&&!favoriteTotal?'暂无收藏记录':constrained?'没有匹配记录':'暂无历史记录'}</div>`;
     return;
   }
-  els.historyList.innerHTML=history.map(item=>`
-    <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+  els.historyList.innerHTML=history.map(item=>{
+    const normalized=normalizeHistoryItem(item);
+    const favoriteInAll=normalized.favorite&&historyState.scope==='all';
+    return `
+    <div class="history-item ${favoriteInAll?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div>
         <div class="history-word">${escapeHTML(item.query)}</div>
-        <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}${getHistoryRolls(item).length>1?` · ${getHistoryRolls(item).length} 个版本`:''}</div>
+        <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}${getHistoryRolls(item).length>1?` · ${getHistoryRolls(item).length} 个版本`:''}${favoriteInAll?' · 已收藏':''}</div>
       </div>
       <div class="history-actions">
-        <button class="icon-btn favorite-icon ${normalizeHistoryItem(item).favorite?'active':''}" data-tip="${normalizeHistoryItem(item).favorite?'取消收藏':'收藏'}" aria-label="${normalizeHistoryItem(item).favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalizeHistoryItem(item).favorite?'★':'☆'}</button>
+        <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
         <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
         <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 function handleHistoryItemKey(event,id){
   if(event.key==='Enter'||event.key===' '){
