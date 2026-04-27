@@ -12,19 +12,22 @@
 - 结果：支持排版视图和分区 JSON 视图；义项、词性、核心义、搭配和易混词都有更清晰的层级。
 - 追问：可针对当前词条继续向 AI 提问，回答会排版在结果下方并保存到对应历史记录。
 - 历史记录：自动保存查询结果，整条记录可点击查看详情，支持排版 / JSON / 编辑保存，也支持收藏、搜索、筛选和排序。
-- 设置：填写 API URL、API Key、Model，切换主题和首页布局，支持恢复默认。
+- 设置：可保存多组 API URL、API Key、Model 配置并切换当前使用项；也可切换主题和首页布局，支持恢复默认。
 - 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后无感同步历史、收藏、API 设置、主题、布局和运行日志。
 - 通知：右上角 toast 支持自动消失和手动关闭，按状态展示不同图标、光条和进度动效。
 
 ## AI 配置
 
-可以在网页设置里填写：
+可以在网页设置里保存一组或多组 API 配置：
 
 ```text
+Name=OpenAI 主线路
 API URL=https://api.openai.com/v1/chat/completions
 API Key=你的 API Key
 Model=gpt-4o-mini
 ```
+
+查询和追问会使用当前选中的配置组。旧版本保存的单组 `API URL / API Key / Model` 会自动迁移为默认配置组。
 
 也可以在 Vercel 环境变量里配置：
 
@@ -34,7 +37,7 @@ AI_API_KEY=你的 API Key
 AI_MODEL=gpt-4o-mini
 ```
 
-网页设置里的 API Key 会保存在浏览器 localStorage，并会随云同步保存到 Supabase。只适合个人自用或可信设备。
+网页设置里的 API Key 会保存在浏览器 localStorage，并会随云同步保存到 Supabase。只适合个人自用或可信设备。多设备同步时，不同设备新增的 API 配置组会合并保留。
 
 ## 权限策略
 
@@ -62,7 +65,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 使用的 key：
 
 - `ai_vocab_tool_history`
-- `ai_vocab_tool_settings`
+- `ai_vocab_tool_settings`（含多组 API 配置）
 - `ai_vocab_tool_theme`
 - `ai_vocab_tool_layout`
 - `ai_vocab_tool_logs`

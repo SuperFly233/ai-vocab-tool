@@ -161,8 +161,20 @@
       <div class="setting-group">
         <div class="setting-title">模型接口</div>
         <div class="setting-row stack-row">
-          <div><div class="setting-label">自定义配置</div><div class="setting-sub">留空时使用 Vercel 环境变量；填入 URL、Key 和 Model 后，本机优先走这里。</div></div>
+          <div><div class="setting-label">自定义配置组</div><div class="setting-sub">可保存多组 API URL、Key 和 Model；当前选中的配置会用于查询和追问，并随云端同步。</div></div>
+          <div class="api-profile-bar">
+            <label class="setting-field">
+              <span>当前配置</span>
+              <select id="api-profile-select" onchange="selectApiProfile(this.value)"></select>
+            </label>
+            <button class="plain-btn" onclick="newApiProfile()">新增配置</button>
+            <button class="plain-btn danger-btn" onclick="deleteApiProfile()">删除当前</button>
+          </div>
           <div class="settings-grid">
+            <label class="setting-field">
+              <span>名称</span>
+              <input class="cloud-input" id="api-profile-name" type="text" placeholder="OpenAI / Gemini / 备用线路">
+            </label>
             <label class="setting-field">
               <span>API URL</span>
               <input class="cloud-input" id="api-url" type="url" placeholder="https://api.openai.com/v1/chat/completions">

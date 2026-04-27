@@ -50,6 +50,7 @@ Expected behavior:
 - Replaced normal startup conflict prompts with automatic merge behavior.
 - Added this project context file for future conversation continuity.
 - Polished right-top toast notifications with manual close buttons, status icons, progress animation, and richer entrance/exit effects.
+- Added multi-profile API settings: settings now support multiple named API URL/API Key/Model profiles, with legacy single settings migrated to the default profile.
 
 ## Working Rules
 
@@ -61,6 +62,15 @@ For future code changes:
 - Keep this `PROJECT_CONTEXT.md` current with important decisions, sync design, and handoff notes.
 - Run at least `node --check app.js` before committing JavaScript changes.
 - Commit and push after completing requested changes unless the user says not to.
+
+## API Settings
+
+Settings are normalized through `normalizeSettings()` in `app.js`.
+
+- Legacy fields `apiUrl`, `apiKey`, and `model` are still accepted.
+- New storage uses `apiProfiles` and `activeApiProfileId`.
+- Query and follow-up calls should use `currentApiSettings()`.
+- Cloud merge should preserve profiles from both local and remote devices.
 
 ## Open Follow-Up
 

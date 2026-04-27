@@ -264,6 +264,9 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .setting-group{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:18px;display:grid;gap:12px;transition:transform .18s ease,border-color .18s ease}
 .setting-group:hover{transform:translateY(-1px);border-color:var(--line2)}
 .setting-title{font-size:14px;color:var(--soft);font-weight:750;letter-spacing:.08em}
+.api-profile-bar{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:8px;align-items:end}
+.api-profile-bar select{min-width:0;width:100%;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 12px;font-size:14px;font-weight:800;outline:0}
+.api-profile-bar select:focus{border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
 .setting-field{display:grid;gap:6px}
 .setting-field span,.setting-row span{font-size:14px;color:var(--muted);font-weight:650}
 .setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -271,7 +274,7 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .stack-row{display:grid;align-items:stretch}
 .setting-label{font-size:18px;font-weight:750}
 .setting-sub{font-size:14px;color:var(--muted);font-weight:500;line-height:1.45}
-.settings-grid{display:grid;grid-template-columns:minmax(300px,1.15fr) minmax(260px,.95fr) minmax(190px,.65fr);gap:14px;width:100%;max-width:960px;margin-inline:auto}
+.settings-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;width:100%;max-width:1120px;margin-inline:auto}
 .setting-actions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;max-width:960px;margin-inline:auto}
 .env-card{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:10px}
 .env-card div{display:grid;gap:2px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:9px 10px}
@@ -463,6 +466,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .account-panel{top:72px;left:14px;right:14px;width:auto}
   .account-actions.cloud-only{grid-template-columns:1fr}
   .section-head,.setting-row{display:grid;align-items:stretch}
+  .api-profile-bar{grid-template-columns:1fr}
   .settings-grid{grid-template-columns:1fr}
   .history-tools{grid-template-columns:1fr}
   .history-filterbar{grid-template-columns:1fr 1fr}

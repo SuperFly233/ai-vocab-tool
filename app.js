@@ -58,15 +58,22 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   sensitivity:'base',
   ignorePunctuation:true,
 });
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:''};
+const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.8.1',
+  version:'0.9.0',
   releaseDate:'2026-04-27',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.0',
+    date:'2026-04-27',
+    title:'新增多组 API 配置同步',
+    items:['设置页支持保存多组 API URL、API Key 和 Model。','可选择当前使用的 API 配置组，旧单组配置会自动迁移。','云同步会合并多设备 API 配置组，减少新设备拿不到模型设置的问题。'],
+  },
   {
     version:'0.8.1',
     date:'2026-04-27',
@@ -138,6 +145,8 @@ const els={
   historyFilterStyle:document.getElementById('history-filter-style'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
+  apiProfileSelect:document.getElementById('api-profile-select'),
+  apiProfileName:document.getElementById('api-profile-name'),
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
   apiModel:document.getElementById('api-model'),
@@ -423,11 +432,90 @@ function setHistory(items){
   renderHistory();
   syncAllToCloud(true);
 }
-function getSettings(){return {...DEFAULT_SETTINGS,...readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS)}}
+function getSettings(){return normalizeSettings(readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS))}
 function setSettings(settings){
-  writeJSON(STORAGE_KEYS.settings,settings);
+  writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
   markCloudDirty(CLOUD_KEYS.settings);
   syncAllToCloud(true);
+}
+function normalizeSettings(raw={}){
+  const source={...raw};
+  let profiles=Array.isArray(source.apiProfiles)?source.apiProfiles.map(normalizeApiProfile).filter(Boolean):[];
+  const legacyHasValue=Boolean(source.apiUrl||source.apiKey||source.model);
+  if(!profiles.length||legacyHasValue){
+    const legacyProfile=normalizeApiProfile({
+      id:source.activeApiProfileId||'default',
+      name:source.apiProfileName||source.profileName||'默认配置',
+      apiUrl:source.apiUrl||'',
+      apiKey:source.apiKey||'',
+      model:source.model||'',
+      updatedAt:source.updatedAt||new Date().toISOString(),
+    });
+    const existingIndex=profiles.findIndex(profile=>profile.id===legacyProfile.id);
+    if(existingIndex>=0)profiles[existingIndex]={...profiles[existingIndex],...legacyProfile};
+    else profiles.unshift(legacyProfile);
+  }
+  profiles=dedupeApiProfiles(profiles.length?profiles:[DEFAULT_API_PROFILE]);
+  const activeId=profiles.some(profile=>profile.id===source.activeApiProfileId)?source.activeApiProfileId:profiles[0].id;
+  const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
+  return {
+    ...DEFAULT_SETTINGS,
+    ...source,
+    apiProfiles:profiles,
+    activeApiProfileId:active.id,
+    apiUrl:active.apiUrl,
+    apiKey:active.apiKey,
+    model:active.model,
+  };
+}
+function normalizeApiProfile(profile={}){
+  const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
+  return {
+    id,
+    name:String(profile.name||profile.label||'未命名配置').trim()||'未命名配置',
+    apiUrl:String(profile.apiUrl||'').trim(),
+    apiKey:String(profile.apiKey||'').trim(),
+    model:String(profile.model||'').trim(),
+    updatedAt:profile.updatedAt||new Date().toISOString(),
+  };
+}
+function dedupeApiProfiles(profiles){
+  const map=new Map();
+  profiles.map(normalizeApiProfile).forEach(profile=>{
+    const existing=map.get(profile.id);
+    if(!existing||new Date(profile.updatedAt||0)>new Date(existing.updatedAt||0))map.set(profile.id,profile);
+  });
+  return [...map.values()].sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));
+}
+function activeApiProfile(settings=getSettings()){
+  return settings.apiProfiles.find(profile=>profile.id===settings.activeApiProfileId)||settings.apiProfiles[0]||DEFAULT_API_PROFILE;
+}
+function mergeSettings(localRaw,remoteRaw){
+  const local=localRaw?normalizeSettings(localRaw):{apiProfiles:[],activeApiProfileId:''};
+  const remote=remoteRaw?normalizeSettings(remoteRaw):{apiProfiles:[],activeApiProfileId:''};
+  const profiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
+  if(!profiles.length)return normalizeSettings(DEFAULT_SETTINGS);
+  const activeId=cloudDirtyKeys.has(CLOUD_KEYS.settings)
+    ? local.activeApiProfileId
+    : remote.activeApiProfileId||local.activeApiProfileId;
+  return normalizeSettings({
+    ...remote,
+    apiProfiles:profiles,
+    activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
+    apiUrl:'',
+    apiKey:'',
+    model:'',
+  });
+}
+function currentApiSettings(settings=getSettings()){
+  const profile=activeApiProfile(settings);
+  return {
+    ...settings,
+    apiUrl:profile.apiUrl||'',
+    apiKey:profile.apiKey||'',
+    model:profile.model||'',
+    apiProfileName:profile.name||'默认配置',
+  };
 }
 function cloudReady(){
   if(!cloudClient){notify('Supabase 未配置。','bad','云端不可用');return false}
@@ -535,8 +623,9 @@ function syncValuePreview(key,value){
     return `${history.length} 条历史，${rolls} 个结果版本`;
   }
   if(key===CLOUD_KEYS.settings){
-    const settings=safeObjectFromRaw(value,DEFAULT_SETTINGS);
-    return `API URL ${settings.apiUrl?'已填':'空'}，API Key ${settings.apiKey?'已填':'空'}，Model ${settings.model||'空'}`;
+    const settings=normalizeSettings(safeObjectFromRaw(value,DEFAULT_SETTINGS));
+    const active=currentApiSettings(settings);
+    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}`;
   }
   if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
@@ -565,7 +654,12 @@ function mergeSyncItems(local,remote){
     const localHistory=safeHistoryFromRaw(local[CLOUD_KEYS.history]);
     merged[CLOUD_KEYS.history]=JSON.stringify(mergeHistoryItems(localHistory,remoteHistory));
   }
-  if(remote[CLOUD_KEYS.settings]&&!cloudDirtyKeys.has(CLOUD_KEYS.settings))merged[CLOUD_KEYS.settings]=remote[CLOUD_KEYS.settings];
+  if(remote[CLOUD_KEYS.settings]||local[CLOUD_KEYS.settings]){
+    merged[CLOUD_KEYS.settings]=JSON.stringify(mergeSettings(
+      Object.prototype.hasOwnProperty.call(local,CLOUD_KEYS.settings)?safeObjectFromRaw(local[CLOUD_KEYS.settings],DEFAULT_SETTINGS):null,
+      Object.prototype.hasOwnProperty.call(remote,CLOUD_KEYS.settings)?safeObjectFromRaw(remote[CLOUD_KEYS.settings],DEFAULT_SETTINGS):null,
+    ));
+  }
   if(remote[CLOUD_KEYS.theme]&&!cloudDirtyKeys.has(CLOUD_KEYS.theme))merged[CLOUD_KEYS.theme]=remote[CLOUD_KEYS.theme];
   if(remote[CLOUD_KEYS.layout]&&!cloudDirtyKeys.has(CLOUD_KEYS.layout))merged[CLOUD_KEYS.layout]=remote[CLOUD_KEYS.layout];
   if(remote[CLOUD_KEYS.logs]||local[CLOUD_KEYS.logs]){
@@ -815,12 +909,14 @@ async function loadConfigInfo(){
 }
 function renderConfigInfo(){
   if(!els.envCard)return;
-  const settings=getSettings();
+  const settings=currentApiSettings();
+  const profileCount=getSettings().apiProfiles.length;
   const localModel=settings.model||'';
   const envModel=configInfo?.model||'';
-  const source=localModel&&settings.apiUrl&&settings.apiKey?'网页设置':'Vercel 环境变量';
+  const source=localModel&&settings.apiUrl&&settings.apiKey?`网页配置：${settings.apiProfileName}`:'Vercel 环境变量';
   els.envCard.innerHTML=`
     <div><b>当前来源</b><span>${escapeHTML(source)}</span></div>
+    <div><b>已保存配置组</b><span>${profileCount} 组</span></div>
     <div><b>环境变量 API URL</b><span>${configInfo?.hasApiUrl?'已配置':'未配置'}</span></div>
     <div><b>环境变量 API Key</b><span>${configInfo?.hasApiKey?'已配置':'未配置'}</span></div>
     <div><b>环境变量 Model</b><span>${escapeHTML(envModel||'未配置')}</span></div>
@@ -854,7 +950,8 @@ function renderEmpty(){
   els.resultJson.innerHTML='<div class="empty">等待 JSON</div>';
 }
 function renderLookupLoading(query,settings){
-  const source=settings.apiUrl&&settings.apiKey?'自定义接口':'环境变量接口';
+  const apiSettings=currentApiSettings(settings);
+  const source=apiSettings.apiUrl&&apiSettings.apiKey?`自定义接口：${apiSettings.apiProfileName}`:'环境变量接口';
   els.resultCard.innerHTML=`
     <div class="lookup-state lookup-loading">
       <div class="lookup-orbit"><div class="lookup-spinner"></div></div>
@@ -1072,7 +1169,7 @@ function clearPendingFollowup(scope){
   if(pendingFollowup?.scope===scope)pendingFollowup=null;
 }
 async function requestFollowup(question,baseItem){
-  const settings=getSettings();
+  const settings=currentApiSettings();
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   const response=await fetch('/api/followup',{
     method:'POST',
@@ -1203,7 +1300,7 @@ async function runLookup(){
   await performLookup({query,existingId:existing?.id||null});
 }
 async function performLookup({query,existingId=null,sourceItem=null}){
-  const settings=getSettings();
+  const settings=currentApiSettings();
   lookupBusy=true;
   document.body.classList.add('lookup-busy');
   renderLookupLoading(query,settings);
@@ -1247,7 +1344,7 @@ function lookupModelInfo(settings,hasLocalEndpoint){
   const model=(hasLocalEndpoint?settings.model:configInfo?.model)||'未配置';
   return {
     model,
-    modelSource:hasLocalEndpoint?'网页设置':'Vercel 环境变量',
+    modelSource:hasLocalEndpoint?`网页设置：${settings.apiProfileName||'默认配置'}`:'Vercel 环境变量',
   };
 }
 async function analyzeHeaders(hasLocalEndpoint){
@@ -1654,9 +1751,15 @@ function clearEditor(){
 }
 function hydrateSettings(){
   const settings=getSettings();
-  els.apiUrl.value=settings.apiUrl||'';
-  els.apiKey.value=settings.apiKey||'';
-  els.apiModel.value=settings.model||'';
+  const profile=activeApiProfile(settings);
+  if(els.apiProfileSelect){
+    els.apiProfileSelect.innerHTML=settings.apiProfiles.map(item=>`<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}${item.apiUrl&&item.apiKey?'':' · 未完整'}</option>`).join('');
+    els.apiProfileSelect.value=profile.id;
+  }
+  if(els.apiProfileName)els.apiProfileName.value=profile.name||'';
+  els.apiUrl.value=profile.apiUrl||'';
+  els.apiKey.value=profile.apiKey||'';
+  els.apiModel.value=profile.model||'';
   els.apiModel.placeholder=configInfo?.model||'gpt-4o-mini';
   renderConfigInfo();
 }
@@ -1665,15 +1768,52 @@ function renderSettings(){
   renderLogs();
 }
 function saveSettings(){
-  setSettings({apiUrl:els.apiUrl.value.trim(),apiKey:els.apiKey.value.trim(),model:els.apiModel.value.trim()});
+  const settings=getSettings();
+  const activeId=settings.activeApiProfileId;
+  const now=new Date().toISOString();
+  const profiles=settings.apiProfiles.map(profile=>profile.id===activeId?{
+    ...profile,
+    name:els.apiProfileName.value.trim()||profile.name||'未命名配置',
+    apiUrl:els.apiUrl.value.trim(),
+    apiKey:els.apiKey.value.trim(),
+    model:els.apiModel.value.trim(),
+    updatedAt:now,
+  }:profile);
+  setSettings({...settings,apiProfiles:profiles,activeApiProfileId:activeId,updatedAt:now});
+  hydrateSettings();
   renderConfigInfo();
   notify('设置已保存。','good','设置');
 }
 async function resetModelSettings(){
-  if(!await askConfirm('这会清空自定义 API URL、Key 和 Model。','恢复接口默认'))return;
+  if(!await askConfirm('这会清空所有自定义 API 配置组，改回 Vercel 环境变量。','恢复接口默认'))return;
   setSettings(DEFAULT_SETTINGS);
   hydrateSettings();
   notify('接口配置已恢复默认。','good','设置');
+}
+function selectApiProfile(id){
+  const settings=getSettings();
+  if(!settings.apiProfiles.some(profile=>profile.id===id))return;
+  setSettings({...settings,activeApiProfileId:id,updatedAt:new Date().toISOString()});
+  hydrateSettings();
+}
+function newApiProfile(){
+  const settings=getSettings();
+  const id=`api_${Date.now()}`;
+  const profile={...DEFAULT_API_PROFILE,id,name:`配置 ${settings.apiProfiles.length+1}`,updatedAt:new Date().toISOString()};
+  setSettings({...settings,apiProfiles:[profile,...settings.apiProfiles],activeApiProfileId:id,updatedAt:profile.updatedAt});
+  hydrateSettings();
+  els.apiProfileName?.focus();
+  notify('已新增 API 配置组。','good','设置');
+}
+async function deleteApiProfile(){
+  const settings=getSettings();
+  if(settings.apiProfiles.length<=1)return resetModelSettings();
+  const current=activeApiProfile(settings);
+  if(!await askConfirm(`确认删除「${current.name}」？`,'删除 API 配置'))return;
+  const profiles=settings.apiProfiles.filter(profile=>profile.id!==current.id);
+  setSettings({...settings,apiProfiles,activeApiProfileId:profiles[0].id,updatedAt:new Date().toISOString()});
+  hydrateSettings();
+  notify('当前 API 配置组已删除。','good','设置');
 }
 async function factoryReset(){
   if(!await askConfirm('这会清空本机历史、接口配置、主题、布局和日志。','恢复出厂设置'))return;
