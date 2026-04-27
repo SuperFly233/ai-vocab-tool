@@ -61,12 +61,18 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:''};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.7.0',
-  releaseDate:'2026-04-25',
+  version:'0.8.0',
+  releaseDate:'2026-04-27',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.8.0',
+    date:'2026-04-27',
+    title:'修复无感云端同步',
+    items:['历史、收藏、API 设置、主题、布局和运行日志都进入 Supabase 同步。','登录后自动合并本机与云端数据，并在页面聚焦或回到前台时静默拉取更新。','新增项目上下文记录，方便新对话继续接手当前进度。'],
+  },
   {
     version:'0.7.0',
     date:'2026-04-25',

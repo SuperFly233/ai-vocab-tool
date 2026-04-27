@@ -11,9 +11,9 @@
 - 首页：输入条支持回车快速查询；查询中会显示请求阶段和当前接口来源。
 - 结果：支持排版视图和分区 JSON 视图；义项、词性、核心义、搭配和易混词都有更清晰的层级。
 - 追问：可针对当前词条继续向 AI 提问，回答会排版在结果下方并保存到对应历史记录。
-- 历史记录：自动保存查询结果，整条记录可点击查看详情，支持排版 / JSON / 编辑保存。
+- 历史记录：自动保存查询结果，整条记录可点击查看详情，支持排版 / JSON / 编辑保存，也支持收藏、搜索、筛选和排序。
 - 设置：填写 API URL、API Key、Model，切换主题和首页布局，支持恢复默认。
-- 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后同步历史、设置和主题。
+- 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后无感同步历史、收藏、API 设置、主题、布局和运行日志。
 
 ## AI 配置
 
@@ -63,6 +63,26 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - `ai_vocab_tool_history`
 - `ai_vocab_tool_settings`
 - `ai_vocab_tool_theme`
+- `ai_vocab_tool_layout`
+- `ai_vocab_tool_logs`
+
+同步策略：
+
+- 登录或恢复会话后自动合并本机和云端数据。
+- 历史按词条合并，保留多次生成版本、追问和收藏状态。
+- API 设置、主题和布局会同步到其它设备。
+- 页面重新聚焦、从后台回到前台、以及登录状态下定时轮询时会静默拉取云端更新。
+
+## 项目上下文
+
+为了避免长对话被压缩后丢失项目进度，仓库里新增了 [PROJECT_CONTEXT.md](/d:/Files/Projects/lexi-glass/PROJECT_CONTEXT.md)。新对话接手时优先阅读这个文件，再看 README、CHANGELOG 和最近的 git log。
+
+后续每次完成有意义的功能或修复时，需要同步更新：
+
+- `README.md`：说明用户可见行为、设置或同步策略变化。
+- `CHANGELOG.md`：记录版本和变更概要。
+- `app.js` 里的 `APP_INFO` 和页面内更新记录。
+- `PROJECT_CONTEXT.md`：记录重要决策、当前状态和下一步验证点。
 
 ## 文件
 
@@ -70,6 +90,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - [styles.css](/d:/Files/Projects/lexi-glass/styles.css)
 - [app.js](/d:/Files/Projects/lexi-glass/app.js)
 - [api/analyze.js](/d:/Files/Projects/lexi-glass/api/analyze.js)
+- [PROJECT_CONTEXT.md](/d:/Files/Projects/lexi-glass/PROJECT_CONTEXT.md)
 
 ## 更新记录
 
