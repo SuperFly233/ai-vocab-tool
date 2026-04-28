@@ -62,6 +62,7 @@ Expected behavior:
 - Cleaned up API profile management again: outer settings only selects profiles, add/edit happen in a modal, delete/reset now handle the final profile, and `/api/models` can proxy model list lookup.
 - Replaced History filters with custom multi-select menus using a short dash for the default/unfiltered state.
 - Fixed API profile modal saving by binding modal buttons from JavaScript, and changed API Key input away from `type=password` to avoid browser password-save prompts colliding with login credentials.
+- Polished favorited history cards with a more refined gold treatment and fixed custom history filter menus so selecting an option does not close the menu during multi-select.
 
 ## Working Rules
 

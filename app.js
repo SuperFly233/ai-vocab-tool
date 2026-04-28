@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.9',
+  version:'0.9.10',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.10',
+    date:'2026-04-28',
+    title:'优化收藏历史与筛选多选',
+    items:['收藏历史改成更精致的金色高亮、细光边和柔和背景，不再显得粗糙。','修复历史筛选点击选项后菜单被全局点击处理关闭的问题，多选时菜单会保持展开。'],
+  },
   {
     version:'0.9.9',
     date:'2026-04-28',
@@ -2266,6 +2272,7 @@ els.historySearch?.addEventListener('input',event=>{
   renderHistory();
 });
 els.historyFilterbar?.addEventListener('click',event=>{
+  event.stopPropagation();
   const filter=event.target.closest('.history-filter');
   if(!filter)return;
   const key=filter.dataset.filterKey;
