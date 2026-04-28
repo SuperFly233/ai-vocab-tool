@@ -141,11 +141,11 @@
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
           <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
         </label>
-        <div class="history-filterbar">
-          <label><span>语言</span><select id="history-filter-language" multiple size="4" aria-label="按语言筛选，支持多选"></select></label>
-          <label><span>方向</span><select id="history-filter-direction" multiple size="4" aria-label="按方向筛选，支持多选"></select></label>
-          <label><span>词性</span><select id="history-filter-pos" multiple size="4" aria-label="按词性筛选，支持多选"></select></label>
-          <label><span>语体</span><select id="history-filter-style" multiple size="4" aria-label="按语体筛选，支持多选"></select></label>
+        <div class="history-filterbar" id="history-filterbar">
+          <div class="history-filter" data-filter-key="language"></div>
+          <div class="history-filter" data-filter-key="direction"></div>
+          <div class="history-filter" data-filter-key="pos"></div>
+          <div class="history-filter" data-filter-key="style"></div>
         </div>
         <div class="history-sortbar" id="history-sortbar">
           <button class="sort-btn active" data-sort="time" onclick="setHistorySort('time')">时间 <span>↓</span></button>
@@ -179,28 +179,10 @@
             </div>
             <div class="api-profile-actions">
               <button class="plain-btn" onclick="newApiProfile()">新增配置</button>
-              <button class="plain-btn primary-btn" onclick="saveSettings()">保存当前</button>
+              <button class="plain-btn primary-btn" onclick="editApiProfile()">编辑当前</button>
               <button class="plain-btn danger-btn" onclick="deleteApiProfile()">删除当前</button>
-              <button class="plain-btn ghost-btn" onclick="resetModelSettings()">恢复默认</button>
+              <button class="plain-btn ghost-btn" onclick="resetModelSettings()">清空全部</button>
             </div>
-          </div>
-          <div class="settings-grid">
-            <label class="setting-field">
-              <span>名称</span>
-              <input class="cloud-input" id="api-profile-name" type="text" placeholder="OpenAI / Gemini / 备用线路">
-            </label>
-            <label class="setting-field">
-              <span>API URL</span>
-              <input class="cloud-input" id="api-url" type="url" placeholder="https://api.openai.com/v1/chat/completions">
-            </label>
-            <label class="setting-field">
-              <span>API Key</span>
-              <input class="cloud-input" id="api-key" type="password" placeholder="sk-...">
-            </label>
-            <label class="setting-field">
-              <span>Model</span>
-              <input class="cloud-input" id="api-model" type="text" placeholder="gpt-4o-mini">
-            </label>
           </div>
         </div>
       </div>
@@ -287,6 +269,51 @@
           <button class="plain-btn primary-btn" onclick="saveHistoryEdit()">保存修改</button>
         </div>
       </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal-layer" id="api-profile-modal" onclick="closeApiProfileModal(event)">
+  <div class="modal-card api-profile-modal-card" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div class="modal-title-block">
+        <div class="section-title" id="api-profile-modal-title">API 配置</div>
+        <div class="section-sub" id="api-profile-modal-subtitle">保存后会作为当前配置使用。</div>
+      </div>
+      <div class="result-icons">
+        <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeApiProfileModal()">×</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="api-profile-form">
+        <label class="setting-field">
+          <span>名称</span>
+          <input class="cloud-input" id="api-modal-name" type="text" placeholder="OpenAI / Gemini / 备用线路">
+        </label>
+        <label class="setting-field">
+          <span>API URL</span>
+          <input class="cloud-input" id="api-modal-url" type="url" placeholder="https://api.openai.com/v1/chat/completions">
+        </label>
+        <label class="setting-field">
+          <span>API Key</span>
+          <input class="cloud-input" id="api-modal-key" type="password" placeholder="sk-...">
+        </label>
+        <label class="setting-field">
+          <span>Model</span>
+          <div class="model-field-row">
+            <input class="cloud-input" id="api-modal-model" type="text" placeholder="gpt-4o-mini">
+            <button class="plain-btn" type="button" onclick="fetchApiModels()">查询模型</button>
+          </div>
+        </label>
+        <div class="model-list" id="api-model-list"></div>
+        <div class="modal-edit-footer">
+          <div class="json-status" id="api-profile-modal-status">未保存</div>
+          <div class="action-row compact">
+            <button class="plain-btn ghost-btn" type="button" onclick="closeApiProfileModal()">取消</button>
+            <button class="plain-btn primary-btn" type="button" onclick="saveApiProfileFromModal()">保存配置</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

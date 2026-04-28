@@ -28,6 +28,8 @@ let currentFollowups=[];
 let modalResult=null;
 let modalHistoryId=null;
 let modalRollId=null;
+let editingApiProfileId=null;
+let openHistoryFilterKey=null;
 let configInfo=null;
 let confirmResolver=null;
 let lookupBusy=false;
@@ -62,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.7',
+  version:'0.9.8',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.8',
+    date:'2026-04-28',
+    title:'重做配置弹窗与历史筛选',
+    items:['API 配置外层只保留当前配置选择，新增和编辑改为弹窗填写名称、URL、Key 和 Model。','删除配置和清空全部配置逻辑重新整理，最后一组也会清回默认空配置。','历史筛选改成自制多选菜单，每个分类可自由单选或多选，默认状态用短横摘要。'],
+  },
   {
     version:'0.9.7',
     date:'2026-04-28',
@@ -181,10 +189,7 @@ const els={
   historyCount:document.getElementById('history-count'),
   historySearch:document.getElementById('history-search'),
   historyClearBtn:document.getElementById('history-clear-btn'),
-  historyFilterLanguage:document.getElementById('history-filter-language'),
-  historyFilterDirection:document.getElementById('history-filter-direction'),
-  historyFilterPos:document.getElementById('history-filter-pos'),
-  historyFilterStyle:document.getElementById('history-filter-style'),
+  historyFilterbar:document.getElementById('history-filterbar'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
   apiProfilePicker:document.getElementById('api-profile-picker'),
@@ -192,10 +197,15 @@ const els={
   apiProfileMenuToggle:document.getElementById('api-profile-menu-toggle'),
   apiProfileCurrentName:document.getElementById('api-profile-current-name'),
   apiProfileCurrentMeta:document.getElementById('api-profile-current-meta'),
-  apiProfileName:document.getElementById('api-profile-name'),
-  apiUrl:document.getElementById('api-url'),
-  apiKey:document.getElementById('api-key'),
-  apiModel:document.getElementById('api-model'),
+  apiProfileModal:document.getElementById('api-profile-modal'),
+  apiProfileModalTitle:document.getElementById('api-profile-modal-title'),
+  apiProfileModalSubtitle:document.getElementById('api-profile-modal-subtitle'),
+  apiModalName:document.getElementById('api-modal-name'),
+  apiModalUrl:document.getElementById('api-modal-url'),
+  apiModalKey:document.getElementById('api-modal-key'),
+  apiModalModel:document.getElementById('api-modal-model'),
+  apiModelList:document.getElementById('api-model-list'),
+  apiProfileModalStatus:document.getElementById('api-profile-modal-status'),
   storageStatus:document.getElementById('storage-status'),
   settingsSyncStatus:document.getElementById('settings-sync-status'),
   logList:document.getElementById('log-list'),
@@ -1651,29 +1661,62 @@ function collectHistoryOptions(history){
 }
 function renderHistoryFilterOptions(history){
   const options=collectHistoryOptions(history);
-  setFilterOptions(els.historyFilterLanguage,'language','全部语言',options.language);
-  setFilterOptions(els.historyFilterDirection,'direction','全部方向',options.direction);
-  setFilterOptions(els.historyFilterPos,'pos','全部词性',options.pos);
-  setFilterOptions(els.historyFilterStyle,'style','全部语体',options.style);
+  renderHistoryFilterGroup('language','语言',options.language);
+  renderHistoryFilterGroup('direction','方向',options.direction);
+  renderHistoryFilterGroup('pos','词性',options.pos);
+  renderHistoryFilterGroup('style','语体',options.style);
 }
-function setFilterOptions(select,key,label,values=[]){
-  if(!select)return;
-  select.multiple=false;
-  select.size=1;
+function renderHistoryFilterGroup(key,label,values=[]){
+  const root=els.historyFilterbar?.querySelector(`[data-filter-key="${key}"]`);
+  if(!root)return;
   const current=Array.isArray(historyState.filters[key])?historyState.filters[key]:[];
   const valid=new Set(values.map(option=>option.value));
   const next=current.filter(value=>valid.has(value));
   historyState.filters[key]=next;
-  select.innerHTML=`<option value="">${label}</option>${values.map(option=>`<option value="${escapeHTML(option.value)}">${escapeHTML(option.label)}</option>`).join('')}`;
-  [...select.options].forEach(option=>{option.selected=next.includes(option.value)});
+  const selectedLabels=values.filter(option=>next.includes(option.value)).map(option=>option.label);
+  const summary=selectedLabels.length?selectedLabels.join('、'):'—';
+  root.classList.toggle('open',openHistoryFilterKey===key);
+  root.innerHTML=`
+    <button class="history-filter-trigger ${next.length?'active':''}" type="button">
+      <span>${escapeHTML(label)}</span>
+      <b>${escapeHTML(summary)}</b>
+      <i aria-hidden="true">⌄</i>
+    </button>
+    <div class="history-filter-menu">
+      <button class="history-filter-clear" type="button" ${next.length?'':'disabled'}>—</button>
+      ${values.length?values.map(option=>`
+        <button class="history-filter-option ${next.includes(option.value)?'active':''}" type="button" data-value="${escapeHTML(option.value)}">
+          ${escapeHTML(option.label)}
+        </button>
+      `).join(''):'<div class="history-filter-empty">—</div>'}
+    </div>
+  `;
 }
 function setHistoryFilter(key,value){
   const next=Array.isArray(value)?value:[value].filter(Boolean);
   historyState.filters[key]=next.includes('')?[]:next;
   renderHistory();
 }
-function selectedFilterValues(select){
-  return [...select.selectedOptions].map(option=>option.value).filter(Boolean);
+function toggleHistoryFilter(key,value){
+  if(!key||!value)return;
+  const current=Array.isArray(historyState.filters[key])?historyState.filters[key]:[];
+  historyState.filters[key]=current.includes(value)
+    ? current.filter(item=>item!==value)
+    : [...current,value];
+  openHistoryFilterKey=key;
+  renderHistory();
+}
+function clearHistoryFilter(key){
+  if(!key)return;
+  historyState.filters[key]=[];
+  openHistoryFilterKey=key;
+  renderHistory();
+}
+function closeHistoryFilterMenus(except=null){
+  openHistoryFilterKey=except?.dataset?.filterKey||null;
+  els.historyFilterbar?.querySelectorAll('.history-filter.open').forEach(filter=>{
+    if(filter!==except)filter.classList.remove('open');
+  });
 }
 function setHistoryScope(scope){
   historyState.scope=scope==='favorites'?'favorites':'all';
@@ -1926,11 +1969,7 @@ function hydrateSettings(){
   const settings=getSettings();
   const profile=activeApiProfile(settings);
   renderApiProfilePicker(settings,profile);
-  if(els.apiProfileName)els.apiProfileName.value=profile.name||'';
-  els.apiUrl.value=profile.apiUrl||'';
-  els.apiKey.value=profile.apiKey||'';
-  els.apiModel.value=profile.model||'';
-  els.apiModel.placeholder=configInfo?.model||'gpt-4o-mini';
+  if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
 function renderApiProfilePicker(settings,profile){
   if(els.apiProfileCurrentName)els.apiProfileCurrentName.textContent=profile.name||'未命名配置';
@@ -1964,25 +2003,96 @@ function renderSettings(){
   renderLogs();
 }
 function saveSettings(){
+  openApiProfileModal('edit');
+}
+function editApiProfile(){
+  openApiProfileModal('edit');
+}
+function openApiProfileModal(mode='edit'){
   const settings=getSettings();
-  const activeId=settings.activeApiProfileId;
+  const profile=mode==='new'
+    ? {...DEFAULT_API_PROFILE,id:`api_${Date.now()}`,name:`配置 ${settings.apiProfiles.length+1}`}
+    : activeApiProfile(settings);
+  editingApiProfileId=profile.id;
+  if(els.apiProfileModalTitle)els.apiProfileModalTitle.textContent=mode==='new'?'新增 API 配置':'编辑 API 配置';
+  if(els.apiProfileModalSubtitle)els.apiProfileModalSubtitle.textContent=mode==='new'?'填写后会新增并切换到这组配置。':'保存后会更新当前配置。';
+  if(els.apiModalName)els.apiModalName.value=profile.name||'';
+  if(els.apiModalUrl)els.apiModalUrl.value=profile.apiUrl||'';
+  if(els.apiModalKey)els.apiModalKey.value=profile.apiKey||'';
+  if(els.apiModalModel)els.apiModalModel.value=profile.model||'';
+  if(els.apiModelList)els.apiModelList.innerHTML='';
+  setApiProfileModalStatus('未保存','');
+  els.apiProfileModal?.classList.add('open');
+  document.body.classList.add('modal-open');
+  requestAnimationFrame(()=>els.apiModalName?.focus());
+}
+function closeApiProfileModal(event){
+  if(event&&event.target!==els.apiProfileModal)return;
+  els.apiProfileModal?.classList.remove('open');
+  document.body.classList.remove('modal-open');
+  editingApiProfileId=null;
+}
+function setApiProfileModalStatus(message,type=''){
+  if(!els.apiProfileModalStatus)return;
+  els.apiProfileModalStatus.textContent=message;
+  els.apiProfileModalStatus.classList.toggle('good',type==='good');
+  els.apiProfileModalStatus.classList.toggle('bad',type==='bad');
+}
+function saveApiProfileFromModal(){
+  const settings=getSettings();
+  const id=editingApiProfileId||`api_${Date.now()}`;
   const now=new Date().toISOString();
-  const profiles=settings.apiProfiles.map(profile=>profile.id===activeId?{
-    ...profile,
-    name:els.apiProfileName.value.trim()||profile.name||'未命名配置',
-    apiUrl:els.apiUrl.value.trim(),
-    apiKey:els.apiKey.value.trim(),
-    model:els.apiModel.value.trim(),
+  const draft={
+    id,
+    name:els.apiModalName?.value.trim()||'未命名配置',
+    apiUrl:els.apiModalUrl?.value.trim()||'',
+    apiKey:els.apiModalKey?.value.trim()||'',
+    model:els.apiModalModel?.value.trim()||'',
     updatedAt:now,
-  }:profile);
-  setSettings({...settings,apiProfiles:profiles,activeApiProfileId:activeId,updatedAt:now});
+  };
+  const exists=settings.apiProfiles.some(profile=>profile.id===id);
+  const profiles=exists
+    ? settings.apiProfiles.map(profile=>profile.id===id?{...profile,...draft}:profile)
+    : [draft,...settings.apiProfiles];
+  setSettings({...settings,apiProfiles,activeApiProfileId:id,updatedAt:now});
   hydrateSettings();
-  notify('当前 API 配置已保存。','good','设置');
+  closeApiProfileModal();
+  notify('API 配置已保存。','good','设置');
+}
+async function fetchApiModels(){
+  const apiUrl=els.apiModalUrl?.value.trim();
+  const key=els.apiModalKey?.value.trim();
+  if(!apiUrl)return setApiProfileModalStatus('先填写 API URL。','bad');
+  if(!key)return setApiProfileModalStatus('先填写 API Key。','bad');
+  setApiProfileModalStatus('正在查询模型列表...','');
+  if(els.apiModelList)els.apiModelList.innerHTML='';
+  try{
+    const response=await fetch('/api/models',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({apiUrl,apiKey:key}),
+    });
+    if(!response.ok)throw new Error(`HTTP ${response.status}`);
+    const data=await response.json();
+    const models=Array.isArray(data?.models)?data.models:[];
+    if(!models.length)throw new Error('没有读到模型列表');
+    renderModelChoices([...new Set(models)].slice(0,40));
+    setApiProfileModalStatus(`已查询到 ${models.length} 个模型。`,'good');
+  }catch(error){
+    setApiProfileModalStatus(`查询失败：${error.message||error}`,'bad');
+  }
+}
+function renderModelChoices(models){
+  if(!els.apiModelList)return;
+  els.apiModelList.innerHTML=models.map(model=>`
+    <button class="model-choice" type="button" data-model="${escapeHTML(model)}">${escapeHTML(model)}</button>
+  `).join('');
 }
 async function resetModelSettings(){
   if(!await askConfirm('这会清空所有自定义 API 配置组，改回 Vercel 环境变量。','恢复接口默认'))return;
   setSettings(DEFAULT_SETTINGS);
   hydrateSettings();
+  closeApiProfileMenu();
   notify('接口配置已恢复默认。','good','设置');
 }
 function selectApiProfile(id){
@@ -1993,23 +2103,18 @@ function selectApiProfile(id){
   closeApiProfileMenu();
 }
 function newApiProfile(){
-  const settings=getSettings();
-  const id=`api_${Date.now()}`;
-  const profile={...DEFAULT_API_PROFILE,id,name:`配置 ${settings.apiProfiles.length+1}`,updatedAt:new Date().toISOString()};
-  setSettings({...settings,apiProfiles:[profile,...settings.apiProfiles],activeApiProfileId:id,updatedAt:profile.updatedAt});
-  hydrateSettings();
-  els.apiProfileName?.focus();
-  notify('已新增 API 配置组。','good','设置');
+  openApiProfileModal('new');
 }
 async function deleteApiProfile(){
   const settings=getSettings();
-  if(settings.apiProfiles.length<=1)return resetModelSettings();
   const current=activeApiProfile(settings);
   if(!await askConfirm(`确认删除「${current.name}」？`,'删除 API 配置'))return;
   const profiles=settings.apiProfiles.filter(profile=>profile.id!==current.id);
-  setSettings({...settings,apiProfiles,activeApiProfileId:profiles[0].id,updatedAt:new Date().toISOString()});
+  const nextProfiles=profiles.length?profiles:[DEFAULT_API_PROFILE];
+  setSettings({...settings,apiProfiles:nextProfiles,activeApiProfileId:nextProfiles[0].id,updatedAt:new Date().toISOString()});
   hydrateSettings();
-  notify('当前 API 配置组已删除。','good','设置');
+  closeApiProfileMenu();
+  notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置');
 }
 async function factoryReset(){
   if(!await askConfirm('这会清空本机历史、接口配置、主题、布局和日志。','恢复出厂设置'))return;
@@ -2149,20 +2254,41 @@ els.historySearch?.addEventListener('input',event=>{
   updateHistorySearchState();
   renderHistory();
 });
-els.historyFilterLanguage?.addEventListener('change',event=>setHistoryFilter('language',selectedFilterValues(event.target)));
-els.historyFilterDirection?.addEventListener('change',event=>setHistoryFilter('direction',selectedFilterValues(event.target)));
-els.historyFilterPos?.addEventListener('change',event=>setHistoryFilter('pos',selectedFilterValues(event.target)));
-els.historyFilterStyle?.addEventListener('change',event=>setHistoryFilter('style',selectedFilterValues(event.target)));
+els.historyFilterbar?.addEventListener('click',event=>{
+  const filter=event.target.closest('.history-filter');
+  if(!filter)return;
+  const key=filter.dataset.filterKey;
+  if(event.target.closest('.history-filter-trigger')){
+    const willOpen=!filter.classList.contains('open');
+    closeHistoryFilterMenus(filter);
+    filter.classList.toggle('open',willOpen);
+    openHistoryFilterKey=willOpen?key:null;
+    return;
+  }
+  const option=event.target.closest('.history-filter-option');
+  if(option)return toggleHistoryFilter(key,option.dataset.value);
+  if(event.target.closest('.history-filter-clear'))return clearHistoryFilter(key);
+});
 els.apiProfileMenu?.addEventListener('click',event=>{
   const option=event.target.closest('.api-profile-option');
   if(!option)return;
   selectApiProfile(option.dataset.profileId);
 });
+els.apiModelList?.addEventListener('click',event=>{
+  const option=event.target.closest('.model-choice');
+  if(!option)return;
+  if(els.apiModalModel)els.apiModalModel.value=option.dataset.model||option.textContent.trim();
+});
 document.addEventListener('click',event=>{
+  if(!els.historyFilterbar?.contains(event.target))closeHistoryFilterMenus();
   if(!els.apiProfilePicker?.contains(event.target))closeApiProfileMenu();
 });
 document.addEventListener('keydown',event=>{
-  if(event.key==='Escape')closeApiProfileMenu();
+  if(event.key==='Escape'){
+    closeApiProfileMenu();
+    closeHistoryFilterMenus();
+    if(els.apiProfileModal?.classList.contains('open'))closeApiProfileModal();
+  }
 });
 els.query?.addEventListener('input',updateEditorState);
 els.query?.addEventListener('keydown',event=>{

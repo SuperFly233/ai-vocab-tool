@@ -4,6 +4,7 @@
 
 ## 最新进展
 
+- v0.9.8 清理 API 配置组交互：外层只负责选择配置，新增和编辑进入弹窗填写名称、URL、Key 和 Model；历史筛选改为自制多选菜单，默认状态用短横显示。
 - v0.9.7 重做自定义 API 配置组入口：当前配置用卡片展示，切换配置改成自制菜单，新增、保存、删除和恢复默认拆成明确按钮。
 - v0.9.6 收紧历史记录页的筛选和排序工具条，筛选改为紧凑下拉；收藏记录去掉大星背景，只保留轻量高亮和按钮状态。
 - v0.9.5 修复了重复触发同一条 toast 时进度条和关闭计时不重置的问题；查询加载态现在只保留一条直线进度，并优化了等待卡片的视觉层次。
@@ -19,7 +20,7 @@
 - 结果：支持排版视图和分区 JSON 视图；义项、词性、核心义、搭配和易混词都有更清晰的层级。
 - 追问：可针对当前词条继续向 AI 提问，回答会排版在结果下方并保存到对应历史记录。
 - 历史记录：自动保存查询结果，整条记录可点击查看详情，支持排版 / JSON / 编辑保存，也支持收藏、搜索、多选筛选和排序；语言、方向、词性、语体会归一化后用于筛选，全部视图中收藏条目会有醒目的卡片高亮。
-- 设置：可保存多组 API URL、API Key、Model 配置并切换当前使用项；也可切换主题和首页布局，支持恢复默认。
+- 设置：可保存多组 API URL、API Key、Model 配置并切换当前使用项；新增和编辑配置会在弹窗里完成，也可尝试查询模型列表；同时可切换主题和首页布局，支持恢复默认。
 - 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后无感同步历史、收藏、API 设置、主题、布局和运行日志。
 - 通知：右上角 toast 支持自动消失和手动关闭，按状态展示不同图标、光条和进度动效。
 
@@ -34,7 +35,7 @@ API Key=你的 API Key
 Model=gpt-4o-mini
 ```
 
-查询和追问会使用当前选中的配置组。旧版本保存的单组 `API URL / API Key / Model` 会自动迁移为默认配置组。
+查询和追问会使用当前选中的配置组。外层配置区只负责选择当前配置；新增和编辑会打开弹窗填写 `Name / API URL / API Key / Model`，模型列表查询会通过 `/api/models` 代理访问兼容 OpenAI 的 `/models` 接口。旧版本保存的单组 `API URL / API Key / Model` 会自动迁移为默认配置组。
 
 也可以在 Vercel 环境变量里配置：
 
@@ -101,6 +102,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - [styles.css](/d:/Files/Projects/lexi-glass/styles.css)
 - [app.js](/d:/Files/Projects/lexi-glass/app.js)
 - [api/analyze.js](/d:/Files/Projects/lexi-glass/api/analyze.js)
+- [api/models.js](/d:/Files/Projects/lexi-glass/api/models.js)
 - [PROJECT_CONTEXT.md](/d:/Files/Projects/lexi-glass/PROJECT_CONTEXT.md)
 
 ## 更新记录
