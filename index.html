@@ -13,8 +13,8 @@
     <h1>先登录，再查词</h1>
     <p>登录后同步历史记录和设置；也可以只在这台设备离线使用。</p>
     <div class="auth-form">
-      <input class="cloud-input" id="auth-email" type="email" placeholder="邮箱">
-      <input class="cloud-input" id="auth-password" type="password" placeholder="密码，至少 6 位">
+      <input class="cloud-input" id="auth-email" type="email" autocomplete="username" placeholder="邮箱">
+      <input class="cloud-input" id="auth-password" type="password" autocomplete="current-password" placeholder="密码，至少 6 位">
       <button class="plain-btn primary-btn auth-main-btn" onclick="loginPassword('auth')">登录</button>
     </div>
     <div class="auth-links">
@@ -65,8 +65,8 @@
       <button class="account-close" onclick="closeAccountPanel()" aria-label="关闭账号面板">×</button>
     </div>
     <div class="account-form">
-      <input class="cloud-input" id="account-email" type="email" placeholder="邮箱">
-      <input class="cloud-input" id="account-password" type="password" placeholder="密码，至少 6 位">
+      <input class="cloud-input" id="account-email" type="email" autocomplete="username" placeholder="邮箱">
+      <input class="cloud-input" id="account-password" type="password" autocomplete="current-password" placeholder="密码，至少 6 位">
     </div>
     <div class="account-actions logged-out-only">
       <button class="plain-btn primary-btn" onclick="loginPassword('account')">密码登录</button>
@@ -281,7 +281,7 @@
         <div class="section-sub" id="api-profile-modal-subtitle">保存后会作为当前配置使用。</div>
       </div>
       <div class="result-icons">
-        <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeApiProfileModal()">×</button>
+        <button class="icon-btn danger-icon" id="api-profile-modal-close" data-tip="关闭" type="button">×</button>
       </div>
     </div>
     <div class="modal-body">
@@ -296,21 +296,21 @@
         </label>
         <label class="setting-field">
           <span>API Key</span>
-          <input class="cloud-input" id="api-modal-key" type="password" placeholder="sk-...">
+          <input class="cloud-input secret-input" id="api-modal-key" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="sk-...">
         </label>
         <label class="setting-field">
           <span>Model</span>
           <div class="model-field-row">
             <input class="cloud-input" id="api-modal-model" type="text" placeholder="gpt-4o-mini">
-            <button class="plain-btn" type="button" onclick="fetchApiModels()">查询模型</button>
+            <button class="plain-btn" id="api-model-fetch-btn" type="button">查询模型</button>
           </div>
         </label>
         <div class="model-list" id="api-model-list"></div>
         <div class="modal-edit-footer">
           <div class="json-status" id="api-profile-modal-status">未保存</div>
           <div class="action-row compact">
-            <button class="plain-btn ghost-btn" type="button" onclick="closeApiProfileModal()">取消</button>
-            <button class="plain-btn primary-btn" type="button" onclick="saveApiProfileFromModal()">保存配置</button>
+            <button class="plain-btn ghost-btn" id="api-profile-modal-cancel" type="button">取消</button>
+            <button class="plain-btn primary-btn" id="api-profile-modal-save" type="button">保存配置</button>
           </div>
         </div>
       </div>

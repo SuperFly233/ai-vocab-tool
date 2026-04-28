@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.8',
+  version:'0.9.9',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.9',
+    date:'2026-04-28',
+    title:'修复配置弹窗保存与密码提示',
+    items:['API 配置弹窗按钮改为显式事件绑定，保存配置不再依赖内联点击处理。','API Key 输入框改为非密码字段并关闭自动填充提示，减少和登录密码管理冲突。','登录邮箱和密码字段补充标准 autocomplete，帮助浏览器区分账号登录和 API 密钥。'],
+  },
   {
     version:'0.9.8',
     date:'2026-04-28',
@@ -205,7 +211,11 @@ const els={
   apiModalKey:document.getElementById('api-modal-key'),
   apiModalModel:document.getElementById('api-modal-model'),
   apiModelList:document.getElementById('api-model-list'),
+  apiModelFetchBtn:document.getElementById('api-model-fetch-btn'),
   apiProfileModalStatus:document.getElementById('api-profile-modal-status'),
+  apiProfileModalSave:document.getElementById('api-profile-modal-save'),
+  apiProfileModalCancel:document.getElementById('api-profile-modal-cancel'),
+  apiProfileModalClose:document.getElementById('api-profile-modal-close'),
   storageStatus:document.getElementById('storage-status'),
   settingsSyncStatus:document.getElementById('settings-sync-status'),
   logList:document.getElementById('log-list'),
@@ -2039,6 +2049,7 @@ function setApiProfileModalStatus(message,type=''){
   els.apiProfileModalStatus.classList.toggle('bad',type==='bad');
 }
 function saveApiProfileFromModal(){
+  setApiProfileModalStatus('正在保存...','');
   const settings=getSettings();
   const id=editingApiProfileId||`api_${Date.now()}`;
   const now=new Date().toISOString();
@@ -2279,6 +2290,10 @@ els.apiModelList?.addEventListener('click',event=>{
   if(!option)return;
   if(els.apiModalModel)els.apiModalModel.value=option.dataset.model||option.textContent.trim();
 });
+els.apiModelFetchBtn?.addEventListener('click',fetchApiModels);
+els.apiProfileModalSave?.addEventListener('click',saveApiProfileFromModal);
+els.apiProfileModalCancel?.addEventListener('click',()=>closeApiProfileModal());
+els.apiProfileModalClose?.addEventListener('click',()=>closeApiProfileModal());
 document.addEventListener('click',event=>{
   if(!els.historyFilterbar?.contains(event.target))closeHistoryFilterMenus();
   if(!els.apiProfilePicker?.contains(event.target))closeApiProfileMenu();

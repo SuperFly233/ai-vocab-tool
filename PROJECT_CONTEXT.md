@@ -61,6 +61,7 @@ Expected behavior:
 - Reworked custom API profile management: current profile is shown as a card, switching uses a custom menu, and add/save/delete/reset are explicit buttons.
 - Cleaned up API profile management again: outer settings only selects profiles, add/edit happen in a modal, delete/reset now handle the final profile, and `/api/models` can proxy model list lookup.
 - Replaced History filters with custom multi-select menus using a short dash for the default/unfiltered state.
+- Fixed API profile modal saving by binding modal buttons from JavaScript, and changed API Key input away from `type=password` to avoid browser password-save prompts colliding with login credentials.
 
 ## Working Rules
 
@@ -83,6 +84,7 @@ Settings are normalized through `normalizeSettings()` in `app.js`.
 - Cloud merge should preserve profiles from both local and remote devices.
 - API profile creation/editing lives in a modal. The settings page surface should stay selection/action oriented, not an inline form.
 - `/api/models` proxies model-list lookup for OpenAI-compatible APIs to avoid browser CORS issues where possible.
+- API Key fields should not use `type=password`; use autocomplete-off text inputs so browser password managers do not confuse API keys with the Supabase login password.
 
 ## Open Follow-Up
 

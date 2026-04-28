@@ -143,6 +143,7 @@ body.cloud-logged-in .account-form #account-email{display:none}
 #query-input::placeholder,.cloud-input::placeholder{color:var(--soft)}
 .cloud-input{width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 12px;font-size:14px;font-weight:800;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}
 .cloud-input:focus{outline:0;transform:scale(1.01);border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 12%,transparent)}
+.secret-input{-webkit-text-security:disc;font-family:"Cascadia Code","SFMono-Regular",Consolas,monospace;letter-spacing:.04em}
 .hidden{display:none!important}
 .query-shell .clear-query-btn.hidden{display:grid!important;opacity:0;pointer-events:none;transform:translateY(-50%) scale(.68)}
 .layout-split .query-shell .clear-query-btn.hidden{transform:scale(.68)}
