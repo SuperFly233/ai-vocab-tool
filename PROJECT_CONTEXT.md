@@ -63,6 +63,7 @@ Expected behavior:
 - Replaced History filters with custom multi-select menus using a short dash for the default/unfiltered state.
 - Fixed API profile modal saving by binding modal buttons from JavaScript, and changed API Key input away from `type=password` to avoid browser password-save prompts colliding with login credentials.
 - Polished favorited history cards with a more refined gold treatment and fixed custom history filter menus so selecting an option does not close the menu during multi-select.
+- Hardened API profile modal saving: local save is separated from cloud sync, success/failure uses toast, and the modal closes immediately after local save succeeds.
 
 ## Working Rules
 

@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.10',
+  version:'0.9.11',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.11',
+    date:'2026-04-28',
+    title:'加固 API 配置保存反馈',
+    items:['API 配置保存改为 try/catch 防护，成功和失败都用统一 toast 反馈。','保存弹窗不再停留在“正在保存”状态；本地保存成功后立即关闭弹窗。','云同步改为保存后的后台动作，避免同步链路影响配置保存体验。'],
+  },
   {
     version:'0.9.10',
     date:'2026-04-28',
@@ -529,6 +535,10 @@ function setSettings(settings){
   writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
   markCloudDirty(CLOUD_KEYS.settings);
   syncAllToCloud(true);
+}
+function saveSettingsLocal(settings){
+  writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
+  markCloudDirty(CLOUD_KEYS.settings);
 }
 function normalizeSettings(raw={}){
   const source={...raw};
@@ -2055,26 +2065,32 @@ function setApiProfileModalStatus(message,type=''){
   els.apiProfileModalStatus.classList.toggle('bad',type==='bad');
 }
 function saveApiProfileFromModal(){
-  setApiProfileModalStatus('正在保存...','');
-  const settings=getSettings();
-  const id=editingApiProfileId||`api_${Date.now()}`;
-  const now=new Date().toISOString();
-  const draft={
-    id,
-    name:els.apiModalName?.value.trim()||'未命名配置',
-    apiUrl:els.apiModalUrl?.value.trim()||'',
-    apiKey:els.apiModalKey?.value.trim()||'',
-    model:els.apiModalModel?.value.trim()||'',
-    updatedAt:now,
-  };
-  const exists=settings.apiProfiles.some(profile=>profile.id===id);
-  const profiles=exists
-    ? settings.apiProfiles.map(profile=>profile.id===id?{...profile,...draft}:profile)
-    : [draft,...settings.apiProfiles];
-  setSettings({...settings,apiProfiles,activeApiProfileId:id,updatedAt:now});
-  hydrateSettings();
-  closeApiProfileModal();
-  notify('API 配置已保存。','good','设置');
+  try{
+    const settings=getSettings();
+    const id=editingApiProfileId||`api_${Date.now()}`;
+    const now=new Date().toISOString();
+    const draft={
+      id,
+      name:els.apiModalName?.value.trim()||'未命名配置',
+      apiUrl:els.apiModalUrl?.value.trim()||'',
+      apiKey:els.apiModalKey?.value.trim()||'',
+      model:els.apiModalModel?.value.trim()||'',
+      updatedAt:now,
+    };
+    const exists=settings.apiProfiles.some(profile=>profile.id===id);
+    const profiles=exists
+      ? settings.apiProfiles.map(profile=>profile.id===id?{...profile,...draft}:profile)
+      : [draft,...settings.apiProfiles];
+    saveSettingsLocal({...settings,apiProfiles:profiles,activeApiProfileId:id,updatedAt:now});
+    hydrateSettings();
+    closeApiProfileModal();
+    notify(`已保存「${draft.name}」。`,'good','API 配置');
+    setTimeout(()=>syncAllToCloud(true),0);
+  }catch(error){
+    const message=error?.message||String(error||'保存失败');
+    notify(message,'bad','API 配置保存失败');
+    setApiProfileModalStatus(message,'bad');
+  }
 }
 async function fetchApiModels(){
   const apiUrl=els.apiModalUrl?.value.trim();
