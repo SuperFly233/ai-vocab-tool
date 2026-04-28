@@ -58,6 +58,7 @@ Expected behavior:
 - Fixed toast progress/timer reset behavior when the same notification is triggered repeatedly or manually closed.
 - Simplified lookup loading feedback to a single linear progress bar with a cleaner waiting card.
 - Tightened the History page controls: filters are compact dropdowns, sort buttons are a small toolbar, and favorited items no longer use a large decorative star that overlaps actions.
+- Reworked custom API profile management: current profile is shown as a card, switching uses a custom menu, and add/save/delete/reset are explicit buttons.
 
 ## Working Rules
 

@@ -276,9 +276,25 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .setting-group{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:18px;display:grid;gap:12px;transition:transform .18s ease,border-color .18s ease}
 .setting-group:hover{transform:translateY(-1px);border-color:var(--line2)}
 .setting-title{font-size:14px;color:var(--soft);font-weight:750;letter-spacing:.08em}
-.api-profile-bar{display:grid;grid-template-columns:minmax(220px,1fr) auto auto auto;gap:8px;align-items:end}
-.api-profile-bar select{min-width:0;width:100%;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 12px;font-size:14px;font-weight:800;outline:0}
-.api-profile-bar select:focus{border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
+.api-profile-bar{display:grid;grid-template-columns:minmax(320px,1fr) auto;gap:12px;align-items:stretch}
+.api-profile-picker{position:relative;min-width:0}
+.api-profile-current{min-height:70px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent-bg) 22%,var(--panel2)),var(--panel2));padding:10px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.api-profile-current-copy{min-width:0;display:grid;gap:3px}
+.api-profile-current-copy span{font-size:12px;color:var(--soft);font-weight:850;letter-spacing:.04em}
+.api-profile-current-copy strong{font-size:18px;color:var(--text);font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.api-profile-current-copy em{font-size:13px;color:var(--muted);font-weight:750;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-menu-btn{min-width:132px}
+.profile-menu-btn span{display:inline-block;margin-left:4px;transition:transform .16s ease}
+.api-profile-picker.open .profile-menu-btn span{transform:rotate(180deg)}
+.api-profile-menu{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:80;display:none;gap:6px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 96%,transparent);backdrop-filter:blur(18px);box-shadow:0 22px 54px rgba(0,0,0,.14);padding:8px}
+.api-profile-picker.open .api-profile-menu{display:grid}
+.api-profile-option{border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text);padding:9px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
+.api-profile-option:hover{transform:translateY(-1px);border-color:var(--line2);background:var(--panel2)}
+.api-profile-option.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.api-profile-option span{font-size:14px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.api-profile-option em{font-size:12px;color:var(--muted);font-weight:750;font-style:normal;white-space:nowrap}
+.api-profile-option.active em{color:var(--accent)}
+.api-profile-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .setting-field{display:grid;gap:6px}
 .setting-field span,.setting-row span{font-size:14px;color:var(--muted);font-weight:650}
 .setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -475,6 +491,8 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .account-actions.cloud-only{grid-template-columns:1fr}
   .section-head,.setting-row{display:grid;align-items:stretch}
   .api-profile-bar{grid-template-columns:1fr}
+  .api-profile-current{grid-template-columns:1fr}
+  .api-profile-actions{justify-content:flex-start}
   .settings-grid{grid-template-columns:1fr}
   .history-tools{grid-template-columns:1fr}
   .history-filterbar{grid-template-columns:1fr 1fr}
@@ -504,6 +522,8 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   #query-input{font-size:18px;padding:13px 60px 13px 18px}
   .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:1fr}
   .query-actions{justify-content:flex-start}
+  .api-profile-actions{display:grid;grid-template-columns:1fr 1fr}
+  .api-profile-actions .plain-btn{min-width:0}
   .history-filterbar{grid-template-columns:1fr}
   .history-sortbar{grid-template-columns:1fr}
   .result-toolbar{align-items:flex-start}

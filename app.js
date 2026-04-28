@@ -62,12 +62,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.6',
+  version:'0.9.7',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.7',
+    date:'2026-04-28',
+    title:'重做 API 配置组入口',
+    items:['自定义 API 配置组不再使用原生选择器，改为当前配置卡片和自制切换菜单。','新增、保存、删除和恢复默认拆成明确按钮，避免把危险操作藏在下拉选项里。','配置列表会显示每组是否完整，以及当前使用的模型或环境默认模型。'],
+  },
   {
     version:'0.9.6',
     date:'2026-04-28',
@@ -181,7 +187,11 @@ const els={
   historyFilterStyle:document.getElementById('history-filter-style'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
-  apiProfileSelect:document.getElementById('api-profile-select'),
+  apiProfilePicker:document.getElementById('api-profile-picker'),
+  apiProfileMenu:document.getElementById('api-profile-menu'),
+  apiProfileMenuToggle:document.getElementById('api-profile-menu-toggle'),
+  apiProfileCurrentName:document.getElementById('api-profile-current-name'),
+  apiProfileCurrentMeta:document.getElementById('api-profile-current-meta'),
   apiProfileName:document.getElementById('api-profile-name'),
   apiUrl:document.getElementById('api-url'),
   apiKey:document.getElementById('api-key'),
@@ -1915,18 +1925,39 @@ function clearEditor(){
 function hydrateSettings(){
   const settings=getSettings();
   const profile=activeApiProfile(settings);
-  if(els.apiProfileSelect){
-    els.apiProfileSelect.innerHTML=[
-      ...settings.apiProfiles.map(item=>`<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}${item.apiUrl&&item.apiKey?'':' · 未完整'}</option>`),
-      '<option value="__reset__">恢复默认（清空配置）</option>',
-    ].join('');
-    els.apiProfileSelect.value=profile.id;
-  }
+  renderApiProfilePicker(settings,profile);
   if(els.apiProfileName)els.apiProfileName.value=profile.name||'';
   els.apiUrl.value=profile.apiUrl||'';
   els.apiKey.value=profile.apiKey||'';
   els.apiModel.value=profile.model||'';
   els.apiModel.placeholder=configInfo?.model||'gpt-4o-mini';
+}
+function renderApiProfilePicker(settings,profile){
+  if(els.apiProfileCurrentName)els.apiProfileCurrentName.textContent=profile.name||'未命名配置';
+  if(els.apiProfileCurrentMeta)els.apiProfileCurrentMeta.textContent=apiProfileSummary(profile);
+  if(!els.apiProfileMenu)return;
+  els.apiProfileMenu.innerHTML=settings.apiProfiles.map(item=>`
+    <button class="api-profile-option ${item.id===profile.id?'active':''}" type="button" data-profile-id="${escapeHTML(item.id)}">
+      <span>${escapeHTML(item.name||'未命名配置')}</span>
+      <em>${escapeHTML(apiProfileSummary(item))}</em>
+    </button>
+  `).join('');
+}
+function apiProfileSummary(profile){
+  const hasUrl=Boolean(profile?.apiUrl);
+  const hasKey=Boolean(profile?.apiKey);
+  if(hasUrl&&hasKey)return profile.model?`已完整 · ${profile.model}`:'已完整 · 使用环境默认模型';
+  if(hasUrl||hasKey)return '未完整 · 还缺 API URL 或 Key';
+  return '空配置 · 使用 Vercel 环境变量';
+}
+function closeApiProfileMenu(){
+  els.apiProfilePicker?.classList.remove('open');
+  els.apiProfileMenuToggle?.setAttribute('aria-expanded','false');
+}
+function toggleApiProfileMenu(){
+  const open=!els.apiProfilePicker?.classList.contains('open');
+  els.apiProfilePicker?.classList.toggle('open',open);
+  els.apiProfileMenuToggle?.setAttribute('aria-expanded',String(open));
 }
 function renderSettings(){
   hydrateSettings();
@@ -1954,16 +1985,12 @@ async function resetModelSettings(){
   hydrateSettings();
   notify('接口配置已恢复默认。','good','设置');
 }
-async function selectApiProfile(id){
-  if(id==='__reset__'){
-    await resetModelSettings();
-    hydrateSettings();
-    return;
-  }
+function selectApiProfile(id){
   const settings=getSettings();
   if(!settings.apiProfiles.some(profile=>profile.id===id))return;
   setSettings({...settings,activeApiProfileId:id,updatedAt:new Date().toISOString()});
   hydrateSettings();
+  closeApiProfileMenu();
 }
 function newApiProfile(){
   const settings=getSettings();
@@ -2126,6 +2153,17 @@ els.historyFilterLanguage?.addEventListener('change',event=>setHistoryFilter('la
 els.historyFilterDirection?.addEventListener('change',event=>setHistoryFilter('direction',selectedFilterValues(event.target)));
 els.historyFilterPos?.addEventListener('change',event=>setHistoryFilter('pos',selectedFilterValues(event.target)));
 els.historyFilterStyle?.addEventListener('change',event=>setHistoryFilter('style',selectedFilterValues(event.target)));
+els.apiProfileMenu?.addEventListener('click',event=>{
+  const option=event.target.closest('.api-profile-option');
+  if(!option)return;
+  selectApiProfile(option.dataset.profileId);
+});
+document.addEventListener('click',event=>{
+  if(!els.apiProfilePicker?.contains(event.target))closeApiProfileMenu();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape')closeApiProfileMenu();
+});
 els.query?.addEventListener('input',updateEditorState);
 els.query?.addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){

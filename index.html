@@ -166,13 +166,23 @@
         <div class="setting-row stack-row">
           <div><div class="setting-label">自定义配置组</div><div class="setting-sub">可保存多组 API URL、Key 和 Model；当前选中的配置会用于查询和追问，并随云端同步。</div></div>
           <div class="api-profile-bar">
-            <label class="setting-field">
-              <span>当前配置</span>
-              <select id="api-profile-select" onchange="selectApiProfile(this.value)"></select>
-            </label>
-            <button class="plain-btn" onclick="newApiProfile()">新增配置</button>
-            <button class="plain-btn primary-btn" onclick="saveSettings()">保存修改</button>
-            <button class="plain-btn danger-btn" onclick="deleteApiProfile()">删除当前</button>
+            <div class="api-profile-picker" id="api-profile-picker">
+              <div class="api-profile-current">
+                <div class="api-profile-current-copy">
+                  <span>当前配置</span>
+                  <strong id="api-profile-current-name">默认配置</strong>
+                  <em id="api-profile-current-meta">使用 Vercel 环境变量</em>
+                </div>
+                <button class="plain-btn profile-menu-btn" id="api-profile-menu-toggle" type="button" onclick="toggleApiProfileMenu()">切换配置 <span aria-hidden="true">⌄</span></button>
+              </div>
+              <div class="api-profile-menu" id="api-profile-menu" aria-label="API 配置组列表"></div>
+            </div>
+            <div class="api-profile-actions">
+              <button class="plain-btn" onclick="newApiProfile()">新增配置</button>
+              <button class="plain-btn primary-btn" onclick="saveSettings()">保存当前</button>
+              <button class="plain-btn danger-btn" onclick="deleteApiProfile()">删除当前</button>
+              <button class="plain-btn ghost-btn" onclick="resetModelSettings()">恢复默认</button>
+            </div>
           </div>
           <div class="settings-grid">
             <label class="setting-field">
