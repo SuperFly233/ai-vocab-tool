@@ -57,6 +57,7 @@ Expected behavior:
 - Simplified the settings page by removing the environment/status card and centralizing API profile actions into add, save changes, delete current, and restore default from the profile menu.
 - Fixed toast progress/timer reset behavior when the same notification is triggered repeatedly or manually closed.
 - Simplified lookup loading feedback to a single linear progress bar with a cleaner waiting card.
+- Tightened the History page controls: filters are compact dropdowns, sort buttons are a small toolbar, and favorited items no longer use a large decorative star that overlaps actions.
 
 ## Working Rules
 

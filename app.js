@@ -62,12 +62,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.5',
+  version:'0.9.6',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.6',
+    date:'2026-04-28',
+    title:'整理历史筛选与收藏样式',
+    items:['历史筛选改为紧凑下拉，不再占用大块列表空间。','排序按钮改为更窄的工具条样式，减少历史页顶部拥挤感。','收藏历史只保留轻量高亮和按钮状态，去掉遮挡操作区的大星水印。'],
+  },
   {
     version:'0.9.5',
     date:'2026-04-28',
@@ -1642,6 +1648,8 @@ function renderHistoryFilterOptions(history){
 }
 function setFilterOptions(select,key,label,values=[]){
   if(!select)return;
+  select.multiple=false;
+  select.size=1;
   const current=Array.isArray(historyState.filters[key])?historyState.filters[key]:[];
   const valid=new Set(values.map(option=>option.value));
   const next=current.filter(value=>valid.has(value));
