@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.11',
+  version:'0.9.12',
   releaseDate:'2026-04-28',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.12',
+    date:'2026-04-28',
+    title:'修复首页布局默认保存',
+    items:['启动时会把首页布局默认值写入本地设置，确保“顶部/左右”总有一个处于选中状态。','云端同步恢复布局后会重新规范化空值，避免空布局覆盖本地默认。','首次初始化默认布局会标记云端同步，确保布局偏好可跨设备保存。'],
+  },
   {
     version:'0.9.11',
     date:'2026-04-28',
@@ -694,7 +700,7 @@ function replaceLocalWithItems(items){
   renderHistory();
   renderLogs();
   applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
-  applyLayout(localStorage.getItem(STORAGE_KEYS.layout)||'top');
+  ensureLayoutPreference();
   renderAuthGate();
 }
 function safeObjectFromRaw(raw,fallback={}){
@@ -2242,15 +2248,28 @@ function cycleTheme(){
   const current=localStorage.getItem(STORAGE_KEYS.theme)||'auto';
   setTheme(order[(order.indexOf(current)+1)%order.length]);
 }
+function normalizeLayout(layout){
+  return layout==='split'?'split':'top';
+}
+function ensureLayoutPreference(syncDefault=false){
+  const raw=localStorage.getItem(STORAGE_KEYS.layout);
+  const next=normalizeLayout(raw);
+  if(raw!==next){
+    localStorage.setItem(STORAGE_KEYS.layout,next);
+    if(syncDefault)markCloudDirty(CLOUD_KEYS.layout);
+  }
+  applyLayout(next);
+  return next;
+}
 function applyLayout(layout){
-  const next=layout==='split'?'split':'top';
+  const next=normalizeLayout(layout);
   els.workspace.classList.toggle('layout-split',next==='split');
   els.workspace.classList.toggle('layout-top',next==='top');
   els.layoutTopBtn?.classList.toggle('active',next==='top');
   els.layoutSplitBtn?.classList.toggle('active',next==='split');
 }
 function setLayout(layout){
-  const next=layout==='split'?'split':'top';
+  const next=normalizeLayout(layout);
   localStorage.setItem(STORAGE_KEYS.layout,next);
   markCloudDirty(CLOUD_KEYS.layout);
   applyLayout(next);
@@ -2348,7 +2367,7 @@ renderEmpty();
 hydrateSettings();
 renderHistory();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
-applyLayout(localStorage.getItem(STORAGE_KEYS.layout)||'top');
+ensureLayoutPreference(true);
 updateEditorState();
 updateHistorySearchState();
 loadConfigInfo();
