@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-04-28
+Last updated: 2026-04-29
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -65,6 +65,7 @@ Expected behavior:
 - Polished favorited history cards with a more refined gold treatment and fixed custom history filter menus so selecting an option does not close the menu during multi-select.
 - Hardened API profile modal saving: local save is separated from cloud sync, success/failure uses toast, and the modal closes immediately after local save succeeds.
 - Fixed layout preference initialization: startup writes a normalized default layout when missing, marks it dirty for sync, and cloud restore re-applies normalized layout state.
+- Fixed API profile normalization so legacy top-level `apiUrl/apiKey/model` fields no longer overwrite existing profile groups after modal saves, and exact duplicate profiles are collapsed.
 
 ## Working Rules
 
@@ -82,6 +83,7 @@ For future code changes:
 Settings are normalized through `normalizeSettings()` in `app.js`.
 
 - Legacy fields `apiUrl`, `apiKey`, and `model` are still accepted.
+- Legacy top-level fields should only migrate when no valid `apiProfiles` array exists; once profile groups exist, they must not overwrite current profile values.
 - New storage uses `apiProfiles` and `activeApiProfileId`.
 - Query and follow-up calls should use `currentApiSettings()`.
 - Cloud merge should preserve profiles from both local and remote devices.

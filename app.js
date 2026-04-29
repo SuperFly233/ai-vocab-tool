@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.12',
-  releaseDate:'2026-04-28',
+  version:'0.9.13',
+  releaseDate:'2026-04-29',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.13',
+    date:'2026-04-29',
+    title:'修复 API 配置保存覆盖',
+    items:['保存 API 配置时不再让旧版顶层字段覆盖当前 profile，新增和编辑的名称、URL、Key、Model 会正确保留。','配置列表会合并完全重复的 profile，清理此前反复保存产生的默认配置重复项。','弹窗保存只写入 profile 数据和当前选中项，避免把旧 active profile 的兼容字段再次带回存储。'],
+  },
   {
     version:'0.9.12',
     date:'2026-04-28',
@@ -548,9 +554,10 @@ function saveSettingsLocal(settings){
 }
 function normalizeSettings(raw={}){
   const source={...raw};
-  let profiles=Array.isArray(source.apiProfiles)?source.apiProfiles.map(normalizeApiProfile).filter(Boolean):[];
+  const hasProfileArray=Array.isArray(source.apiProfiles);
+  let profiles=hasProfileArray?source.apiProfiles.map(normalizeApiProfile).filter(Boolean):[];
   const legacyHasValue=Boolean(source.apiUrl||source.apiKey||source.model);
-  if(!profiles.length||legacyHasValue){
+  if(!profiles.length&&legacyHasValue){
     const legacyProfile=normalizeApiProfile({
       id:source.activeApiProfileId||'default',
       name:source.apiProfileName||source.profileName||'默认配置',
@@ -593,7 +600,13 @@ function dedupeApiProfiles(profiles){
     const existing=map.get(profile.id);
     if(!existing||new Date(profile.updatedAt||0)>new Date(existing.updatedAt||0))map.set(profile.id,profile);
   });
-  return [...map.values()].sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));
+  const unique=new Map();
+  [...map.values()].forEach(profile=>{
+    const signature=[profile.name,profile.apiUrl,profile.apiKey,profile.model].join('\u0001');
+    const existing=unique.get(signature);
+    if(!existing||new Date(profile.updatedAt||0)>new Date(existing.updatedAt||0))unique.set(signature,profile);
+  });
+  return [...unique.values()].sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));
 }
 function activeApiProfile(settings=getSettings()){
   return settings.apiProfiles.find(profile=>profile.id===settings.activeApiProfileId)||settings.apiProfiles[0]||DEFAULT_API_PROFILE;
@@ -2087,7 +2100,7 @@ function saveApiProfileFromModal(){
     const profiles=exists
       ? settings.apiProfiles.map(profile=>profile.id===id?{...profile,...draft}:profile)
       : [draft,...settings.apiProfiles];
-    saveSettingsLocal({...settings,apiProfiles:profiles,activeApiProfileId:id,updatedAt:now});
+    saveSettingsLocal({apiProfiles:profiles,activeApiProfileId:id,updatedAt:now});
     hydrateSettings();
     closeApiProfileModal();
     notify(`已保存「${draft.name}」。`,'good','API 配置');
