@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.14',
+  version:'0.9.15',
   releaseDate:'2026-04-29',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.15',
+    date:'2026-04-29',
+    title:'按词性分组义项',
+    items:['查询结果的义项分析会先按词性分组，再在每个词性下重新编号。','词条标题区会从 headword 和 senses 归纳多个词性，不再只显示单个词性。','AI 输出规则改为允许 headword.basicPartOfSpeech 用斜杠记录多个固定词性枚举。'],
+  },
   {
     version:'0.9.14',
     date:'2026-04-29',
@@ -1128,21 +1134,13 @@ function renderResultHTML(result,followups=[],scope='current'){
       <div class="entry-kicker">${escapeHTML(head.languageTag||meta.language||'词条')}</div>
       <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
       <div class="entry-meta-grid">
-        <span><b>词性</b>${escapeHTML(head.basicPartOfSpeech||'')}</span>
+        <span><b>词性</b>${escapeHTML(headwordPartOfSpeech(head,senses))}</span>
         <span><b>核心义</b><mark>${escapeHTML(head.coreMeaning||'')}</mark></span>
         <span><b>方向</b>${escapeHTML(meta.defaultDirection||'')}</span>
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
-    ${renderItems('义项分析',senses,item=>`
-      <div class="item-index">${escapeHTML(item.index)}</div>
-      <div class="item-body">
-        <div class="item-title"><span class="pos-pill">${escapeHTML(item.partOfSpeech)}</span><mark>${escapeHTML(item.shortestLabel)}</mark></div>
-        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning)}</span></div>
-        <div class="line"><b>例句</b><span>${escapeHTML(item.example)}</span></div>
-        <div class="line"><b>译文</b><span>${escapeHTML(item.translation)}</span></div>
-      </div>
-    `)}
+    ${renderSenseGroups(senses)}
     ${renderItems('固定搭配',collocations,item=>`
       <div class="item-index">${escapeHTML(item.index)}</div>
       <div class="item-body">
@@ -1166,6 +1164,61 @@ function renderResultHTML(result,followups=[],scope='current'){
 }
 function renderItems(title,items,renderer){
   return `<div class="block"><div class="block-title">${title}</div>${items.length?items.map(item=>`<div class="item">${renderer(item)}</div>`).join(''):'<div class="item empty-item">无</div>'}</div>`;
+}
+function renderSenseGroups(senses=[]){
+  const list=Array.isArray(senses)?senses:[];
+  if(!list.length)return '<div class="block"><div class="block-title">义项分析</div><div class="item empty-item">无</div></div>';
+  const groups=groupSensesByPartOfSpeech(list);
+  return `<div class="block"><div class="block-title">义项分析</div>${groups.map(group=>`
+    <section class="sense-group">
+      <div class="sense-group-head">
+        <span class="pos-pill">${escapeHTML(formatPosLabel(group.pos))}</span>
+        <em>${group.items.length} 个义项</em>
+      </div>
+      ${group.items.map((item,index)=>`<div class="item">
+        <div class="item-index">${index+1}</div>
+        <div class="item-body">
+          <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark></div>
+          <div class="line"><b>语意</b><span>${escapeHTML(item.meaning)}</span></div>
+          <div class="line"><b>例句</b><span>${escapeHTML(item.example)}</span></div>
+          <div class="line"><b>译文</b><span>${escapeHTML(item.translation)}</span></div>
+        </div>
+      </div>`).join('')}
+    </section>
+  `).join('')}</div>`;
+}
+function groupSensesByPartOfSpeech(senses=[]){
+  const groups=new Map();
+  senses.forEach(sense=>{
+    const tokens=posTokensFromValue(sense.partOfSpeech);
+    const pos=tokens[0]||String(sense.partOfSpeech||'other').trim()||'other';
+    if(!groups.has(pos))groups.set(pos,[]);
+    groups.get(pos).push(sense);
+  });
+  return [...groups.entries()]
+    .map(([pos,items],order)=>({pos,items,order}))
+    .sort((a,b)=>posSortIndex(a.pos)-posSortIndex(b.pos)||a.order-b.order);
+}
+function headwordPartOfSpeech(head={},senses=[]){
+  const tokens=uniq([
+    ...posTokensFromValue(head.basicPartOfSpeech),
+    ...(Array.isArray(senses)?senses.flatMap(sense=>posTokensFromValue(sense.partOfSpeech)):[]),
+  ]);
+  if(tokens.length)return tokens.map(formatPosLabel).join(' / ');
+  return String(head.basicPartOfSpeech||'');
+}
+function posTokensFromValue(value){
+  if(Array.isArray(value))return uniq(value.flatMap(posTokensFromValue));
+  return canonicalPosTokens(value);
+}
+function formatPosLabel(value){
+  const token=posTokensFromValue(value)[0]||String(value||'other');
+  return LABELS.pos?.[token]?`${token} · ${LABELS.pos[token]}`:token;
+}
+function posSortIndex(value){
+  const order=['n','v','adj','adv','prep','conj','pron','det','aux','interj','phrase','sentence','other'];
+  const index=order.indexOf(posTokensFromValue(value)[0]||value);
+  return index>=0?index:order.length;
 }
 function renderConfusions(items){
   if(!items.length)return '';
@@ -1600,11 +1653,15 @@ function historyFieldList(item,key){
   const result=item.result||{};
   if(key==='pos'){
     return [
-      result.headword?.basicPartOfSpeech,
-      ...(Array.isArray(result.senses)?result.senses.map(sense=>sense.partOfSpeech):[]),
+      ...rawList(result.headword?.basicPartOfSpeech),
+      ...(Array.isArray(result.senses)?result.senses.flatMap(sense=>rawList(sense.partOfSpeech)):[]),
     ].filter(Boolean);
   }
   return [];
+}
+function rawList(value){
+  if(Array.isArray(value))return value.flatMap(rawList);
+  return value?[value]:[];
 }
 const LABELS={
   language:{en:'英语',zh:'中文',ja:'日语',ko:'韩语',fr:'法语',es:'西语',de:'德语',other:'其他'},

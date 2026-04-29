@@ -220,6 +220,12 @@ mark{background:linear-gradient(transparent 54%,color-mix(in srgb,var(--accent) 
 .item-index{height:32px;border-radius:8px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:15px;font-weight:850}
 .item-title{font-size:17px;font-weight:650;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pos-pill{border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);padding:2px 8px;font-size:12px;font-weight:700}
+.sense-group{position:relative;display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 52%,transparent);padding:10px;margin-bottom:10px}
+.sense-group:last-child{margin-bottom:0}
+.sense-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px 2px}
+.sense-group-head .pos-pill{background:var(--accent-bg);border-color:color-mix(in srgb,var(--accent) 34%,var(--line));color:var(--accent);font-size:13px}
+.sense-group-head em{font-style:normal;color:var(--soft);font-size:12px;font-weight:850;white-space:nowrap}
+.sense-group .item{margin-bottom:0;background:color-mix(in srgb,var(--panel) 54%,var(--panel2))}
 .line{display:grid;grid-template-columns:54px minmax(0,1fr);gap:8px;font-size:15px;color:var(--muted);font-weight:500;margin-top:5px}
 .line b{color:var(--soft);font-weight:700}
 .line span{color:var(--muted)}
