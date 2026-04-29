@@ -64,12 +64,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.13',
+  version:'0.9.14',
   releaseDate:'2026-04-29',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.14',
+    date:'2026-04-29',
+    title:'重做收藏历史金色特效',
+    items:['补齐收藏样式使用的金色主题变量，避免高亮和发光效果失效。','收藏历史卡片改为金色描边、流光扫过和细星芒背景，保留特殊感但不遮挡右侧操作。','收藏按钮改成更明确的金色发光状态，让收藏条目一眼可见。'],
+  },
   {
     version:'0.9.13',
     date:'2026-04-29',
