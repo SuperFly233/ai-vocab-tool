@@ -65,12 +65,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.16',
+  version:'0.9.17',
   releaseDate:'2026-06-29',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.17',
+    date:'2026-06-29',
+    title:'增加手机端同步兜底代理',
+    items:['云同步直连 Supabase REST 遇到 TypeError Load failed / Failed to fetch 时，会自动改走本站同源 /api/sync。','新增 Vercel 同步代理，由服务端携带当前用户 token 读写 public.study_store，减少手机浏览器跨域网络失败。','本机保存和首次登录合并同步都会复用同一套直连优先、同源兜底的读写逻辑。'],
+  },
   {
     version:'0.9.16',
     date:'2026-06-29',
@@ -695,6 +701,42 @@ function cloudErrorMessage(error,action='同步'){
   }
   return `${action}失败：${message}`;
 }
+function isCloudNetworkError(error){
+  const message=String(error?.message||error||'');
+  return /Load failed|Failed to fetch|NetworkError|fetch failed|TypeError/i.test(message);
+}
+async function cloudAccessToken(){
+  const {data,error}=await cloudClient.auth.getSession();
+  if(error)throw error;
+  const token=data.session?.access_token;
+  if(!token)throw new Error('登录会话已失效，请重新登录。');
+  return token;
+}
+async function syncViaServer(action,payload={}){
+  const token=await cloudAccessToken();
+  const response=await fetch('/api/sync',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      Authorization:`Bearer ${token}`,
+    },
+    body:JSON.stringify({action,...payload}),
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);
+  return data;
+}
+async function fetchCloudRows(keys=Object.values(CLOUD_KEYS)){
+  try{
+    const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',keys);
+    if(error)throw error;
+    return data||[];
+  }catch(error){
+    if(!isCloudNetworkError(error))throw error;
+    const data=await syncViaServer('select',{keys});
+    return data.rows||[];
+  }
+}
 function markCloudDirty(key){
   if(key)cloudDirtyKeys.add(key);
 }
@@ -986,8 +1028,7 @@ async function bootstrapCloudSync(mode='ask',manual=false){
   if(manual)setCloudStatus('正在读取云端数据...','info',true);
   try{
     const local=syncableItems();
-    const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',Object.values(CLOUD_KEYS));
-    if(error)throw error;
+    const data=await fetchCloudRows();
     const remote=cloudRawMap(data);
     if(mode==='cloud'){
       replaceLocalWithItems(remote);
@@ -1017,9 +1058,21 @@ async function bootstrapCloudSync(mode='ask',manual=false){
 async function uploadItemsToCloud(items){
   const rows=Object.entries(items).map(([key,raw])=>({user_id:cloudUser.id,key,value:{raw}}));
   if(!rows.length)return {count:0};
-  const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
-  if(!error)clearCloudDirty(Object.keys(items));
-  return {error,count:rows.length};
+  try{
+    const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
+    if(error)throw error;
+    clearCloudDirty(Object.keys(items));
+    return {count:rows.length};
+  }catch(error){
+    if(!isCloudNetworkError(error))return {error,count:rows.length};
+    try{
+      const data=await syncViaServer('upsert',{rows});
+      clearCloudDirty(Object.keys(items));
+      return {count:data.count||rows.length,proxied:true};
+    }catch(proxyError){
+      return {error:proxyError,count:rows.length};
+    }
+  }
 }
 async function replaceCloudWithItems(items){
   return uploadItemsToCloud(items);

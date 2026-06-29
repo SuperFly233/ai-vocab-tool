@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.17 - 2026-06-29
+
+- 云同步直连 Supabase REST 遇到 `TypeError: Load failed` / `Failed to fetch` 时，会自动改走本站同源 `/api/sync`。
+- 新增 Vercel 同步代理，由服务端携带当前用户 token 读写 `public.study_store`，减少手机浏览器跨域网络失败。
+- 本机保存和首次登录合并同步都会复用同一套直连优先、同源兜底的读写逻辑。
+
 ## v0.9.16 - 2026-06-29
 
 - 拆分云同步读写锁和界面忙碌状态，修复密码登录后“正在登录”状态阻塞首次同步的问题。
