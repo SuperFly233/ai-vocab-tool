@@ -4,6 +4,7 @@
 
 ## 最新进展
 
+- v0.9.16 修复登录后云同步卡住：同步读写锁和界面忙碌状态拆开，登录提示不会再挡住首次同步；同步失败会给出 `study_store`、RLS、登录会话或网络方向的排查提示。
 - v0.9.15 优化多词性词条：义项先按词性分组、组内重新编号，词条 JSON 的 `basicPartOfSpeech` 可用 `n/v/...` 记录多个主要词性。
 - v0.9.14 重做收藏历史金色特效：补齐金色主题变量，收藏卡片改为金色描边、流光和细星芒背景，按钮也有更明确的发光状态。
 - v0.9.13 修复 API 配置保存覆盖问题：新增和编辑的配置不再被旧版顶层字段洗回“默认配置”，并会清理完全重复的默认配置项。
@@ -75,7 +76,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 
 ## Supabase
 
-当前前端已配置为和 `study-kanban` 同一个 Supabase 项目，并使用同一张 `study_store` 表。SQL 在 [supabase.sql](/d:/Files/Projects/ai-vocab-tool/supabase.sql)。
+当前前端已配置为和 `study-kanban` 同一个 Supabase 项目，并使用同一张 `study_store` 表。Supabase 项目 URL 是 `https://uoifrqehkfvpzqojaazh.supabase.co`，所以在后台应找这个项目里的 `public.study_store`，而不是找名为 `ai-vocab-tool` 的表或项目。SQL 在 [supabase.sql](/d:/Files/Projects/lexi-glass/supabase.sql)。
 
 使用的 key：
 
@@ -91,6 +92,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - 历史按词条合并，保留多次生成版本、追问和收藏状态。
 - API 设置、主题和布局会同步到其它设备。
 - 页面重新聚焦、从后台回到前台、以及登录状态下定时轮询时会静默拉取云端更新。
+- 登录、手动上传/恢复、自动轮询和本地保存共用一个同步队列；界面显示“正在登录”不会占用同步读写锁。
 
 ## 项目上下文
 

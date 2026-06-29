@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-04-29
+Last updated: 2026-06-29
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -20,6 +20,7 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 - Main branch: `main`
 - Deployment target: Vercel
 - Supabase table: `public.study_store`
+- Supabase project URL: `https://uoifrqehkfvpzqojaazh.supabase.co`
 
 ## Sync Design
 
@@ -41,6 +42,7 @@ Expected behavior:
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
+- UI busy state and the actual cloud read/write lock are separate; login status messages must not block `bootstrapCloudSync()`.
 
 ## Recent Changes
 
@@ -68,6 +70,7 @@ Expected behavior:
 - Fixed API profile normalization so legacy top-level `apiUrl/apiKey/model` fields no longer overwrite existing profile groups after modal saves, and exact duplicate profiles are collapsed.
 - Reworked favorited history styling with defined gold theme variables, animated gleam, subtle starburst texture, and a glowing active favorite button.
 - Changed result rendering so senses are grouped by part of speech with per-group numbering, and updated the model prompt so `headword.basicPartOfSpeech` can list multiple fixed POS enums separated by `/`.
+- Fixed cloud sync getting stuck after password login by splitting `cloudBusy` UI state from `cloudSyncBusy` read/write locking, adding `try/catch/finally` around sync operations, and improving Supabase table/RLS/session/network error messages.
 
 ## Working Rules
 

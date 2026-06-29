@@ -35,6 +35,7 @@ let confirmResolver=null;
 let lookupBusy=false;
 let followupBusy=false;
 let cloudBusy=false;
+let cloudSyncBusy=false;
 let cloudBootstrapped=false;
 let cloudSyncQueued=false;
 let cloudAutoTimer=null;
@@ -64,12 +65,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.15',
-  releaseDate:'2026-04-29',
+  version:'0.9.16',
+  releaseDate:'2026-06-29',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.16',
+    date:'2026-06-29',
+    title:'修复登录后云同步卡住',
+    items:['拆分云同步读写锁和界面忙碌状态，登录时显示“正在登录”不会再阻塞后续同步。','同步读写增加 try/catch/finally 防护，失败后会释放锁并继续处理排队的保存任务。','同步错误会提示 study_store 表、RLS 权限、登录会话或网络连接等具体排查方向。'],
+  },
   {
     version:'0.9.15',
     date:'2026-04-29',
@@ -667,8 +674,26 @@ function setCloudStatus(message,type='info',busy=false){
   });
 }
 function setCloudBusy(busy,visible=false){
+  cloudSyncBusy=Boolean(busy);
   cloudBusy=Boolean(busy);
   document.body.classList.toggle('cloud-syncing',cloudBusy&&visible);
+}
+function cloudErrorMessage(error,action='同步'){
+  const message=String(error?.message||error?.details||error||'未知错误');
+  const code=String(error?.code||'');
+  if(code==='42P01'||/relation .*study_store.* does not exist|study_store.*does not exist/i.test(message)){
+    return `${action}失败：Supabase 的 public.study_store 表不存在。请在项目 SQL Editor 里执行仓库的 supabase.sql。`;
+  }
+  if(code==='42501'||/row-level security|permission denied|violates row-level security/i.test(message)){
+    return `${action}失败：study_store 的 RLS 权限不完整。请重新执行 supabase.sql 里的 policy。`;
+  }
+  if(/JWT|not authenticated|invalid claim|Auth session missing/i.test(message)){
+    return `${action}失败：登录会话已失效，请退出后重新登录。`;
+  }
+  if(/Failed to fetch|NetworkError|Load failed|fetch/i.test(message)){
+    return `${action}失败：网络无法连接 Supabase，请稍后重试或检查浏览器网络拦截。`;
+  }
+  return `${action}失败：${message}`;
 }
 function markCloudDirty(key){
   if(key)cloudDirtyKeys.add(key);
@@ -955,32 +980,39 @@ async function askSyncConflict(local,remote){
 }
 async function bootstrapCloudSync(mode='ask',manual=false){
   if(!cloudReady())return;
-  if(cloudBusy){cloudSyncQueued=true;return}
+  if(cloudSyncBusy){cloudSyncQueued=true;return}
   cloudBootstrapped=true;
+  setCloudBusy(true,manual);
   if(manual)setCloudStatus('正在读取云端数据...','info',true);
-  else setCloudBusy(true,false);
-  const local=syncableItems();
-  const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',Object.values(CLOUD_KEYS));
-  if(error){setCloudStatus(`同步失败：${error.message}`,'bad');notify(error.message,'bad','同步失败');return}
-  const remote=cloudRawMap(data);
-  if(mode==='cloud'){
-    replaceLocalWithItems(remote);
-    setCloudStatus('已读取云端最新数据。','good');
-    if(manual)notify('已读取云端最新数据。','good','云端同步');
+  try{
+    const local=syncableItems();
+    const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',Object.values(CLOUD_KEYS));
+    if(error)throw error;
+    const remote=cloudRawMap(data);
+    if(mode==='cloud'){
+      replaceLocalWithItems(remote);
+      setCloudStatus('已读取云端最新数据。','good');
+      if(manual)notify('已读取云端最新数据。','good','云端同步');
+      startCloudAutoSync();
+      return;
+    }
+    const merged=Object.keys(remote).length?mergeSyncItems(local,remote):local;
+    if(!mapsEqual(local,merged))replaceLocalWithItems(merged);
+    if(!Object.keys(remote).length||!mapsEqual(remote,merged)){
+      const result=await replaceCloudWithItems(merged);
+      if(result.error)throw result.error;
+    }
+    setCloudStatus('已自动同步本机和云端数据。','good');
+    if(manual)notify('已自动同步本机和云端数据。','good','同步完成');
     startCloudAutoSync();
+  }catch(error){
+    const message=cloudErrorMessage(error,'同步');
+    setCloudStatus(message,'bad');
+    notify(message,'bad','同步失败');
+  }finally{
+    setCloudBusy(false,false);
     flushQueuedCloudSync();
-    return;
   }
-  const merged=Object.keys(remote).length?mergeSyncItems(local,remote):local;
-  if(!mapsEqual(local,merged))replaceLocalWithItems(merged);
-  if(!Object.keys(remote).length||!mapsEqual(remote,merged)){
-    const result=await replaceCloudWithItems(merged);
-    if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
-  }
-  setCloudStatus('已自动同步本机和云端数据。','good');
-  if(manual)notify('已自动同步本机和云端数据。','good','同步完成');
-  startCloudAutoSync();
-  flushQueuedCloudSync();
 }
 async function uploadItemsToCloud(items){
   const rows=Object.entries(items).map(([key,raw])=>({user_id:cloudUser.id,key,value:{raw}}));
@@ -994,16 +1026,25 @@ async function replaceCloudWithItems(items){
 }
 async function syncAllToCloud(silent=false){
   if(!cloudClient||!cloudUser)return;
-  if(cloudBusy){cloudSyncQueued=true;return}
-  setCloudStatus('正在保存到云端...','info',true);
-  const result=await uploadItemsToCloud(syncableItems());
-  if(result.error){setCloudStatus(`同步失败：${result.error.message}`,'bad');notify(result.error.message,'bad','同步失败');return}
-  setCloudStatus(`已同步 ${result.count} 项到云端。`,'good');
-  if(!silent)notify('已同步到云端。','good','同步完成');
-  flushQueuedCloudSync();
+  if(cloudSyncBusy){cloudSyncQueued=true;return}
+  setCloudBusy(true,!silent);
+  setCloudStatus('正在保存到云端...','info',!silent);
+  try{
+    const result=await uploadItemsToCloud(syncableItems());
+    if(result.error)throw result.error;
+    setCloudStatus(`已同步 ${result.count} 项到云端。`,'good');
+    if(!silent)notify('已同步到云端。','good','同步完成');
+  }catch(error){
+    const message=cloudErrorMessage(error,'同步');
+    setCloudStatus(message,'bad');
+    notify(message,'bad','同步失败');
+  }finally{
+    setCloudBusy(false,false);
+    flushQueuedCloudSync();
+  }
 }
 function flushQueuedCloudSync(){
-  if(!cloudSyncQueued||cloudBusy)return;
+  if(!cloudSyncQueued||cloudSyncBusy)return;
   cloudSyncQueued=false;
   syncAllToCloud(true);
 }
@@ -1019,11 +1060,22 @@ function stopCloudAutoSync(){
 async function uploadCloud(){
   if(!cloudReady())return;
   if(!await askConfirm('确认用本机数据覆盖云端的 ai-vocab-tool 数据？study-kanban 的数据不会被动到。','上传本机'))return;
+  if(cloudSyncBusy){cloudSyncQueued=true;return notify('已有同步任务在进行，稍后会自动保存。','info','同步排队')}
+  setCloudBusy(true,true);
   setCloudStatus('正在上传本机数据...','info',true);
-  const result=await replaceCloudWithItems(syncableItems());
-  if(result.error){setCloudStatus(`上传失败：${result.error.message}`,'bad');notify(result.error.message,'bad','上传失败');return}
-  setCloudStatus(`已上传 ${result.count} 项本机数据。`,'good');
-  notify('本机数据已覆盖云端。','good','上传完成');
+  try{
+    const result=await replaceCloudWithItems(syncableItems());
+    if(result.error)throw result.error;
+    setCloudStatus(`已上传 ${result.count} 项本机数据。`,'good');
+    notify('本机数据已覆盖云端。','good','上传完成');
+  }catch(error){
+    const message=cloudErrorMessage(error,'上传');
+    setCloudStatus(message,'bad');
+    notify(message,'bad','上传失败');
+  }finally{
+    setCloudBusy(false,false);
+    flushQueuedCloudSync();
+  }
 }
 async function downloadCloud(){
   if(!cloudReady())return;
