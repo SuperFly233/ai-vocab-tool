@@ -65,12 +65,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.17',
+  version:'0.9.18',
   releaseDate:'2026-06-29',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.18',
+    date:'2026-06-29',
+    title:'加固手机端同步 token 获取',
+    items:['同源同步兜底会优先读取 Supabase 本地 session token，避免手机端 getSession 刷新会话时再次触发 Load failed。','保留 SDK getSession 作为后备路径，登录会话有效时可稳定调用 /api/sync。','用 mock Supabase 跑通 /api/sync 的 select 和 upsert 流程，确认服务端兜底可读写允许的 ai_vocab_tool_* key。'],
+  },
   {
     version:'0.9.17',
     date:'2026-06-29',
@@ -706,11 +712,25 @@ function isCloudNetworkError(error){
   return /Load failed|Failed to fetch|NetworkError|fetch failed|TypeError/i.test(message);
 }
 async function cloudAccessToken(){
+  const cached=localCloudAccessToken();
+  if(cached)return cached;
   const {data,error}=await cloudClient.auth.getSession();
   if(error)throw error;
-  const token=data.session?.access_token;
+  const token=data.session?.access_token||localCloudAccessToken();
   if(!token)throw new Error('登录会话已失效，请重新登录。');
   return token;
+}
+function localCloudAccessToken(){
+  try{
+    const ref=new URL(SUPABASE_CONFIG.url).hostname.split('.')[0];
+    const keys=[`sb-${ref}-auth-token`,...Object.keys(localStorage).filter(key=>key.startsWith('sb-')&&key.endsWith('-auth-token'))];
+    for(const key of [...new Set(keys)]){
+      const parsed=JSON.parse(localStorage.getItem(key)||'null');
+      const token=parsed?.access_token||parsed?.currentSession?.access_token||parsed?.session?.access_token;
+      if(token)return token;
+    }
+  }catch{}
+  return '';
 }
 async function syncViaServer(action,payload={}){
   const token=await cloudAccessToken();

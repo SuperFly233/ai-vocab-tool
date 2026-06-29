@@ -43,7 +43,7 @@ Expected behavior:
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
 - UI busy state and the actual cloud read/write lock are separate; login status messages must not block `bootstrapCloudSync()`.
-- Browser sync tries Supabase REST directly first; on mobile-style network errors such as `TypeError: Load failed`, it falls back to same-origin `/api/sync`, which verifies the Supabase session token and reads/writes `public.study_store` from Vercel.
+- Browser sync tries Supabase REST directly first; on mobile-style network errors such as `TypeError: Load failed`, it falls back to same-origin `/api/sync`, which verifies the Supabase session token and reads/writes `public.study_store` from Vercel. The fallback token path reads the local Supabase session cache before calling SDK `getSession()`.
 
 ## Recent Changes
 
@@ -73,6 +73,7 @@ Expected behavior:
 - Changed result rendering so senses are grouped by part of speech with per-group numbering, and updated the model prompt so `headword.basicPartOfSpeech` can list multiple fixed POS enums separated by `/`.
 - Fixed cloud sync getting stuck after password login by splitting `cloudBusy` UI state from `cloudSyncBusy` read/write locking, adding `try/catch/finally` around sync operations, and improving Supabase table/RLS/session/network error messages.
 - Added `/api/sync` as a same-origin fallback for mobile browsers that fail direct Supabase REST requests with `Load failed` / `Failed to fetch`.
+- Hardened `/api/sync` token acquisition for mobile by reading local Supabase auth storage first, and mock-tested the API handler select/upsert path.
 
 ## Working Rules
 

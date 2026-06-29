@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.18 - 2026-06-29
+
+- 同源同步兜底会优先读取 Supabase 本地 session token，避免手机端 `getSession()` 刷新会话时再次触发 `Load failed`。
+- 保留 SDK `getSession()` 作为后备路径，登录会话有效时可稳定调用 `/api/sync`。
+- 用 mock Supabase 跑通 `/api/sync` 的 `select` 和 `upsert` 流程，确认服务端兜底可读写允许的 `ai_vocab_tool_*` key。
+
 ## v0.9.17 - 2026-06-29
 
 - 云同步直连 Supabase REST 遇到 `TypeError: Load failed` / `Failed to fetch` 时，会自动改走本站同源 `/api/sync`。

@@ -4,6 +4,7 @@
 
 ## 最新进展
 
+- v0.9.18 加固手机端同步 token 获取：同源 `/api/sync` 兜底会优先读取 Supabase 本地 session token，避免 `getSession()` 刷新会话时再次触发 `Load failed`。
 - v0.9.17 增加手机端同步兜底代理：直连 Supabase REST 遇到 `TypeError: Load failed` / `Failed to fetch` 时，会自动改走本站同源 `/api/sync`。
 - v0.9.16 修复登录后云同步卡住：同步读写锁和界面忙碌状态拆开，登录提示不会再挡住首次同步；同步失败会给出 `study_store`、RLS、登录会话或网络方向的排查提示。
 - v0.9.15 优化多词性词条：义项先按词性分组、组内重新编号，词条 JSON 的 `basicPartOfSpeech` 可用 `n/v/...` 记录多个主要词性。
@@ -94,7 +95,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - API 设置、主题和布局会同步到其它设备。
 - 页面重新聚焦、从后台回到前台、以及登录状态下定时轮询时会静默拉取云端更新。
 - 登录、手动上传/恢复、自动轮询和本地保存共用一个同步队列；界面显示“正在登录”不会占用同步读写锁。
-- 同步默认由浏览器直连 Supabase REST；如果手机浏览器直连失败，会自动 fallback 到同源 Vercel API `/api/sync`，再由服务端读写 `study_store`。
+- 同步默认由浏览器直连 Supabase REST；如果手机浏览器直连失败，会自动 fallback 到同源 Vercel API `/api/sync`，再由服务端读写 `study_store`。调用兜底 API 时会优先使用浏览器本地保存的 Supabase session token，减少手机端刷新会话造成的网络失败。
 
 ## 项目上下文
 
