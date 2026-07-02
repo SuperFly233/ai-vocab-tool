@@ -74,7 +74,7 @@ Expected behavior:
 - Fixed cloud sync getting stuck after password login by splitting `cloudBusy` UI state from `cloudSyncBusy` read/write locking, adding `try/catch/finally` around sync operations, and improving Supabase table/RLS/session/network error messages.
 - Added `/api/sync` as a same-origin fallback for mobile browsers that fail direct Supabase REST requests with `Load failed` / `Failed to fetch`.
 - Hardened `/api/sync` token acquisition for mobile by reading local Supabase auth storage first, and mock-tested the API handler select/upsert path.
-- Expanded follow-up answer Markdown rendering: blockquotes, fenced code blocks, horizontal rules, headings, ordered/unordered lists, links, strikethrough, inline code, bold, and emphasis are handled by a small escaped line parser.
+- Expanded follow-up answer Markdown rendering: blockquotes, fenced code blocks, tables, horizontal rules, headings, ordered/unordered lists, links, strikethrough, inline code, bold, and emphasis are handled by a small escaped line parser. Tables use a horizontal scroll wrapper and a column-count-based minimum width for mobile.
 
 ## Working Rules
 

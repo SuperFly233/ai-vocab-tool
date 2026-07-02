@@ -65,12 +65,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.19',
+  version:'0.9.20',
   releaseDate:'2026-07-02',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.20',
+    date:'2026-07-02',
+    title:'补齐追问 Markdown 表格',
+    items:['追问回答新增 GitHub 风格 Markdown 表格渲染，支持表头、分隔行和多行数据。','表格单元格继续支持行内 code、链接、粗体、斜体和删除线。','表格样式使用横向滚动容器，避免手机窄屏挤压或溢出页面。'],
+  },
   {
     version:'0.9.19',
     date:'2026-07-02',
@@ -1435,7 +1441,21 @@ function formatFollowupAnswer(answer){
   const isHr=line=>/^([-*_])(?:\s*\1){2,}\s*$/.test(line.trim());
   const isUnordered=line=>/^[-*•]\s+\S/.test(line.trim());
   const isOrdered=line=>/^\d+[.)]\s+\S/.test(line.trim());
-  const isBlockStart=line=>isBlank(line)||isFence(line)||isHeading(line)||isQuote(line)||isHr(line)||isUnordered(line)||isOrdered(line);
+  const tableCells=line=>line.trim().replace(/^\||\|$/g,'').split('|').map(cell=>cell.trim());
+  const isTableDivider=line=>{
+    const cells=tableCells(line);
+    return cells.length>1&&cells.every(cell=>/^:?-{3,}:?$/.test(cell));
+  };
+  const isTableRow=line=>line.includes('|')&&tableCells(line).length>1;
+  const isTableStart=i=>isTableRow(lines[i]||'')&&isTableDivider(lines[i+1]||'');
+  const renderTable=(rows)=>{
+    const header=tableCells(rows[0]);
+    const align=tableCells(rows[1]).map(cell=>cell.startsWith(':')&&cell.endsWith(':')?'center':cell.endsWith(':')?'right':cell.startsWith(':')?'left':'');
+    const body=rows.slice(2).map(row=>tableCells(row));
+    const cellAttrs=index=>align[index]?` style="text-align:${align[index]}"`:'';
+    return `<div class="md-table-wrap" style="--cols:${Math.max(header.length,1)}"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatInlineMarkdown(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  };
+  const isBlockStart=(line,i=index)=>isBlank(line)||isFence(line)||isHeading(line)||isQuote(line)||isHr(line)||isUnordered(line)||isOrdered(line)||isTableStart(i);
   while(index<lines.length){
     const line=lines[index];
     if(isBlank(line)){index+=1;continue}
@@ -1458,6 +1478,16 @@ function formatFollowupAnswer(answer){
         index+=1;
       }
       html.push(`<blockquote>${formatFollowupAnswer(quote.join('\n'))}</blockquote>`);
+      continue;
+    }
+    if(isTableStart(index)){
+      const rows=[lines[index],lines[index+1]];
+      index+=2;
+      while(index<lines.length&&isTableRow(lines[index])&&!isBlank(lines[index])){
+        rows.push(lines[index]);
+        index+=1;
+      }
+      html.push(renderTable(rows));
       continue;
     }
     if(isHeading(line)){
@@ -1489,7 +1519,7 @@ function formatFollowupAnswer(answer){
       continue;
     }
     const paragraph=[];
-    while(index<lines.length&&!isBlockStart(lines[index])){
+    while(index<lines.length&&!isBlockStart(lines[index],index)){
       paragraph.push(lines[index].trim());
       index+=1;
     }

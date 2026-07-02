@@ -442,6 +442,11 @@ body.modal-open{overflow:hidden}
 .followup-answer blockquote p{margin-bottom:6px}
 .followup-answer blockquote p:last-child{margin-bottom:0}
 .followup-answer hr{height:1px;border:0;background:linear-gradient(90deg,transparent,var(--line2),transparent);margin:12px 0}
+.followup-answer .md-table-wrap{margin:8px 0 10px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 72%,var(--panel2))}
+.followup-answer table{width:100%;border-collapse:collapse;min-width:max(420px,calc(var(--cols,3) * 140px));font-size:14px}
+.followup-answer th,.followup-answer td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.followup-answer th{background:color-mix(in srgb,var(--accent-bg) 46%,var(--panel));color:var(--text);font-weight:850}
+.followup-answer tr:last-child td{border-bottom:0}
 .followup-answer strong{color:var(--text);font-weight:800}
 .followup-answer em{font-style:normal;color:var(--accent)}
 .followup-answer del{color:var(--soft);text-decoration-color:color-mix(in srgb,var(--bad) 44%,var(--soft))}
