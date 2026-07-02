@@ -438,9 +438,20 @@ body.modal-open{overflow:hidden}
 .followup-answer h4:first-child{margin-top:0}
 .followup-answer ul,.followup-answer ol{margin:0 0 8px;padding-left:20px}
 .followup-answer li{margin:3px 0}
+.followup-answer blockquote{position:relative;margin:8px 0 10px;padding:10px 12px 10px 15px;border-left:3px solid color-mix(in srgb,var(--accent) 62%,var(--line));border-radius:0 10px 10px 0;background:color-mix(in srgb,var(--accent-bg) 44%,transparent);color:color-mix(in srgb,var(--text) 62%,var(--muted))}
+.followup-answer blockquote p{margin-bottom:6px}
+.followup-answer blockquote p:last-child{margin-bottom:0}
+.followup-answer hr{height:1px;border:0;background:linear-gradient(90deg,transparent,var(--line2),transparent);margin:12px 0}
 .followup-answer strong{color:var(--text);font-weight:800}
 .followup-answer em{font-style:normal;color:var(--accent)}
+.followup-answer del{color:var(--soft);text-decoration-color:color-mix(in srgb,var(--bad) 44%,var(--soft))}
+.followup-answer a{color:var(--accent);font-weight:800;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 42%,transparent)}
+.followup-answer a:hover{border-bottom-color:var(--accent)}
 .followup-answer code{border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);padding:1px 5px;font-family:"Cascadia Code","SFMono-Regular",Consolas,monospace;font-size:.92em}
+.followup-answer .md-code-block{position:relative;margin:8px 0 10px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 78%,var(--panel2));overflow:auto}
+.followup-answer .md-code-block:before{content:attr(data-lang);display:block;min-height:0;padding:5px 10px 0;color:var(--soft);font-size:11px;font-weight:850;text-transform:uppercase}
+.followup-answer .md-code-block:not([data-lang]):before{display:none}
+.followup-answer .md-code-block code{display:block;border:0;border-radius:0;background:transparent;padding:10px 12px;color:var(--text);white-space:pre;font-size:13px;line-height:1.6}
 .followup-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .followup-actions .plain-btn,.followup-actions .danger-btn{min-width:74px;padding:7px 10px;font-size:14px}
 .followup-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}

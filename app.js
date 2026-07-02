@@ -65,12 +65,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.18',
-  releaseDate:'2026-06-29',
+  version:'0.9.19',
+  releaseDate:'2026-07-02',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.19',
+    date:'2026-07-02',
+    title:'完善追问 Markdown 渲染',
+    items:['追问回答新增 > 引用块渲染，显示为带左侧强调线的引用版式。','追问回答补齐 fenced code block、分隔线、链接、删除线、下划线粗体/斜体等常见 Markdown 规则。','Markdown 渲染改为逐行解析，减少标题、列表、引用和普通段落之间的误判。'],
+  },
   {
     version:'0.9.18',
     date:'2026-06-29',
@@ -1417,28 +1423,95 @@ function renderFollowupItem(item,scope){
   `;
 }
 function formatFollowupAnswer(answer){
-  const text=String(answer||'').trim();
+  const text=String(answer||'').replace(/\r\n?/g,'\n').trim();
   if(!text)return '<p>无内容</p>';
-  const blocks=text.split(/\n{2,}/).map(block=>block.trim()).filter(Boolean);
-  return blocks.map(block=>{
-    const lines=block.split('\n').map(line=>line.trim()).filter(Boolean);
-    if(lines.length===1&&/^#{1,4}\s+/.test(lines[0])){
-      return `<h4>${formatInlineMarkdown(lines[0].replace(/^#{1,4}\s+/,''))}</h4>`;
+  const lines=text.split('\n');
+  const html=[];
+  let index=0;
+  const isBlank=line=>!line.trim();
+  const isFence=line=>/^```/.test(line.trim());
+  const isHeading=line=>/^#{1,4}\s+\S/.test(line.trim());
+  const isQuote=line=>/^>\s?/.test(line.trim());
+  const isHr=line=>/^([-*_])(?:\s*\1){2,}\s*$/.test(line.trim());
+  const isUnordered=line=>/^[-*•]\s+\S/.test(line.trim());
+  const isOrdered=line=>/^\d+[.)]\s+\S/.test(line.trim());
+  const isBlockStart=line=>isBlank(line)||isFence(line)||isHeading(line)||isQuote(line)||isHr(line)||isUnordered(line)||isOrdered(line);
+  while(index<lines.length){
+    const line=lines[index];
+    if(isBlank(line)){index+=1;continue}
+    if(isFence(line)){
+      const language=line.trim().replace(/^```/,'').trim();
+      index+=1;
+      const code=[];
+      while(index<lines.length&&!isFence(lines[index])){
+        code.push(lines[index]);
+        index+=1;
+      }
+      if(index<lines.length&&isFence(lines[index]))index+=1;
+      html.push(`<pre class="md-code-block"${language?` data-lang="${escapeHTML(language)}"`:''}><code>${escapeHTML(code.join('\n'))}</code></pre>`);
+      continue;
     }
-    if(lines.every(line=>/^[-*•]\s+/.test(line))){
-      return `<ul>${lines.map(line=>`<li>${formatInlineMarkdown(line.replace(/^[-*•]\s+/,''))}</li>`).join('')}</ul>`;
+    if(isQuote(line)){
+      const quote=[];
+      while(index<lines.length&&(isQuote(lines[index])||isBlank(lines[index]))){
+        quote.push(isQuote(lines[index])?lines[index].trim().replace(/^>\s?/,''):lines[index]);
+        index+=1;
+      }
+      html.push(`<blockquote>${formatFollowupAnswer(quote.join('\n'))}</blockquote>`);
+      continue;
     }
-    if(lines.every(line=>/^\d+[.)]\s+/.test(line))){
-      return `<ol>${lines.map(line=>`<li>${formatInlineMarkdown(line.replace(/^\d+[.)]\s+/,''))}</li>`).join('')}</ol>`;
+    if(isHeading(line)){
+      html.push(`<h4>${formatInlineMarkdown(line.trim().replace(/^#{1,4}\s+/,''))}</h4>`);
+      index+=1;
+      continue;
     }
-    return `<p>${formatInlineMarkdown(block).replace(/\n/g,'<br>')}</p>`;
-  }).join('');
+    if(isHr(line)){
+      html.push('<hr>');
+      index+=1;
+      continue;
+    }
+    if(isUnordered(line)){
+      const items=[];
+      while(index<lines.length&&isUnordered(lines[index])){
+        items.push(lines[index].trim().replace(/^[-*•]\s+/,''));
+        index+=1;
+      }
+      html.push(`<ul>${items.map(item=>`<li>${formatInlineMarkdown(item)}</li>`).join('')}</ul>`);
+      continue;
+    }
+    if(isOrdered(line)){
+      const items=[];
+      while(index<lines.length&&isOrdered(lines[index])){
+        items.push(lines[index].trim().replace(/^\d+[.)]\s+/,''));
+        index+=1;
+      }
+      html.push(`<ol>${items.map(item=>`<li>${formatInlineMarkdown(item)}</li>`).join('')}</ol>`);
+      continue;
+    }
+    const paragraph=[];
+    while(index<lines.length&&!isBlockStart(lines[index])){
+      paragraph.push(lines[index].trim());
+      index+=1;
+    }
+    html.push(`<p>${formatInlineMarkdown(paragraph.join('\n')).replace(/\n/g,'<br>')}</p>`);
+  }
+  return html.join('');
 }
 function formatInlineMarkdown(value){
-  return escapeHTML(value)
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
+  const codeSpans=[];
+  const escaped=escapeHTML(value).replace(/`([^`]+)`/g,(_,code)=>{
+    const token=`@@CODE_${codeSpans.length}@@`;
+    codeSpans.push(`<code>${code}</code>`);
+    return token;
+  });
+  return escaped
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g,'<em>$1</em>');
+    .replace(/__([^_]+)__/g,'<strong>$1</strong>')
+    .replace(/~~([^~]+)~~/g,'<del>$1</del>')
+    .replace(/(^|[\s（(])\*([^*\n]+)\*/g,'$1<em>$2</em>')
+    .replace(/(^|[\s（(])_([^_\n]+)_/g,'$1<em>$2</em>')
+    .replace(/@@CODE_(\d+)@@/g,(_,index)=>codeSpans[Number(index)]||'');
 }
 function getCurrentHistoryItem(){
   return getHistory().find(item=>Number(item.id)===Number(currentHistoryId));

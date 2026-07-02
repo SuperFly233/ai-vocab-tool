@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.19 - 2026-07-02
+
+- 追问回答新增 `>` 引用块渲染，显示为带左侧强调线的引用版式。
+- 追问回答补齐 fenced code block、分隔线、链接、删除线、下划线粗体/斜体等常见 Markdown 规则。
+- Markdown 渲染改为逐行解析，减少标题、列表、引用和普通段落之间的误判。
+
 ## v0.9.18 - 2026-06-29
 
 - 同源同步兜底会优先读取 Supabase 本地 session token，避免手机端 `getSession()` 刷新会话时再次触发 `Load failed`。
