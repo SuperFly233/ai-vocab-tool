@@ -47,6 +47,8 @@ const cloudDirtyKeys=new Set();
 let editingFollowup=null;
 let pendingFollowup=null;
 let resultTypewriterTimers=[];
+let jsonTypewriterTimers=[];
+let lookupLoadingTimers=[];
 const activeToasts=new Map();
 const historyState={
   query:'',
@@ -72,12 +74,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.38',
+  version:'0.9.39',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.39',
+    date:'2026-07-13',
+    title:'重做主查询生成反馈',
+    items:['API 配置菜单改为 fixed 顶层浮层，移动端会避开底部导航，避免被主题、布局或导航按钮压住。','主查询等待期会先展示词条头、义项、搭配、语感、易混和相关记录等骨架块，并在角落显示估算百分比。','真实结果返回后会按结构块渐变接管并逐字显示内容，JSON 页也会逐段逐字揭示最终校验后的 JSON。'],
+  },
   {
     version:'0.9.38',
     date:'2026-07-13',
@@ -1381,30 +1389,113 @@ function setModalTab(id,button){
   if(id==='json')validateModalJSON(false);
 }
 function renderEmpty(){
+  clearLookupLoadingTimers();
+  clearResultTypewriter();
+  clearJSONTypewriter();
   els.resultCard.innerHTML='<div class="empty">等待查询</div>';
   els.resultJson.innerHTML='<div class="empty">等待 JSON</div>';
 }
-function renderLookupLoading(query,settings){
+function clearLookupLoadingTimers(){
+  lookupLoadingTimers.forEach(timer=>clearInterval(timer));
+  lookupLoadingTimers=[];
+}
+function renderLookupLoading(query,settings,runId=lookupRunId){
+  clearLookupLoadingTimers();
+  clearResultTypewriter();
+  clearJSONTypewriter();
   const apiSettings=currentApiSettings(settings);
   const source=apiSettings.apiUrl&&apiSettings.apiKey?`自定义接口：${apiSettings.apiProfileName}`:'环境变量接口';
+  const blocks=[
+    ['entry','词条头','准备标题、核心义和基础标签'],
+    ['senses','义项','等待模型归纳词性与义项'],
+    ['collocations','搭配','准备固定搭配、例句和译文'],
+    ['register','语感','整理语体、语气和使用场景'],
+    ['confusions','易混','检查相近表达和边界'],
+    ['related','相关记录','匹配本地历史相近词条'],
+  ];
   els.resultCard.innerHTML=`
-    <div class="lookup-state lookup-loading">
-      <div class="lookup-copy">
-        <div class="lookup-title">正在分析：${escapeHTML(query)}</div>
-        <div class="lookup-steps">
-          <span>准备请求</span>
-          <span>调用模型</span>
-          <span>校验 JSON</span>
-          <span>生成排版</span>
-        </div>
-        <div class="lookup-progress" aria-hidden="true"><i></i></div>
-        <p><b>正在调用模型并等待返回。</b> 当前来源：${escapeHTML(source)}；下方进度是预估动画，完成后会自动切换到结果。</p>
+    <div class="lookup-stream">
+      <div class="lookup-progress-badge" aria-live="polite">
+        <i aria-hidden="true"></i>
+        <span id="lookup-progress-percent">8%</span>
       </div>
+      <div class="entry-head lookup-skeleton-head">
+        <div class="entry-kicker">生成中 · ${escapeHTML(source)}</div>
+        <div class="entry-title">${escapeHTML(query)}</div>
+        <div class="entry-core"><b>核心义</b><mark class="skeleton-text wide"></mark></div>
+        <div class="entry-meta-grid">
+          <span><b>类型</b><em class="skeleton-text short"></em></span>
+          <span><b>词性</b><em class="skeleton-text short"></em></span>
+          <span><b>方向</b><em class="skeleton-text short"></em></span>
+        </div>
+      </div>
+      ${blocks.map((block,index)=>`
+        <section class="block lookup-skeleton-block" data-lookup-block="${escapeHTML(block[0])}" style="--delay:${index}">
+          <div class="block-title">${escapeHTML(block[1])}<small>${escapeHTML(block[2])}</small></div>
+          <div class="lookup-skeleton-lines">
+            <i></i><i></i><i></i>
+          </div>
+        </section>
+      `).join('')}
     </div>
   `;
-  els.resultJson.innerHTML='<div class="empty">等待模型返回 JSON</div>';
+  els.resultJson.innerHTML=`<div class="json-stream-loading"><pre>{
+  "meta": { "query": ${JSON.stringify(query)}, "status": "requesting" },
+  "headword": "waiting...",
+  "senses": [],
+  "collocations": [],
+  "register": {},
+  "confusions": []
+}</pre></div>`;
+  startLookupJSONPlaceholder(runId);
+  startLookupLoadingProgress(runId);
+}
+function startLookupJSONPlaceholder(runId){
+  const pre=els.resultJson.querySelector('.json-stream-loading pre');
+  if(!pre||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const text=pre.textContent||'';
+  pre.textContent='';
+  let index=0;
+  const tick=()=>{
+    if(runId!==lookupRunId||!lookupBusy)return;
+    index=Math.min(text.length,index+4);
+    pre.textContent=text.slice(0,index);
+    if(index<text.length){
+      jsonTypewriterTimers.push(setTimeout(tick,18));
+      return;
+    }
+    jsonTypewriterTimers.push(setTimeout(()=>{
+      if(runId===lookupRunId&&lookupBusy)pre.textContent=text;
+    },180));
+  };
+  jsonTypewriterTimers.push(setTimeout(tick,80));
+}
+function startLookupLoadingProgress(runId){
+  const percentEl=document.getElementById('lookup-progress-percent');
+  if(!percentEl)return;
+  let value=8;
+  let blockIndex=0;
+  const blocks=[...els.resultCard.querySelectorAll('.lookup-skeleton-block')];
+  blocks[0]?.classList.add('active');
+  const timer=setInterval(()=>{
+    if(runId!==lookupRunId||!lookupBusy){
+      clearInterval(timer);
+      return;
+    }
+    value=Math.min(88,value+(value<45?3:value<72?2:1));
+    percentEl.textContent=`${value}%`;
+    const nextIndex=Math.min(blocks.length-1,Math.floor(value/16));
+    while(blockIndex<=nextIndex){
+      blocks[blockIndex]?.classList.add('active');
+      blockIndex+=1;
+    }
+  },520);
+  lookupLoadingTimers.push(timer);
 }
 function renderLookupRetry(query,error,nextAttempt,totalAttempts){
+  clearLookupLoadingTimers();
+  clearResultTypewriter();
+  clearJSONTypewriter();
   const message=lookupErrorMessage(error);
   els.resultCard.innerHTML=`
     <div class="lookup-state lookup-loading retrying">
@@ -1423,6 +1514,9 @@ function renderLookupRetry(query,error,nextAttempt,totalAttempts){
   els.resultJson.innerHTML=`<pre class="error-pre">${escapeHTML(JSON.stringify({ok:false,retrying:true,query,error:message,nextAttempt,totalAttempts},null,2))}</pre>`;
 }
 function renderLookupError(query,error,stage='查询失败'){
+  clearLookupLoadingTimers();
+  clearResultTypewriter();
+  clearJSONTypewriter();
   const message=lookupErrorMessage(error);
   els.resultCard.innerHTML=`
     <div class="lookup-state lookup-error">
@@ -1446,16 +1540,58 @@ function lookupErrorMessage(error){
 }
 function renderResult(result,{animate=false}={}){
   currentResult=result;
+  clearLookupLoadingTimers();
+  clearJSONTypewriter();
   els.resultJson.innerHTML=renderStructuredJSON(result);
   clearResultTypewriter();
   els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current',getCurrentHistoryItem());
-  if(animate)startResultTypewriter(els.resultCard);
+  if(animate){
+    startResultTypewriter(els.resultCard);
+    startJSONTypewriter(els.resultJson);
+  }
 }
 function clearResultTypewriter(){
   resultTypewriterTimers.forEach(timer=>clearTimeout(timer));
   resultTypewriterTimers=[];
   els.resultCard?.classList.remove('result-typing');
   els.resultCard?.querySelectorAll('.typewriter-chunk').forEach(chunk=>chunk.classList.remove('typewriter-chunk','pending','active','typing'));
+}
+function clearJSONTypewriter(){
+  jsonTypewriterTimers.forEach(timer=>clearTimeout(timer));
+  jsonTypewriterTimers=[];
+  els.resultJson?.classList.remove('json-typing');
+  els.resultJson?.querySelectorAll('.json-section').forEach(section=>section.classList.remove('typing'));
+}
+function startJSONTypewriter(root){
+  if(!root||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const sections=[...root.querySelectorAll('.json-section pre')]
+    .map(pre=>({pre,section:pre.closest('.json-section'),text:pre.textContent||'',index:0}))
+    .filter(item=>item.text.trim());
+  if(!sections.length)return;
+  root.classList.add('json-typing');
+  sections.forEach(item=>{item.pre.textContent=''});
+  let sectionIndex=0;
+  const tick=()=>{
+    const item=sections[sectionIndex];
+    if(!item){
+      root.classList.remove('json-typing');
+      jsonTypewriterTimers=[];
+      return;
+    }
+    sections.forEach(entry=>entry.section?.classList.toggle('typing',entry===item));
+    const step=item.text.length>1400?12:item.text.length>700?8:5;
+    item.index=Math.min(item.text.length,item.index+step);
+    item.pre.textContent=item.text.slice(0,item.index);
+    if(item.index>=item.text.length){
+      item.pre.textContent=item.text;
+      item.section?.classList.remove('typing');
+      sectionIndex+=1;
+      jsonTypewriterTimers.push(setTimeout(tick,80));
+      return;
+    }
+    jsonTypewriterTimers.push(setTimeout(tick,16));
+  };
+  jsonTypewriterTimers.push(setTimeout(tick,80));
 }
 function startResultTypewriter(root){
   if(!root||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
@@ -2179,7 +2315,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   lookupBusy=true;
   const runId=++lookupRunId;
   document.body.classList.add('lookup-busy');
-  renderLookupLoading(query,settings);
+  renderLookupLoading(query,settings,runId);
   notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   const modelInfo=lookupModelInfo(settings,hasLocalEndpoint);
@@ -3227,12 +3363,36 @@ function apiProfileSummary(profile){
 }
 function closeApiProfileMenu(){
   els.apiProfilePicker?.classList.remove('open');
+  els.apiProfilePicker?.closest('.setting-group')?.classList.remove('profile-menu-host-open');
   els.apiProfileMenuToggle?.setAttribute('aria-expanded','false');
+  if(els.apiProfileMenu){
+    els.apiProfileMenu.style.left='';
+    els.apiProfileMenu.style.top='';
+    els.apiProfileMenu.style.width='';
+    els.apiProfileMenu.style.maxHeight='';
+  }
+}
+function positionApiProfileMenu(){
+  if(!els.apiProfileMenu||!els.apiProfilePicker)return;
+  const anchor=els.apiProfilePicker.querySelector('.api-profile-current')||els.apiProfilePicker;
+  const rect=anchor.getBoundingClientRect();
+  const margin=12;
+  const mobile=window.matchMedia?.('(max-width: 900px)').matches;
+  const bottomReserve=mobile?96:margin;
+  const width=Math.min(rect.width,window.innerWidth-margin*2);
+  const left=Math.max(margin,Math.min(rect.left,window.innerWidth-width-margin));
+  const top=Math.min(rect.bottom+8,window.innerHeight-bottomReserve-120);
+  els.apiProfileMenu.style.left=`${left}px`;
+  els.apiProfileMenu.style.top=`${Math.max(margin,top)}px`;
+  els.apiProfileMenu.style.width=`${width}px`;
+  els.apiProfileMenu.style.maxHeight=`${Math.max(160,window.innerHeight-Math.max(margin,top)-bottomReserve)}px`;
 }
 function toggleApiProfileMenu(){
   const open=!els.apiProfilePicker?.classList.contains('open');
   els.apiProfilePicker?.classList.toggle('open',open);
+  els.apiProfilePicker?.closest('.setting-group')?.classList.toggle('profile-menu-host-open',open);
   els.apiProfileMenuToggle?.setAttribute('aria-expanded',String(open));
+  if(open)requestAnimationFrame(positionApiProfileMenu);
 }
 function renderSettings(){
   hydrateSettings();
@@ -3625,6 +3785,12 @@ document.addEventListener('click',event=>{
   if(!els.historyFilterbar?.contains(event.target))closeHistoryFilterMenus();
   if(!els.apiProfilePicker?.contains(event.target))closeApiProfileMenu();
 });
+window.addEventListener('resize',()=>{
+  if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
+});
+window.addEventListener('scroll',()=>{
+  if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
+},{passive:true});
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){
     closeApiProfileMenu();
