@@ -68,14 +68,21 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
 });
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system'};
+const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.31',
+  version:'0.9.32',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.32',
+    date:'2026-07-13',
+    title:'新增查询自动重试',
+    items:['查询遇到网络失败、超时、429 或 5xx 这类可恢复错误时，会自动重试一次。','重试等待中会在结果区显示失败原因和下一次尝试状态，避免只看到卡住。','配置、权限、JSON 格式等不可恢复错误不会盲目重试，减少无意义 API 消耗。'],
+  },
   {
     version:'0.9.31',
     date:'2026-07-13',
@@ -1359,8 +1366,26 @@ function renderLookupLoading(query,settings){
   `;
   els.resultJson.innerHTML='<div class="empty">等待模型返回 JSON</div>';
 }
+function renderLookupRetry(query,error,nextAttempt,totalAttempts){
+  const message=lookupErrorMessage(error);
+  els.resultCard.innerHTML=`
+    <div class="lookup-state lookup-loading retrying">
+      <div class="lookup-copy">
+        <div class="lookup-title">正在重试：${escapeHTML(query)}</div>
+        <div class="lookup-steps">
+          <span>已捕获错误</span>
+          <span>等待重连</span>
+          <span>第 ${Number(nextAttempt)} / ${Number(totalAttempts)} 次尝试</span>
+        </div>
+        <div class="lookup-progress" aria-hidden="true"><i></i></div>
+        <p><b>上一次失败原因：</b>${escapeHTML(message)}。这是可恢复错误，稍后会自动再试一次。</p>
+      </div>
+    </div>
+  `;
+  els.resultJson.innerHTML=`<pre class="error-pre">${escapeHTML(JSON.stringify({ok:false,retrying:true,query,error:message,nextAttempt,totalAttempts},null,2))}</pre>`;
+}
 function renderLookupError(query,error,stage='查询失败'){
-  const message=error?.message||String(error||'未知错误');
+  const message=lookupErrorMessage(error);
   els.resultCard.innerHTML=`
     <div class="lookup-state lookup-error">
       <div class="lookup-error-mark">!</div>
@@ -1376,6 +1401,10 @@ function renderLookupError(query,error,stage='查询失败'){
     </div>
   `;
   els.resultJson.innerHTML=`<pre class="error-pre">${escapeHTML(JSON.stringify({ok:false,stage,query,error:message},null,2))}</pre>`;
+}
+function lookupErrorMessage(error){
+  const message=error?.message||String(error||'未知错误');
+  return error?.status?`HTTP ${error.status}：${message}`:message;
 }
 function renderResult(result){
   currentResult=result;
@@ -1985,26 +2014,16 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   const modelInfo=lookupModelInfo(settings,hasLocalEndpoint);
+  const payload={
+    query,
+    direction:direction??els.direction.value.trim(),
+    note:note??els.note.value.trim(),
+    apiUrl:hasLocalEndpoint?settings.apiUrl:'',
+    apiKey:hasLocalEndpoint?settings.apiKey:'',
+    model:hasLocalEndpoint?settings.model:'',
+  };
   try{
-    const response=await fetch('/api/analyze',{
-      method:'POST',
-      headers:await analyzeHeaders(hasLocalEndpoint),
-      body:JSON.stringify({
-        query,
-        direction:direction??els.direction.value.trim(),
-        note:note??els.note.value.trim(),
-        apiUrl:hasLocalEndpoint?settings.apiUrl:'',
-        apiKey:hasLocalEndpoint?settings.apiKey:'',
-        model:hasLocalEndpoint?settings.model:'',
-      }),
-    });
-    let data;
-    try{
-      data=await response.json();
-    }catch(error){
-      throw new Error(`接口返回不是合法 JSON：${error.message}`);
-    }
-    if(!response.ok)throw new Error(data.error||'查询失败');
+    const data=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
     const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo});
     currentHistoryId=saved.id;
@@ -2022,6 +2041,62 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
       processNextLookup();
     }
   }
+}
+async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
+  let lastError=null;
+  for(let attempt=1;attempt<=LOOKUP_MAX_ATTEMPTS;attempt+=1){
+    try{
+      const response=await fetch('/api/analyze',{
+        method:'POST',
+        headers:await analyzeHeaders(hasLocalEndpoint),
+        body:JSON.stringify(payload),
+      });
+      const data=await parseLookupResponse(response);
+      if(!response.ok)throw lookupHttpError(response,data);
+      return data;
+    }catch(error){
+      lastError=normalizeLookupError(error);
+      if(isStaleLookup(runId,query))throw lastError;
+      if(attempt<LOOKUP_MAX_ATTEMPTS&&isRetryableLookupError(lastError)){
+        renderLookupRetry(query,lastError,attempt+1,LOOKUP_MAX_ATTEMPTS);
+        notify(`查询遇到可恢复错误，准备第 ${attempt+1} 次尝试。`,'info','自动重试');
+        await sleep(900+attempt*450);
+        continue;
+      }
+      throw lastError;
+    }
+  }
+  throw lastError||new Error('查询失败');
+}
+async function parseLookupResponse(response){
+  try{
+    return await response.json();
+  }catch(error){
+    const parsedError=new Error(response.ok?`接口返回不是合法 JSON：${error.message}`:`接口返回异常内容，无法解析错误详情。`);
+    parsedError.status=response.status;
+    parsedError.retryable=!response.ok&&(response.status===408||response.status===429||response.status>=500);
+    throw parsedError;
+  }
+}
+function lookupHttpError(response,data){
+  const error=new Error(data?.error||`查询失败：HTTP ${response.status}`);
+  error.status=response.status;
+  error.retryable=response.status===408||response.status===429||response.status>=500;
+  return error;
+}
+function normalizeLookupError(error){
+  if(error instanceof Error)return error;
+  return new Error(String(error||'查询失败'));
+}
+function isRetryableLookupError(error){
+  if(error?.retryable)return true;
+  const status=Number(error?.status||0);
+  if(status===408||status===429||status>=500)return true;
+  const message=String(error?.message||error||'').toLowerCase();
+  return /failed to fetch|load failed|networkerror|network error|timeout|timed out|connection|socket|econnreset|etimedout/.test(message);
+}
+function sleep(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
 }
 function isStaleLookup(runId,query){
   return runId!==lookupRunId;
