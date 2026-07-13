@@ -4,6 +4,7 @@
 
 ## 最新进展
 
+- v0.9.29 补齐站点图标：新增与侧边栏品牌一致的 SVG favicon，并补充 `theme-color` 与 manifest。
 - v0.9.28 新增单词/词组类型层：结果和历史会显示“单词 / 词组”，历史筛选新增类型多选，可视化编辑也能修改 `meta.entryType`。
 - v0.9.27 新增词条可视化编辑：历史详情里可以用表单直接改词条头、义项和固定搭配，也能新增或删除义项/搭配；移动端追问表格会按列数调整宽度，避免多列表格过扁或过宽。
 - v0.9.26 新增备注 Markdown 工具条：历史详情里的 Note 可以一键插入加粗、列表、引用、代码和表格模板。
@@ -43,6 +44,7 @@
 - 设置：可保存多组 API URL、API Key、Model 配置并切换当前使用项；新增和编辑配置会在弹窗里完成，也可尝试查询模型列表；同时可切换主题、首页布局和字段标签显示方式，支持恢复默认。
 - 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后无感同步历史、收藏、API 设置、主题、布局和运行日志。
 - 通知：右上角 toast 支持自动消失和手动关闭，按状态展示不同图标、光条和进度动效。
+- 站点图标：浏览器标签页、manifest 和移动端主屏幕入口使用统一的“词”字放大镜徽标。
 
 ## AI 配置
 
@@ -121,6 +123,8 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 ## 文件
 
 - [index.html](/d:/Files/Projects/lexi-glass/index.html)
+- [favicon.svg](/d:/Files/Projects/lexi-glass/favicon.svg)
+- [site.webmanifest](/d:/Files/Projects/lexi-glass/site.webmanifest)
 - [styles.css](/d:/Files/Projects/lexi-glass/styles.css)
 - [app.js](/d:/Files/Projects/lexi-glass/app.js)
 - [api/analyze.js](/d:/Files/Projects/lexi-glass/api/analyze.js)

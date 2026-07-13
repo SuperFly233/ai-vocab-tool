@@ -1,0 +1,17 @@
+{
+  "name": "ai-vocab-tool",
+  "short_name": "Vocab",
+  "description": "Personal AI vocabulary lookup tool.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfbf8",
+  "theme_color": "#245c9f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -87,6 +87,7 @@ Expected behavior:
 - Added first-stage visual history editing. The history modal now has a `visual` tab rendered by `renderVisualEditor()`, with form editing for headword/meta fields, senses, and collocations. `saveVisualHistoryEdit()` writes the form back into JSON, syncs edited titles into the history record, and reuses the existing save path, while raw JSON editing remains available.
 - Tuned follow-up Markdown tables for narrow mobile screens: table rendering now sets a column-count-aware minimum width so many-column tables scroll horizontally without each column becoming unreadably thin or excessively wide.
 - Added a first-stage word/phrase type layer. New lookup results are prompted and normalized to `meta.entryType` (`word` or `phrase`), history filters include `entryType`, result and history summaries show the type, and the visual editor can change it. Older history infers the type from the saved query/title instead of requiring a migration.
+- Added the first AI Vocab site icon pass: `favicon.svg` reuses the sidebar brand idea as a blue "词" magnifier, `index.html` links favicon/theme-color/manifest, and `site.webmanifest` points to the same SVG icon. Study Kanban still needs its own matching update later for cross-project consistency.
 
 ## Working Rules
 

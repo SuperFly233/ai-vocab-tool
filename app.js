@@ -68,12 +68,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.28',
+  version:'0.9.29',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.29',
+    date:'2026-07-13',
+    title:'补齐站点图标',
+    items:['新增与侧边栏品牌一致的 SVG favicon，浏览器标签页会显示“词”字放大镜徽标。','页面头部补充 theme-color、favicon 和 manifest 引用，为后续多项目统一图标打底。','站点 manifest 使用同一图标和品牌色，提升移动端添加到主屏幕时的识别度。'],
+  },
   {
     version:'0.9.28',
     date:'2026-07-13',
