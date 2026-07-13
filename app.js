@@ -66,12 +66,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.23',
+  version:'0.9.24',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.24',
+    date:'2026-07-13',
+    title:'新增历史标签与备注',
+    items:['历史详情编辑页新增标签和备注字段，可给词条补充个人整理信息。','历史列表和结果预览会显示已保存的标签与备注，搜索历史时也会纳入匹配。','云同步合并历史时会保留两端标签，并通过 noteUpdatedAt 正确同步备注修改或清空。'],
+  },
   {
     version:'0.9.23',
     date:'2026-07-13',
@@ -272,6 +278,8 @@ const els={
   modalCardPage:document.getElementById('modal-card-page'),
   modalJsonPage:document.getElementById('modal-json-page'),
   modalQueryEdit:document.getElementById('modal-query-edit'),
+  modalTagsEdit:document.getElementById('modal-tags-edit'),
+  modalNoteEdit:document.getElementById('modal-note-edit'),
   modalJsonEdit:document.getElementById('modal-json-edit'),
   modalJsonStatus:document.getElementById('modal-json-status'),
   workspace:document.getElementById('workspace'),
@@ -953,6 +961,9 @@ function mergeHistoryItems(localHistory,remoteHistory){
       query:existing.query||normalized.query,
       favorite:Boolean(existing.favorite||normalized.favorite),
       favoriteAt:[existing.favoriteAt,normalized.favoriteAt].filter(Boolean).sort().pop()||'',
+      tags:mergeTags(existing.tags,normalized.tags),
+      note:latestHistoryNote(existing,normalized),
+      noteUpdatedAt:Math.max(historyNoteTime(existing),historyNoteTime(normalized))?new Date(Math.max(historyNoteTime(existing),historyNoteTime(normalized))).toISOString():'',
       createdAt:new Date(Math.min(new Date(existing.createdAt||Date.now()),new Date(normalized.createdAt||Date.now()))).toISOString(),
       updatedAt:new Date(Math.max(new Date(existing.updatedAt||existing.createdAt||0),new Date(normalized.updatedAt||normalized.createdAt||0))).toISOString(),
       result:latest.result,
@@ -963,6 +974,22 @@ function mergeHistoryItems(localHistory,remoteHistory){
   remoteHistory.forEach(put);
   localHistory.forEach(put);
   return [...map.values()].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt)).slice(0,120);
+}
+function mergeTags(...groups){
+  return uniq(groups.flatMap(normalizeTags));
+}
+function latestHistoryNote(a={},b={}){
+  const left=String(a.note||'');
+  const right=String(b.note||'');
+  const leftTime=historyNoteTime(a);
+  const rightTime=historyNoteTime(b);
+  if(!leftTime&&!rightTime)return left||right;
+  return rightTime>=leftTime?right:left;
+}
+function historyNoteTime(item={}){
+  if(item.noteUpdatedAt)return new Date(item.noteUpdatedAt).getTime()||0;
+  if(item.note)return new Date(item.updatedAt||item.createdAt||0).getTime()||0;
+  return 0;
 }
 function dedupeFollowups(items){
   const seen=new Set();
@@ -1006,7 +1033,11 @@ function normalizeHistoryItem(item){
       modelSource:base.modelSource||'unknown',
     })]);
   const latest=rolls[0]||makeHistoryRoll(base.result,createdAt);
-  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',createdAt,result:base.result||latest.result,rolls};
+  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags:normalizeTags(base.tags),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls};
+}
+function normalizeTags(value){
+  const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
+  return uniq(list.map(tag=>String(tag||'').trim()).filter(tag=>tag.length>0).slice(0,24));
 }
 function getHistoryRolls(item){
   return normalizeHistoryItem(item).rolls;
@@ -1286,9 +1317,9 @@ function renderLookupError(query,error,stage='查询失败'){
 function renderResult(result){
   currentResult=result;
   els.resultJson.innerHTML=renderStructuredJSON(result);
-  els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current');
+  els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current',getCurrentHistoryItem());
 }
-function renderResultHTML(result,followups=[],scope='current'){
+function renderResultHTML(result,followups=[],scope='current',historyItem=null){
   const head=result.headword||{};
   const meta=result.meta||{};
   const senses=result.senses||[];
@@ -1328,6 +1359,7 @@ function renderResultHTML(result,followups=[],scope='current'){
     </div>
     ${renderConfusions(confusions)}
     ${renderRelatedHistory(related)}
+    ${renderHistoryNoteBlock(historyItem)}
     ${renderFollowupHTML(followups,scope)}
   `;
 }
@@ -1433,6 +1465,15 @@ function renderRelatedHistory(items=[]){
         </button>`;
       }).join('')}
     </div>
+  </div>`;
+}
+function renderHistoryNoteBlock(item){
+  const normalized=item?normalizeHistoryItem(item):null;
+  if(!normalized||(!normalized.tags.length&&!normalized.note))return '';
+  return `<div class="block note-block">
+    <div class="block-title">个人整理</div>
+    ${renderHistoryTags(normalized.tags)}
+    ${normalized.note?`<div class="history-note followup-answer">${formatFollowupAnswer(normalized.note)}</div>`:''}
   </div>`;
 }
 function relatedHistoryItems(result={},scope='current'){
@@ -1651,7 +1692,7 @@ function saveFollowupsForModal(followups){
   setHistory(history);
   const updated=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   if(updated){
-    els.modalCardPage.innerHTML=renderResultHTML(modalResult||updated.result,updated.followups||[],'modal');
+    els.modalCardPage.innerHTML=renderResultHTML(modalResult||updated.result,updated.followups||[],'modal',updated);
     renderModalRollbar(updated);
   }
   if(Number(modalHistoryId)===Number(currentHistoryId))saveFollowupsForCurrent(followups);
@@ -1776,7 +1817,7 @@ function saveFollowupEdit(scope,id){
 function rerenderFollowupScope(scope){
   if(scope==='modal'){
     const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
-    if(item)els.modalCardPage.innerHTML=renderResultHTML(modalResult||item.result,item.followups||[],'modal');
+    if(item)els.modalCardPage.innerHTML=renderResultHTML(modalResult||item.result,item.followups||[],'modal',item);
     return;
   }
   if(currentResult)renderResult(currentResult);
@@ -1918,6 +1959,7 @@ function renderHistory(){
       <div class="history-copy">
         <div class="history-word">${escapeHTML(item.query)}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
+        ${renderHistoryTags(normalized.tags)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
           <em>${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</em>
@@ -1934,6 +1976,11 @@ function renderHistory(){
     </div>
   `;
   }).join('');
+}
+function renderHistoryTags(tags=[]){
+  const list=normalizeTags(tags);
+  if(!list.length)return '';
+  return `<div class="history-tags">${list.slice(0,5).map(tag=>`<span>${escapeHTML(tag)}</span>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
 }
 function latestHistoryResult(item){
   const normalized=normalizeHistoryItem(item);
@@ -2255,6 +2302,8 @@ function historySearchText(item){
   return normalizeSearch(flattenText([
     item.query,
     item.createdAt,
+    normalizeHistoryItem(item).tags,
+    normalizeHistoryItem(item).note,
     item.result,
     item.followups,
   ]));
@@ -2299,8 +2348,10 @@ function openHistoryModal(id){
   els.modalTitle.textContent=normalized.query;
   els.modalSubtitle.textContent=historyModalMeta(normalized);
   renderModalRollbar(normalized);
-  els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal');
+  els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal',normalized);
   els.modalQueryEdit.value=normalized.query;
+  if(els.modalTagsEdit)els.modalTagsEdit.value=normalized.tags.join(' ');
+  if(els.modalNoteEdit)els.modalNoteEdit.value=normalized.note;
   els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
   validateModalJSON(false);
   setModalTab('card',document.getElementById('modal-card-tab'));
@@ -2323,13 +2374,18 @@ function saveHistoryEdit(){
     return;
   }
   const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
+  const tags=normalizeTags(els.modalTagsEdit?.value||'');
+  const note=String(els.modalNoteEdit?.value||'').trim();
+  const now=new Date().toISOString();
   const history=getHistory().map(item=>{
     if(Number(item.id)!==Number(modalHistoryId))return item;
     const rolls=getHistoryRolls(item);
+    const normalized=normalizeHistoryItem(item);
+    const noteChanged=note!==normalized.note;
     const updatedRolls=rolls.map((roll,index)=>Number(roll.id)===Number(modalRollId)||(!modalRollId&&index===0)
-      ? {...roll,result:parsed,updatedAt:new Date().toISOString()}
+      ? {...roll,result:parsed,updatedAt:now}
       : roll);
-    return {...normalizeHistoryItem(item),query,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:new Date().toISOString()};
+    return {...normalized,query,tags,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
   setHistory(history);
   modalResult=parsed;
@@ -2338,7 +2394,9 @@ function saveHistoryEdit(){
   const updatedFollowups=updatedItem?.followups||[];
   els.modalSubtitle.textContent=historyModalMeta(updatedItem);
   renderModalRollbar(updatedItem);
-  els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal');
+  els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal',updatedItem);
+  if(els.modalTagsEdit)els.modalTagsEdit.value=tags.join(' ');
+  if(els.modalNoteEdit)els.modalNoteEdit.value=note;
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
   updateModalJSONStatus(true,'语法正确，已保存');
   setModalTab('card',document.getElementById('modal-card-tab'));
@@ -2346,11 +2404,14 @@ function saveHistoryEdit(){
 }
 function historyModalMeta(item){
   if(!item)return '';
+  const normalized=normalizeHistoryItem(item);
   const created=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
   const followupCount=(item.followups||[]).length;
   const rollCount=getHistoryRolls(item).length;
+  const tagText=normalized.tags.length?` · ${normalized.tags.length} 个标签`:'';
+  const noteText=normalized.note?' · 有备注':'';
   const updated=item.updatedAt?` · 已编辑 ${new Date(item.updatedAt).toLocaleString('zh-CN',{hour12:false})}`:'';
-  return `${created}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${updated}`;
+  return `${created}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${tagText}${noteText}${updated}`;
 }
 function renderModalRollbar(item){
   if(!els.modalRollbar)return;
@@ -2380,7 +2441,7 @@ function setModalRoll(rollId){
   if(!roll)return;
   modalRollId=Number(roll.id);
   modalResult=roll.result;
-  els.modalCardPage.innerHTML=renderResultHTML(roll.result,item.followups||[],'modal');
+  els.modalCardPage.innerHTML=renderResultHTML(roll.result,item.followups||[],'modal',item);
   els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
   renderModalRollbar(item);
   validateModalJSON(false);

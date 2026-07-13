@@ -302,6 +302,8 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .history-copy{min-width:0;display:grid;gap:4px}
 .history-word{font-size:18px;font-weight:750}
 .history-summary{min-width:0;color:var(--muted);font-size:14px;font-weight:650;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.history-tags span,.history-tags em{border:1px solid color-mix(in srgb,var(--accent) 26%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--accent-bg) 58%,transparent);color:var(--accent);padding:2px 7px;font-size:11px;font-weight:850;line-height:1.3;font-style:normal}
 .history-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--soft);font-size:12px;font-weight:750}
 .history-meta span{border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--panel) 72%,transparent);color:var(--muted);padding:2px 7px;line-height:1.3}
 .history-meta em{font-style:normal;line-height:1.35}
@@ -425,6 +427,12 @@ body.modal-open{overflow:hidden}
 .edit-page{display:none;gap:10px}
 .edit-page.active{display:grid}
 .modal-json-field{min-height:0}
+.note-editor{width:100%;min-height:92px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:11px 12px;font-size:15px;line-height:1.55;resize:vertical;outline:0}
+.note-editor:focus{border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
+.note-block{border-top:1px solid var(--line);padding-top:16px}
+.note-block .history-tags{margin-bottom:8px}
+.history-note{border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 74%,var(--panel));padding:11px 12px}
+.history-note.followup-answer{margin-left:0}
 .modal-edit-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .modal-edit-footer .plain-btn{min-width:96px}
 .json-status{min-width:0;color:var(--muted);font-size:13px;font-weight:750;line-height:1.4}
