@@ -91,6 +91,7 @@ Expected behavior:
 - Added a synced `fontMode` setting. The settings Appearance group now supports system, sans, serif, and mono font modes; `normalizeSettings()` preserves it, `mergeSettings()` syncs it with `labelMode`, and CSS applies the choice through `--font-ui` while code/JSON fields keep `--font-mono`.
 - Added first-stage lookup queueing. `runLookup()` now submits through `submitLookup()`: when `lookupBusy` is true, requests are stored in `lookupQueue` with query/direction/note/source metadata; the UI supports move up/down, promote to front, and remove; `processNextLookup()` starts the next queued lookup after the active run finishes. `clearEditor()` clears the queue together with current lookup state.
 - Added first-stage lookup failure recovery. `performLookup()` now calls `fetchLookupWithRetry()`, which retries once for network-style errors, timeouts, HTTP 408/429, and 5xx responses. `renderLookupRetry()` shows the previous failure and next attempt in the result pane. Non-retryable failures such as bad config, auth/permission errors, or valid 200 responses with invalid JSON still fail fast.
+- Added a first-stage Tag management panel in Settings > Data. `renderTagManager()` scans history tags and shows usage counts; users can filter by a tag, rename it across all matching history entries, or remove it from every entry. These operations call `setHistory()`, so they update the UI and sync to cloud.
 
 ## Working Rules
 

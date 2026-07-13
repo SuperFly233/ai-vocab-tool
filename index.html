@@ -242,6 +242,10 @@
           </div>
         </div>
         <div class="setting-row"><div><div class="setting-label">导出历史</div><div class="setting-sub">备份当前浏览器里的所有查询记录。</div></div><button class="plain-btn" onclick="exportHistory()">导出</button></div>
+        <div class="setting-row stack-row">
+          <div><div class="setting-label">标签管理</div><div class="setting-sub">整理历史记录里的 Tag，可快速筛选、重命名或从全部词条中移除。</div></div>
+          <div class="tag-manager" id="tag-manager"></div>
+        </div>
         <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
         <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
       </div>

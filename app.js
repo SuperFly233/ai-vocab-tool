@@ -71,12 +71,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.32',
+  version:'0.9.33',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.33',
+    date:'2026-07-13',
+    title:'新增标签管理面板',
+    items:['设置页“数据”区域新增标签管理，可汇总查看所有 Tag 及对应历史数量。','标签可一键跳转到历史筛选，也支持批量重命名和从全部历史中移除。','重命名和移除会更新相关历史记录并随云端同步，补齐 Tag 整理闭环。'],
+  },
   {
     version:'0.9.32',
     date:'2026-07-13',
@@ -355,6 +361,7 @@ const els={
   historyFilterbar:document.getElementById('history-filterbar'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
+  tagManager:document.getElementById('tag-manager'),
   apiProfilePicker:document.getElementById('api-profile-picker'),
   apiProfileMenu:document.getElementById('api-profile-menu'),
   apiProfileMenuToggle:document.getElementById('api-profile-menu-toggle'),
@@ -2523,6 +2530,83 @@ function filterByHistoryTag(tag,event){
   showView('history',document.getElementById('nav-history'));
   renderHistory();
 }
+function tagStats(){
+  const map=new Map();
+  getHistory().forEach(item=>{
+    normalizeHistoryItem(item).tags.forEach(tag=>{
+      const stats=map.get(tag)||{tag,count:0};
+      stats.count+=1;
+      map.set(tag,stats);
+    });
+  });
+  return [...map.values()].sort((a,b)=>b.count-a.count||historyCollator.compare(a.tag,b.tag));
+}
+function renderTagManager(){
+  if(!els.tagManager)return;
+  const tags=tagStats();
+  if(!tags.length){
+    els.tagManager.innerHTML='<div class="empty small-empty tag-empty">暂无标签</div>';
+    return;
+  }
+  els.tagManager.innerHTML=`
+    <div class="tag-manager-list">
+      ${tags.map(item=>`
+        <article class="tag-manager-item">
+          <div class="tag-manager-copy">
+            <strong>${escapeHTML(item.tag)}</strong>
+            <span>${Number(item.count)} 条记录</span>
+          </div>
+          <div class="tag-manager-actions">
+            <button class="plain-btn" type="button" onclick="filterByManagedTag('${escapeAttr(item.tag)}')">筛选</button>
+            <button class="plain-btn" type="button" onclick="renameManagedTag('${escapeAttr(item.tag)}')">重命名</button>
+            <button class="danger-btn" type="button" onclick="deleteManagedTag('${escapeAttr(item.tag)}')">移除</button>
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+function filterByManagedTag(tag){
+  const value=String(tag||'').trim();
+  if(!value)return;
+  historyState.filters.tag=[value];
+  openHistoryFilterKey='tag';
+  showView('history',document.getElementById('nav-history'));
+  renderHistory();
+}
+async function renameManagedTag(oldTag){
+  const from=String(oldTag||'').trim();
+  if(!from)return;
+  const next=window.prompt(`把标签「${from}」重命名为：`,from);
+  if(next===null)return;
+  const to=normalizeTags(next)[0]||'';
+  if(!to)return notify('新标签名不能为空。','bad','标签管理');
+  if(to===from)return;
+  const history=getHistory().map(item=>{
+    const normalized=normalizeHistoryItem(item);
+    if(!normalized.tags.includes(from))return item;
+    return {...normalized,tags:normalizeTags(normalized.tags.map(tag=>tag===from?to:tag)),updatedAt:new Date().toISOString()};
+  });
+  historyState.filters.tag=historyState.filters.tag.map(tag=>tag===from?to:tag);
+  setHistory(history);
+  renderTagManager();
+  notify(`已把「${from}」重命名为「${to}」。`,'good','标签管理');
+}
+async function deleteManagedTag(tag){
+  const value=String(tag||'').trim();
+  if(!value)return;
+  const count=tagStats().find(item=>item.tag===value)?.count||0;
+  if(!await askConfirm(`确认从 ${count} 条历史记录中移除「${value}」标签？`,'移除标签'))return;
+  const history=getHistory().map(item=>{
+    const normalized=normalizeHistoryItem(item);
+    if(!normalized.tags.includes(value))return item;
+    return {...normalized,tags:normalized.tags.filter(tag=>tag!==value),updatedAt:new Date().toISOString()};
+  });
+  historyState.filters.tag=historyState.filters.tag.filter(tag=>tag!==value);
+  setHistory(history);
+  renderTagManager();
+  notify(`已移除「${value}」标签。`,'good','标签管理');
+}
 function clearHistoryFilter(key){
   if(!key)return;
   historyState.filters[key]=[];
@@ -2981,6 +3065,7 @@ function toggleApiProfileMenu(){
 }
 function renderSettings(){
   hydrateSettings();
+  renderTagManager();
   renderLogs();
 }
 function applyLabelMode(mode){
