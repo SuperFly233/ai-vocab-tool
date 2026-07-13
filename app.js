@@ -71,12 +71,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.33',
+  version:'0.9.34',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.34',
+    date:'2026-07-13',
+    title:'优化移动端 Markdown 表格',
+    items:['追问回答里的 Markdown 表格会按列数使用更稳的最小列宽，手机上多列表格改为横向滚动而不是把每列压得过扁。','表格容器限制在回答区域内并启用触摸惯性滚动，少列表格保持铺满，多列表格保持可读。','补齐窄屏样式，避免表格撑破页面或在历史详情里挤压其它内容。'],
+  },
   {
     version:'0.9.33',
     date:'2026-07-13',
@@ -1690,8 +1696,9 @@ function formatFollowupAnswer(answer){
     const body=rows.slice(2).map(row=>tableCells(row));
     const cellAttrs=index=>align[index]?` style="text-align:${align[index]}"`:'';
     const cols=Math.max(header.length,1);
-    const colMin=cols>=7?104:cols>=5?118:cols>=4?132:160;
-    return `<div class="md-table-wrap" style="--cols:${cols};--col-min:${colMin}px"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatInlineMarkdown(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    const colMin=cols>=7?132:cols>=5?146:cols>=4?154:168;
+    const mobileColMin=cols>=7?136:cols>=5?148:cols>=4?156:164;
+    return `<div class="md-table-wrap" style="--cols:${cols};--col-min:${colMin}px;--mobile-col-min:${mobileColMin}px"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatInlineMarkdown(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   };
   const isBlockStart=(line,i=index)=>isBlank(line)||isFence(line)||isHeading(line)||isQuote(line)||isHr(line)||isUnordered(line)||isOrdered(line)||isTableStart(i);
   while(index<lines.length){
