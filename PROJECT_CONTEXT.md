@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-07-02
+Last updated: 2026-07-13
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -75,6 +75,9 @@ Expected behavior:
 - Added `/api/sync` as a same-origin fallback for mobile browsers that fail direct Supabase REST requests with `Load failed` / `Failed to fetch`.
 - Hardened `/api/sync` token acquisition for mobile by reading local Supabase auth storage first, and mock-tested the API handler select/upsert path.
 - Expanded follow-up answer Markdown rendering: blockquotes, fenced code blocks, tables, horizontal rules, headings, ordered/unordered lists, links, strikethrough, inline code, bold, and emphasis are handled by a small escaped line parser. Tables use a horizontal scroll wrapper and a column-count-based minimum width for mobile.
+- Improved history list density by showing core meaning, compact part of speech, direction, and language on each row.
+- Added result text highlighting so examples, translations, collocation examples, and sense meanings can mark the current query or corresponding short labels.
+- Clearing the query input now clears the visible result/loading state and invalidates in-flight lookup responses so stale results are not rendered or saved.
 
 ## Working Rules
 

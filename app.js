@@ -33,6 +33,7 @@ let openHistoryFilterKey=null;
 let configInfo=null;
 let confirmResolver=null;
 let lookupBusy=false;
+let lookupRunId=0;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -65,12 +66,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.20',
-  releaseDate:'2026-07-02',
+  version:'0.9.21',
+  releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.21',
+    date:'2026-07-13',
+    title:'优化历史摘要与结果高亮',
+    items:['历史记录列表新增核心释义、词性和方向摘要，减少只看词条名时的信息盲区。','查询结果的例句、译文和义项说明会高亮当前词条与对应义标，更容易对上原词和中文含义。','手动清空查询输入时会同步清空当前结果与状态；Markdown 表格继续保持横向滚动，避免手机窄屏多列内容被压扁。'],
+  },
   {
     version:'0.9.20',
     date:'2026-07-02',
@@ -1266,6 +1273,7 @@ function renderResultHTML(result,followups=[],scope='current'){
   const collocations=result.collocations||[];
   const register=result.register||{};
   const confusions=result.confusions||[];
+  const highlightTerms=resultHighlightTerms(result);
   return `
     <div class="entry-head">
       <div class="entry-kicker">${escapeHTML(head.languageTag||meta.language||'词条')}</div>
@@ -1277,14 +1285,14 @@ function renderResultHTML(result,followups=[],scope='current'){
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
-    ${renderSenseGroups(senses)}
+    ${renderSenseGroups(senses,result)}
     ${renderItems('固定搭配',collocations,item=>`
       <div class="item-index">${escapeHTML(item.index)}</div>
       <div class="item-body">
         <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
-        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning)}</span></div>
-        <div class="line"><b>例句</b><span>${escapeHTML(item.example)}</span></div>
-        <div class="line"><b>译文</b><span>${escapeHTML(item.translation)}</span></div>
+        <div class="line"><b>语意</b><span>${highlightText(item.meaning,[item.phrase,item.note])}</span></div>
+        <div class="line"><b>例句</b><span>${highlightText(item.example,[item.phrase,...highlightTerms])}</span></div>
+        <div class="line"><b>译文</b><span>${highlightText(item.translation,[item.meaning,item.note])}</span></div>
       </div>
     `)}
     <div class="block">
@@ -1302,10 +1310,11 @@ function renderResultHTML(result,followups=[],scope='current'){
 function renderItems(title,items,renderer){
   return `<div class="block"><div class="block-title">${title}</div>${items.length?items.map(item=>`<div class="item">${renderer(item)}</div>`).join(''):'<div class="item empty-item">无</div>'}</div>`;
 }
-function renderSenseGroups(senses=[]){
+function renderSenseGroups(senses=[],result={}){
   const list=Array.isArray(senses)?senses:[];
   if(!list.length)return '<div class="block"><div class="block-title">义项分析</div><div class="item empty-item">无</div></div>';
   const groups=groupSensesByPartOfSpeech(list);
+  const highlightTerms=resultHighlightTerms(result);
   return `<div class="block"><div class="block-title">义项分析</div>${groups.map(group=>`
     <section class="sense-group">
       <div class="sense-group-head">
@@ -1316,13 +1325,37 @@ function renderSenseGroups(senses=[]){
         <div class="item-index">${index+1}</div>
         <div class="item-body">
           <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark></div>
-          <div class="line"><b>语意</b><span>${escapeHTML(item.meaning)}</span></div>
-          <div class="line"><b>例句</b><span>${escapeHTML(item.example)}</span></div>
-          <div class="line"><b>译文</b><span>${escapeHTML(item.translation)}</span></div>
+          <div class="line"><b>语意</b><span>${highlightText(item.meaning,[item.shortestLabel])}</span></div>
+          <div class="line"><b>例句</b><span>${highlightText(item.example,highlightTerms)}</span></div>
+          <div class="line"><b>译文</b><span>${highlightText(item.translation,[item.shortestLabel,item.meaning])}</span></div>
         </div>
       </div>`).join('')}
     </section>
   `).join('')}</div>`;
+}
+function resultHighlightTerms(result={}){
+  const head=result.headword||{};
+  const meta=result.meta||{};
+  return uniq([
+    meta.normalized,
+    meta.query,
+    head.title,
+    head.coreMeaning,
+  ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
+}
+function escapeRegExp(value){
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+function highlightText(value,terms=[]){
+  const escaped=escapeHTML(value||'');
+  const tokens=uniq((Array.isArray(terms)?terms:[terms])
+    .map(term=>String(term||'').trim())
+    .filter(term=>term.length>=2))
+    .sort((a,b)=>b.length-a.length)
+    .slice(0,8)
+    .map(term=>escapeRegExp(escapeHTML(term)));
+  if(!tokens.length)return escaped;
+  return escaped.replace(new RegExp(`(${tokens.join('|')})`,'gi'),'<mark class="hit-mark">$1</mark>');
 }
 function groupSensesByPartOfSpeech(senses=[]){
   const groups=new Map();
@@ -1706,6 +1739,7 @@ async function runLookup(){
 async function performLookup({query,existingId=null,sourceItem=null}){
   const settings=currentApiSettings();
   lookupBusy=true;
+  const runId=++lookupRunId;
   document.body.classList.add('lookup-busy');
   renderLookupLoading(query,settings);
   notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
@@ -1731,18 +1765,25 @@ async function performLookup({query,existingId=null,sourceItem=null}){
       throw new Error(`接口返回不是合法 JSON：${error.message}`);
     }
     if(!response.ok)throw new Error(data.error||'查询失败');
+    if(isStaleLookup(runId,query))return;
     const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo});
     currentHistoryId=saved.id;
     currentFollowups=saved.followups||[];
     renderResult(data);
     notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
   }catch(error){
+    if(isStaleLookup(runId,query))return;
     renderLookupError(query,error);
     notify(error.message||'查询失败。','bad','查询失败');
   }finally{
-    lookupBusy=false;
-    document.body.classList.remove('lookup-busy');
+    if(runId===lookupRunId){
+      lookupBusy=false;
+      document.body.classList.remove('lookup-busy');
+    }
   }
+}
+function isStaleLookup(runId,query){
+  return runId!==lookupRunId||normalizeSearch(els.query.value)!==normalizeSearch(query);
 }
 function lookupModelInfo(settings,hasLocalEndpoint){
   const model=(hasLocalEndpoint?settings.model:configInfo?.model)||'未配置';
@@ -1808,11 +1849,20 @@ function renderHistory(){
   els.historyList.innerHTML=history.map(item=>{
     const normalized=normalizeHistoryItem(item);
     const favoriteInAll=normalized.favorite&&historyState.scope==='all';
+    const summary=historyEntrySummary(normalized);
+    const meta=historyEntryMeta(normalized);
+    const versionText=getHistoryRolls(normalized).length>1?`${getHistoryRolls(normalized).length} 个版本`:'';
     return `
     <div class="history-item ${favoriteInAll?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
-      <div>
+      <div class="history-copy">
         <div class="history-word">${escapeHTML(item.query)}</div>
-        <div class="history-time">${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}${getHistoryRolls(item).length>1?` · ${getHistoryRolls(item).length} 个版本`:''}${favoriteInAll?' · 已收藏':''}</div>
+        ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
+        <div class="history-meta">
+          ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
+          <em>${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</em>
+          ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
+          ${favoriteInAll?'<em>已收藏</em>':''}
+        </div>
       </div>
       <div class="history-actions">
         <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
@@ -1823,6 +1873,37 @@ function renderHistory(){
     </div>
   `;
   }).join('');
+}
+function latestHistoryResult(item){
+  const normalized=normalizeHistoryItem(item);
+  return getHistoryRolls(normalized)[0]?.result||normalized.result||{};
+}
+function historyEntrySummary(item){
+  const result=latestHistoryResult(item);
+  const head=result.headword||{};
+  const senses=Array.isArray(result.senses)?result.senses:[];
+  const fromHead=head.coreMeaning||head.summary||'';
+  if(fromHead)return fromHead;
+  const labels=uniq(senses.map(sense=>sense.shortestLabel||sense.meaning).filter(Boolean));
+  return labels.slice(0,3).join(' / ');
+}
+function historyEntryMeta(item){
+  const result=latestHistoryResult(item);
+  const head=result.headword||{};
+  const senses=Array.isArray(result.senses)?result.senses:[];
+  const pos=compactPartOfSpeech(head,senses);
+  const direction=historyCanonicalValues(item,'direction').map(value=>LABELS.direction?.[value]||value).filter(Boolean)[0];
+  const language=historyCanonicalValues(item,'language').map(value=>LABELS.language?.[value]||value).filter(Boolean)[0];
+  return [pos,direction,language].filter(Boolean);
+}
+function compactPartOfSpeech(head={},senses=[]){
+  const tokens=uniq([
+    ...posTokensFromValue(head.basicPartOfSpeech),
+    ...(Array.isArray(senses)?senses.flatMap(sense=>posTokensFromValue(sense.partOfSpeech)):[]),
+  ]);
+  if(!tokens.length)return '';
+  const visible=tokens.slice(0,3).map(token=>LABELS.pos?.[token]||token);
+  return tokens.length>3?`${visible.join(' / ')} +${tokens.length-3}`:visible.join(' / ');
 }
 function handleHistoryItemKey(event,id){
   if(event.key==='Enter'||event.key===' '){
@@ -2289,16 +2370,22 @@ function downloadText(filename,text){
   link.click();
   URL.revokeObjectURL(url);
 }
-function clearEditor(){
-  els.query.value='';
-  els.direction.value='';
-  els.note.value='';
+function resetCurrentLookupState(){
+  lookupRunId+=1;
+  lookupBusy=false;
+  document.body.classList.remove('lookup-busy');
   currentResult=null;
   currentHistoryId=null;
   currentFollowups=[];
   pendingFollowup=null;
   editingFollowup=null;
   renderEmpty();
+}
+function clearEditor(){
+  els.query.value='';
+  els.direction.value='';
+  els.note.value='';
+  resetCurrentLookupState();
   updateEditorState();
 }
 function hydrateSettings(){
@@ -2583,6 +2670,12 @@ function updateEditorState(){
   const hasText=Boolean(els.query.value.trim()||els.direction.value.trim()||els.note.value.trim());
   els.clearQueryBtn?.classList.toggle('hidden',!hasText);
 }
+function handleQueryInput(){
+  if(!els.query.value.trim()&&(currentResult||lookupBusy)){
+    resetCurrentLookupState();
+  }
+  updateEditorState();
+}
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open'))closeConfirm(false);
   if(event.key==='Escape'&&els.historyModal.classList.contains('open'))closeHistoryModal();
@@ -2651,7 +2744,7 @@ document.addEventListener('keydown',event=>{
     if(els.apiProfileModal?.classList.contains('open'))closeApiProfileModal();
   }
 });
-els.query?.addEventListener('input',updateEditorState);
+els.query?.addEventListener('input',handleQueryInput);
 els.query?.addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){
     event.preventDefault();
