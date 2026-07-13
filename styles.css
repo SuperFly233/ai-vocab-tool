@@ -138,6 +138,18 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .assist-fields input{width:100%;min-width:0;border:0;background:transparent;color:var(--text);font-size:14px;font-weight:550;outline:0}
 .assist-fields input+input{display:none}
 .query-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:none}
+.lookup-queue{display:none;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 78%,var(--panel));padding:10px;gap:9px}
+.lookup-queue.open{display:grid}
+.queue-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px;font-weight:800}
+.queue-head b{color:var(--text);font-size:14px}
+.queue-list{display:grid;gap:8px}
+.queue-item{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:8px}
+.queue-index{width:28px;height:28px;border-radius:999px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:900}
+.queue-copy{min-width:0;display:grid;gap:1px}
+.queue-copy strong{font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-copy span{font-size:12px;color:var(--soft);font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-actions{display:flex;align-items:center;gap:4px}
+.queue-actions .icon-btn{width:30px;min-width:30px;height:30px;font-size:13px}
 .layout-split .editor-pane{padding:16px}
 .layout-split .query-row{grid-template-columns:minmax(0,1fr) auto;align-items:start}
 .layout-split .query-shell{height:220px;min-height:220px;border-radius:12px}
@@ -581,6 +593,8 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:minmax(0,1fr) auto}
   .assist-fields{grid-column:1 / -1;border-radius:10px}
   .layout-split .assist-fields{position:static;grid-column:1 / -1}
+  .queue-item{grid-template-columns:24px minmax(0,1fr)}
+  .queue-actions{grid-column:1 / -1;justify-content:flex-end}
   .account-panel{top:72px;left:14px;right:14px;width:auto}
   .account-actions.cloud-only{grid-template-columns:1fr}
   .section-head,.setting-row{display:grid;align-items:stretch}

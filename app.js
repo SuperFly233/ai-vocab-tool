@@ -34,6 +34,8 @@ let configInfo=null;
 let confirmResolver=null;
 let lookupBusy=false;
 let lookupRunId=0;
+let lookupQueueId=0;
+let lookupQueue=[];
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -68,12 +70,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.30',
+  version:'0.9.31',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.31',
+    date:'2026-07-13',
+    title:'新增查询队列',
+    items:['查询进行中再次提交会加入等待队列，不再被直接忽略。','队列支持上移、下移、插队到最前和移除，当前查询完成后会自动执行下一条。','队列会保留提交时的语言方向和侧重点，清空输入时也会同步清空等待队列。'],
+  },
   {
     version:'0.9.30',
     date:'2026-07-13',
@@ -309,6 +317,7 @@ const els={
   note:document.getElementById('note-input'),
   resultCard:document.getElementById('result-card'),
   resultJson:document.getElementById('result-json'),
+  lookupQueue:document.getElementById('lookup-queue'),
   historyModal:document.getElementById('history-modal'),
   modalTitle:document.getElementById('modal-title'),
   modalSubtitle:document.getElementById('modal-subtitle'),
@@ -1881,7 +1890,6 @@ function rerenderFollowupScope(scope){
   if(currentResult)renderResult(currentResult);
 }
 async function runLookup(){
-  if(lookupBusy)return;
   const query=els.query.value.trim();
   if(!query)return notify('请输入要查的内容。','bad','无法查询');
   const existing=findHistoryByQuery(query);
@@ -1894,9 +1902,81 @@ async function runLookup(){
       return;
     }
   }
-  await performLookup({query,existingId:existing?.id||null});
+  await submitLookup({query,existingId:existing?.id||null,direction:els.direction.value.trim(),note:els.note.value.trim()});
 }
-async function performLookup({query,existingId=null,sourceItem=null}){
+async function submitLookup(request){
+  if(lookupBusy){
+    enqueueLookup(request);
+    return;
+  }
+  await performLookup(request);
+}
+function enqueueLookup(request){
+  const item={...request,id:++lookupQueueId,queuedAt:new Date().toISOString()};
+  lookupQueue.push(item);
+  renderLookupQueue();
+  notify(`“${item.query}” 已加入查询队列。`,'info','已排队');
+}
+function renderLookupQueue(){
+  if(!els.lookupQueue)return;
+  if(!lookupQueue.length){
+    els.lookupQueue.innerHTML='';
+    els.lookupQueue.classList.remove('open');
+    return;
+  }
+  els.lookupQueue.classList.add('open');
+  els.lookupQueue.innerHTML=`
+    <div class="queue-head"><b>查询队列</b><span>${lookupQueue.length} 条等待</span></div>
+    <div class="queue-list">
+      ${lookupQueue.map((item,index)=>`
+        <article class="queue-item">
+          <div class="queue-index">${index+1}</div>
+          <div class="queue-copy">
+            <strong>${escapeHTML(item.query)}</strong>
+            <span>${escapeHTML([item.direction,item.note].filter(Boolean).join(' · ')||'默认规则')}</span>
+          </div>
+          <div class="queue-actions">
+            <button class="icon-btn" data-tip="上移" onclick="moveLookupQueueItem(${Number(item.id)},-1)">↑</button>
+            <button class="icon-btn" data-tip="下移" onclick="moveLookupQueueItem(${Number(item.id)},1)">↓</button>
+            <button class="icon-btn" data-tip="插队到最前" onclick="promoteLookupQueueItem(${Number(item.id)})">↟</button>
+            <button class="icon-btn danger-icon" data-tip="移除" onclick="removeLookupQueueItem(${Number(item.id)})">×</button>
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+function moveLookupQueueItem(id,delta){
+  const index=lookupQueue.findIndex(item=>Number(item.id)===Number(id));
+  if(index<0)return;
+  const nextIndex=Math.max(0,Math.min(lookupQueue.length-1,index+delta));
+  if(nextIndex===index)return;
+  const [item]=lookupQueue.splice(index,1);
+  lookupQueue.splice(nextIndex,0,item);
+  renderLookupQueue();
+}
+function promoteLookupQueueItem(id){
+  const index=lookupQueue.findIndex(item=>Number(item.id)===Number(id));
+  if(index<=0)return;
+  const [item]=lookupQueue.splice(index,1);
+  lookupQueue.unshift(item);
+  renderLookupQueue();
+}
+function removeLookupQueueItem(id){
+  lookupQueue=lookupQueue.filter(item=>Number(item.id)!==Number(id));
+  renderLookupQueue();
+}
+function clearLookupQueue(){
+  lookupQueue=[];
+  renderLookupQueue();
+}
+function processNextLookup(){
+  if(lookupBusy||!lookupQueue.length)return;
+  const next=lookupQueue.shift();
+  renderLookupQueue();
+  performLookup(next);
+}
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null}){
   const settings=currentApiSettings();
   lookupBusy=true;
   const runId=++lookupRunId;
@@ -1911,8 +1991,8 @@ async function performLookup({query,existingId=null,sourceItem=null}){
       headers:await analyzeHeaders(hasLocalEndpoint),
       body:JSON.stringify({
         query,
-        direction:els.direction.value.trim(),
-        note:els.note.value.trim(),
+        direction:direction??els.direction.value.trim(),
+        note:note??els.note.value.trim(),
         apiUrl:hasLocalEndpoint?settings.apiUrl:'',
         apiKey:hasLocalEndpoint?settings.apiKey:'',
         model:hasLocalEndpoint?settings.model:'',
@@ -1939,11 +2019,12 @@ async function performLookup({query,existingId=null,sourceItem=null}){
     if(runId===lookupRunId){
       lookupBusy=false;
       document.body.classList.remove('lookup-busy');
+      processNextLookup();
     }
   }
 }
 function isStaleLookup(runId,query){
-  return runId!==lookupRunId||normalizeSearch(els.query.value)!==normalizeSearch(query);
+  return runId!==lookupRunId;
 }
 function lookupModelInfo(settings,hasLocalEndpoint){
   const model=(hasLocalEndpoint?settings.model:configInfo?.model)||'未配置';
@@ -2726,7 +2807,7 @@ async function regenerateHistory(id){
   els.query.value=item.query;
   updateEditorState();
   goHomeAndFocus();
-  await performLookup({query:item.query,existingId:item.id,sourceItem:item});
+  await submitLookup({query:item.query,existingId:item.id,sourceItem:item,direction:els.direction.value.trim(),note:els.note.value.trim()});
 }
 async function regenerateModalHistory(){
   if(!modalHistoryId)return;
@@ -2772,6 +2853,7 @@ function downloadText(filename,text){
 function resetCurrentLookupState(){
   lookupRunId+=1;
   lookupBusy=false;
+  clearLookupQueue();
   document.body.classList.remove('lookup-busy');
   currentResult=null;
   currentHistoryId=null;

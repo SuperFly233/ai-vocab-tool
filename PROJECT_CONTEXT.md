@@ -89,6 +89,7 @@ Expected behavior:
 - Added a first-stage word/phrase type layer. New lookup results are prompted and normalized to `meta.entryType` (`word` or `phrase`), history filters include `entryType`, result and history summaries show the type, and the visual editor can change it. Older history infers the type from the saved query/title instead of requiring a migration.
 - Added the first AI Vocab site icon pass: `favicon.svg` reuses the sidebar brand idea as a blue "词" magnifier, `index.html` links favicon/theme-color/manifest, and `site.webmanifest` points to the same SVG icon. Study Kanban still needs its own matching update later for cross-project consistency.
 - Added a synced `fontMode` setting. The settings Appearance group now supports system, sans, serif, and mono font modes; `normalizeSettings()` preserves it, `mergeSettings()` syncs it with `labelMode`, and CSS applies the choice through `--font-ui` while code/JSON fields keep `--font-mono`.
+- Added first-stage lookup queueing. `runLookup()` now submits through `submitLookup()`: when `lookupBusy` is true, requests are stored in `lookupQueue` with query/direction/note/source metadata; the UI supports move up/down, promote to front, and remove; `processNextLookup()` starts the next queued lookup after the active run finishes. `clearEditor()` clears the queue together with current lookup state.
 
 ## Working Rules
 
