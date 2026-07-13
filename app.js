@@ -55,6 +55,8 @@ const historyState={
   scope:'all',
   sort:'time',
   sortDir:'desc',
+  filtersOpen:false,
+  visibleCount:0,
   filters:{
     entryType:[],
     language:[],
@@ -74,12 +76,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.41',
+  version:'0.9.42',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.42',
+    date:'2026-07-13',
+    title:'压缩移动端历史页并柔化流式动效',
+    items:['历史记录在手机上默认收起高级筛选，只保留范围、搜索、筛选摘要和横向排序条，减少首屏控件占用。','历史条目移动端改为内容优先、按钮置底，避免右侧动作按钮把词条摘要挤成窄列。','历史列表改为分批渲染并在接近底部时继续加载，降低大量记录时的滚动压力；主查询和追问流式内容增加透明度与轻微上浮缓动。'],
+  },
   {
     version:'0.9.41',
     date:'2026-07-13',
@@ -407,8 +415,11 @@ const els={
   fontModeMonoBtn:document.getElementById('font-mode-mono'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
+  historyTools:document.getElementById('history-tools'),
   historySearch:document.getElementById('history-search'),
   historyClearBtn:document.getElementById('history-clear-btn'),
+  historyFilterToggle:document.getElementById('history-filter-toggle'),
+  historyFilterSummary:document.getElementById('history-filter-summary'),
   historyFilterbar:document.getElementById('history-filterbar'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
@@ -984,7 +995,7 @@ function replaceLocalWithItems(items){
     writeJSON(STORAGE_KEYS.logs,safeLogsFromRaw(items[CLOUD_KEYS.logs]));
   }
   hydrateSettings();
-  renderHistory();
+  rerenderHistoryFromStart();
   renderLogs();
   applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
   ensureLayoutPreference();
@@ -2708,11 +2719,65 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
   }
   return saved;
 }
+function historyBatchSize(){
+  return window.matchMedia?.('(max-width: 900px)').matches?18:42;
+}
+function resetHistoryVisible(){
+  historyState.visibleCount=historyBatchSize();
+}
+function rerenderHistoryFromStart(){
+  resetHistoryVisible();
+  renderHistory();
+}
+function ensureHistoryVisible(){
+  if(!historyState.visibleCount)resetHistoryVisible();
+}
+function historyFiltersActive(){
+  return Object.values(historyState.filters).reduce((sum,value)=>sum+(Array.isArray(value)?value.length:(value?1:0)),0);
+}
+function historyFilterSummaryText(){
+  const count=historyFiltersActive();
+  if(!count)return '—';
+  const labels=[];
+  els.historyFilterbar?.querySelectorAll('.history-filter-trigger.active b').forEach(node=>{
+    const text=node.textContent.trim();
+    if(text&&text!=='—')labels.push(text);
+  });
+  return labels.length?labels.slice(0,3).join(' · ')+(labels.length>3?` +${labels.length-3}`:''):`${count} 项`;
+}
+function updateHistoryFilterToggle(){
+  const count=historyFiltersActive();
+  els.historyTools?.classList.toggle('filters-open',historyState.filtersOpen);
+  els.historyTools?.classList.toggle('has-filters',count>0);
+  if(els.historyFilterSummary)els.historyFilterSummary.textContent=historyFilterSummaryText();
+  if(els.historyFilterToggle){
+    els.historyFilterToggle.classList.toggle('active',historyState.filtersOpen||count>0);
+    els.historyFilterToggle.setAttribute('aria-expanded',String(historyState.filtersOpen));
+  }
+}
+function loadMoreHistory(){
+  historyState.visibleCount+=historyBatchSize();
+  renderHistory();
+}
+function maybeLoadMoreHistory(){
+  if(activeView!=='history')return;
+  if((historyState.visibleCount||0)>=(window.__historyFilteredCount||0))return;
+  const remaining=document.documentElement.scrollHeight-window.scrollY-window.innerHeight;
+  if(remaining<420)loadMoreHistory();
+}
+function toggleHistoryFilters(){
+  historyState.filtersOpen=!historyState.filtersOpen;
+  if(!historyState.filtersOpen)closeHistoryFilterMenus();
+  updateHistoryFilterToggle();
+}
 function renderHistory(){
   renderHistoryFilterOptions(getHistory());
   renderHistorySortControls();
   renderHistoryScopeControls();
+  ensureHistoryVisible();
+  updateHistoryFilterToggle();
   const history=filterAndSortHistory(getHistory());
+  window.__historyFilteredCount=history.length;
   const total=getHistory().length;
   const favoriteTotal=getHistory().filter(item=>normalizeHistoryItem(item).favorite).length;
   const constrained=historyState.scope!=='all'||historyState.query||Object.values(historyState.filters).some(filterHasValues);
@@ -2721,7 +2786,9 @@ function renderHistory(){
     els.historyList.innerHTML=`<div class="empty">${historyState.scope==='favorites'&&!favoriteTotal?'暂无收藏记录':constrained?'没有匹配记录':'暂无历史记录'}</div>`;
     return;
   }
-  els.historyList.innerHTML=history.map(item=>{
+  const visible=history.slice(0,Math.min(historyState.visibleCount,history.length));
+  const more=visible.length<history.length;
+  els.historyList.innerHTML=visible.map(item=>{
     const normalized=normalizeHistoryItem(item);
     const favoriteInAll=normalized.favorite&&historyState.scope==='all';
     const summary=historyEntrySummary(normalized);
@@ -2748,7 +2815,11 @@ function renderHistory(){
       </div>
     </div>
   `;
-  }).join('');
+  }).join('')+(more?`
+    <button class="history-load-more" type="button" onclick="loadMoreHistory()">
+      继续显示 ${Math.min(historyBatchSize(),history.length-visible.length)} 条
+    </button>
+  `:'');
 }
 function renderHistoryTags(tags=[]){
   const list=normalizeTags(tags);
@@ -3060,7 +3131,7 @@ function renderHistoryFilterGroup(key,label,values=[]){
 function setHistoryFilter(key,value){
   const next=Array.isArray(value)?value:[value].filter(Boolean);
   historyState.filters[key]=next.includes('')?[]:next;
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function toggleHistoryFilter(key,value){
   if(!key||!value)return;
@@ -3069,7 +3140,7 @@ function toggleHistoryFilter(key,value){
     ? current.filter(item=>item!==value)
     : [...current,value];
   openHistoryFilterKey=key;
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function filterByHistoryTag(tag,event){
   event?.stopPropagation();
@@ -3079,7 +3150,7 @@ function filterByHistoryTag(tag,event){
   if(!current.includes(value))historyState.filters.tag=[...current,value];
   openHistoryFilterKey='tag';
   showView('history',document.getElementById('nav-history'));
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function tagStats(){
   const map=new Map();
@@ -3123,7 +3194,7 @@ function filterByManagedTag(tag){
   historyState.filters.tag=[value];
   openHistoryFilterKey='tag';
   showView('history',document.getElementById('nav-history'));
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 async function renameManagedTag(oldTag){
   const from=String(oldTag||'').trim();
@@ -3162,7 +3233,7 @@ function clearHistoryFilter(key){
   if(!key)return;
   historyState.filters[key]=[];
   openHistoryFilterKey=key;
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function closeHistoryFilterMenus(except=null){
   openHistoryFilterKey=except?.dataset?.filterKey||null;
@@ -3172,7 +3243,7 @@ function closeHistoryFilterMenus(except=null){
 }
 function setHistoryScope(scope){
   historyState.scope=scope==='favorites'?'favorites':'all';
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function setHistorySort(sort){
   if(historyState.sort===sort)historyState.sortDir=historyState.sortDir==='asc'?'desc':'asc';
@@ -3180,7 +3251,7 @@ function setHistorySort(sort){
     historyState.sort=sort;
     historyState.sortDir=(sort==='time'||sort==='rolls'||sort==='followups')?'desc':'asc';
   }
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function renderHistorySortControls(){
   els.historySortbar?.querySelectorAll('.sort-btn').forEach(button=>{
@@ -3219,7 +3290,7 @@ function clearHistorySearch(){
   historyState.query='';
   if(els.historySearch)els.historySearch.value='';
   updateHistorySearchState();
-  renderHistory();
+  rerenderHistoryFromStart();
 }
 function toggleFavoriteHistory(id){
   const now=new Date().toISOString();
@@ -3855,7 +3926,7 @@ async function factoryReset(){
   if(els.historySearch)els.historySearch.value='';
   hydrateSettings();
   renderEmpty();
-  renderHistory();
+  rerenderHistoryFromStart();
   renderLogs();
   applyTheme('auto');
   applyLayout('top');
@@ -3993,7 +4064,7 @@ window.addEventListener('focus',()=>{
 els.historySearch?.addEventListener('input',event=>{
   historyState.query=event.target.value;
   updateHistorySearchState();
-  renderHistory();
+  rerenderHistoryFromStart();
 });
 els.historyFilterbar?.addEventListener('click',event=>{
   event.stopPropagation();
@@ -4043,6 +4114,7 @@ window.addEventListener('resize',()=>{
 });
 window.addEventListener('scroll',()=>{
   if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
+  maybeLoadMoreHistory();
 },{passive:true});
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){

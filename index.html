@@ -136,7 +136,7 @@
           <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">🗑️</button>
         </div>
       </div>
-      <div class="history-tools">
+      <div class="history-tools" id="history-tools">
         <div class="history-scope" id="history-scope">
           <button class="scope-btn active" data-scope="all" onclick="setHistoryScope('all')">全部</button>
           <button class="scope-btn" data-scope="favorites" onclick="setHistoryScope('favorites')">收藏</button>
@@ -146,6 +146,11 @@
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
           <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
         </label>
+        <button class="history-filter-toggle" id="history-filter-toggle" type="button" onclick="toggleHistoryFilters()">
+          <span>筛选</span>
+          <b id="history-filter-summary">—</b>
+          <i aria-hidden="true">⌄</i>
+        </button>
         <div class="history-filterbar" id="history-filterbar">
           <div class="history-filter" data-filter-key="entryType"></div>
           <div class="history-filter" data-filter-key="language"></div>
