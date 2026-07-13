@@ -341,6 +341,10 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .api-profile-current-copy span{font-size:12px;color:var(--soft);font-weight:850;letter-spacing:.04em}
 .api-profile-current-copy strong{font-size:18px;color:var(--text);font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .api-profile-current-copy em{font-size:13px;color:var(--muted);font-weight:750;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.api-profile-current-copy small{width:max-content;max-width:100%;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--soft);padding:3px 8px;font-size:12px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.api-profile-current-copy small.good{border-color:color-mix(in srgb,var(--good) 48%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--panel));color:var(--good)}
+.api-profile-current-copy small.bad{border-color:color-mix(in srgb,var(--bad) 52%,var(--line));background:color-mix(in srgb,var(--bad) 10%,var(--panel));color:var(--bad)}
+.api-profile-current-copy small.info{border-color:color-mix(in srgb,var(--accent) 46%,var(--line));background:var(--accent-bg);color:var(--accent)}
 .profile-menu-btn{min-width:132px}
 .profile-menu-btn span{display:inline-block;margin-left:4px;transition:transform .16s ease}
 .api-profile-picker.open .profile-menu-btn span{transform:rotate(180deg)}

@@ -94,6 +94,7 @@ Expected behavior:
 - Added a first-stage Tag management panel in Settings > Data. `renderTagManager()` scans history tags and shows usage counts; users can filter by a tag, rename it across all matching history entries, or remove it from every entry. These operations call `setHistory()`, so they update the UI and sync to cloud.
 - Tightened mobile Markdown table rendering. `formatFollowupAnswer()` now emits wider column-count-aware table width variables, and CSS constrains the wrapper while allowing horizontal touch scrolling so many-column tables remain readable on narrow phones.
 - Added first-stage streaming output for follow-up answers. `/api/followup` accepts `stream:true`, forwards OpenAI-style SSE chunks, and the front end reads `data:{delta}` events to update the pending follow-up card live before saving the final answer. Main lookup still waits for complete JSON because the structured result must remain parseable and repairable.
+- Added API profile connection testing. Settings > API profile now has a `testCurrentApiProfile()` action and status chip; `/api/test-profile` sends a minimal chat-completions request through the selected profile or environment variables, reusing admin environment-key checks and returning elapsed time or a compact failure reason.
 
 ## Working Rules
 
@@ -118,6 +119,7 @@ Settings are normalized through `normalizeSettings()` in `app.js`.
 - Cloud merge should preserve profiles from both local and remote devices.
 - API profile creation/editing lives in a modal. The settings page surface should stay selection/action oriented, not an inline form.
 - `/api/models` proxies model-list lookup for OpenAI-compatible APIs to avoid browser CORS issues where possible.
+- `/api/test-profile` validates the currently selected OpenAI-compatible chat completions endpoint with a tiny request before the user spends time on real lookups.
 - API Key fields should not use `type=password`; use autocomplete-off text inputs so browser password managers do not confuse API keys with the Supabase login password.
 
 ## Open Follow-Up

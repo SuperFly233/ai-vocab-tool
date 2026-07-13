@@ -4,6 +4,7 @@
 
 ## 最新进展
 
+- v0.9.36 新增 API 配置连接测试：设置页可直接测试当前配置是否可用，并显示耗时或明确失败原因。
 - v0.9.35 新增追问流式输出：追问回答会边生成边显示，最终仍保存到对应历史记录并随云端同步。
 - v0.9.34 优化移动端 Markdown 表格：追问回答里的多列表格在手机上会横向滚动并保持列宽，不再被压得过扁。
 - v0.9.33 新增标签管理面板：设置页可查看所有 Tag 的使用数量，并支持筛选、重命名和批量移除。
@@ -47,7 +48,7 @@
 - 结果：支持排版视图和分区 JSON 视图；会区分单词和词组/表达并写入 `meta.entryType`；多词性词条会先按词性分组展示义项，每个词性组内单独编号，义项、核心义、搭配和易混词都有更清晰的层级；例句、译文和语意会高亮当前词条或对应义标，方便对照；语言、方向、词性和语体会遵循设置里的字段标签显示偏好。
 - 追问：可针对当前词条继续向 AI 提问，回答会优先边生成边显示，完成后保存到对应历史记录；回答支持常见 Markdown 版式，包括标题、列表、引用块、代码块、表格、分隔线、链接、删除线和行内强调；多列表格在手机上会保持可读列宽并横向滚动。
 - 历史记录：自动保存查询结果，整条记录可点击查看详情，支持排版 / 可视化编辑 / JSON / 编辑保存，也支持收藏、搜索、多选筛选和排序；列表会显示核心释义、单词/词组类型、词性、方向、语言摘要和自定义标签，类型、语言、方向、词性、语体和 Tag 会归一化后用于筛选；历史详情可维护 Tag 和个人 Note，Note 支持现有 Markdown 渲染并提供常用格式快捷按钮；设置页可汇总管理 Tag，支持筛选、重命名和批量移除；结果页会提示与当前词条互相包含的历史记录，方便在单词和词组之间跳转。
-- 设置：可保存多组 API URL、API Key、Model 配置并切换当前使用项；新增和编辑配置会在弹窗里完成，也可尝试查询模型列表；同时可切换主题、首页布局、字段标签显示方式和字体风格，支持恢复默认。
+- 设置：可保存多组 API URL、API Key、Model 配置并切换当前使用项；新增和编辑配置会在弹窗里完成，也可尝试查询模型列表和测试当前配置连接；同时可切换主题、首页布局、字段标签显示方式和字体风格，支持恢复默认。
 - 登录：复用 `study-kanban` 的 Supabase 登录/离线模式风格；登录后无感同步历史、收藏、API 设置、主题、布局和运行日志。
 - 通知：右上角 toast 支持自动消失和手动关闭，按状态展示不同图标、光条和进度动效。
 - 站点图标：浏览器标签页、manifest 和移动端主屏幕入口使用统一的“词”字放大镜徽标。
@@ -63,7 +64,7 @@ API Key=你的 API Key
 Model=gpt-4o-mini
 ```
 
-查询和追问会使用当前选中的配置组。外层配置区只负责选择当前配置；新增和编辑会打开弹窗填写 `Name / API URL / API Key / Model`，模型列表查询会通过 `/api/models` 代理访问兼容 OpenAI 的 `/models` 接口。旧版本保存的单组 `API URL / API Key / Model` 会自动迁移为默认配置组。
+查询和追问会使用当前选中的配置组。外层配置区只负责选择当前配置；新增和编辑会打开弹窗填写 `Name / API URL / API Key / Model`，模型列表查询会通过 `/api/models` 代理访问兼容 OpenAI 的 `/models` 接口；当前配置也可以通过 `/api/test-profile` 做一次极小请求测试，确认 URL、Key、Model 或环境变量配置是否可用。旧版本保存的单组 `API URL / API Key / Model` 会自动迁移为默认配置组。
 
 也可以在 Vercel 环境变量里配置：
 
@@ -135,6 +136,7 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - [app.js](/d:/Files/Projects/lexi-glass/app.js)
 - [api/analyze.js](/d:/Files/Projects/lexi-glass/api/analyze.js)
 - [api/models.js](/d:/Files/Projects/lexi-glass/api/models.js)
+- [api/test-profile.js](/d:/Files/Projects/lexi-glass/api/test-profile.js)
 - [api/sync.js](/d:/Files/Projects/lexi-glass/api/sync.js)
 - [PROJECT_CONTEXT.md](/d:/Files/Projects/lexi-glass/PROJECT_CONTEXT.md)
 

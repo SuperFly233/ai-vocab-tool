@@ -71,12 +71,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.35',
+  version:'0.9.36',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.36',
+    date:'2026-07-13',
+    title:'新增 API 配置连接测试',
+    items:['设置页当前 API 配置卡片新增“测试连接”，可用极小请求验证 URL、Key、Model 或环境变量配置是否可用。','新增 /api/test-profile 端点，复用管理员环境变量权限校验，并返回连接耗时与明确失败原因。','当前配置卡片会显示尚未测试、测试中、连接正常或连接失败状态，减少配置后不知道是否生效的盲区。'],
+  },
   {
     version:'0.9.35',
     date:'2026-07-13',
@@ -379,6 +385,7 @@ const els={
   apiProfileMenuToggle:document.getElementById('api-profile-menu-toggle'),
   apiProfileCurrentName:document.getElementById('api-profile-current-name'),
   apiProfileCurrentMeta:document.getElementById('api-profile-current-meta'),
+  apiProfileCurrentStatus:document.getElementById('api-profile-current-status'),
   apiProfileModal:document.getElementById('api-profile-modal'),
   apiProfileModalTitle:document.getElementById('api-profile-modal-title'),
   apiProfileModalSubtitle:document.getElementById('api-profile-modal-subtitle'),
@@ -3113,6 +3120,7 @@ function hydrateSettings(){
 function renderApiProfilePicker(settings,profile){
   if(els.apiProfileCurrentName)els.apiProfileCurrentName.textContent=profile.name||'未命名配置';
   if(els.apiProfileCurrentMeta)els.apiProfileCurrentMeta.textContent=apiProfileSummary(profile);
+  setApiProfileStatus('尚未测试','');
   if(!els.apiProfileMenu)return;
   els.apiProfileMenu.innerHTML=settings.apiProfiles.map(item=>`
     <button class="api-profile-option ${item.id===profile.id?'active':''}" type="button" data-profile-id="${escapeHTML(item.id)}">
@@ -3127,6 +3135,43 @@ function apiProfileSummary(profile){
   if(hasUrl&&hasKey)return profile.model?`已完整 · ${profile.model}`:'已完整 · 使用环境默认模型';
   if(hasUrl||hasKey)return '未完整 · 还缺 API URL 或 Key';
   return '空配置 · 使用 Vercel 环境变量';
+}
+function setApiProfileStatus(message,type=''){
+  if(!els.apiProfileCurrentStatus)return;
+  els.apiProfileCurrentStatus.textContent=message;
+  els.apiProfileCurrentStatus.classList.toggle('good',type==='good');
+  els.apiProfileCurrentStatus.classList.toggle('bad',type==='bad');
+  els.apiProfileCurrentStatus.classList.toggle('info',type==='info');
+}
+async function testCurrentApiProfile(){
+  const settings=currentApiSettings();
+  const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
+  if((settings.apiUrl&&!settings.apiKey)||(!settings.apiUrl&&settings.apiKey)){
+    setApiProfileStatus('配置不完整','bad');
+    return notify('API URL 和 API Key 需要同时填写。','bad','连接测试');
+  }
+  setApiProfileStatus('正在测试连接...','info');
+  try{
+    const response=await fetch('/api/test-profile',{
+      method:'POST',
+      headers:await analyzeHeaders(hasLocalEndpoint),
+      body:JSON.stringify({
+        apiUrl:hasLocalEndpoint?settings.apiUrl:'',
+        apiKey:hasLocalEndpoint?settings.apiKey:'',
+        model:hasLocalEndpoint?settings.model:'',
+      }),
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||data.ok===false)throw new Error(data.error||`HTTP ${response.status}`);
+    const model=data.model||settings.model||configInfo?.model||'默认模型';
+    const elapsed=Number(data.elapsedMs||0);
+    setApiProfileStatus(`连接正常 · ${model}${elapsed?` · ${elapsed}ms`:''}`,'good');
+    notify(`连接正常：${model}${elapsed?`，${elapsed}ms`:''}`,'good','连接测试');
+  }catch(error){
+    const message=error?.message||String(error||'连接测试失败');
+    setApiProfileStatus(`连接失败 · ${message}`,'bad');
+    notify(message,'bad','连接测试失败');
+  }
 }
 function closeApiProfileMenu(){
   els.apiProfilePicker?.classList.remove('open');
