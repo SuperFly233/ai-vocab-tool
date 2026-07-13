@@ -88,6 +88,7 @@ Expected behavior:
 - Tuned follow-up Markdown tables for narrow mobile screens: table rendering now sets a column-count-aware minimum width so many-column tables scroll horizontally without each column becoming unreadably thin or excessively wide.
 - Added a first-stage word/phrase type layer. New lookup results are prompted and normalized to `meta.entryType` (`word` or `phrase`), history filters include `entryType`, result and history summaries show the type, and the visual editor can change it. Older history infers the type from the saved query/title instead of requiring a migration.
 - Added the first AI Vocab site icon pass: `favicon.svg` reuses the sidebar brand idea as a blue "词" magnifier, `index.html` links favicon/theme-color/manifest, and `site.webmanifest` points to the same SVG icon. Study Kanban still needs its own matching update later for cross-project consistency.
+- Added a synced `fontMode` setting. The settings Appearance group now supports system, sans, serif, and mono font modes; `normalizeSettings()` preserves it, `mergeSettings()` syncs it with `labelMode`, and CSS applies the choice through `--font-ui` while code/JSON fields keep `--font-mono`.
 
 ## Working Rules
 
@@ -107,6 +108,7 @@ Settings are normalized through `normalizeSettings()` in `app.js`.
 - Legacy fields `apiUrl`, `apiKey`, and `model` are still accepted.
 - Legacy top-level fields should only migrate when no valid `apiProfiles` array exists; once profile groups exist, they must not overwrite current profile values.
 - New storage uses `apiProfiles` and `activeApiProfileId`.
+- Display preferences currently include `labelMode` and `fontMode`; API profile save/reset flows should preserve both.
 - Query and follow-up calls should use `currentApiSettings()`.
 - Cloud merge should preserve profiles from both local and remote devices.
 - API profile creation/editing lives in a modal. The settings page surface should stay selection/action oriented, not an inline form.

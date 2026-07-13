@@ -65,15 +65,21 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   ignorePunctuation:true,
 });
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.29',
+  version:'0.9.30',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.30',
+    date:'2026-07-13',
+    title:'新增字体风格偏好',
+    items:['设置页“外观”新增字体风格，可在系统默认、无衬线、衬线和等宽之间切换。','字体偏好写入 settings 并随云端同步，多设备会保持一致。','字体切换通过全站 CSS 变量生效，JSON、代码和密钥字段继续使用等宽字体。'],
+  },
   {
     version:'0.9.29',
     date:'2026-07-13',
@@ -322,6 +328,10 @@ const els={
   labelModeZhBtn:document.getElementById('label-mode-zh'),
   labelModeCodeBtn:document.getElementById('label-mode-code'),
   labelModeBothBtn:document.getElementById('label-mode-both'),
+  fontModeSystemBtn:document.getElementById('font-mode-system'),
+  fontModeSansBtn:document.getElementById('font-mode-sans'),
+  fontModeSerifBtn:document.getElementById('font-mode-serif'),
+  fontModeMonoBtn:document.getElementById('font-mode-mono'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historySearch:document.getElementById('history-search'),
@@ -684,6 +694,7 @@ function normalizeSettings(raw={}){
   const activeId=profiles.some(profile=>profile.id===source.activeApiProfileId)?source.activeApiProfileId:profiles[0].id;
   const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
   const labelMode=normalizeLabelMode(source.labelMode);
+  const fontMode=normalizeFontMode(source.fontMode);
   return {
     ...DEFAULT_SETTINGS,
     ...source,
@@ -693,10 +704,14 @@ function normalizeSettings(raw={}){
     apiKey:active.apiKey,
     model:active.model,
     labelMode,
+    fontMode,
   };
 }
 function normalizeLabelMode(value){
   return ['zh','code','both'].includes(value)?value:'zh';
+}
+function normalizeFontMode(value){
+  return ['system','sans','serif','mono'].includes(value)?value:'system';
 }
 function normalizeApiProfile(profile={}){
   const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
@@ -737,6 +752,7 @@ function mergeSettings(localRaw,remoteRaw){
   return normalizeSettings({
     ...remote,
     labelMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.labelMode:remote.labelMode||local.labelMode,
+    fontMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.fontMode:remote.fontMode||local.fontMode,
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
@@ -931,7 +947,8 @@ function syncValuePreview(key,value){
     const settings=normalizeSettings(safeObjectFromRaw(value,DEFAULT_SETTINGS));
     const active=currentApiSettings(settings);
     const labelMode=settings.labelMode==='zh'?'中文':settings.labelMode==='code'?'缩写':'双语';
-    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}`;
+    const fontMode={system:'系统',sans:'无衬线',serif:'衬线',mono:'等宽'}[settings.fontMode]||'系统';
+    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}`;
   }
   if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
@@ -2775,6 +2792,7 @@ function hydrateSettings(){
   const profile=activeApiProfile(settings);
   renderApiProfilePicker(settings,profile);
   applyLabelMode(settings.labelMode);
+  applyFontMode(settings.fontMode);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
 function renderApiProfilePicker(settings,profile){
@@ -2826,6 +2844,24 @@ function setLabelMode(mode){
     if(item)openHistoryModal(modalHistoryId);
   }
   notify(`字段标签已切换为${next==='zh'?'中文':next==='code'?'缩写':'双语'}显示。`,'good','显示设置');
+}
+function applyFontMode(mode){
+  const next=normalizeFontMode(mode);
+  document.body.dataset.fontMode=next;
+  els.fontModeSystemBtn?.classList.toggle('active',next==='system');
+  els.fontModeSansBtn?.classList.toggle('active',next==='sans');
+  els.fontModeSerifBtn?.classList.toggle('active',next==='serif');
+  els.fontModeMonoBtn?.classList.toggle('active',next==='mono');
+}
+function fontModeLabel(mode){
+  return {system:'系统默认',sans:'无衬线',serif:'衬线',mono:'等宽'}[normalizeFontMode(mode)]||'系统默认';
+}
+function setFontMode(mode){
+  const next=normalizeFontMode(mode);
+  const settings=getSettings();
+  setSettings({...settings,fontMode:next,updatedAt:new Date().toISOString()});
+  applyFontMode(next);
+  notify(`字体风格已切换为${fontModeLabel(next)}。`,'good','显示设置');
 }
 function saveSettings(){
   openApiProfileModal('edit');
