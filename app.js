@@ -55,6 +55,7 @@ const historyState={
     direction:[],
     pos:[],
     style:[],
+    tag:[],
   },
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
@@ -66,12 +67,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.24',
+  version:'0.9.25',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.25',
+    date:'2026-07-13',
+    title:'新增历史标签筛选',
+    items:['历史筛选区新增 Tag 多选筛选，可按个人标签快速收拢词条。','历史列表里的标签可直接点击筛选，并保持原有整条记录点击打开详情的行为。','历史筛选摘要、清空和搜索状态会把 Tag 纳入统一判断。'],
+  },
   {
     version:'0.9.24',
     date:'2026-07-13',
@@ -336,6 +343,9 @@ function readJSON(key,fallback){
 function writeJSON(key,value){localStorage.setItem(key,JSON.stringify(value))}
 function escapeHTML(value){
   return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+function escapeAttr(value){
+  return escapeHTML(value).replace(/`/g,'&#96;');
 }
 function notify(message,type='info',title='ai-vocab-tool',record=true){
   if(record)pushLog(message,type,title);
@@ -1980,7 +1990,7 @@ function renderHistory(){
 function renderHistoryTags(tags=[]){
   const list=normalizeTags(tags);
   if(!list.length)return '';
-  return `<div class="history-tags">${list.slice(0,5).map(tag=>`<span>${escapeHTML(tag)}</span>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
+  return `<div class="history-tags">${list.slice(0,5).map(tag=>`<button type="button" onclick="filterByHistoryTag('${escapeAttr(tag)}',event)">${escapeHTML(tag)}</button>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
 }
 function latestHistoryResult(item){
   const normalized=normalizeHistoryItem(item);
@@ -2043,7 +2053,8 @@ function historyMatchesFilters(item){
   return filterMatches(historyCanonicalValues(item,'language'),filters.language)
     && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
     && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
-    && filterMatches(historyCanonicalValues(item,'style'),filters.style);
+    && filterMatches(historyCanonicalValues(item,'style'),filters.style)
+    && filterMatches(historyCanonicalValues(item,'tag'),filters.tag);
 }
 function filterMatches(values,selected){
   const picks=Array.isArray(selected)?selected:[selected].filter(Boolean);
@@ -2121,6 +2132,7 @@ function historyCanonicalValues(item,key){
   if(key==='direction')return uniq([canonicalDirection(historyField(item,'direction'),item)]);
   if(key==='style')return uniq(canonicalStyleTokens(historyField(item,'style')));
   if(key==='pos')return uniq(historyFieldList(item,'pos').flatMap(canonicalPosTokens));
+  if(key==='tag')return normalizeTags(normalizeHistoryItem(item).tags);
   return [];
 }
 function canonicalLanguage(value){
@@ -2196,7 +2208,7 @@ function uniq(items){
   return [...new Set(items.filter(Boolean))];
 }
 function collectHistoryOptions(history){
-  const maps={language:new Map(),direction:new Map(),pos:new Map(),style:new Map()};
+  const maps={language:new Map(),direction:new Map(),pos:new Map(),style:new Map(),tag:new Map()};
   history.forEach(item=>{
     Object.keys(maps).forEach(key=>{
       historyCanonicalOptions(item,key).forEach(option=>{
@@ -2217,6 +2229,7 @@ function renderHistoryFilterOptions(history){
   renderHistoryFilterGroup('direction','方向',options.direction);
   renderHistoryFilterGroup('pos','词性',options.pos);
   renderHistoryFilterGroup('style','语体',options.style);
+  renderHistoryFilterGroup('tag','Tag',options.tag);
 }
 function renderHistoryFilterGroup(key,label,values=[]){
   const root=els.historyFilterbar?.querySelector(`[data-filter-key="${key}"]`);
@@ -2256,6 +2269,16 @@ function toggleHistoryFilter(key,value){
     ? current.filter(item=>item!==value)
     : [...current,value];
   openHistoryFilterKey=key;
+  renderHistory();
+}
+function filterByHistoryTag(tag,event){
+  event?.stopPropagation();
+  const value=String(tag||'').trim();
+  if(!value)return;
+  const current=Array.isArray(historyState.filters.tag)?historyState.filters.tag:[];
+  if(!current.includes(value))historyState.filters.tag=[...current,value];
+  openHistoryFilterKey='tag';
+  showView('history',document.getElementById('nav-history'));
   renderHistory();
 }
 function clearHistoryFilter(key){
