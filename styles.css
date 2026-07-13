@@ -429,6 +429,9 @@ body.modal-open{overflow:hidden}
 .edit-page{display:none;gap:10px}
 .edit-page.active{display:grid}
 .modal-json-field{min-height:0}
+.note-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.note-toolbar button{min-width:32px;height:28px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--muted);font-size:12px;font-weight:900;display:grid;place-items:center;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
+.note-toolbar button:hover,.note-toolbar button:focus-visible{transform:translateY(-1px);border-color:var(--accent);background:var(--accent-bg);color:var(--accent);outline:0}
 .note-editor{width:100%;min-height:92px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:11px 12px;font-size:15px;line-height:1.55;resize:vertical;outline:0}
 .note-editor:focus{border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
 .note-block{border-top:1px solid var(--line);padding-top:16px}

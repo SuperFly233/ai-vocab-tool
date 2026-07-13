@@ -67,12 +67,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.25',
+  version:'0.9.26',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.26',
+    date:'2026-07-13',
+    title:'新增备注 Markdown 工具条',
+    items:['历史备注编辑区新增加粗、列表、引用、代码和表格快捷按钮。','按钮会尽量复用当前选区：有选中文字时包裹格式，没有选区时插入可直接填写的模板。','插入后会保持焦点并把光标放回备注框，减少手写 Markdown 的操作成本。'],
+  },
   {
     version:'0.9.25',
     date:'2026-07-13',
@@ -2359,6 +2365,30 @@ function toggleFavoriteHistory(id){
 function updateHistorySearchState(){
   const hasText=Boolean(els.historySearch?.value.trim());
   els.historyClearBtn?.classList.toggle('hidden',!hasText);
+}
+function insertNoteMarkdown(kind){
+  const field=els.modalNoteEdit;
+  if(!field)return;
+  const start=field.selectionStart??field.value.length;
+  const end=field.selectionEnd??start;
+  const selected=field.value.slice(start,end);
+  const linePrefix=start>0&&!field.value.slice(0,start).endsWith('\n')?'\n':'';
+  const snippets={
+    bold:{text:selected?`**${selected}**`:'**重点**',select:[2,4]},
+    list:{text:selected?selected.split('\n').map(line=>`- ${line||'条目'}`).join('\n'):`${linePrefix}- 要点一\n- 要点二`,select:null},
+    quote:{text:selected?selected.split('\n').map(line=>`> ${line}`).join('\n'):`${linePrefix}> 引用或提醒`,select:null},
+    code:{text:selected?`\`${selected}\``:`${linePrefix}\`\`\`\n示例\n\`\`\``,select:null},
+    table:{text:`${linePrefix}| 项目 | 说明 |\n| --- | --- |\n| 关键词 | 备注 |`,select:null},
+  };
+  const snippet=snippets[kind]||snippets.bold;
+  field.value=`${field.value.slice(0,start)}${snippet.text}${field.value.slice(end)}`;
+  const cursor=start+snippet.text.length;
+  field.focus();
+  if(snippet.select&&!selected){
+    field.setSelectionRange(start+snippet.select[0],start+snippet.select[1]);
+  }else{
+    field.setSelectionRange(cursor,cursor);
+  }
 }
 function openHistoryModal(id){
   const item=getHistory().find(row=>Number(row.id)===Number(id));

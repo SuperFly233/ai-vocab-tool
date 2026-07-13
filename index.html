@@ -275,6 +275,13 @@
         </label>
         <label class="setting-field">
           <span>备注</span>
+          <div class="note-toolbar" aria-label="备注 Markdown 快捷工具">
+            <button type="button" data-tip="加粗" onclick="insertNoteMarkdown('bold')">B</button>
+            <button type="button" data-tip="列表" onclick="insertNoteMarkdown('list')">•</button>
+            <button type="button" data-tip="引用" onclick="insertNoteMarkdown('quote')">”</button>
+            <button type="button" data-tip="代码" onclick="insertNoteMarkdown('code')">{ }</button>
+            <button type="button" data-tip="表格" onclick="insertNoteMarkdown('table')">▦</button>
+          </div>
           <textarea class="note-editor" id="modal-note-edit" placeholder="给自己看的补充说明，支持直接写 Markdown。"></textarea>
         </label>
         <label class="setting-field modal-json-field">
