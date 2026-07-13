@@ -428,6 +428,21 @@ body.modal-open{overflow:hidden}
 .modal-page.active{display:block}
 .edit-page{display:none;gap:10px}
 .edit-page.active{display:grid}
+.visual-page{display:none;gap:12px}
+.visual-page.active{display:grid}
+.visual-editor{display:grid;gap:14px}
+.visual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.visual-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}
+.visual-wide{grid-column:1/-1}
+.visual-input{width:100%;min-height:74px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 11px;font-size:14px;line-height:1.55;resize:vertical;outline:0}
+.visual-input:focus{border-color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
+.visual-section{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.visual-head,.visual-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.visual-head b{font-size:16px;color:var(--text)}
+.visual-head .plain-btn,.visual-card-head .danger-btn{min-width:64px;padding:6px 10px;font-size:13px}
+.visual-list{display:grid;gap:10px}
+.visual-card{border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:12px;display:grid;gap:10px}
+.visual-card-head b{font-size:14px;color:var(--muted)}
 .modal-json-field{min-height:0}
 .note-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .note-toolbar button{min-width:32px;height:28px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--muted);font-size:12px;font-weight:900;display:grid;place-items:center;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
@@ -470,8 +485,8 @@ body.modal-open{overflow:hidden}
 .followup-answer blockquote p:last-child{margin-bottom:0}
 .followup-answer hr{height:1px;border:0;background:linear-gradient(90deg,transparent,var(--line2),transparent);margin:12px 0}
 .followup-answer .md-table-wrap{margin:8px 0 10px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 72%,var(--panel2));-webkit-overflow-scrolling:touch}
-.followup-answer table{width:max(100%,calc(var(--cols,3) * 160px));border-collapse:collapse;min-width:520px;font-size:14px;table-layout:auto}
-.followup-answer th,.followup-answer td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;min-width:140px}
+.followup-answer table{width:max(100%,calc(var(--cols,3) * var(--col-min,150px)));border-collapse:collapse;min-width:min(520px,calc(var(--cols,3) * var(--col-min,150px)));font-size:14px;table-layout:auto}
+.followup-answer th,.followup-answer td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;min-width:min(140px,var(--col-min,140px));overflow-wrap:anywhere}
 .followup-answer th{background:color-mix(in srgb,var(--accent-bg) 46%,var(--panel));color:var(--text);font-weight:850}
 .followup-answer tr:last-child td{border-bottom:0}
 .followup-answer strong{color:var(--text);font-weight:800}
@@ -580,6 +595,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .modal-head{grid-template-columns:1fr;align-items:start}
   .modal-head .result-icons{width:100%;overflow-x:auto;padding-bottom:2px}
   .json-editor{min-height:48vh}
+  .visual-grid,.visual-grid.compact{grid-template-columns:1fr}
   .modal-rollbar{display:grid;align-items:stretch}
   .reroll-btn{width:100%}
   .sync-simple,.sync-breakdown,.sync-data-cols{grid-template-columns:1fr}
@@ -589,6 +605,8 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .sync-card .confirm-actions{grid-template-columns:1fr}
   .followup-compose{grid-template-columns:1fr}
   .followup-answer{margin-left:0}
+  .followup-answer table{font-size:13px}
+  .followup-answer th,.followup-answer td{padding:7px 8px}
   .about-hero,.about-grid{grid-template-columns:1fr}
   .about-version{height:auto;min-height:110px}
   .about-hero h2{font-size:32px}

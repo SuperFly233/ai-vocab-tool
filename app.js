@@ -67,12 +67,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.26',
+  version:'0.9.27',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.27',
+    date:'2026-07-13',
+    title:'新增词条可视化编辑',
+    items:['历史详情新增“可视化编辑”页，可直接修改词条标题、核心义、摘要、词性、语言和方向。','义项和固定搭配支持表单编辑，并可新增或删除条目。','可视化编辑保存时会同步更新 JSON、历史标题与预览，原始 JSON 编辑模式仍完整保留。','移动端追问表格会按列数调整单列宽度，避免多列表格被压扁或横向过宽。'],
+  },
   {
     version:'0.9.26',
     date:'2026-07-13',
@@ -289,6 +295,8 @@ const els={
   modalSubtitle:document.getElementById('modal-subtitle'),
   modalRollbar:document.getElementById('modal-rollbar'),
   modalCardPage:document.getElementById('modal-card-page'),
+  modalVisualPage:document.getElementById('modal-visual-page'),
+  modalVisualEditor:document.getElementById('modal-visual-editor'),
   modalJsonPage:document.getElementById('modal-json-page'),
   modalQueryEdit:document.getElementById('modal-query-edit'),
   modalTagsEdit:document.getElementById('modal-tags-edit'),
@@ -1604,7 +1612,9 @@ function formatFollowupAnswer(answer){
     const align=tableCells(rows[1]).map(cell=>cell.startsWith(':')&&cell.endsWith(':')?'center':cell.endsWith(':')?'right':cell.startsWith(':')?'left':'');
     const body=rows.slice(2).map(row=>tableCells(row));
     const cellAttrs=index=>align[index]?` style="text-align:${align[index]}"`:'';
-    return `<div class="md-table-wrap" style="--cols:${Math.max(header.length,1)}"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatInlineMarkdown(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    const cols=Math.max(header.length,1);
+    const colMin=cols>=7?104:cols>=5?118:cols>=4?132:160;
+    return `<div class="md-table-wrap" style="--cols:${cols};--col-min:${colMin}px"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatInlineMarkdown(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   };
   const isBlockStart=(line,i=index)=>isBlank(line)||isFence(line)||isHeading(line)||isQuote(line)||isHr(line)||isUnordered(line)||isOrdered(line)||isTableStart(i);
   while(index<lines.length){
@@ -2390,6 +2400,117 @@ function insertNoteMarkdown(kind){
     field.setSelectionRange(cursor,cursor);
   }
 }
+function cloneResult(result){
+  return JSON.parse(JSON.stringify(result||{}));
+}
+function renderVisualEditor(result=modalResult){
+  if(!els.modalVisualEditor)return;
+  const data=cloneResult(result);
+  const meta=data.meta||{};
+  const head=data.headword||{};
+  const senses=Array.isArray(data.senses)?data.senses:[];
+  const collocations=Array.isArray(data.collocations)?data.collocations:[];
+  els.modalVisualEditor.innerHTML=`
+    <div class="visual-grid">
+      ${visualField('visual-title','词条标题',head.title||meta.query||'')}
+      ${visualField('visual-core','核心义',head.coreMeaning||'')}
+      ${visualField('visual-pos','词性',head.basicPartOfSpeech||'')}
+      ${visualField('visual-language','语言',head.languageTag||meta.language||'')}
+      ${visualField('visual-direction','方向',meta.defaultDirection||meta.direction||'')}
+      ${visualTextarea('visual-summary','摘要',head.summary||'')}
+    </div>
+    ${visualList('senses','义项',senses,renderVisualSense)}
+    ${visualList('collocations','固定搭配',collocations,renderVisualCollocation)}
+  `;
+}
+function visualField(id,label,value){
+  return `<label class="setting-field"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}"></label>`;
+}
+function visualTextarea(id,label,value){
+  return `<label class="setting-field visual-wide"><span>${escapeHTML(label)}</span><textarea class="visual-input" id="${id}">${escapeHTML(value)}</textarea></label>`;
+}
+function visualList(kind,title,items,renderer){
+  return `<section class="visual-section">
+    <div class="visual-head"><b>${escapeHTML(title)}</b><button class="plain-btn" type="button" onclick="addVisualItem('${kind}')">新增</button></div>
+    <div class="visual-list ${items.length?'':'empty'}">
+      ${items.length?items.map((item,index)=>renderer(item,index)).join(''):'<div class="empty small-empty">暂无，可点击新增。</div>'}
+    </div>
+  </section>`;
+}
+function renderVisualSense(item={},index=0){
+  return `<article class="visual-card" data-visual-kind="senses" data-index="${index}">
+    <div class="visual-card-head"><b>义项 ${index+1}</b><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div>
+    <div class="visual-grid compact">
+      ${visualInlineField('partOfSpeech','词性',item.partOfSpeech||'')}
+      ${visualInlineField('shortestLabel','义标',item.shortestLabel||'')}
+      ${visualInlineTextarea('meaning','语意',item.meaning||'')}
+      ${visualInlineTextarea('example','例句',item.example||'')}
+      ${visualInlineTextarea('translation','译文',item.translation||'')}
+    </div>
+  </article>`;
+}
+function renderVisualCollocation(item={},index=0){
+  return `<article class="visual-card" data-visual-kind="collocations" data-index="${index}">
+    <div class="visual-card-head"><b>搭配 ${index+1}</b><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div>
+    <div class="visual-grid compact">
+      ${visualInlineField('phrase','短语',item.phrase||'')}
+      ${visualInlineField('note','标注',item.note||'')}
+      ${visualInlineTextarea('meaning','语意',item.meaning||'')}
+      ${visualInlineTextarea('example','例句',item.example||'')}
+      ${visualInlineTextarea('translation','译文',item.translation||'')}
+    </div>
+  </article>`;
+}
+function visualInlineField(key,label,value){
+  return `<label class="setting-field"><span>${escapeHTML(label)}</span><input class="cloud-input" data-field="${key}" type="text" value="${escapeHTML(value)}"></label>`;
+}
+function visualInlineTextarea(key,label,value){
+  return `<label class="setting-field visual-wide"><span>${escapeHTML(label)}</span><textarea class="visual-input" data-field="${key}">${escapeHTML(value)}</textarea></label>`;
+}
+function collectVisualResult(){
+  const data=cloneResult(modalResult||{});
+  data.meta=data.meta||{};
+  data.headword=data.headword||{};
+  data.headword.title=document.getElementById('visual-title')?.value.trim()||data.headword.title||data.meta.query||'';
+  data.headword.coreMeaning=document.getElementById('visual-core')?.value.trim()||'';
+  data.headword.basicPartOfSpeech=document.getElementById('visual-pos')?.value.trim()||'';
+  data.headword.languageTag=document.getElementById('visual-language')?.value.trim()||'';
+  data.headword.summary=document.getElementById('visual-summary')?.value.trim()||'';
+  data.meta.query=data.headword.title||data.meta.query||'';
+  data.meta.normalized=data.headword.title||data.meta.normalized||'';
+  data.meta.language=data.headword.languageTag||data.meta.language||'';
+  data.meta.defaultDirection=document.getElementById('visual-direction')?.value.trim()||'';
+  data.senses=collectVisualCards('senses');
+  data.collocations=collectVisualCards('collocations').map((item,index)=>({...item,index:item.index||String(index+1)}));
+  return data;
+}
+function collectVisualCards(kind){
+  return [...(els.modalVisualEditor?.querySelectorAll(`[data-visual-kind="${kind}"]`)||[])].map(card=>{
+    const item={};
+    card.querySelectorAll('[data-field]').forEach(field=>{item[field.dataset.field]=field.value.trim()});
+    return item;
+  }).filter(item=>Object.values(item).some(Boolean));
+}
+function addVisualItem(kind){
+  const data=collectVisualResult();
+  if(kind==='senses')data.senses=[...(data.senses||[]),{partOfSpeech:'',shortestLabel:'',meaning:'',example:'',translation:''}];
+  if(kind==='collocations')data.collocations=[...(data.collocations||[]),{phrase:'',meaning:'',example:'',translation:'',note:''}];
+  modalResult=data;
+  renderVisualEditor(data);
+}
+function removeVisualItem(kind,index){
+  const data=collectVisualResult();
+  if(Array.isArray(data[kind]))data[kind].splice(index,1);
+  modalResult=data;
+  renderVisualEditor(data);
+}
+function saveVisualHistoryEdit(){
+  const data=collectVisualResult();
+  modalResult=data;
+  if(els.modalQueryEdit)els.modalQueryEdit.value=data.headword?.title||data.meta?.query||els.modalQueryEdit.value;
+  els.modalJsonEdit.value=JSON.stringify(data,null,2);
+  saveHistoryEdit();
+}
 function openHistoryModal(id){
   const item=getHistory().find(row=>Number(row.id)===Number(id));
   if(!item)return;
@@ -2402,6 +2523,7 @@ function openHistoryModal(id){
   els.modalSubtitle.textContent=historyModalMeta(normalized);
   renderModalRollbar(normalized);
   els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal',normalized);
+  renderVisualEditor(modalResult);
   els.modalQueryEdit.value=normalized.query;
   if(els.modalTagsEdit)els.modalTagsEdit.value=normalized.tags.join(' ');
   if(els.modalNoteEdit)els.modalNoteEdit.value=normalized.note;
@@ -2448,6 +2570,7 @@ function saveHistoryEdit(){
   els.modalSubtitle.textContent=historyModalMeta(updatedItem);
   renderModalRollbar(updatedItem);
   els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal',updatedItem);
+  renderVisualEditor(parsed);
   if(els.modalTagsEdit)els.modalTagsEdit.value=tags.join(' ');
   if(els.modalNoteEdit)els.modalNoteEdit.value=note;
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
@@ -2496,6 +2619,7 @@ function setModalRoll(rollId){
   modalResult=roll.result;
   els.modalCardPage.innerHTML=renderResultHTML(roll.result,item.followups||[],'modal',item);
   els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
+  renderVisualEditor(roll.result);
   renderModalRollbar(item);
   validateModalJSON(false);
 }

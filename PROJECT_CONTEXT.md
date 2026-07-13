@@ -84,6 +84,8 @@ Expected behavior:
 - Added first-stage Tag/Note support on history entries. `normalizeHistoryItem()` now carries `tags`, `note`, and `noteUpdatedAt`; history search includes them; the history modal edit tab can edit them; result previews render tags and Markdown notes. History merge combines tags and uses `noteUpdatedAt` so clearing a note can sync correctly.
 - Added Tag as a first-class History filter. The history filter bar now includes `tag`, tag chips on history rows can be clicked to filter, and `historyState.filters.tag` participates in the same multi-select/clear/count logic as language, direction, POS, and style.
 - Added a Markdown shortcut toolbar for history notes. `insertNoteMarkdown(kind)` inserts or wraps bold, list, quote, code, and table snippets while preserving textarea focus and selection.
+- Added first-stage visual history editing. The history modal now has a `visual` tab rendered by `renderVisualEditor()`, with form editing for headword/meta fields, senses, and collocations. `saveVisualHistoryEdit()` writes the form back into JSON, syncs edited titles into the history record, and reuses the existing save path, while raw JSON editing remains available.
+- Tuned follow-up Markdown tables for narrow mobile screens: table rendering now sets a column-count-aware minimum width so many-column tables scroll horizontally without each column becoming unreadably thin or excessively wide.
 
 ## Working Rules
 

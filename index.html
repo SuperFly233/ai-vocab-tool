@@ -255,6 +255,7 @@
       </div>
       <div class="result-icons">
         <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">预览</button>
+        <button class="tab-btn" id="modal-visual-tab" onclick="setModalTab('visual',this)">可视化编辑</button>
         <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
         <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">📋</button>
         <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">💾</button>
@@ -264,6 +265,13 @@
     <div class="modal-body">
       <div class="modal-rollbar" id="modal-rollbar"></div>
       <section class="modal-page active" id="modal-card-page"></section>
+      <section class="modal-page visual-page" id="modal-visual-page">
+        <div class="visual-editor" id="modal-visual-editor"></div>
+        <div class="modal-edit-footer">
+          <div class="json-status">修改后会同步写入 JSON 和预览。</div>
+          <button class="plain-btn primary-btn" onclick="saveVisualHistoryEdit()">保存可视化修改</button>
+        </div>
+      </section>
       <section class="modal-page edit-page" id="modal-json-page">
         <label class="setting-field">
           <span>记录标题</span>
