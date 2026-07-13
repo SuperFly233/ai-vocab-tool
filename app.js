@@ -72,12 +72,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.37',
+  version:'0.9.38',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.38',
+    date:'2026-07-13',
+    title:'升级主查询分块打字机',
+    items:['主查询结果不再只是整页文本顺序揭示，而是按词条头、义项、搭配、语感、易混和相关记录等结构块分段出现。','每个结构块会先淡入，再逐字显示块内文本；追问面板和控件继续排除在主查询打字机之外。','保留完整 JSON 校验后再渲染的策略，避免半截 JSON 破坏词条结构或保存历史。'],
+  },
   {
     version:'0.9.37',
     date:'2026-07-13',
@@ -1449,45 +1455,64 @@ function clearResultTypewriter(){
   resultTypewriterTimers.forEach(timer=>clearTimeout(timer));
   resultTypewriterTimers=[];
   els.resultCard?.classList.remove('result-typing');
+  els.resultCard?.querySelectorAll('.typewriter-chunk').forEach(chunk=>chunk.classList.remove('typewriter-chunk','pending','active','typing'));
 }
 function startResultTypewriter(root){
   if(!root||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{
-    acceptNode(node){
-      if(!node.nodeValue.trim())return NodeFilter.FILTER_REJECT;
-      const parent=node.parentElement;
-      if(!parent)return NodeFilter.FILTER_REJECT;
-      if(parent.closest('.followup-panel,button,textarea,input,select,pre,code,script,style,.result-icons,.json-section'))return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  });
-  const chunks=[];
-  while(walker.nextNode()){
-    const node=walker.currentNode;
-    const text=node.nodeValue;
-    const match=text.match(/^(\s*)([\s\S]*?)(\s*)$/);
-    const body=match?.[2]||'';
-    if(!body.trim())continue;
-    chunks.push({node,prefix:match?.[1]||'',body,suffix:match?.[3]||'',index:0});
-    node.nodeValue=match?.[1]||'';
-  }
+  const containers=[...root.children].filter(node=>!node.matches('.followup-panel'));
+  const chunks=containers.map(container=>{
+    const walker=document.createTreeWalker(container,NodeFilter.SHOW_TEXT,{
+      acceptNode(node){
+        if(!node.nodeValue.trim())return NodeFilter.FILTER_REJECT;
+        const parent=node.parentElement;
+        if(!parent)return NodeFilter.FILTER_REJECT;
+        if(parent.closest('button,textarea,input,select,pre,code,script,style,.result-icons,.json-section'))return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const parts=[];
+    while(walker.nextNode()){
+      const node=walker.currentNode;
+      const text=node.nodeValue;
+      const match=text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const body=match?.[2]||'';
+      if(!body.trim())continue;
+      parts.push({node,prefix:match?.[1]||'',body,suffix:match?.[3]||'',index:0});
+      node.nodeValue=match?.[1]||'';
+    }
+    return {container,parts,partIndex:0};
+  }).filter(chunk=>chunk.parts.length);
   if(!chunks.length)return;
   root.classList.add('result-typing');
-  const total=chunks.reduce((sum,item)=>sum+item.body.length,0);
+  chunks.forEach(chunk=>chunk.container.classList.add('typewriter-chunk','pending'));
+  const total=chunks.reduce((sum,chunk)=>sum+chunk.parts.reduce((inner,item)=>inner+item.body.length,0),0);
   const step=total>2200?9:total>1200?6:4;
-  let cursor=0;
+  let chunkIndex=0;
+  const activateChunk=chunk=>{
+    chunk.container.classList.remove('pending');
+    chunk.container.classList.add('active','typing');
+  };
+  activateChunk(chunks[0]);
   const tick=()=>{
-    const item=chunks[cursor];
-    if(!item){
+    const chunk=chunks[chunkIndex];
+    if(!chunk){
       root.classList.remove('result-typing');
       resultTypewriterTimers=[];
+      return;
+    }
+    const item=chunk.parts[chunk.partIndex];
+    if(!item){
+      chunk.container.classList.remove('typing');
+      chunkIndex+=1;
+      if(chunks[chunkIndex])activateChunk(chunks[chunkIndex]);
+      resultTypewriterTimers.push(setTimeout(tick,70));
       return;
     }
     item.index=Math.min(item.body.length,item.index+step);
     item.node.nodeValue=item.prefix+item.body.slice(0,item.index);
     if(item.index>=item.body.length){
       item.node.nodeValue=item.prefix+item.body+item.suffix;
-      cursor+=1;
+      chunk.partIndex+=1;
     }
     resultTypewriterTimers.push(setTimeout(tick,16));
   };

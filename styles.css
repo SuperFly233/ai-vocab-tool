@@ -201,7 +201,10 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .tab-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
 .result-page{display:none;overflow:auto;min-height:0;padding:18px}
 .result-page.active{display:block}
-.result-page.result-typing .entry-head:after{content:"";display:inline-block;width:7px;height:1.1em;margin-left:4px;border-radius:999px;background:var(--accent);vertical-align:-.18em;animation:streamCaret 1s ease-in-out infinite}
+.result-page.result-typing .typewriter-chunk{transition:opacity .18s ease,transform .18s ease}
+.result-page.result-typing .typewriter-chunk.pending{opacity:0;transform:translateY(8px);pointer-events:none}
+.result-page.result-typing .typewriter-chunk.active{opacity:1;transform:none}
+.result-page.result-typing .typewriter-chunk.typing:after{content:"";display:inline-block;width:7px;height:1.1em;margin-left:4px;border-radius:999px;background:var(--accent);vertical-align:-.18em;animation:streamCaret 1s ease-in-out infinite}
 .json-view{font-family:var(--font-mono);font-size:13px;line-height:1.6;color:var(--muted)}
 .empty{height:100%;display:grid;place-items:center;color:var(--soft);font-size:20px;font-weight:650}
 .lookup-state{height:100%;min-height:300px;display:grid;place-items:center;color:var(--muted);text-align:left;padding:24px}

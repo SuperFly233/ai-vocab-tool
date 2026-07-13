@@ -97,6 +97,7 @@ Expected behavior:
 - Added API profile connection testing. Settings > API profile now has a `testCurrentApiProfile()` action and status chip; `/api/test-profile` sends a minimal chat-completions request through the selected profile or environment variables, reusing admin environment-key checks and returning elapsed time or a compact failure reason.
 - Re-collapsed API profile management after the outer actions became too crowded. The settings card now only shows the current profile name plus a chevron; create/select/edit/delete live in the dropdown, draft connection testing lives inside the add/edit modal, and delete still uses confirmation. The main result header now highlights `headword.coreMeaning` on its own line while type/POS/direction share one row.
 - Added a front-end typewriter reveal for main lookup results after JSON validation succeeds. The app still waits for full structured JSON from `/api/analyze`, then `startResultTypewriter()` progressively reveals rendered text nodes while excluding follow-up panels and controls. Mobile follow-up prose is slightly smaller/tighter so streamed answers do not look oversized next to tables.
+- Upgraded the main lookup typewriter to chunk by rendered JSON structure. `startResultTypewriter()` now treats top-level result sections as chunks, hides pending chunks, fades each chunk in, then reveals its text nodes before moving to the next section. This keeps JSON parsing stable while making the home lookup feel closer to the follow-up streaming experience.
 
 ## Working Rules
 
