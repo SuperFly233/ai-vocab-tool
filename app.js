@@ -63,15 +63,21 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   ignorePunctuation:true,
 });
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE]};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.21',
+  version:'0.9.22',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.22',
+    date:'2026-07-13',
+    title:'新增标签显示偏好',
+    items:['设置页新增“字段标签显示”，可在中文名称、英文缩写和中英双语之间切换。','历史筛选、历史摘要、词性分组、词条标题区和语体说明会统一使用当前显示偏好。','API 配置保存与清空逻辑会保留显示偏好，避免非接口设置被误重置。'],
+  },
   {
     version:'0.9.21',
     date:'2026-07-13',
@@ -265,6 +271,9 @@ const els={
   workspace:document.getElementById('workspace'),
   layoutTopBtn:document.getElementById('layout-top-btn'),
   layoutSplitBtn:document.getElementById('layout-split-btn'),
+  labelModeZhBtn:document.getElementById('label-mode-zh'),
+  labelModeCodeBtn:document.getElementById('label-mode-code'),
+  labelModeBothBtn:document.getElementById('label-mode-both'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historySearch:document.getElementById('history-search'),
@@ -623,6 +632,7 @@ function normalizeSettings(raw={}){
   profiles=dedupeApiProfiles(profiles.length?profiles:[DEFAULT_API_PROFILE]);
   const activeId=profiles.some(profile=>profile.id===source.activeApiProfileId)?source.activeApiProfileId:profiles[0].id;
   const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
+  const labelMode=normalizeLabelMode(source.labelMode);
   return {
     ...DEFAULT_SETTINGS,
     ...source,
@@ -631,7 +641,11 @@ function normalizeSettings(raw={}){
     apiUrl:active.apiUrl,
     apiKey:active.apiKey,
     model:active.model,
+    labelMode,
   };
+}
+function normalizeLabelMode(value){
+  return ['zh','code','both'].includes(value)?value:'zh';
 }
 function normalizeApiProfile(profile={}){
   const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
@@ -671,6 +685,7 @@ function mergeSettings(localRaw,remoteRaw){
     : remote.activeApiProfileId||local.activeApiProfileId;
   return normalizeSettings({
     ...remote,
+    labelMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.labelMode:remote.labelMode||local.labelMode,
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
@@ -864,7 +879,8 @@ function syncValuePreview(key,value){
   if(key===CLOUD_KEYS.settings){
     const settings=normalizeSettings(safeObjectFromRaw(value,DEFAULT_SETTINGS));
     const active=currentApiSettings(settings);
-    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}`;
+    const labelMode=settings.labelMode==='zh'?'中文':settings.labelMode==='code'?'缩写':'双语';
+    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}`;
   }
   if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
@@ -1276,12 +1292,12 @@ function renderResultHTML(result,followups=[],scope='current'){
   const highlightTerms=resultHighlightTerms(result);
   return `
     <div class="entry-head">
-      <div class="entry-kicker">${escapeHTML(head.languageTag||meta.language||'词条')}</div>
+      <div class="entry-kicker">${escapeHTML(displayLanguageLabel(head.languageTag||meta.language)||'词条')}</div>
       <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
       <div class="entry-meta-grid">
         <span><b>词性</b>${escapeHTML(headwordPartOfSpeech(head,senses))}</span>
         <span><b>核心义</b><mark>${escapeHTML(head.coreMeaning||'')}</mark></span>
-        <span><b>方向</b>${escapeHTML(meta.defaultDirection||'')}</span>
+        <span><b>方向</b>${escapeHTML(displayDirectionLabel(meta.defaultDirection||meta.direction,result)||'')}</span>
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
@@ -1298,7 +1314,7 @@ function renderResultHTML(result,followups=[],scope='current'){
     <div class="block">
       <div class="block-title">语义感受与使用说明</div>
       <div class="register-grid">
-        <div><b>语体属性</b><span>${escapeHTML(register.style||'')}</span></div>
+        <div><b>语体属性</b><span>${escapeHTML(displayStyleLabel(register.style)||'')}</span></div>
         <div><b>语义气质</b><span>${escapeHTML(register.tone||'')}</span></div>
         <div><b>使用环境</b><span>${escapeHTML(register.environment||'')}</span></div>
       </div>
@@ -1383,7 +1399,7 @@ function posTokensFromValue(value){
 }
 function formatPosLabel(value){
   const token=posTokensFromValue(value)[0]||String(value||'other');
-  return LABELS.pos?.[token]?`${token} · ${LABELS.pos[token]}`:token;
+  return displayFieldLabel('pos',token);
 }
 function posSortIndex(value){
   const order=['n','v','adj','adv','prep','conj','pron','det','aux','interj','phrase','sentence','other'];
@@ -1892,8 +1908,8 @@ function historyEntryMeta(item){
   const head=result.headword||{};
   const senses=Array.isArray(result.senses)?result.senses:[];
   const pos=compactPartOfSpeech(head,senses);
-  const direction=historyCanonicalValues(item,'direction').map(value=>LABELS.direction?.[value]||value).filter(Boolean)[0];
-  const language=historyCanonicalValues(item,'language').map(value=>LABELS.language?.[value]||value).filter(Boolean)[0];
+  const direction=historyCanonicalValues(item,'direction').map(value=>displayFieldLabel('direction',value)).filter(Boolean)[0];
+  const language=historyCanonicalValues(item,'language').map(value=>displayFieldLabel('language',value)).filter(Boolean)[0];
   return [pos,direction,language].filter(Boolean);
 }
 function compactPartOfSpeech(head={},senses=[]){
@@ -1902,7 +1918,7 @@ function compactPartOfSpeech(head={},senses=[]){
     ...(Array.isArray(senses)?senses.flatMap(sense=>posTokensFromValue(sense.partOfSpeech)):[]),
   ]);
   if(!tokens.length)return '';
-  const visible=tokens.slice(0,3).map(token=>LABELS.pos?.[token]||token);
+  const visible=tokens.slice(0,3).map(token=>displayFieldLabel('pos',token));
   return tokens.length>3?`${visible.join(' / ')} +${tokens.length-3}`:visible.join(' / ');
 }
 function handleHistoryItemKey(event,id){
@@ -1978,8 +1994,35 @@ const LABELS={
   pos:{n:'名词',v:'动词',adj:'形容词',adv:'副词',prep:'介词',conj:'连词',pron:'代词',det:'限定词',aux:'助动词',interj:'感叹词',phrase:'短语',sentence:'句子',other:'其他'},
   style:{neutral:'中性',formal:'正式',informal:'非正式',spoken:'口语',written:'书面',academic:'学术',business:'商务',literary:'文学',slang:'俚语',technical:'专业',archaic:'古旧',offensive:'冒犯',other:'其他'},
 };
+function currentLabelMode(){
+  return normalizeLabelMode(getSettings().labelMode);
+}
+function displayFieldLabel(group,value,mode=currentLabelMode()){
+  const code=String(value||'').trim();
+  if(!code)return '';
+  const text=LABELS[group]?.[code]||code;
+  if(mode==='code')return code;
+  if(mode==='both'&&text!==code)return `${code} · ${text}`;
+  return text;
+}
+function displayFieldLabels(group,values,mode=currentLabelMode()){
+  const list=Array.isArray(values)?values:[values];
+  return uniq(list.map(value=>displayFieldLabel(group,value,mode)).filter(Boolean));
+}
+function displayLanguageLabel(value){
+  const canonical=canonicalLanguage(value);
+  return canonical?displayFieldLabel('language',canonical):String(value||'');
+}
+function displayDirectionLabel(value,item){
+  const canonical=canonicalDirection(value,item);
+  return canonical?displayFieldLabel('direction',canonical):String(value||'');
+}
+function displayStyleLabel(value){
+  const tokens=canonicalStyleTokens(value);
+  return tokens.length?displayFieldLabels('style',tokens).join(' / '):String(value||'');
+}
 function historyCanonicalOptions(item,key){
-  return historyCanonicalValues(item,key).map(value=>({value,label:LABELS[key]?.[value]||value}));
+  return historyCanonicalValues(item,key).map(value=>({value,label:displayFieldLabel(key,value)}));
 }
 function historyCanonicalValues(item,key){
   if(key==='language')return uniq([canonicalLanguage(historyField(item,'language'))]);
@@ -2392,6 +2435,7 @@ function hydrateSettings(){
   const settings=getSettings();
   const profile=activeApiProfile(settings);
   renderApiProfilePicker(settings,profile);
+  applyLabelMode(settings.labelMode);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
 function renderApiProfilePicker(settings,profile){
@@ -2424,6 +2468,25 @@ function toggleApiProfileMenu(){
 function renderSettings(){
   hydrateSettings();
   renderLogs();
+}
+function applyLabelMode(mode){
+  const next=normalizeLabelMode(mode);
+  els.labelModeZhBtn?.classList.toggle('active',next==='zh');
+  els.labelModeCodeBtn?.classList.toggle('active',next==='code');
+  els.labelModeBothBtn?.classList.toggle('active',next==='both');
+}
+function setLabelMode(mode){
+  const next=normalizeLabelMode(mode);
+  const settings=getSettings();
+  setSettings({...settings,labelMode:next,updatedAt:new Date().toISOString()});
+  applyLabelMode(next);
+  renderHistory();
+  if(currentResult)renderResult(currentResult);
+  if(modalHistoryId){
+    const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+    if(item)openHistoryModal(modalHistoryId);
+  }
+  notify(`字段标签已切换为${next==='zh'?'中文':next==='code'?'缩写':'双语'}显示。`,'good','显示设置');
 }
 function saveSettings(){
   openApiProfileModal('edit');
@@ -2478,7 +2541,7 @@ function saveApiProfileFromModal(){
     const profiles=exists
       ? settings.apiProfiles.map(profile=>profile.id===id?{...profile,...draft}:profile)
       : [draft,...settings.apiProfiles];
-    saveSettingsLocal({apiProfiles:profiles,activeApiProfileId:id,updatedAt:now});
+    saveSettingsLocal({...settings,apiProfiles:profiles,activeApiProfileId:id,updatedAt:now});
     hydrateSettings();
     closeApiProfileModal();
     notify(`已保存「${draft.name}」。`,'good','API 配置');
@@ -2520,7 +2583,7 @@ function renderModelChoices(models){
 }
 async function resetModelSettings(){
   if(!await askConfirm('这会清空所有自定义 API 配置组，改回 Vercel 环境变量。','恢复接口默认'))return;
-  setSettings(DEFAULT_SETTINGS);
+  setSettings({...getSettings(),apiProfiles:[DEFAULT_API_PROFILE],activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:new Date().toISOString()});
   hydrateSettings();
   closeApiProfileMenu();
   notify('接口配置已恢复默认。','good','设置');

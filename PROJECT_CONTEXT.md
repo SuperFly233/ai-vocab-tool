@@ -78,6 +78,8 @@ Expected behavior:
 - Improved history list density by showing core meaning, compact part of speech, direction, and language on each row.
 - Added result text highlighting so examples, translations, collocation examples, and sense meanings can mark the current query or corresponding short labels.
 - Clearing the query input now clears the visible result/loading state and invalidates in-flight lookup responses so stale results are not rendered or saved.
+- Added a synced `labelMode` setting for language/direction/POS/style labels. The setting supports Chinese-only, code-only, and bilingual display, and the result view, history filters, history summaries, and style labels now use it.
+- API profile save/reset flows preserve `labelMode` so display preferences are not lost during API configuration changes.
 
 ## Working Rules
 
