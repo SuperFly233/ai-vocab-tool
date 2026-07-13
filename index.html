@@ -178,19 +178,10 @@
                 <div class="api-profile-current-copy">
                   <span>当前配置</span>
                   <strong id="api-profile-current-name">默认配置</strong>
-                  <em id="api-profile-current-meta">使用 Vercel 环境变量</em>
-                  <small id="api-profile-current-status">尚未测试</small>
                 </div>
-                <button class="plain-btn profile-menu-btn" id="api-profile-menu-toggle" type="button" onclick="toggleApiProfileMenu()">切换配置 <span aria-hidden="true">⌄</span></button>
+                <button class="plain-btn profile-menu-btn" id="api-profile-menu-toggle" type="button" onclick="toggleApiProfileMenu()" aria-label="展开配置菜单"><span aria-hidden="true">⌄</span></button>
               </div>
               <div class="api-profile-menu" id="api-profile-menu" aria-label="API 配置组列表"></div>
-            </div>
-            <div class="api-profile-actions">
-              <button class="plain-btn" onclick="testCurrentApiProfile()">测试连接</button>
-              <button class="plain-btn" onclick="newApiProfile()">新增配置</button>
-              <button class="plain-btn primary-btn" onclick="editApiProfile()">编辑当前</button>
-              <button class="plain-btn danger-btn" onclick="deleteApiProfile()">删除当前</button>
-              <button class="plain-btn ghost-btn" onclick="resetModelSettings()">清空全部</button>
             </div>
           </div>
         </div>
@@ -363,6 +354,7 @@
           <div class="json-status" id="api-profile-modal-status">未保存</div>
           <div class="action-row compact">
             <button class="plain-btn ghost-btn" id="api-profile-modal-cancel" type="button">取消</button>
+            <button class="plain-btn" id="api-profile-modal-test" type="button">测试连接</button>
             <button class="plain-btn primary-btn" id="api-profile-modal-save" type="button">保存配置</button>
           </div>
         </div>

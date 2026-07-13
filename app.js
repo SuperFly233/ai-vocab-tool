@@ -46,6 +46,7 @@ let passwordRecoveryMode=false;
 const cloudDirtyKeys=new Set();
 let editingFollowup=null;
 let pendingFollowup=null;
+let resultTypewriterTimers=[];
 const activeToasts=new Map();
 const historyState={
   query:'',
@@ -71,12 +72,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.36',
+  version:'0.9.37',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.37',
+    date:'2026-07-13',
+    title:'收敛 API 配置菜单并加入主结果打字机',
+    items:['API 配置外层只保留当前配置名称和下拉箭头，新增、选择、编辑、删除都收进下拉菜单，测试连接移入新增/编辑弹窗。','词条结果顶部把核心义单独突出为一行，类型、词性和方向合并为同一行辅助信息。','主查询结果在 JSON 校验完成后会逐字揭示结构化词条内容；手机端追问正文缩小并收紧行高。'],
+  },
   {
     version:'0.9.36',
     date:'2026-07-13',
@@ -384,8 +391,6 @@ const els={
   apiProfileMenu:document.getElementById('api-profile-menu'),
   apiProfileMenuToggle:document.getElementById('api-profile-menu-toggle'),
   apiProfileCurrentName:document.getElementById('api-profile-current-name'),
-  apiProfileCurrentMeta:document.getElementById('api-profile-current-meta'),
-  apiProfileCurrentStatus:document.getElementById('api-profile-current-status'),
   apiProfileModal:document.getElementById('api-profile-modal'),
   apiProfileModalTitle:document.getElementById('api-profile-modal-title'),
   apiProfileModalSubtitle:document.getElementById('api-profile-modal-subtitle'),
@@ -396,6 +401,7 @@ const els={
   apiModelList:document.getElementById('api-model-list'),
   apiModelFetchBtn:document.getElementById('api-model-fetch-btn'),
   apiProfileModalStatus:document.getElementById('api-profile-modal-status'),
+  apiProfileModalTest:document.getElementById('api-profile-modal-test'),
   apiProfileModalSave:document.getElementById('api-profile-modal-save'),
   apiProfileModalCancel:document.getElementById('api-profile-modal-cancel'),
   apiProfileModalClose:document.getElementById('api-profile-modal-close'),
@@ -1432,10 +1438,60 @@ function lookupErrorMessage(error){
   const message=error?.message||String(error||'未知错误');
   return error?.status?`HTTP ${error.status}：${message}`:message;
 }
-function renderResult(result){
+function renderResult(result,{animate=false}={}){
   currentResult=result;
   els.resultJson.innerHTML=renderStructuredJSON(result);
+  clearResultTypewriter();
   els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current',getCurrentHistoryItem());
+  if(animate)startResultTypewriter(els.resultCard);
+}
+function clearResultTypewriter(){
+  resultTypewriterTimers.forEach(timer=>clearTimeout(timer));
+  resultTypewriterTimers=[];
+  els.resultCard?.classList.remove('result-typing');
+}
+function startResultTypewriter(root){
+  if(!root||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{
+    acceptNode(node){
+      if(!node.nodeValue.trim())return NodeFilter.FILTER_REJECT;
+      const parent=node.parentElement;
+      if(!parent)return NodeFilter.FILTER_REJECT;
+      if(parent.closest('.followup-panel,button,textarea,input,select,pre,code,script,style,.result-icons,.json-section'))return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const chunks=[];
+  while(walker.nextNode()){
+    const node=walker.currentNode;
+    const text=node.nodeValue;
+    const match=text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    const body=match?.[2]||'';
+    if(!body.trim())continue;
+    chunks.push({node,prefix:match?.[1]||'',body,suffix:match?.[3]||'',index:0});
+    node.nodeValue=match?.[1]||'';
+  }
+  if(!chunks.length)return;
+  root.classList.add('result-typing');
+  const total=chunks.reduce((sum,item)=>sum+item.body.length,0);
+  const step=total>2200?9:total>1200?6:4;
+  let cursor=0;
+  const tick=()=>{
+    const item=chunks[cursor];
+    if(!item){
+      root.classList.remove('result-typing');
+      resultTypewriterTimers=[];
+      return;
+    }
+    item.index=Math.min(item.body.length,item.index+step);
+    item.node.nodeValue=item.prefix+item.body.slice(0,item.index);
+    if(item.index>=item.body.length){
+      item.node.nodeValue=item.prefix+item.body+item.suffix;
+      cursor+=1;
+    }
+    resultTypewriterTimers.push(setTimeout(tick,16));
+  };
+  resultTypewriterTimers.push(setTimeout(tick,40));
 }
 function renderResultHTML(result,followups=[],scope='current',historyItem=null){
   result=normalizeResultEntryType(result,result?.meta?.query||result?.headword?.title||historyItem?.query||'');
@@ -1451,10 +1507,10 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
     <div class="entry-head">
       <div class="entry-kicker">${escapeHTML([displayLanguageLabel(head.languageTag||meta.language),displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query))].filter(Boolean).join(' · ')||'词条')}</div>
       <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
+      ${head.coreMeaning?`<div class="entry-core"><b>核心义</b><mark>${escapeHTML(head.coreMeaning)}</mark></div>`:''}
       <div class="entry-meta-grid">
         <span><b>类型</b>${escapeHTML(displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)))}</span>
         <span><b>词性</b>${escapeHTML(headwordPartOfSpeech(head,senses))}</span>
-        <span><b>核心义</b><mark>${escapeHTML(head.coreMeaning||'')}</mark></span>
         <span><b>方向</b>${escapeHTML(displayDirectionLabel(meta.defaultDirection||meta.direction,result)||'')}</span>
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
@@ -2116,7 +2172,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo});
     currentHistoryId=saved.id;
     currentFollowups=saved.followups||[];
-    renderResult(data);
+    renderResult(data,{animate:true});
     notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
   }catch(error){
     if(isStaleLookup(runId,query))return;
@@ -3091,6 +3147,7 @@ function downloadText(filename,text){
   URL.revokeObjectURL(url);
 }
 function resetCurrentLookupState(){
+  clearResultTypewriter();
   lookupRunId+=1;
   lookupBusy=false;
   clearLookupQueue();
@@ -3119,15 +3176,22 @@ function hydrateSettings(){
 }
 function renderApiProfilePicker(settings,profile){
   if(els.apiProfileCurrentName)els.apiProfileCurrentName.textContent=profile.name||'未命名配置';
-  if(els.apiProfileCurrentMeta)els.apiProfileCurrentMeta.textContent=apiProfileSummary(profile);
-  setApiProfileStatus('尚未测试','');
   if(!els.apiProfileMenu)return;
-  els.apiProfileMenu.innerHTML=settings.apiProfiles.map(item=>`
-    <button class="api-profile-option ${item.id===profile.id?'active':''}" type="button" data-profile-id="${escapeHTML(item.id)}">
-      <span>${escapeHTML(item.name||'未命名配置')}</span>
-      <em>${escapeHTML(apiProfileSummary(item))}</em>
-    </button>
-  `).join('');
+  els.apiProfileMenu.innerHTML=`
+    <button class="api-profile-create" type="button" data-profile-action="new">新增配置</button>
+    <div class="api-profile-menu-list">
+      ${settings.apiProfiles.map(item=>`
+        <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-id="${escapeHTML(item.id)}">
+          <button class="api-profile-select" type="button" data-profile-action="select">
+            <span>${escapeHTML(item.name||'未命名配置')}</span>
+            <em>${escapeHTML(apiProfileSummary(item))}</em>
+          </button>
+          <button class="api-profile-edit" type="button" data-profile-action="edit">编辑</button>
+          <button class="api-profile-delete" type="button" data-profile-action="delete" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">×</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 function apiProfileSummary(profile){
   const hasUrl=Boolean(profile?.apiUrl);
@@ -3135,43 +3199,6 @@ function apiProfileSummary(profile){
   if(hasUrl&&hasKey)return profile.model?`已完整 · ${profile.model}`:'已完整 · 使用环境默认模型';
   if(hasUrl||hasKey)return '未完整 · 还缺 API URL 或 Key';
   return '空配置 · 使用 Vercel 环境变量';
-}
-function setApiProfileStatus(message,type=''){
-  if(!els.apiProfileCurrentStatus)return;
-  els.apiProfileCurrentStatus.textContent=message;
-  els.apiProfileCurrentStatus.classList.toggle('good',type==='good');
-  els.apiProfileCurrentStatus.classList.toggle('bad',type==='bad');
-  els.apiProfileCurrentStatus.classList.toggle('info',type==='info');
-}
-async function testCurrentApiProfile(){
-  const settings=currentApiSettings();
-  const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
-  if((settings.apiUrl&&!settings.apiKey)||(!settings.apiUrl&&settings.apiKey)){
-    setApiProfileStatus('配置不完整','bad');
-    return notify('API URL 和 API Key 需要同时填写。','bad','连接测试');
-  }
-  setApiProfileStatus('正在测试连接...','info');
-  try{
-    const response=await fetch('/api/test-profile',{
-      method:'POST',
-      headers:await analyzeHeaders(hasLocalEndpoint),
-      body:JSON.stringify({
-        apiUrl:hasLocalEndpoint?settings.apiUrl:'',
-        apiKey:hasLocalEndpoint?settings.apiKey:'',
-        model:hasLocalEndpoint?settings.model:'',
-      }),
-    });
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok||data.ok===false)throw new Error(data.error||`HTTP ${response.status}`);
-    const model=data.model||settings.model||configInfo?.model||'默认模型';
-    const elapsed=Number(data.elapsedMs||0);
-    setApiProfileStatus(`连接正常 · ${model}${elapsed?` · ${elapsed}ms`:''}`,'good');
-    notify(`连接正常：${model}${elapsed?`，${elapsed}ms`:''}`,'good','连接测试');
-  }catch(error){
-    const message=error?.message||String(error||'连接测试失败');
-    setApiProfileStatus(`连接失败 · ${message}`,'bad');
-    notify(message,'bad','连接测试失败');
-  }
 }
 function closeApiProfileMenu(){
   els.apiProfilePicker?.classList.remove('open');
@@ -3227,14 +3254,15 @@ function setFontMode(mode){
 function saveSettings(){
   openApiProfileModal('edit');
 }
-function editApiProfile(){
-  openApiProfileModal('edit');
+function editApiProfile(id=null){
+  openApiProfileModal('edit',id);
 }
-function openApiProfileModal(mode='edit'){
+function openApiProfileModal(mode='edit',profileId=null){
   const settings=getSettings();
+  const target=settings.apiProfiles.find(item=>item.id===profileId)||activeApiProfile(settings);
   const profile=mode==='new'
     ? {...DEFAULT_API_PROFILE,id:`api_${Date.now()}`,name:`配置 ${settings.apiProfiles.length+1}`}
-    : activeApiProfile(settings);
+    : target;
   editingApiProfileId=profile.id;
   if(els.apiProfileModalTitle)els.apiProfileModalTitle.textContent=mode==='new'?'新增 API 配置':'编辑 API 配置';
   if(els.apiProfileModalSubtitle)els.apiProfileModalSubtitle.textContent=mode==='new'?'填写后会新增并切换到这组配置。':'保存后会更新当前配置。';
@@ -3260,6 +3288,14 @@ function setApiProfileModalStatus(message,type=''){
   els.apiProfileModalStatus.classList.toggle('good',type==='good');
   els.apiProfileModalStatus.classList.toggle('bad',type==='bad');
 }
+function apiProfileDraftFromModal(){
+  return {
+    name:els.apiModalName?.value.trim()||'未命名配置',
+    apiUrl:els.apiModalUrl?.value.trim()||'',
+    apiKey:els.apiModalKey?.value.trim()||'',
+    model:els.apiModalModel?.value.trim()||'',
+  };
+}
 function saveApiProfileFromModal(){
   try{
     const settings=getSettings();
@@ -3267,10 +3303,7 @@ function saveApiProfileFromModal(){
     const now=new Date().toISOString();
     const draft={
       id,
-      name:els.apiModalName?.value.trim()||'未命名配置',
-      apiUrl:els.apiModalUrl?.value.trim()||'',
-      apiKey:els.apiModalKey?.value.trim()||'',
-      model:els.apiModalModel?.value.trim()||'',
+      ...apiProfileDraftFromModal(),
       updatedAt:now,
     };
     const exists=settings.apiProfiles.some(profile=>profile.id===id);
@@ -3286,6 +3319,26 @@ function saveApiProfileFromModal(){
     const message=error?.message||String(error||'保存失败');
     notify(message,'bad','API 配置保存失败');
     setApiProfileModalStatus(message,'bad');
+  }
+}
+async function testApiProfileDraft(){
+  const draft=apiProfileDraftFromModal();
+  if(!draft.apiUrl)return setApiProfileModalStatus('先填写 API URL。','bad');
+  if(!draft.apiKey)return setApiProfileModalStatus('先填写 API Key。','bad');
+  setApiProfileModalStatus('正在测试当前填写内容...','');
+  try{
+    const response=await fetch('/api/test-profile',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({apiUrl:draft.apiUrl,apiKey:draft.apiKey,model:draft.model}),
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||data.ok===false)throw new Error(data.error||`HTTP ${response.status}`);
+    const model=data.model||draft.model||configInfo?.model||'默认模型';
+    const elapsed=Number(data.elapsedMs||0);
+    setApiProfileModalStatus(`连接正常：${model}${elapsed?` · ${elapsed}ms`:''}`,'good');
+  }catch(error){
+    setApiProfileModalStatus(`连接失败：${error.message||error}`,'bad');
   }
 }
 async function fetchApiModels(){
@@ -3332,15 +3385,17 @@ function selectApiProfile(id){
   closeApiProfileMenu();
 }
 function newApiProfile(){
+  closeApiProfileMenu();
   openApiProfileModal('new');
 }
-async function deleteApiProfile(){
+async function deleteApiProfile(id=null){
   const settings=getSettings();
-  const current=activeApiProfile(settings);
+  const current=settings.apiProfiles.find(profile=>profile.id===id)||activeApiProfile(settings);
   if(!await askConfirm(`确认删除「${current.name}」？`,'删除 API 配置'))return;
   const profiles=settings.apiProfiles.filter(profile=>profile.id!==current.id);
   const nextProfiles=profiles.length?profiles:[DEFAULT_API_PROFILE];
-  setSettings({...settings,apiProfiles:nextProfiles,activeApiProfileId:nextProfiles[0].id,updatedAt:new Date().toISOString()});
+  const activeId=current.id===settings.activeApiProfileId?nextProfiles[0].id:settings.activeApiProfileId;
+  setSettings({...settings,apiProfiles:nextProfiles,activeApiProfileId:activeId,updatedAt:new Date().toISOString()});
   hydrateSettings();
   closeApiProfileMenu();
   notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置');
@@ -3519,9 +3574,17 @@ els.historyFilterbar?.addEventListener('click',event=>{
   if(event.target.closest('.history-filter-clear'))return clearHistoryFilter(key);
 });
 els.apiProfileMenu?.addEventListener('click',event=>{
+  const action=event.target.closest('[data-profile-action]')?.dataset.profileAction;
+  if(!action)return;
   const option=event.target.closest('.api-profile-option');
-  if(!option)return;
-  selectApiProfile(option.dataset.profileId);
+  const id=option?.dataset.profileId||'';
+  if(action==='new')return newApiProfile();
+  if(action==='select')return selectApiProfile(id);
+  if(action==='edit'){
+    closeApiProfileMenu();
+    return editApiProfile(id);
+  }
+  if(action==='delete')return deleteApiProfile(id);
 });
 els.apiModelList?.addEventListener('click',event=>{
   const option=event.target.closest('.model-choice');
@@ -3529,6 +3592,7 @@ els.apiModelList?.addEventListener('click',event=>{
   if(els.apiModalModel)els.apiModalModel.value=option.dataset.model||option.textContent.trim();
 });
 els.apiModelFetchBtn?.addEventListener('click',fetchApiModels);
+els.apiProfileModalTest?.addEventListener('click',testApiProfileDraft);
 els.apiProfileModalSave?.addEventListener('click',saveApiProfileFromModal);
 els.apiProfileModalCancel?.addEventListener('click',()=>closeApiProfileModal());
 els.apiProfileModalClose?.addEventListener('click',()=>closeApiProfileModal());
