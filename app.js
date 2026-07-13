@@ -76,12 +76,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.43',
+  version:'0.9.44',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.44',
+    date:'2026-07-14',
+    title:'修复流式查询时的排队输入',
+    items:['查询进行中清空主输入框不再触发 resetCurrentLookupState，因此不会意外取消当前流式查询或清空等待队列。','队列里的下一条开始执行时会同步回主输入、方向和备注字段，用户能看清当前正在处理哪条。','查询忙碌时遇到已有历史记录会直接加入队列并保留 existingId，不再弹确认框打断连续排队。'],
+  },
   {
     version:'0.9.43',
     date:'2026-07-13',
@@ -2263,7 +2269,7 @@ async function runLookup(){
   const query=els.query.value.trim();
   if(!query)return notify('请输入要查的内容。','bad','无法查询');
   const existing=findHistoryByQuery(query);
-  if(existing){
+  if(existing&&!lookupBusy){
     const rolls=getHistoryRolls(existing).length;
     const ok=await askConfirm(`“${query}” 已经有历史记录${rolls>1?`（${rolls} 个版本）`:''}。确认重新生成并保留为新版本？取消则打开已有记录。`,'已有记录');
     if(!ok){
@@ -2344,7 +2350,15 @@ function processNextLookup(){
   if(lookupBusy||!lookupQueue.length)return;
   const next=lookupQueue.shift();
   renderLookupQueue();
+  applyLookupRequestToEditor(next);
   performLookup(next);
+}
+function applyLookupRequestToEditor(request){
+  if(!request)return;
+  if(els.query)els.query.value=request.query||'';
+  if(els.direction)els.direction.value=request.direction||'';
+  if(els.note)els.note.value=request.note||'';
+  updateEditorState();
 }
 async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null}){
   const settings=currentApiSettings();
@@ -4040,7 +4054,7 @@ function updateEditorState(){
   els.clearQueryBtn?.classList.toggle('hidden',!hasText);
 }
 function handleQueryInput(){
-  if(!els.query.value.trim()&&(currentResult||lookupBusy)){
+  if(!els.query.value.trim()&&currentResult&&!lookupBusy){
     resetCurrentLookupState();
   }
   updateEditorState();
