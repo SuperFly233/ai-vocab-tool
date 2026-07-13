@@ -220,6 +220,78 @@ async function parseModelJSON({ apiUrl, apiKey, model, content }) {
   }
 }
 
+function writeStreamEvent(response, data) {
+  response.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+async function streamAnalyze(upstream, response, parseContext) {
+  response.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const reader = upstream.body?.getReader();
+  if (!reader) {
+    writeStreamEvent(response, { error: '当前模型接口没有返回可读取的流。' });
+    response.end();
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+  const finish = async () => {
+    try {
+      const result = await parseModelJSON({ ...parseContext, content });
+      writeStreamEvent(response, { result, done: true });
+    } catch (error) {
+      writeStreamEvent(response, { error: error.message || '流式查询 JSON 校验失败。' });
+    } finally {
+      response.end();
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() || '';
+      for (const event of events) {
+        for (const line of event.split(/\r?\n/)) {
+          if (!line.startsWith('data:')) continue;
+          const raw = line.slice(5).trim();
+          if (!raw) continue;
+          if (raw === '[DONE]') {
+            await finish();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(raw);
+            const delta = parsed.choices?.[0]?.delta?.content
+              ?? parsed.choices?.[0]?.message?.content
+              ?? parsed.choices?.[0]?.text
+              ?? '';
+            if (delta) {
+              content += delta;
+              writeStreamEvent(response, { delta });
+            }
+          } catch {
+            // Ignore provider keepalive frames that are not JSON.
+          }
+        }
+      }
+    }
+    await finish();
+  } catch (error) {
+    writeStreamEvent(response, { error: error.message || '流式查询中断。' });
+    response.end();
+  }
+}
+
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.status(405).json({ error: 'Method not allowed' });
@@ -245,6 +317,7 @@ export default async function handler(request, response) {
 
   try {
     await assertCanUseEnvironmentKey(request, payload);
+    const stream = Boolean(payload.stream);
     const upstream = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -255,6 +328,7 @@ export default async function handler(request, response) {
         model,
         temperature: 0.2,
         max_tokens: 9000,
+        stream,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -268,6 +342,12 @@ export default async function handler(request, response) {
       return;
     }
 
+    const upstreamContentType = upstream.headers.get('content-type') || '';
+    if (stream && upstreamContentType.includes('text/event-stream')) {
+      await streamAnalyze(upstream, response, { apiUrl, apiKey, model });
+      return;
+    }
+
     const data = await upstream.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
@@ -275,7 +355,20 @@ export default async function handler(request, response) {
       return;
     }
 
-    response.status(200).json(await parseModelJSON({ apiUrl, apiKey, model, content }));
+    const result = await parseModelJSON({ apiUrl, apiKey, model, content });
+    if (stream) {
+      response.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      writeStreamEvent(response, { delta: content });
+      writeStreamEvent(response, { result, done: true });
+      response.end();
+      return;
+    }
+    response.status(200).json(result);
   } catch (error) {
     response.status(error.status || 500).json({ error: error.message || 'Unexpected server error' });
   }

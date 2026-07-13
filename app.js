@@ -74,12 +74,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.40',
+  version:'0.9.41',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.41',
+    date:'2026-07-13',
+    title:'主查询改为真实流式生成',
+    items:['主查询请求现在会向 /api/analyze 发送 stream:true，服务端按 OpenAI-style SSE 转发模型 delta，不再等完整 JSON 才返回。','前端会边接收边显示原始 JSON，并从已生成文本中提取 headword、义项、搭配、语感和易混块做实时预览。','模型结束后服务端仍会执行完整 JSON 校验和必要修复，历史保存只使用最终校验后的结构化结果。'],
+  },
   {
     version:'0.9.40',
     date:'2026-07-13',
@@ -1445,7 +1451,7 @@ function renderLookupLoading(query,settings,runId=lookupRunId){
       `).join('')}
     </div>
   `;
-  els.resultJson.innerHTML=`<div class="json-stream-loading"><pre>{
+  els.resultJson.innerHTML=`<div class="json-stream-loading"><pre id="lookup-stream-json">{
   "meta": { "query": ${JSON.stringify(query)}, "status": "requesting" },
   "headword": "waiting...",
   "senses": [],
@@ -1497,6 +1503,10 @@ function startLookupLoadingProgress(runId){
     }
   },520);
   lookupLoadingTimers.push(timer);
+}
+function setLookupStreamPercent(value){
+  const percentEl=document.getElementById('lookup-progress-percent');
+  if(percentEl)percentEl.textContent=`${Math.max(1,Math.min(99,Math.round(value)))}%`;
 }
 function renderLookupRetry(query,error,nextAttempt,totalAttempts){
   clearLookupLoadingTimers();
@@ -2342,7 +2352,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo});
     currentHistoryId=saved.id;
     currentFollowups=saved.followups||[];
-    renderResult(data,{animate:true});
+    renderResult(data,{animate:false});
     notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
   }catch(error){
     if(isStaleLookup(runId,query))return;
@@ -2363,9 +2373,12 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
       const response=await fetch('/api/analyze',{
         method:'POST',
         headers:await analyzeHeaders(hasLocalEndpoint),
-        body:JSON.stringify(payload),
+        body:JSON.stringify({...payload,stream:true}),
       });
-      const data=await parseLookupResponse(response);
+      const contentType=response.headers.get('content-type')||'';
+      const data=response.ok&&response.body&&contentType.includes('text/event-stream')
+        ? await readLookupStream(response,{query,runId})
+        : await parseLookupResponse(response);
       if(!response.ok)throw lookupHttpError(response,data);
       return data;
     }catch(error){
@@ -2381,6 +2394,237 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
     }
   }
   throw lastError||new Error('查询失败');
+}
+async function readLookupStream(response,{query,runId}){
+  const reader=response.body?.getReader();
+  if(!reader)throw new Error('当前浏览器无法读取流式查询。');
+  const decoder=new TextDecoder();
+  let buffer='';
+  let raw='';
+  let finalResult=null;
+  let streamStarted=false;
+  const handleEvent=data=>{
+    if(data.delta){
+      if(!streamStarted){
+        streamStarted=true;
+        clearLookupLoadingTimers();
+        clearJSONTypewriter();
+      }
+      raw+=String(data.delta);
+      renderLookupStreamPreview(raw,query,runId,false);
+    }
+    if(data.result){
+      finalResult=data.result;
+      renderLookupStreamPreview(raw,query,runId,true);
+    }
+    if(data.error)throw new Error(data.error);
+  };
+  while(true){
+    const {done,value}=await reader.read();
+    if(done)break;
+    if(isStaleLookup(runId,query))throw new Error('查询已被新的请求取代。');
+    buffer+=decoder.decode(value,{stream:true});
+    const events=buffer.split(/\r?\n\r?\n/);
+    buffer=events.pop()||'';
+    for(const event of events){
+      for(const line of event.split(/\r?\n/)){
+        if(!line.startsWith('data:'))continue;
+        const rawLine=line.slice(5).trim();
+        if(!rawLine)continue;
+        let data=null;
+        try{data=JSON.parse(rawLine)}catch{continue}
+        handleEvent(data);
+      }
+    }
+  }
+  if(!finalResult)throw new Error('流式查询结束但没有收到校验后的 JSON。');
+  return finalResult;
+}
+function decodeJSONText(value){
+  try{return JSON.parse(`"${String(value||'')}"`)}catch{return String(value||'')}
+}
+function partialStringValue(raw,key){
+  const match=String(raw||'').match(new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`));
+  return match?decodeJSONText(match[1]):'';
+}
+function scanJSONObjectAt(text,start){
+  let depth=0,inString=false,escaped=false;
+  for(let index=start;index<text.length;index+=1){
+    const char=text[index];
+    if(inString){
+      if(escaped){escaped=false;continue}
+      if(char==='\\'){escaped=true;continue}
+      if(char==='"')inString=false;
+      continue;
+    }
+    if(char==='"'){inString=true;continue}
+    if(char==='{')depth+=1;
+    if(char==='}'){
+      depth-=1;
+      if(depth===0)return text.slice(start,index+1);
+    }
+  }
+  return '';
+}
+function valueStartForKey(raw,key){
+  const match=new RegExp(`"${key}"\\s*:`).exec(raw);
+  if(!match)return -1;
+  let index=match.index+match[0].length;
+  while(/\s/.test(raw[index]||''))index+=1;
+  return index;
+}
+function partialObjectValue(raw,key){
+  const start=valueStartForKey(raw,key);
+  if(start<0||raw[start]!=='{')return null;
+  const json=scanJSONObjectAt(raw,start);
+  if(!json)return null;
+  try{return JSON.parse(json)}catch{return null}
+}
+function partialArrayObjects(raw,key){
+  const start=valueStartForKey(raw,key);
+  if(start<0||raw[start]!=='[')return [];
+  const items=[];
+  let index=start+1,inString=false,escaped=false;
+  while(index<raw.length){
+    const char=raw[index];
+    if(inString){
+      if(escaped){escaped=false;index+=1;continue}
+      if(char==='\\'){escaped=true;index+=1;continue}
+      if(char==='"')inString=false;
+      index+=1;
+      continue;
+    }
+    if(char==='"'){inString=true;index+=1;continue}
+    if(char==='{'){
+      const json=scanJSONObjectAt(raw,index);
+      if(!json)break;
+      try{items.push(JSON.parse(json))}catch{}
+      index+=json.length;
+      continue;
+    }
+    if(char===']')break;
+    index+=1;
+  }
+  return items;
+}
+function partialLookupFromRaw(raw,query){
+  return {
+    meta:{
+      query:partialStringValue(raw,'query')||query,
+      normalized:partialStringValue(raw,'normalized'),
+      language:partialStringValue(raw,'language'),
+      defaultDirection:partialStringValue(raw,'defaultDirection'),
+      entryType:partialStringValue(raw,'entryType'),
+    },
+    headword:{
+      languageTag:partialStringValue(raw,'languageTag'),
+      title:partialStringValue(raw,'title')||query,
+      basicPartOfSpeech:partialStringValue(raw,'basicPartOfSpeech'),
+      coreMeaning:partialStringValue(raw,'coreMeaning'),
+      summary:partialStringValue(raw,'summary'),
+    },
+    senses:partialArrayObjects(raw,'senses'),
+    collocations:partialArrayObjects(raw,'collocations'),
+    register:partialObjectValue(raw,'register')||{},
+    confusions:partialArrayObjects(raw,'confusions'),
+  };
+}
+function lookupStreamProgress(partial,raw,done=false){
+  if(done)return 100;
+  let score=Math.min(10,Math.floor(String(raw||'').length/180));
+  if(partial.headword.title)score+=10;
+  if(partial.headword.coreMeaning)score+=14;
+  if(partial.headword.summary)score+=8;
+  score+=Math.min(24,(partial.senses||[]).length*8);
+  score+=Math.min(16,(partial.collocations||[]).length*5);
+  if(partial.register?.style||partial.register?.tone||partial.register?.environment)score+=12;
+  score+=Math.min(10,(partial.confusions||[]).length*5);
+  return Math.max(8,Math.min(96,score));
+}
+function renderLookupStreamPreview(raw,query,runId,done=false){
+  if(isStaleLookup(runId,query))return;
+  const pre=document.getElementById('lookup-stream-json')||els.resultJson.querySelector('pre');
+  if(pre)pre.textContent=raw||'';
+  const partial=partialLookupFromRaw(raw,query);
+  setLookupStreamPercent(lookupStreamProgress(partial,raw,done));
+  els.resultCard.innerHTML=renderLookupStreamHTML(partial,raw,done);
+}
+function streamValue(value,placeholder='正在生成'){
+  const text=String(value||'').trim();
+  return text?escapeHTML(text):`<span class="stream-placeholder">${placeholder}</span>`;
+}
+function renderLookupStreamItems(items,type){
+  if(!items?.length)return '<div class="stream-empty">这一块还在生成...</div>';
+  return items.slice(0,8).map((item,index)=>{
+    if(type==='sense')return `<div class="item stream-item">
+      <div class="item-index">${Number(index)+1}</div>
+      <div class="item-body">
+        <div class="item-title"><mark>${streamValue(item.shortestLabel||item.partOfSpeech,'义标生成中')}</mark></div>
+        <div class="line"><b>语意</b><span>${streamValue(item.meaning)}</span></div>
+        <div class="line"><b>例句</b><span>${streamValue(item.example)}</span></div>
+        <div class="line"><b>译文</b><span>${streamValue(item.translation)}</span></div>
+      </div>
+    </div>`;
+    if(type==='collocation')return `<div class="item stream-item">
+      <div class="item-index">${Number(index)+1}</div>
+      <div class="item-body">
+        <div class="item-title"><mark>${streamValue(item.phrase,'搭配生成中')}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
+        <div class="line"><b>语意</b><span>${streamValue(item.meaning)}</span></div>
+        <div class="line"><b>例句</b><span>${streamValue(item.example)}</span></div>
+      </div>
+    </div>`;
+    return `<div class="item stream-item">
+      <div class="item-body">
+        <div class="item-title"><mark>${streamValue(item.term,'词项生成中')}</mark></div>
+        <div class="line"><b>区别</b><span>${streamValue(item.difference)}</span></div>
+        <div class="line"><b>使用</b><span>${streamValue(item.usage)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderLookupStreamHTML(partial,raw,done=false){
+  const head=partial.headword||{};
+  const meta=partial.meta||{};
+  const register=partial.register||{};
+  return `
+    <div class="lookup-stream live">
+      <div class="lookup-progress-badge" aria-live="polite">
+        <i aria-hidden="true"></i>
+        <span id="lookup-progress-percent">${Math.round(lookupStreamProgress(partial,raw,done))}%</span>
+      </div>
+      <div class="entry-head lookup-live-head">
+        <div class="entry-kicker">模型正在生成 · ${streamValue(meta.language||head.languageTag,'语言识别中')}</div>
+        <div class="entry-title">${streamValue(head.title||meta.normalized||meta.query,'词条生成中')}</div>
+        <div class="entry-core"><b>核心义</b><mark>${streamValue(head.coreMeaning,'核心义生成中')}</mark></div>
+        <div class="entry-meta-grid">
+          <span><b>类型</b>${streamValue(displayEntryTypeLabel(meta.entryType),'—')}</span>
+          <span><b>词性</b>${streamValue(head.basicPartOfSpeech,'—')}</span>
+          <span><b>方向</b>${streamValue(displayDirectionLabel(meta.defaultDirection),'—')}</span>
+        </div>
+        ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:'<div class="entry-meta stream-placeholder">摘要生成中...</div>'}
+      </div>
+      <div class="block stream-block">
+        <div class="block-title">义项分析 <small>${(partial.senses||[]).length} 项已生成</small></div>
+        ${renderLookupStreamItems(partial.senses,'sense')}
+      </div>
+      <div class="block stream-block">
+        <div class="block-title">固定搭配 <small>${(partial.collocations||[]).length} 项已生成</small></div>
+        ${renderLookupStreamItems(partial.collocations,'collocation')}
+      </div>
+      <div class="block stream-block">
+        <div class="block-title">语感与使用</div>
+        <div class="register-grid">
+          <div><b>语体</b><span>${streamValue(register.style)}</span></div>
+          <div><b>语气</b><span>${streamValue(register.tone)}</span></div>
+          <div><b>场景</b><span>${streamValue(register.environment)}</span></div>
+        </div>
+      </div>
+      <div class="block stream-block">
+        <div class="block-title">易混辨析 <small>${(partial.confusions||[]).length} 项已生成</small></div>
+        ${renderLookupStreamItems(partial.confusions,'confusion')}
+      </div>
+    </div>
+  `;
 }
 async function parseLookupResponse(response){
   try{
