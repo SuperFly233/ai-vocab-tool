@@ -51,6 +51,7 @@ const historyState={
   sort:'time',
   sortDir:'desc',
   filters:{
+    entryType:[],
     language:[],
     direction:[],
     pos:[],
@@ -67,12 +68,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.27',
+  version:'0.9.28',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.28',
+    date:'2026-07-13',
+    title:'新增单词/词组类型层',
+    items:['查询结果会自动标记 meta.entryType 为 word 或 phrase，用于区分单词和词组/表达。','结果页和历史列表会显示“单词/词组”类型，历史筛选也新增类型多选。','历史可视化编辑支持修改词条类型，旧历史会根据查询文本自动推断，不需要手动迁移。'],
+  },
   {
     version:'0.9.27',
     date:'2026-07-13',
@@ -1344,6 +1351,7 @@ function renderResult(result){
   els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current',getCurrentHistoryItem());
 }
 function renderResultHTML(result,followups=[],scope='current',historyItem=null){
+  result=normalizeResultEntryType(result,result?.meta?.query||result?.headword?.title||historyItem?.query||'');
   const head=result.headword||{};
   const meta=result.meta||{};
   const senses=result.senses||[];
@@ -1354,9 +1362,10 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
   const related=relatedHistoryItems(result,scope);
   return `
     <div class="entry-head">
-      <div class="entry-kicker">${escapeHTML(displayLanguageLabel(head.languageTag||meta.language)||'词条')}</div>
+      <div class="entry-kicker">${escapeHTML([displayLanguageLabel(head.languageTag||meta.language),displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query))].filter(Boolean).join(' · ')||'词条')}</div>
       <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
       <div class="entry-meta-grid">
+        <span><b>类型</b>${escapeHTML(displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)))}</span>
         <span><b>词性</b>${escapeHTML(headwordPartOfSpeech(head,senses))}</span>
         <span><b>核心义</b><mark>${escapeHTML(head.coreMeaning||'')}</mark></span>
         <span><b>方向</b>${escapeHTML(displayDirectionLabel(meta.defaultDirection||meta.direction,result)||'')}</span>
@@ -1940,6 +1949,7 @@ function findHistoryByQuery(query){
 }
 function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={}}){
   const now=new Date().toISOString();
+  result=normalizeResultEntryType(result,query);
   const history=getHistory();
   const existing=sourceItem||history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query);
   const roll=makeHistoryRoll(result,now,null,modelInfo);
@@ -2025,10 +2035,11 @@ function historyEntryMeta(item){
   const result=latestHistoryResult(item);
   const head=result.headword||{};
   const senses=Array.isArray(result.senses)?result.senses:[];
+  const entryType=displayEntryTypeLabel(entryTypeForResult(result,item.query));
   const pos=compactPartOfSpeech(head,senses);
   const direction=historyCanonicalValues(item,'direction').map(value=>displayFieldLabel('direction',value)).filter(Boolean)[0];
   const language=historyCanonicalValues(item,'language').map(value=>displayFieldLabel('language',value)).filter(Boolean)[0];
-  return [pos,direction,language].filter(Boolean);
+  return [entryType,pos,direction,language].filter(Boolean);
 }
 function compactPartOfSpeech(head={},senses=[]){
   const tokens=uniq([
@@ -2067,6 +2078,7 @@ function filterAndSortHistory(history){
 function historyMatchesFilters(item){
   const filters=historyState.filters;
   return filterMatches(historyCanonicalValues(item,'language'),filters.language)
+    && filterMatches(historyCanonicalValues(item,'entryType'),filters.entryType)
     && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
     && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
     && filterMatches(historyCanonicalValues(item,'style'),filters.style)
@@ -2107,7 +2119,40 @@ function rawList(value){
   if(Array.isArray(value))return value.flatMap(rawList);
   return value?[value]:[];
 }
+function normalizeResultEntryType(result={},fallbackQuery=''){
+  result.meta=result.meta||{};
+  result.meta.entryType=entryTypeForResult(result,fallbackQuery);
+  return result;
+}
+function entryTypeForResult(result={},fallbackQuery=''){
+  const explicit=canonicalEntryType(result.meta?.entryType);
+  if(explicit)return explicit;
+  const pos=canonicalPosTokens(result.headword?.basicPartOfSpeech||'');
+  if(pos.includes('phrase')||pos.includes('sentence'))return 'phrase';
+  return inferEntryTypeFromText(result.meta?.normalized||result.meta?.query||result.headword?.title||fallbackQuery);
+}
+function canonicalEntryType(value){
+  const text=normalizeSearch(value);
+  if(!text)return '';
+  if(/\b(word|single)\b|单词|單詞|词$|詞$/.test(text))return 'word';
+  if(/\b(phrase|expression|idiom|sentence|clause)\b|短语|短語|词组|詞組|表达|固定搭配|句子|从句|片语|片語/.test(text))return 'phrase';
+  if(text==='word')return 'word';
+  if(text==='phrase'||text==='sentence')return 'phrase';
+  return '';
+}
+function inferEntryTypeFromText(value){
+  const text=normalizeSearch(value);
+  if(!text)return 'word';
+  if(/\s/.test(text))return 'phrase';
+  if(/[，,。.!?？；;:：/／|、()（）[\]{}"“”‘’]/.test(text))return 'phrase';
+  return 'word';
+}
+function displayEntryTypeLabel(value){
+  const type=canonicalEntryType(value)||value;
+  return displayFieldLabel('entryType',type);
+}
 const LABELS={
+  entryType:{word:'单词',phrase:'词组'},
   language:{en:'英语',zh:'中文',ja:'日语',ko:'韩语',fr:'法语',es:'西语',de:'德语',other:'其他'},
   direction:{'en-zh':'英译中','zh-en':'中译英','ja-zh':'日译中','zh-ja':'中译日','ko-zh':'韩译中','zh-ko':'中译韩','fr-zh':'法译中','zh-fr':'中译法','es-zh':'西译中','zh-es':'中译西','de-zh':'德译中','zh-de':'中译德','other':'其他'},
   pos:{n:'名词',v:'动词',adj:'形容词',adv:'副词',prep:'介词',conj:'连词',pron:'代词',det:'限定词',aux:'助动词',interj:'感叹词',phrase:'短语',sentence:'句子',other:'其他'},
@@ -2144,6 +2189,7 @@ function historyCanonicalOptions(item,key){
   return historyCanonicalValues(item,key).map(value=>({value,label:displayFieldLabel(key,value)}));
 }
 function historyCanonicalValues(item,key){
+  if(key==='entryType')return uniq([entryTypeForResult(latestHistoryResult(item),item.query)]);
   if(key==='language')return uniq([canonicalLanguage(historyField(item,'language'))]);
   if(key==='direction')return uniq([canonicalDirection(historyField(item,'direction'),item)]);
   if(key==='style')return uniq(canonicalStyleTokens(historyField(item,'style')));
@@ -2224,7 +2270,7 @@ function uniq(items){
   return [...new Set(items.filter(Boolean))];
 }
 function collectHistoryOptions(history){
-  const maps={language:new Map(),direction:new Map(),pos:new Map(),style:new Map(),tag:new Map()};
+  const maps={entryType:new Map(),language:new Map(),direction:new Map(),pos:new Map(),style:new Map(),tag:new Map()};
   history.forEach(item=>{
     Object.keys(maps).forEach(key=>{
       historyCanonicalOptions(item,key).forEach(option=>{
@@ -2241,6 +2287,7 @@ function collectHistoryOptions(history){
 }
 function renderHistoryFilterOptions(history){
   const options=collectHistoryOptions(history);
+  renderHistoryFilterGroup('entryType','类型',options.entryType);
   renderHistoryFilterGroup('language','语言',options.language);
   renderHistoryFilterGroup('direction','方向',options.direction);
   renderHistoryFilterGroup('pos','词性',options.pos);
@@ -2414,6 +2461,7 @@ function renderVisualEditor(result=modalResult){
     <div class="visual-grid">
       ${visualField('visual-title','词条标题',head.title||meta.query||'')}
       ${visualField('visual-core','核心义',head.coreMeaning||'')}
+      ${visualField('visual-entry-type','类型',entryTypeForResult(data,head.title||meta.query||''))}
       ${visualField('visual-pos','词性',head.basicPartOfSpeech||'')}
       ${visualField('visual-language','语言',head.languageTag||meta.language||'')}
       ${visualField('visual-direction','方向',meta.defaultDirection||meta.direction||'')}
@@ -2473,6 +2521,7 @@ function collectVisualResult(){
   data.headword=data.headword||{};
   data.headword.title=document.getElementById('visual-title')?.value.trim()||data.headword.title||data.meta.query||'';
   data.headword.coreMeaning=document.getElementById('visual-core')?.value.trim()||'';
+  data.meta.entryType=canonicalEntryType(document.getElementById('visual-entry-type')?.value.trim())||entryTypeForResult(data,data.headword.title);
   data.headword.basicPartOfSpeech=document.getElementById('visual-pos')?.value.trim()||'';
   data.headword.languageTag=document.getElementById('visual-language')?.value.trim()||'';
   data.headword.summary=document.getElementById('visual-summary')?.value.trim()||'';
@@ -2549,6 +2598,7 @@ function saveHistoryEdit(){
     return;
   }
   const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
+  parsed=normalizeResultEntryType(parsed,query);
   const tags=normalizeTags(els.modalTagsEdit?.value||'');
   const note=String(els.modalNoteEdit?.value||'').trim();
   const now=new Date().toISOString();
