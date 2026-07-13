@@ -76,12 +76,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.42',
+  version:'0.9.43',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.43',
+    date:'2026-07-13',
+    title:'回退主查询频繁重启动画',
+    items:['取消主查询流式预览里的块级上浮动画，避免模型 delta 频繁刷新时所有区块反复浮动。','追问生成中的正文也不再反复触发入场动画，仅保留轻量光标和 pending 状态，优先保证阅读稳定。'],
+  },
   {
     version:'0.9.42',
     date:'2026-07-13',

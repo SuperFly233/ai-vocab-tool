@@ -77,6 +77,7 @@ Expected behavior:
 - Expanded follow-up answer Markdown rendering: blockquotes, fenced code blocks, tables, horizontal rules, headings, ordered/unordered lists, links, strikethrough, inline code, bold, and emphasis are handled by a small escaped line parser. Tables use a horizontal scroll wrapper and a column-count-based minimum width for mobile.
 - Compressed the mobile History page: advanced filters are collapsed behind a summary button, sorting is a horizontal strip, item actions move below the content, and the list renders in batches with near-bottom loading to reduce jank on large histories.
 - Added softer opacity/translate entrance motion to the main lookup stream and pending follow-up answers so streamed content no longer appears as abrupt blocks.
+- Reverted the main lookup and pending follow-up block entrance animations because the stream preview rerenders on every delta; keep the live content visually stable and only show the lightweight caret/pending state.
 - Improved history list density by showing core meaning, compact part of speech, direction, and language on each row.
 - Added result text highlighting so examples, translations, collocation examples, and sense meanings can mark the current query or corresponding short labels.
 - Clearing the query input now clears the visible result/loading state and invalidates in-flight lookup responses so stale results are not rendered or saved.

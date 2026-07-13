@@ -227,25 +227,15 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .lookup-skeleton-lines i{display:block;height:13px;border-radius:999px;background:linear-gradient(90deg,var(--panel2),color-mix(in srgb,var(--accent-bg) 62%,var(--panel)),var(--panel2));background-size:220% 100%;animation:skeletonSweep 1.55s ease-in-out infinite}
 .lookup-skeleton-lines i:nth-child(2){width:82%;animation-delay:.12s}
 .lookup-skeleton-lines i:nth-child(3){width:58%;animation-delay:.24s}
-.lookup-stream.live{animation:streamSurfaceIn .32s cubic-bezier(.2,.8,.2,1) both}
+.lookup-stream.live{animation:none}
 .lookup-live-head{border:1px solid color-mix(in srgb,var(--accent) 18%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--panel) 74%,var(--panel2));padding:14px;margin:0}
-.lookup-stream.live .lookup-live-head,.lookup-stream.live .stream-block{animation:streamBlockIn .38s cubic-bezier(.2,.85,.2,1) both}
-.lookup-stream.live .stream-block:nth-of-type(2){animation-delay:.03s}
-.lookup-stream.live .stream-block:nth-of-type(3){animation-delay:.06s}
-.lookup-stream.live .stream-block:nth-of-type(4){animation-delay:.09s}
-.lookup-stream.live .stream-block:nth-of-type(5){animation-delay:.12s}
 .stream-block{transition:border-color .18s ease,background .18s ease}
 .stream-block .block-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .stream-block .block-title small{color:var(--soft);font-size:12px;font-weight:800}
 .stream-placeholder,.stream-empty{color:var(--soft);font-weight:750}
 .stream-placeholder{display:inline-block;opacity:.82}
 .stream-empty{border:1px dashed var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 62%,transparent);padding:12px;font-size:14px}
-.stream-item{animation:streamTextIn .34s cubic-bezier(.22,.82,.24,1) both}
-.stream-item:nth-child(2){animation-delay:.02s}
-.stream-item:nth-child(3){animation-delay:.04s}
-.stream-item:nth-child(4){animation-delay:.06s}
-.stream-item:nth-child(5){animation-delay:.08s}
-.stream-item:nth-child(6){animation-delay:.1s}
+.stream-item{animation:none}
 .lookup-loading{position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent) 16%,var(--line));border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent-bg) 48%,transparent),color-mix(in srgb,var(--panel2) 74%,transparent) 48%,transparent);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--panel) 78%,transparent),0 20px 44px color-mix(in srgb,var(--accent) 10%,transparent)}
 .lookup-loading:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 12%,color-mix(in srgb,var(--panel) 64%,transparent) 44%,transparent 72%);transform:translateX(-100%);animation:lookupSheen 2.8s ease-in-out infinite;pointer-events:none}
 .lookup-copy{position:relative;z-index:1;width:min(600px,100%);padding:6px 2px}
@@ -554,9 +544,7 @@ body.modal-open{overflow:hidden}
 .followup-list{min-width:0;max-width:100%;display:grid;gap:12px;margin-bottom:12px}
 .followup-empty{border:1px dashed var(--line2);border-radius:10px;color:var(--soft);background:color-mix(in srgb,var(--panel2) 60%,transparent);padding:14px;font-size:15px}
 .followup-item{min-width:0;max-width:100%;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:14px;display:grid;gap:10px}
-.followup-item.pending{border-style:dashed;animation:streamSurfaceIn .28s cubic-bezier(.2,.8,.2,1) both}
-.followup-item.pending .followup-question,.followup-item.pending .followup-answer{animation:streamTextIn .28s cubic-bezier(.22,.82,.24,1) both}
-.followup-item.pending .followup-answer{animation-duration:.22s}
+.followup-item.pending{border-style:dashed;opacity:.86}
 .followup-item.pending .followup-answer:after{content:"";display:inline-block;width:7px;height:1.1em;margin-left:3px;border-radius:999px;background:var(--accent);vertical-align:-.18em;animation:streamCaret 1s ease-in-out infinite}
 .followup-question{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
 .followup-question b{width:28px;height:28px;border-radius:999px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:13px;font-weight:800}
@@ -646,9 +634,6 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
 @keyframes lookupSheen{0%,30%{transform:translateX(-100%)}70%,100%{transform:translateX(100%)}}
 @keyframes lookupStep{0%,80%,100%{background:var(--panel2);border-color:var(--line);color:var(--muted);transform:none}12%,28%{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}}
 @keyframes lookupProgress{0%{transform:translateX(-105%);width:35%}45%{width:58%}100%{transform:translateX(285%);width:35%}}
-@keyframes streamSurfaceIn{0%{opacity:.42;transform:translateY(8px) scale(.995)}100%{opacity:1;transform:none}}
-@keyframes streamBlockIn{0%{opacity:.18;transform:translateY(10px)}65%{opacity:1;transform:translateY(-1px)}100%{opacity:1;transform:none}}
-@keyframes streamTextIn{0%{opacity:.08;transform:translateY(6px)}100%{opacity:1;transform:none}}
 @keyframes streamCaret{0%,100%{opacity:.25;transform:scaleY(.72)}45%{opacity:.95;transform:scaleY(1)}}
 @keyframes loadingDot{70%,100%{box-shadow:0 0 0 9px transparent}}
 @keyframes skeletonSweep{0%{background-position:120% 0}100%{background-position:-120% 0}}
