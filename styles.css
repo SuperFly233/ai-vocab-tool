@@ -240,6 +240,14 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .confusion-table th,.confusion-table td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top;font-size:14px}
 .confusion-table th{background:var(--panel2);font-weight:750;color:var(--text)}
 .confusion-table td{color:var(--muted);font-weight:500}
+.related-block{border-top:1px solid var(--line);padding-top:16px}
+.related-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px}
+.related-item{min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 11px;display:grid;gap:4px;text-align:left;transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease}
+.related-item:hover,.related-item:focus-visible{transform:translateY(-1px);border-color:var(--accent);background:color-mix(in srgb,var(--accent-bg) 42%,var(--panel2));box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent);outline:0}
+.related-word{font-size:15px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.related-summary{font-size:13px;font-weight:650;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.related-meta{display:flex;flex-wrap:wrap;gap:5px}
+.related-meta em{font-style:normal;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--soft);padding:1px 6px;font-size:11px;font-weight:800;line-height:1.35}
 .history-panel{padding:18px}
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
 .section-title{font-size:24px;font-weight:850}

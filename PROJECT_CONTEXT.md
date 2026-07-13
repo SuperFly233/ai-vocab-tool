@@ -80,6 +80,7 @@ Expected behavior:
 - Clearing the query input now clears the visible result/loading state and invalidates in-flight lookup responses so stale results are not rendered or saved.
 - Added a synced `labelMode` setting for language/direction/POS/style labels. The setting supports Chinese-only, code-only, and bilingual display, and the result view, history filters, history summaries, and style labels now use it.
 - API profile save/reset flows preserve `labelMode` so display preferences are not lost during API configuration changes.
+- Added first-stage entry linking: result pages now show related history entries when the normalized query text contains another saved query or is contained by it. This supports simple word/phrase back-and-forth navigation without changing the stored history schema yet.
 
 ## Working Rules
 

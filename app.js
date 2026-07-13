@@ -66,12 +66,18 @@ const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh'};
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.22',
+  version:'0.9.23',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.23',
+    date:'2026-07-13',
+    title:'新增相关历史词条跳转',
+    items:['结果页会根据当前查询和已有历史记录自动显示相关词条，支持单词与包含它的词组互相跳转。','相关词条卡片会展示核心释义、词性和方向摘要，点击即可打开对应历史详情。','当前词条会被排除在相关列表之外，避免历史详情里出现自我引用。'],
+  },
   {
     version:'0.9.22',
     date:'2026-07-13',
@@ -1290,6 +1296,7 @@ function renderResultHTML(result,followups=[],scope='current'){
   const register=result.register||{};
   const confusions=result.confusions||[];
   const highlightTerms=resultHighlightTerms(result);
+  const related=relatedHistoryItems(result,scope);
   return `
     <div class="entry-head">
       <div class="entry-kicker">${escapeHTML(displayLanguageLabel(head.languageTag||meta.language)||'词条')}</div>
@@ -1320,6 +1327,7 @@ function renderResultHTML(result,followups=[],scope='current'){
       </div>
     </div>
     ${renderConfusions(confusions)}
+    ${renderRelatedHistory(related)}
     ${renderFollowupHTML(followups,scope)}
   `;
 }
@@ -1409,6 +1417,43 @@ function posSortIndex(value){
 function renderConfusions(items){
   if(!items.length)return '';
   return `<div class="block"><div class="block-title">近义词 / 易混词辨析</div><table class="confusion-table"><thead><tr><th>词</th><th>核心区别</th><th>语体/使用倾向</th></tr></thead><tbody>${items.map(item=>`<tr><td><mark>${escapeHTML(item.term)}</mark></td><td>${escapeHTML(item.difference)}</td><td>${escapeHTML(item.usage)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function renderRelatedHistory(items=[]){
+  if(!items.length)return '';
+  return `<div class="block related-block">
+    <div class="block-title">相关历史词条</div>
+    <div class="related-list">
+      ${items.map(item=>{
+        const summary=historyEntrySummary(item);
+        const meta=historyEntryMeta(item);
+        return `<button class="related-item" type="button" onclick="openRelatedHistory(${Number(item.id)},event)">
+          <span class="related-word">${escapeHTML(item.query)}</span>
+          ${summary?`<span class="related-summary">${escapeHTML(summary)}</span>`:''}
+          <span class="related-meta">${meta.map(label=>`<em>${escapeHTML(label)}</em>`).join('')}</span>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+function relatedHistoryItems(result={},scope='current'){
+  const selfId=scope==='modal'?modalHistoryId:currentHistoryId;
+  const query=historyRelationKey(result.meta?.normalized||result.meta?.query||result.headword?.title||'');
+  if(!query)return [];
+  return getHistory()
+    .map(normalizeHistoryItem)
+    .filter(item=>Number(item.id)!==Number(selfId))
+    .map(item=>({item,key:historyRelationKey(item.query)}))
+    .filter(({key})=>key&&key!==query&&(key.includes(query)||query.includes(key)))
+    .sort((a,b)=>Math.abs(a.key.length-query.length)-Math.abs(b.key.length-query.length)||new Date(b.item.updatedAt||b.item.createdAt)-new Date(a.item.updatedAt||a.item.createdAt))
+    .slice(0,6)
+    .map(({item})=>item);
+}
+function historyRelationKey(value){
+  return normalizeSearch(value).replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
+}
+function openRelatedHistory(id,event){
+  event?.stopPropagation();
+  openHistoryModal(id);
 }
 function renderStructuredJSON(result){
   const sections=[
