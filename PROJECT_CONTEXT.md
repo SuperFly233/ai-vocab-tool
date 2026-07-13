@@ -93,6 +93,7 @@ Expected behavior:
 - Added first-stage lookup failure recovery. `performLookup()` now calls `fetchLookupWithRetry()`, which retries once for network-style errors, timeouts, HTTP 408/429, and 5xx responses. `renderLookupRetry()` shows the previous failure and next attempt in the result pane. Non-retryable failures such as bad config, auth/permission errors, or valid 200 responses with invalid JSON still fail fast.
 - Added a first-stage Tag management panel in Settings > Data. `renderTagManager()` scans history tags and shows usage counts; users can filter by a tag, rename it across all matching history entries, or remove it from every entry. These operations call `setHistory()`, so they update the UI and sync to cloud.
 - Tightened mobile Markdown table rendering. `formatFollowupAnswer()` now emits wider column-count-aware table width variables, and CSS constrains the wrapper while allowing horizontal touch scrolling so many-column tables remain readable on narrow phones.
+- Added first-stage streaming output for follow-up answers. `/api/followup` accepts `stream:true`, forwards OpenAI-style SSE chunks, and the front end reads `data:{delta}` events to update the pending follow-up card live before saving the final answer. Main lookup still waits for complete JSON because the structured result must remain parseable and repairable.
 
 ## Working Rules
 

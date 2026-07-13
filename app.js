@@ -71,12 +71,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.34',
+  version:'0.9.35',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.35',
+    date:'2026-07-13',
+    title:'新增追问流式输出',
+    items:['追问回答优先使用 SSE 流式返回，模型生成时会实时更新 pending 回答卡片，降低等待时的空白感。','/api/followup 兼容 OpenAI-style stream 数据，并保留普通 JSON 返回路径，避免不支持流的接口直接失效。','生成中的追问卡片新增轻量光标动效，最终回答仍会保存到对应历史记录并参与云端同步。'],
+  },
   {
     version:'0.9.34',
     date:'2026-07-13',
@@ -1810,14 +1816,55 @@ function saveFollowupsForModal(followups){
 function setPendingFollowup(scope,question){
   pendingFollowup={
     scope,
-    item:{id:Date.now(),question,answer:'正在生成回答...',createdAt:new Date().toISOString(),pending:true},
+    item:{id:Date.now(),question,answer:'正在连接模型...',createdAt:new Date().toISOString(),pending:true},
   };
+  rerenderFollowupScope(scope);
+}
+function updatePendingFollowup(scope,answer){
+  if(pendingFollowup?.scope!==scope)return;
+  pendingFollowup.item={...pendingFollowup.item,answer:answer||'正在生成回答...'};
   rerenderFollowupScope(scope);
 }
 function clearPendingFollowup(scope){
   if(pendingFollowup?.scope===scope)pendingFollowup=null;
 }
-async function requestFollowup(question,baseItem){
+async function readFollowupStream(response,onDelta){
+  const reader=response.body?.getReader();
+  if(!reader)throw new Error('当前浏览器无法读取流式回答。');
+  const decoder=new TextDecoder();
+  let buffer='';
+  let answer='';
+  const handleEvent=event=>{
+    const lines=event.split(/\r?\n/).filter(line=>line.startsWith('data:'));
+    for(const line of lines){
+      const raw=line.slice(5).trim();
+      if(!raw)continue;
+      if(raw==='[DONE]')return true;
+      let data=null;
+      try{data=JSON.parse(raw)}catch{continue}
+      if(data.error)throw new Error(data.error);
+      if(data.delta){
+        answer+=String(data.delta);
+        onDelta?.(answer);
+      }
+      if(data.done)return true;
+    }
+    return false;
+  };
+  while(true){
+    const {done,value}=await reader.read();
+    if(done)break;
+    buffer+=decoder.decode(value,{stream:true});
+    const events=buffer.split(/\r?\n\r?\n/);
+    buffer=events.pop()||'';
+    for(const event of events){
+      if(handleEvent(event))return answer.trim();
+    }
+  }
+  if(buffer&&handleEvent(buffer))return answer.trim();
+  return answer.trim();
+}
+async function requestFollowup(question,baseItem,{scope=null,onDelta=null}={}){
   const settings=currentApiSettings();
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   const response=await fetch('/api/followup',{
@@ -1830,10 +1877,24 @@ async function requestFollowup(question,baseItem){
       apiUrl:hasLocalEndpoint?settings.apiUrl:'',
       apiKey:hasLocalEndpoint?settings.apiKey:'',
       model:hasLocalEndpoint?settings.model:'',
+      stream:true,
     }),
   });
-  const data=await response.json();
+  const contentType=response.headers.get('content-type')||'';
+  if(response.ok&&response.body&&contentType.includes('text/event-stream')){
+    const streamed=await readFollowupStream(response,onDelta);
+    if(streamed)return streamed;
+    throw new Error('模型没有返回追问内容。');
+  }
+  let data=null;
+  try{
+    data=await response.json();
+  }catch{
+    throw new Error(response.ok?'追问接口返回格式异常。':'追问失败，接口没有返回可解析的错误信息。');
+  }
   if(!response.ok)throw new Error(data.error||'追问失败');
+  if(!data.answer)throw new Error('模型没有返回追问内容。');
+  if(scope&&data.answer)onDelta?.(data.answer);
   return data.answer;
 }
 async function askCurrentFollowup(){
@@ -1848,8 +1909,11 @@ async function askCurrentFollowup(){
   followupBusy=true;
   document.body.classList.add('followup-busy');
   try{
-    notify('正在追问，会把回答保存到当前记录。','info','追问中');
-    const answer=await requestFollowup(question,baseItem);
+    notify('正在追问，回答会边生成边显示。','info','追问中');
+    const answer=await requestFollowup(question,baseItem,{
+      scope:'current',
+      onDelta:answer=>updatePendingFollowup('current',answer),
+    });
     const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
     clearPendingFollowup('current');
     saveFollowupsForCurrent(followups);
@@ -1875,8 +1939,11 @@ async function askModalFollowup(){
   followupBusy=true;
   document.body.classList.add('followup-busy');
   try{
-    notify('正在追问，会保存到这条历史记录。','info','追问中');
-    const answer=await requestFollowup(question,baseItem);
+    notify('正在追问，回答会边生成边显示。','info','追问中');
+    const answer=await requestFollowup(question,baseItem,{
+      scope:'modal',
+      onDelta:answer=>updatePendingFollowup('modal',answer),
+    });
     const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
     clearPendingFollowup('modal');
     saveFollowupsForModal(followups);

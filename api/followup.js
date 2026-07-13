@@ -45,6 +45,85 @@ function compactContext(result) {
   }).slice(0, 18000);
 }
 
+function followupMessages(payload, question) {
+  const history = Array.isArray(payload.followups)
+    ? payload.followups.slice(-8).map(item => `问：${item.question}\n答：${item.answer}`).join('\n\n')
+    : '';
+  return [
+    {
+      role: 'system',
+      content: '你是词汇追问助手。基于给定词条和上下文直接回答用户问题。回答要清楚、可读、简洁；可以使用短段落、列表、引用或表格等 Markdown 版式。不要返回 JSON，不要写寒暄，不要重复原词条全文。',
+    },
+    {
+      role: 'user',
+      content: [
+        `当前词条 JSON：${compactContext(payload.result || {})}`,
+        history ? `已有追问：\n${history}` : '已有追问：无',
+        `本次追问：${question}`,
+      ].join('\n\n'),
+    },
+  ];
+}
+
+function writeStreamEvent(response, data) {
+  response.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+async function streamFollowup(upstream, response) {
+  response.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const reader = upstream.body?.getReader();
+  if (!reader) {
+    writeStreamEvent(response, { error: '当前模型接口没有返回可读取的流。' });
+    response.end();
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() || '';
+      for (const event of events) {
+        for (const line of event.split(/\r?\n/)) {
+          if (!line.startsWith('data:')) continue;
+          const raw = line.slice(5).trim();
+          if (!raw) continue;
+          if (raw === '[DONE]') {
+            writeStreamEvent(response, { done: true });
+            response.end();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(raw);
+            const delta = parsed.choices?.[0]?.delta?.content
+              ?? parsed.choices?.[0]?.message?.content
+              ?? parsed.choices?.[0]?.text
+              ?? '';
+            if (delta) writeStreamEvent(response, { delta });
+          } catch {
+            // Some providers send keepalive frames that are not JSON.
+          }
+        }
+      }
+    }
+    writeStreamEvent(response, { done: true });
+  } catch (error) {
+    writeStreamEvent(response, { error: error.message || '流式追问中断。' });
+  } finally {
+    response.end();
+  }
+}
+
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.status(405).json({ error: 'Method not allowed' });
@@ -66,12 +145,9 @@ export default async function handler(request, response) {
     return;
   }
 
-  const history = Array.isArray(payload.followups)
-    ? payload.followups.slice(-8).map(item => `问：${item.question}\n答：${item.answer}`).join('\n\n')
-    : '';
-
   try {
     await assertCanUseEnvironmentKey(request, payload);
+    const stream = Boolean(payload.stream);
     const upstream = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -82,25 +158,19 @@ export default async function handler(request, response) {
         model,
         temperature: 0.3,
         max_tokens: 1800,
-        messages: [
-          {
-            role: 'system',
-            content: '你是词汇追问助手。基于给定词条和上下文直接回答用户问题。回答要清楚、可读、简洁；可以用短段落和项目符号。不要返回 JSON，不要写寒暄，不要重复原词条全文。',
-          },
-          {
-            role: 'user',
-            content: [
-              `当前词条 JSON：${compactContext(payload.result || {})}`,
-              history ? `已有追问：\n${history}` : '已有追问：无',
-              `本次追问：${question}`,
-            ].join('\n\n'),
-          },
-        ],
+        stream,
+        messages: followupMessages(payload, question),
       }),
     });
 
     if (!upstream.ok) {
       response.status(upstream.status).json({ error: await upstream.text() });
+      return;
+    }
+
+    const upstreamContentType = upstream.headers.get('content-type') || '';
+    if (stream && upstreamContentType.includes('text/event-stream')) {
+      await streamFollowup(upstream, response);
       return;
     }
 

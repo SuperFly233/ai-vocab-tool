@@ -496,6 +496,7 @@ body.modal-open{overflow:hidden}
 .followup-empty{border:1px dashed var(--line2);border-radius:10px;color:var(--soft);background:color-mix(in srgb,var(--panel2) 60%,transparent);padding:14px;font-size:15px}
 .followup-item{border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:14px;display:grid;gap:10px}
 .followup-item.pending{border-style:dashed;opacity:.82}
+.followup-item.pending .followup-answer:after{content:"";display:inline-block;width:7px;height:1.1em;margin-left:3px;border-radius:999px;background:var(--accent);vertical-align:-.18em;animation:streamCaret 1s ease-in-out infinite}
 .followup-question{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
 .followup-question b{width:28px;height:28px;border-radius:999px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:13px;font-weight:800}
 .followup-question span{font-size:16px;color:var(--text);font-weight:650;line-height:1.55}
@@ -584,6 +585,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
 @keyframes lookupSheen{0%,30%{transform:translateX(-100%)}70%,100%{transform:translateX(100%)}}
 @keyframes lookupStep{0%,80%,100%{background:var(--panel2);border-color:var(--line);color:var(--muted);transform:none}12%,28%{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}}
 @keyframes lookupProgress{0%{transform:translateX(-105%);width:35%}45%{width:58%}100%{transform:translateX(285%);width:35%}}
+@keyframes streamCaret{0%,100%{opacity:.25;transform:scaleY(.72)}45%{opacity:.95;transform:scaleY(1)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{50%{transform:scale(1.08)}}
 @media(max-width:900px){
