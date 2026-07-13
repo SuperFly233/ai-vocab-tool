@@ -522,16 +522,16 @@ body.modal-open{overflow:hidden}
 .json-section summary code{font-size:12px;color:var(--accent);font-weight:650}
 .json-section pre{margin:0;padding:12px;border-top:1px solid var(--line);overflow:auto;white-space:pre-wrap;color:var(--muted);font-weight:450}
 .json-editor{width:100%;min-height:430px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.6;resize:vertical;outline:0;font-weight:450}
-.followup-panel{margin-top:24px;border-top:1px solid var(--line);padding-top:18px}
-.followup-list{display:grid;gap:12px;margin-bottom:12px}
+.followup-panel{min-width:0;max-width:100%;margin-top:24px;border-top:1px solid var(--line);padding-top:18px}
+.followup-list{min-width:0;max-width:100%;display:grid;gap:12px;margin-bottom:12px}
 .followup-empty{border:1px dashed var(--line2);border-radius:10px;color:var(--soft);background:color-mix(in srgb,var(--panel2) 60%,transparent);padding:14px;font-size:15px}
-.followup-item{border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:14px;display:grid;gap:10px}
+.followup-item{min-width:0;max-width:100%;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:14px;display:grid;gap:10px}
 .followup-item.pending{border-style:dashed;opacity:.82}
 .followup-item.pending .followup-answer:after{content:"";display:inline-block;width:7px;height:1.1em;margin-left:3px;border-radius:999px;background:var(--accent);vertical-align:-.18em;animation:streamCaret 1s ease-in-out infinite}
 .followup-question{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
 .followup-question b{width:28px;height:28px;border-radius:999px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:13px;font-weight:800}
 .followup-question span{font-size:16px;color:var(--text);font-weight:650;line-height:1.55}
-.followup-answer{margin-left:44px;color:var(--muted);font-size:15px;line-height:1.7}
+.followup-answer{min-width:0;max-width:100%;overflow-x:hidden;margin-left:44px;color:var(--muted);font-size:14px;line-height:1.62}
 .followup-answer p{margin:0 0 8px}
 .followup-answer p:last-child{margin-bottom:0}
 .followup-answer h4{margin:10px 0 6px;color:var(--text);font-size:16px;font-weight:800}
@@ -542,7 +542,7 @@ body.modal-open{overflow:hidden}
 .followup-answer blockquote p{margin-bottom:6px}
 .followup-answer blockquote p:last-child{margin-bottom:0}
 .followup-answer hr{height:1px;border:0;background:linear-gradient(90deg,transparent,var(--line2),transparent);margin:12px 0}
-.followup-answer .md-table-wrap{max-width:100%;margin:8px 0 10px;overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 72%,var(--panel2));box-shadow:inset -18px 0 18px -24px color-mix(in srgb,var(--text) 44%,transparent);-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.followup-answer .md-table-wrap{display:block;width:100%;max-width:100%;min-width:0;margin:8px 0 10px;overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 72%,var(--panel2));box-shadow:inset -18px 0 18px -24px color-mix(in srgb,var(--text) 44%,transparent);-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x}
 .followup-answer table{width:max(100%,calc(var(--cols,3) * var(--col-min,150px)));border-collapse:collapse;min-width:calc(var(--cols,3) * var(--col-min,150px));font-size:14px;table-layout:auto}
 .followup-answer th,.followup-answer td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;min-width:var(--col-min,150px);overflow-wrap:anywhere}
 .followup-answer th{background:color-mix(in srgb,var(--accent-bg) 46%,var(--panel));color:var(--text);font-weight:850}
@@ -668,13 +668,13 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .sync-kind em{grid-column:1 / -1}
   .sync-card .confirm-actions{grid-template-columns:1fr}
   .followup-compose{grid-template-columns:1fr}
-  .followup-answer{margin-left:0;font-size:14px;line-height:1.6}
+  .followup-answer{margin-left:0;font-size:13px;line-height:1.56}
   .followup-answer p{margin-bottom:6px}
   .followup-answer h4{font-size:15px}
-  .followup-question span{font-size:15px}
-  .followup-answer .md-table-wrap{margin-right:-2px;margin-left:-2px}
-  .followup-answer table{width:max(100%,calc(var(--cols,3) * var(--mobile-col-min,var(--col-min,150px))));min-width:calc(var(--cols,3) * var(--mobile-col-min,var(--col-min,150px)));font-size:13px}
-  .followup-answer th,.followup-answer td{min-width:var(--mobile-col-min,var(--col-min,150px));padding:7px 8px}
+  .followup-question span{font-size:14px;line-height:1.48}
+  .followup-answer .md-table-wrap{width:100%;max-width:100%;margin-right:0;margin-left:0}
+  .followup-answer table{width:max(100%,calc(var(--cols,3) * var(--mobile-col-min,var(--col-min,138px))));min-width:calc(var(--cols,3) * var(--mobile-col-min,var(--col-min,138px)));font-size:12.5px}
+  .followup-answer th,.followup-answer td{min-width:var(--mobile-col-min,var(--col-min,138px));padding:6px 7px;line-height:1.5}
   .about-hero,.about-grid{grid-template-columns:1fr}
   .about-version{height:auto;min-height:110px}
   .about-hero h2{font-size:32px}

@@ -74,12 +74,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.39',
+  version:'0.9.40',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.40',
+    date:'2026-07-13',
+    title:'修复移动端追问表格溢出',
+    items:['追问回答的普通正文在手机端进一步收紧字号和行高，避免比表格内容显得更大。','Markdown 表格现在被限制在自己的横向滚动容器内，不再把整段追问回答撑成一个可左右拖动的大块。','表格单元格里的 <br> 会渲染为真正换行，不再把标签文本显示出来。'],
+  },
   {
     version:'0.9.39',
     date:'2026-07-13',
@@ -1920,6 +1926,9 @@ function formatFollowupAnswer(answer){
   };
   const isTableRow=line=>line.includes('|')&&tableCells(line).length>1;
   const isTableStart=i=>isTableRow(lines[i]||'')&&isTableDivider(lines[i+1]||'');
+  const formatTableCell=cell=>formatInlineMarkdown(cell)
+    .replace(/&lt;br\s*\/?&gt;/gi,'<br>')
+    .replace(/\s*<br\s*\/?>\s*/gi,'<br>');
   const renderTable=(rows)=>{
     const header=tableCells(rows[0]);
     const align=tableCells(rows[1]).map(cell=>cell.startsWith(':')&&cell.endsWith(':')?'center':cell.endsWith(':')?'right':cell.startsWith(':')?'left':'');
@@ -1927,8 +1936,8 @@ function formatFollowupAnswer(answer){
     const cellAttrs=index=>align[index]?` style="text-align:${align[index]}"`:'';
     const cols=Math.max(header.length,1);
     const colMin=cols>=7?132:cols>=5?146:cols>=4?154:168;
-    const mobileColMin=cols>=7?136:cols>=5?148:cols>=4?156:164;
-    return `<div class="md-table-wrap" style="--cols:${cols};--col-min:${colMin}px;--mobile-col-min:${mobileColMin}px"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatInlineMarkdown(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatInlineMarkdown(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    const mobileColMin=cols>=7?118:cols>=5?126:cols>=4?134:142;
+    return `<div class="md-table-wrap" style="--cols:${cols};--col-min:${colMin}px;--mobile-col-min:${mobileColMin}px"><table><thead><tr>${header.map((cell,index)=>`<th${cellAttrs(index)}>${formatTableCell(cell)}</th>`).join('')}</tr></thead><tbody>${body.map(row=>`<tr>${header.map((_,index)=>`<td${cellAttrs(index)}>${formatTableCell(row[index]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   };
   const isBlockStart=(line,i=index)=>isBlank(line)||isFence(line)||isHeading(line)||isQuote(line)||isHr(line)||isUnordered(line)||isOrdered(line)||isTableStart(i);
   while(index<lines.length){

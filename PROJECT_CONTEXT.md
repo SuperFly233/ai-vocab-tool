@@ -100,6 +100,7 @@ Expected behavior:
 - Upgraded the main lookup typewriter to chunk by rendered JSON structure. `startResultTypewriter()` now treats top-level result sections as chunks, hides pending chunks, fades each chunk in, then reveals its text nodes before moving to the next section. This keeps JSON parsing stable while making the home lookup feel closer to the follow-up streaming experience.
 - Reworked the main lookup waiting experience. `renderLookupLoading()` now immediately renders result-shaped skeleton blocks with an estimated progress badge, then the validated result replaces those blocks with chunked typewriter output. The JSON view also gets a lightweight loading placeholder and a final `startJSONTypewriter()` reveal after JSON validation.
 - Fixed API profile menu stacking on mobile by positioning the menu as a fixed viewport layer and temporarily raising the host settings card while the menu is open. The menu reserves bottom space for the mobile nav so profile rows and delete/edit controls are not covered.
+- Fixed mobile follow-up table overflow. `.followup-answer` and `.followup-item` now clamp their own width, `.md-table-wrap` owns horizontal scrolling without negative mobile margins, mobile table column minimums are smaller, and table cells convert escaped `<br>` into actual line breaks.
 
 ## Working Rules
 
