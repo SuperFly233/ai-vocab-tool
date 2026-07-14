@@ -51,6 +51,8 @@ let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
 const activeToasts=new Map();
+const FOLDER_LIKED_ID='liked';
+const FOLDER_UNFILED_ID='unfiled';
 const historyState={
   query:'',
   scope:'all',
@@ -66,8 +68,12 @@ const historyState={
     direction:[],
     pos:[],
     style:[],
-    tag:[],
+    folder:[],
   },
+};
+const folderState={
+  activeId:FOLDER_LIKED_ID,
+  visibleCount:0,
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
   numeric:true,
@@ -107,16 +113,22 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[]};
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.7',
+  version:'0.11.0',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.0',
+    date:'2026-07-14',
+    title:'新增收藏夹并迁移 Tag 逻辑',
+    items:['侧边栏新增“收藏夹”入口，星标记录会自动进入“个人收藏”，自定义收藏夹可单独打开并导出当前夹内历史 JSON。','旧 Tag 会自动映射为同名收藏夹；历史筛选、历史卡片、个人整理和详情编辑都改为收藏夹语义，同一条记录可以加入多个收藏夹。','设置页移除旧标签管理，改为收藏夹管理，可新建、打开、重命名、移除和按收藏夹导出；收藏夹数据预留 parentId 以便后续支持嵌套。','历史页右上角移除危险的清空历史按钮，清空历史继续保留在设置的数据区。'],
+  },
   {
     version:'0.10.7',
     date:'2026-07-14',
@@ -586,7 +598,11 @@ const els={
   historyFilterbar:document.getElementById('history-filterbar'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
-  tagManager:document.getElementById('tag-manager'),
+  folderCount:document.getElementById('folder-count'),
+  folderSidebar:document.getElementById('folder-sidebar'),
+  folderContentHead:document.getElementById('folder-content-head'),
+  folderHistoryList:document.getElementById('folder-history-list'),
+  folderManager:document.getElementById('folder-manager'),
   apiProfilePicker:document.getElementById('api-profile-picker'),
   apiProfileMenu:document.getElementById('api-profile-menu'),
   apiProfileMenuToggle:document.getElementById('api-profile-menu-toggle'),
@@ -914,6 +930,7 @@ function setHistory(items){
   writeJSON(STORAGE_KEYS.history,items);
   markCloudDirty(CLOUD_KEYS.history);
   renderHistory();
+  if(activeView==='folders')renderFoldersView();
   syncAllToCloud(true);
 }
 function getSettings(){return normalizeSettings(readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS))}
@@ -952,6 +969,7 @@ function normalizeSettings(raw={}){
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
+  const favoriteFolders=normalizeFavoriteFolders(source.favoriteFolders);
   return {
     ...DEFAULT_SETTINGS,
     ...source,
@@ -965,6 +983,7 @@ function normalizeSettings(raw={}){
     historyTimeMode,
     visualHintsPinned,
     modelPrompt,
+    favoriteFolders,
   };
 }
 function normalizeLabelMode(value){
@@ -980,6 +999,42 @@ function normalizeBooleanSetting(value,fallback=false){
   if(value===true||value==='true'||value===1||value==='1')return true;
   if(value===false||value==='false'||value===0||value==='0')return false;
   return fallback;
+}
+function normalizeFavoriteFolder(folder={},index=0){
+  const name=String(folder.name||folder.title||'').trim();
+  if(!name)return null;
+  const id=String(folder.id||folder.folderId||`folder_${stableHash(name)}`).trim();
+  return {
+    id,
+    name,
+    parentId:String(folder.parentId||'').trim(),
+    order:Number.isFinite(Number(folder.order))?Number(folder.order):index,
+    createdAt:folder.createdAt||new Date().toISOString(),
+    updatedAt:folder.updatedAt||folder.createdAt||new Date().toISOString(),
+  };
+}
+function normalizeFavoriteFolders(value=[]){
+  const folders=Array.isArray(value)?value:[];
+  const map=new Map();
+  folders.forEach((folder,index)=>{
+    const normalized=normalizeFavoriteFolder(folder,index);
+    if(!normalized||normalized.id===FOLDER_LIKED_ID||normalized.id===FOLDER_UNFILED_ID)return;
+    const existing=map.get(normalized.id);
+    if(!existing||new Date(normalized.updatedAt||0)>=new Date(existing.updatedAt||0))map.set(normalized.id,normalized);
+  });
+  return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
+}
+function stableHash(value){
+  let hash=5381;
+  String(value||'').split('').forEach(char=>{hash=((hash<<5)+hash)+char.charCodeAt(0);hash|=0});
+  return Math.abs(hash).toString(36);
+}
+function legacyTagFolderId(tag){
+  return `tag_${stableHash(normalizeSearch(tag))}`;
+}
+function normalizeFolderIds(value){
+  const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
+  return uniq(list.map(id=>String(id||'').trim()).filter(id=>id&&id!==FOLDER_LIKED_ID&&id!==FOLDER_UNFILED_ID).slice(0,64));
 }
 function normalizeApiProfile(profile={}){
   const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
@@ -1013,6 +1068,7 @@ function mergeSettings(localRaw,remoteRaw){
   const local=localRaw?normalizeSettings(localRaw):{apiProfiles:[],activeApiProfileId:''};
   const remote=remoteRaw?normalizeSettings(remoteRaw):{apiProfiles:[],activeApiProfileId:''};
   const profiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
+  const favoriteFolders=mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]);
   if(!profiles.length)return normalizeSettings(DEFAULT_SETTINGS);
   const localHasPendingSettings=cloudDirtyKeys.has(CLOUD_KEYS.settings);
   const localTime=new Date(local.updatedAt||0).getTime()||0;
@@ -1028,12 +1084,21 @@ function mergeSettings(localRaw,remoteRaw){
     historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
     modelPrompt:preferLocalSettings?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
+    favoriteFolders,
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
     apiKey:'',
     model:'',
   });
+}
+function mergeFavoriteFolders(...groups){
+  const map=new Map();
+  groups.flatMap(group=>normalizeFavoriteFolders(group)).forEach(folder=>{
+    const existing=map.get(folder.id);
+    if(!existing||new Date(folder.updatedAt||0)>=new Date(existing.updatedAt||0))map.set(folder.id,folder);
+  });
+  return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
 }
 function currentApiSettings(settings=getSettings()){
   const profile=activeApiProfile(settings);
@@ -1292,6 +1357,7 @@ function mergeHistoryItems(localHistory,remoteHistory){
       favorite:Boolean(existing.favorite||normalized.favorite),
       favoriteAt:[existing.favoriteAt,normalized.favoriteAt].filter(Boolean).sort().pop()||'',
       tags:mergeTags(existing.tags,normalized.tags),
+      folderIds:mergeFolderIds(existing.folderIds,normalized.folderIds,existing.tags,normalized.tags),
       note:latestHistoryNote(existing,normalized),
       noteUpdatedAt:Math.max(historyNoteTime(existing),historyNoteTime(normalized))?new Date(Math.max(historyNoteTime(existing),historyNoteTime(normalized))).toISOString():'',
       createdAt:new Date(Math.min(new Date(existing.createdAt||Date.now()),new Date(normalized.createdAt||Date.now()))).toISOString(),
@@ -1307,6 +1373,12 @@ function mergeHistoryItems(localHistory,remoteHistory){
 }
 function mergeTags(...groups){
   return uniq(groups.flatMap(normalizeTags));
+}
+function mergeFolderIds(...groups){
+  return uniq(groups.flatMap(group=>{
+    if(Array.isArray(group))return group.every(item=>String(item||'').startsWith('tag_')||String(item||'').startsWith('folder_'))?normalizeFolderIds(group):normalizeTags(group).map(legacyTagFolderId);
+    return normalizeFolderIds(group);
+  })).slice(0,64);
 }
 function latestHistoryNote(a={},b={}){
   const left=String(a.note||'');
@@ -1363,11 +1435,21 @@ function normalizeHistoryItem(item){
       modelSource:base.modelSource||'unknown',
     })]);
   const latest=rolls[0]||makeHistoryRoll(base.result,createdAt);
-  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags:normalizeTags(base.tags),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls};
+  const tags=normalizeTags(base.tags);
+  const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
+  const legacyFolderIds=tags.map(legacyTagFolderId);
+  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags,folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls};
 }
 function normalizeTags(value){
   const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
   return uniq(list.map(tag=>String(tag||'').trim()).filter(tag=>tag.length>0).slice(0,24));
+}
+function parseFolderNames(value){
+  if(Array.isArray(value))return uniq(value.map(item=>String(item||'').trim()).filter(Boolean).slice(0,32));
+  const text=String(value||'').trim();
+  if(!text)return [];
+  const splitter=/[,，、;；\n]/.test(text)?/[,，、;；\n]+/:/\s+/;
+  return uniq(text.split(splitter).map(item=>item.trim()).filter(Boolean).slice(0,32));
 }
 function getHistoryRolls(item){
   return normalizeHistoryItem(item).rolls;
@@ -1574,6 +1656,7 @@ function showView(id,button){
   document.querySelectorAll('.nav-item').forEach(item=>item.classList.remove('active'));
   if(button)button.classList.add('active');
   if(id==='history')renderHistory();
+  if(id==='folders')renderFoldersView();
   if(id==='settings')renderSettings();
   if(id==='about')renderAbout();
   updateHomeStickyState();
@@ -2143,10 +2226,11 @@ function renderRelatedHistory(items=[]){
 }
 function renderHistoryNoteBlock(item){
   const normalized=item?normalizeHistoryItem(item):null;
-  if(!normalized||(!normalized.tags.length&&!normalized.note))return '';
+  const folderNames=folderNamesForItem(normalized||{});
+  if(!normalized||(!folderNames.length&&!normalized.note))return '';
   return `<div class="block note-block">
     <div class="block-title">个人整理</div>
-    ${renderHistoryTags(normalized.tags)}
+    ${renderHistoryFolders(normalized)}
     ${normalized.note?`<div class="history-note followup-answer">${formatFollowupAnswer(normalized.note)}</div>`:''}
   </div>`;
 }
@@ -3194,7 +3278,7 @@ function renderHistory(){
       <div class="history-copy">
         <div class="history-word">${escapeHTML(item.query)}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
-        ${renderHistoryTags(normalized.tags)}
+        ${renderHistoryFolders(normalized)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
           ${historyTimeMetaHTML(item,getSettings().historyTimeMode)}
@@ -3216,10 +3300,152 @@ function renderHistory(){
     </button>
   `:'');
 }
-function renderHistoryTags(tags=[]){
-  const list=normalizeTags(tags);
+function renderHistoryFolders(item={}){
+  const list=itemFolders(item).filter(folder=>folder.id!==FOLDER_LIKED_ID);
   if(!list.length)return '';
-  return `<div class="history-tags">${list.slice(0,5).map(tag=>`<button type="button" onclick="filterByHistoryTag('${escapeAttr(tag)}',event)">${escapeHTML(tag)}</button>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
+  return `<div class="history-tags">${list.slice(0,5).map(folder=>`<button type="button" onclick="filterByHistoryFolder('${escapeAttr(folder.id)}',event)">${escapeHTML(folder.name)}</button>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
+}
+function folderCatalog(history=getHistory(),settings=getSettings()){
+  const map=new Map();
+  const add=folder=>{
+    if(!folder?.id||!folder?.name)return;
+    const existing=map.get(folder.id);
+    if(!existing||new Date(folder.updatedAt||0)>=new Date(existing.updatedAt||0))map.set(folder.id,folder);
+  };
+  add({id:FOLDER_LIKED_ID,name:'个人收藏',system:true,parentId:'',order:-100});
+  normalizeFavoriteFolders(settings.favoriteFolders).forEach(add);
+  history.map(normalizeHistoryItem).forEach(item=>{
+    item.tags.forEach(tag=>add({id:legacyTagFolderId(tag),name:tag,parentId:'',order:500,legacy:true,createdAt:item.createdAt,updatedAt:item.updatedAt}));
+    item.folderIds.forEach(id=>{
+      if(!map.has(id))add({id,name:id.replace(/^(folder|tag)_/,'收藏夹 '),parentId:'',order:900,createdAt:item.createdAt,updatedAt:item.updatedAt});
+    });
+  });
+  return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
+}
+function folderById(folderId){
+  return folderCatalog().find(folder=>folder.id===folderId)||null;
+}
+function itemFolderIds(item={}){
+  const normalized=normalizeHistoryItem(item);
+  return uniq([
+    ...(normalized.favorite?[FOLDER_LIKED_ID]:[]),
+    ...normalized.folderIds,
+    ...normalized.tags.map(legacyTagFolderId),
+  ]);
+}
+function itemFolders(item={}){
+  const catalog=folderCatalog();
+  const ids=new Set(itemFolderIds(item));
+  return catalog.filter(folder=>ids.has(folder.id));
+}
+function historyForFolder(folderId=folderState.activeId){
+  const id=String(folderId||FOLDER_LIKED_ID);
+  return filterAndSortRawHistory(getHistory().filter(item=>itemFolderIds(item).includes(id)));
+}
+function filterAndSortRawHistory(history){
+  return [...history].sort((a,b)=>historyPrimaryTime(b)-historyPrimaryTime(a));
+}
+function upsertFavoriteFolder(folder,folders=[]){
+  const normalized=normalizeFavoriteFolder(folder,0);
+  if(!normalized)return normalizeFavoriteFolders(folders);
+  const map=new Map(normalizeFavoriteFolders(folders).map(item=>[item.id,item]));
+  map.set(normalized.id,normalized);
+  return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
+}
+function folderNamesForItem(item={}){
+  return itemFolders(item).filter(folder=>folder.id!==FOLDER_LIKED_ID).map(folder=>folder.name);
+}
+function ensureFavoriteFoldersByNames(names=[]){
+  const wanted=parseFolderNames(names);
+  const settings=getSettings();
+  let folders=[...settings.favoriteFolders];
+  const now=new Date().toISOString();
+  const catalog=folderCatalog(getHistory(),settings);
+  const ids=[];
+  let changed=false;
+  wanted.forEach((name,index)=>{
+    const existing=catalog.find(folder=>normalizeSearch(folder.name)===normalizeSearch(name)&&folder.id!==FOLDER_LIKED_ID);
+    if(existing){
+      ids.push(existing.id);
+      if(existing.legacy||!settings.favoriteFolders.some(folder=>folder.id===existing.id)){
+        folders=upsertFavoriteFolder({...existing,order:folders.length+index,updatedAt:now},folders);
+        changed=true;
+      }
+      return;
+    }
+    const folder={id:`folder_${Date.now()}_${stableHash(name)}`,name,parentId:'',order:folders.length+index,createdAt:now,updatedAt:now};
+    folders=upsertFavoriteFolder(folder,folders);
+    ids.push(folder.id);
+    changed=true;
+  });
+  if(changed)saveSettingsLocal({...settings,favoriteFolders:folders,updatedAt:now});
+  return normalizeFolderIds(ids);
+}
+function folderExportName(folder){
+  return String(folder?.name||'favorite-folder').replace(/[\\/:*?"<>|]/g,'_');
+}
+function exportFolderJSON(folderId=folderState.activeId){
+  const folder=folderById(folderId);
+  if(!folder)return notify('找不到这个收藏夹。','bad','收藏夹导出');
+  const items=historyForFolder(folder.id);
+  downloadText(`ai-vocab-tool-folder-${folderExportName(folder)}.json`,JSON.stringify({folder,items},null,2));
+  notify(`已导出「${folder.name}」${items.length} 条记录。`,'good','收藏夹导出');
+}
+function renderFoldersView(){
+  if(!els.folderSidebar||!els.folderHistoryList)return;
+  const folders=folderStats();
+  if(!folders.some(folder=>folder.id===folderState.activeId))folderState.activeId=folders[0]?.id||FOLDER_LIKED_ID;
+  const active=folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
+  const items=historyForFolder(active.id);
+  if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${items.length} 条`;
+  els.folderSidebar.innerHTML=folders.map(folder=>`
+    <button class="folder-tab ${folder.id===active.id?'active':''}" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
+      <span>${folder.system?'★':'▣'}</span>
+      <b>${escapeHTML(folder.name)}</b>
+      <em>${Number(folder.count||0)}</em>
+    </button>
+  `).join('')||'<div class="empty small-empty">暂无收藏夹</div>';
+  if(els.folderContentHead){
+    els.folderContentHead.innerHTML=`
+      <div>
+        <h2>${escapeHTML(active.name)}</h2>
+        <p>${active.system?'星标记录会自动进入这里。':'自定义收藏夹，可从历史详情里把记录加入多个收藏夹。'}${active.parentId?' 已预留上级目录。':''}</p>
+      </div>
+      <div class="folder-head-actions">
+        ${active.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">重命名</button>`}
+        <button class="plain-btn primary-btn" type="button" onclick="exportFolderJSON('${escapeAttr(active.id)}')">导出 JSON</button>
+      </div>
+    `;
+  }
+  els.folderHistoryList.innerHTML=items.length
+    ? items.map(renderFolderHistoryItem).join('')
+    : '<div class="empty">这个收藏夹还没有记录。</div>';
+}
+function renderFolderHistoryItem(item){
+  const normalized=normalizeHistoryItem(item);
+  const summary=historyEntrySummary(normalized);
+  const meta=historyEntryMeta(normalized);
+  const versionText=getHistoryRolls(normalized).length>1?`${getHistoryRolls(normalized).length} 个版本`:'';
+  return `
+    <div class="history-item ${normalized.favorite?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+      <div class="history-copy">
+        <div class="history-word">${escapeHTML(item.query)}</div>
+        ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
+        ${renderHistoryFolders(normalized)}
+        <div class="history-meta">
+          ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
+          ${historyTimeMetaHTML(item,getSettings().historyTimeMode)}
+          ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
+        </div>
+      </div>
+      <div class="history-actions">
+        <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
+        <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
+        <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
+        <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
+      </div>
+    </div>
+  `;
 }
 function latestHistoryResult(item){
   const normalized=normalizeHistoryItem(item);
@@ -3334,7 +3560,7 @@ function historyMatchesFilters(item){
     && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
     && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
     && filterMatches(historyCanonicalValues(item,'style'),filters.style)
-    && filterMatches(historyCanonicalValues(item,'tag'),filters.tag);
+    && filterMatches(historyCanonicalValues(item,'folder'),filters.folder);
 }
 function filterMatches(values,selected){
   const picks=Array.isArray(selected)?selected:[selected].filter(Boolean);
@@ -3446,7 +3672,7 @@ function historyCanonicalValues(item,key){
   if(key==='direction')return uniq([canonicalDirection(historyField(item,'direction'),item)]);
   if(key==='style')return uniq(canonicalStyleTokens(historyField(item,'style')));
   if(key==='pos')return uniq(historyFieldList(item,'pos').flatMap(canonicalPosTokens));
-  if(key==='tag')return normalizeTags(normalizeHistoryItem(item).tags);
+  if(key==='folder')return itemFolders(item).map(folder=>folder.id);
   return [];
 }
 function canonicalLanguage(value){
@@ -3522,7 +3748,7 @@ function uniq(items){
   return [...new Set(items.filter(Boolean))];
 }
 function collectHistoryOptions(history){
-  const maps={entryType:new Map(),language:new Map(),direction:new Map(),pos:new Map(),style:new Map(),tag:new Map()};
+  const maps={entryType:new Map(),language:new Map(),direction:new Map(),pos:new Map(),style:new Map(),folder:new Map()};
   history.forEach(item=>{
     Object.keys(maps).forEach(key=>{
       historyCanonicalOptions(item,key).forEach(option=>{
@@ -3544,7 +3770,7 @@ function renderHistoryFilterOptions(history){
   renderHistoryFilterGroup('direction','方向',options.direction);
   renderHistoryFilterGroup('pos','词性',options.pos);
   renderHistoryFilterGroup('style','语体',options.style);
-  renderHistoryFilterGroup('tag','Tag',options.tag);
+  renderHistoryFilterGroup('folder','收藏夹',options.folder);
 }
 function renderHistoryFilterGroup(key,label,values=[]){
   const root=els.historyFilterbar?.querySelector(`[data-filter-key="${key}"]`);
@@ -3586,92 +3812,116 @@ function toggleHistoryFilter(key,value){
   openHistoryFilterKey=key;
   rerenderHistoryFromStart();
 }
-function filterByHistoryTag(tag,event){
+function filterByHistoryFolder(folderId,event){
   event?.stopPropagation();
-  const value=String(tag||'').trim();
+  const value=String(folderId||'').trim();
   if(!value)return;
-  const current=Array.isArray(historyState.filters.tag)?historyState.filters.tag:[];
-  if(!current.includes(value))historyState.filters.tag=[...current,value];
-  openHistoryFilterKey='tag';
+  const current=Array.isArray(historyState.filters.folder)?historyState.filters.folder:[];
+  if(!current.includes(value))historyState.filters.folder=[...current,value];
+  openHistoryFilterKey='folder';
   showView('history',document.getElementById('nav-history'));
   rerenderHistoryFromStart();
 }
-function tagStats(){
+function folderStats(){
   const map=new Map();
+  folderCatalog().forEach(folder=>map.set(folder.id,{...folder,count:0}));
   getHistory().forEach(item=>{
-    normalizeHistoryItem(item).tags.forEach(tag=>{
-      const stats=map.get(tag)||{tag,count:0};
+    itemFolders(item).forEach(folder=>{
+      const stats=map.get(folder.id)||{...folder,count:0};
       stats.count+=1;
-      map.set(tag,stats);
+      map.set(folder.id,stats);
     });
   });
-  return [...map.values()].sort((a,b)=>b.count-a.count||historyCollator.compare(a.tag,b.tag));
+  return [...map.values()].sort((a,b)=>{
+    if(a.system!==b.system)return a.system?-1:1;
+    return b.count-a.count||historyCollator.compare(a.name,b.name);
+  });
 }
-function renderTagManager(){
-  if(!els.tagManager)return;
-  const tags=tagStats();
-  if(!tags.length){
-    els.tagManager.innerHTML='<div class="empty small-empty tag-empty">暂无标签</div>';
+function renderFolderManager(){
+  if(!els.folderManager)return;
+  const folders=folderStats();
+  if(!folders.length){
+    els.folderManager.innerHTML='<div class="empty small-empty tag-empty">暂无收藏夹</div>';
     return;
   }
-  els.tagManager.innerHTML=`
+  els.folderManager.innerHTML=`
+    <div class="folder-manager-head">
+      <button class="plain-btn primary-btn" type="button" onclick="createFavoriteFolder()">新建收藏夹</button>
+      <button class="plain-btn" type="button" onclick="exportFolderJSON()">导出当前收藏夹</button>
+    </div>
     <div class="tag-manager-list">
-      ${tags.map(item=>`
+      ${folders.map(item=>`
         <article class="tag-manager-item">
           <div class="tag-manager-copy">
-            <strong>${escapeHTML(item.tag)}</strong>
-            <span>${Number(item.count)} 条记录</span>
+            <strong>${escapeHTML(item.name)}</strong>
+            <span>${Number(item.count)} 条记录${item.parentId?' · 已预留上级':''}${item.system?' · 系统收藏夹':''}</span>
           </div>
           <div class="tag-manager-actions">
-            <button class="plain-btn" type="button" onclick="filterByManagedTag('${escapeAttr(item.tag)}')">筛选</button>
-            <button class="plain-btn" type="button" onclick="renameManagedTag('${escapeAttr(item.tag)}')">重命名</button>
-            <button class="danger-btn" type="button" onclick="deleteManagedTag('${escapeAttr(item.tag)}')">移除</button>
+            <button class="plain-btn" type="button" onclick="openFolderView('${escapeAttr(item.id)}')">打开</button>
+            <button class="plain-btn" type="button" onclick="exportFolderJSON('${escapeAttr(item.id)}')">导出</button>
+            ${item.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(item.id)}')">重命名</button>
+            <button class="danger-btn" type="button" onclick="deleteFavoriteFolder('${escapeAttr(item.id)}')">移除</button>`}
           </div>
         </article>
       `).join('')}
     </div>
   `;
 }
-function filterByManagedTag(tag){
-  const value=String(tag||'').trim();
+function openFolderView(folderId){
+  const value=String(folderId||FOLDER_LIKED_ID).trim();
   if(!value)return;
-  historyState.filters.tag=[value];
-  openHistoryFilterKey='tag';
-  showView('history',document.getElementById('nav-history'));
-  rerenderHistoryFromStart();
+  folderState.activeId=value;
+  showView('folders',document.getElementById('nav-folders'));
 }
-async function renameManagedTag(oldTag){
-  const from=String(oldTag||'').trim();
-  if(!from)return;
-  const next=window.prompt(`把标签「${from}」重命名为：`,from);
+async function createFavoriteFolder(){
+  const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
+  if(!name)return;
+  const settings=getSettings();
+  const now=new Date().toISOString();
+  const folder={id:`folder_${Date.now()}`,name,parentId:'',order:settings.favoriteFolders.length,createdAt:now,updatedAt:now};
+  setSettings({...settings,favoriteFolders:[folder,...settings.favoriteFolders],updatedAt:now});
+  renderFolderManager();
+  renderFoldersView();
+  notify(`已创建收藏夹「${name}」。`,'good','收藏夹');
+}
+async function renameFavoriteFolder(folderId){
+  const folder=folderById(folderId);
+  if(!folder||folder.system)return;
+  const next=window.prompt(`把收藏夹「${folder.name}」重命名为：`,folder.name);
   if(next===null)return;
-  const to=normalizeTags(next)[0]||'';
-  if(!to)return notify('新标签名不能为空。','bad','标签管理');
-  if(to===from)return;
-  const history=getHistory().map(item=>{
-    const normalized=normalizeHistoryItem(item);
-    if(!normalized.tags.includes(from))return item;
-    return {...normalized,tags:normalizeTags(normalized.tags.map(tag=>tag===from?to:tag)),updatedAt:new Date().toISOString()};
-  });
-  historyState.filters.tag=historyState.filters.tag.map(tag=>tag===from?to:tag);
-  setHistory(history);
-  renderTagManager();
-  notify(`已把「${from}」重命名为「${to}」。`,'good','标签管理');
+  const name=String(next||'').trim();
+  if(!name)return notify('收藏夹名称不能为空。','bad','收藏夹');
+  const settings=getSettings();
+  const now=new Date().toISOString();
+  const folders=upsertFavoriteFolder({...folder,name,updatedAt:now},settings.favoriteFolders);
+  setSettings({...settings,favoriteFolders:folders,updatedAt:now});
+  renderFolderManager();
+  renderFoldersView();
+  notify(`已重命名为「${name}」。`,'good','收藏夹');
 }
-async function deleteManagedTag(tag){
-  const value=String(tag||'').trim();
-  if(!value)return;
-  const count=tagStats().find(item=>item.tag===value)?.count||0;
-  if(!await askConfirm(`确认从 ${count} 条历史记录中移除「${value}」标签？`,'移除标签'))return;
+async function deleteFavoriteFolder(folderId){
+  const folder=folderById(folderId);
+  if(!folder||folder.system)return;
+  const count=folderStats().find(item=>item.id===folder.id)?.count||0;
+  if(!await askConfirm(`确认从 ${count} 条历史记录中移除收藏夹「${folder.name}」？记录本身不会删除。`,'移除收藏夹'))return;
   const history=getHistory().map(item=>{
     const normalized=normalizeHistoryItem(item);
-    if(!normalized.tags.includes(value))return item;
-    return {...normalized,tags:normalized.tags.filter(tag=>tag!==value),updatedAt:new Date().toISOString()};
+    if(!normalized.folderIds.includes(folder.id)&&!normalized.tags.some(tag=>legacyTagFolderId(tag)===folder.id))return item;
+    return {
+      ...normalized,
+      folderIds:normalized.folderIds.filter(id=>id!==folder.id),
+      tags:normalized.tags.filter(tag=>legacyTagFolderId(tag)!==folder.id),
+      updatedAt:new Date().toISOString(),
+    };
   });
-  historyState.filters.tag=historyState.filters.tag.filter(tag=>tag!==value);
+  const settings=getSettings();
+  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),updatedAt:new Date().toISOString()});
+  historyState.filters.folder=historyState.filters.folder.filter(id=>id!==folder.id);
+  if(folderState.activeId===folder.id)folderState.activeId=FOLDER_LIKED_ID;
   setHistory(history);
-  renderTagManager();
-  notify(`已移除「${value}」标签。`,'good','标签管理');
+  renderFolderManager();
+  renderFoldersView();
+  notify(`已移除收藏夹「${folder.name}」。`,'good','收藏夹');
 }
 function clearHistoryFilter(key){
   if(!key)return;
@@ -3734,7 +3984,7 @@ function historySearchText(item){
     pieces.push(result.confusions);
   }
   if(scopes.includes('other')){
-    pieces.push(normalized.tags,normalized.note,normalized.createdAt,normalized.updatedAt,result.meta,result.register,normalized.followups);
+    pieces.push(folderNamesForItem(normalized),normalized.note,normalized.createdAt,normalized.updatedAt,result.meta,result.register,normalized.followups);
   }
   return normalizeSearch(flattenText(pieces));
 }
@@ -4031,7 +4281,7 @@ function openHistoryModal(id){
   els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal',normalized);
   renderVisualEditor(modalResult);
   els.modalQueryEdit.value=normalized.query;
-  if(els.modalTagsEdit)els.modalTagsEdit.value=normalized.tags.join(' ');
+  if(els.modalTagsEdit)els.modalTagsEdit.value=folderNamesForItem(normalized).join(' ');
   if(els.modalNoteEdit)els.modalNoteEdit.value=normalized.note;
   els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
   validateModalJSON(false);
@@ -4059,7 +4309,7 @@ function saveHistoryEdit(){
   }
   const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
   parsed=normalizeResultEntryType(parsed,query);
-  const tags=normalizeTags(els.modalTagsEdit?.value||'');
+  const folderIds=ensureFavoriteFoldersByNames(els.modalTagsEdit?.value||'');
   const note=String(els.modalNoteEdit?.value||'').trim();
   const now=new Date().toISOString();
   const history=getHistory().map(item=>{
@@ -4070,7 +4320,7 @@ function saveHistoryEdit(){
     const updatedRolls=rolls.map((roll,index)=>Number(roll.id)===Number(modalRollId)||(!modalRollId&&index===0)
       ? {...roll,result:parsed,updatedAt:now}
       : roll);
-    return {...normalized,query,tags,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
+    return {...normalized,query,tags:[],folderIds,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
   setHistory(history);
   modalResult=parsed;
@@ -4082,7 +4332,7 @@ function saveHistoryEdit(){
   renderModalStickySummary(parsed,updatedItem);
   els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal',updatedItem);
   renderVisualEditor(parsed);
-  if(els.modalTagsEdit)els.modalTagsEdit.value=tags.join(' ');
+  if(els.modalTagsEdit)els.modalTagsEdit.value=folderNamesForItem(updatedItem).join(' ');
   if(els.modalNoteEdit)els.modalNoteEdit.value=note;
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
   updateModalJSONStatus(true,'语法正确，已保存');
@@ -4094,10 +4344,11 @@ function historyModalMeta(item){
   const normalized=normalizeHistoryItem(item);
   const followupCount=(item.followups||[]).length;
   const rollCount=getHistoryRolls(item).length;
-  const tagText=normalized.tags.length?` · ${normalized.tags.length} 个标签`:'';
+  const folderCount=folderNamesForItem(normalized).length;
+  const folderText=folderCount?` · ${folderCount} 个收藏夹`:'';
   const noteText=normalized.note?' · 有备注':'';
   const timeText=historyTimeMetaText(normalized,getSettings().historyTimeMode);
-  return `${timeText}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${tagText}${noteText}`;
+  return `${timeText}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${folderText}${noteText}`;
 }
 function renderModalStickySummary(result={},historyItem=null){
   if(!els.modalStickySummary)return;
@@ -4551,7 +4802,7 @@ function toggleApiProfileMenu(){
 function renderSettings(){
   setupSettingGroupToggles();
   hydrateSettings();
-  renderTagManager();
+  renderFolderManager();
   renderLogs();
 }
 function setupSettingGroupToggles(){

@@ -42,6 +42,7 @@
   <nav class="nav">
     <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()">首页</button>
     <button class="nav-item" id="nav-history" onclick="showView('history',this)">历史记录</button>
+    <button class="nav-item" id="nav-folders" onclick="showView('folders',this)">收藏夹</button>
     <button class="nav-item" id="nav-settings" onclick="showView('settings',this)">设置</button>
     <button class="nav-item" id="nav-about" onclick="showView('about',this)">关于</button>
   </nav>
@@ -133,7 +134,6 @@
         </div>
         <div class="action-row compact">
           <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()">💾</button>
-          <button class="icon-btn danger-icon" data-tip="清空历史" onclick="clearHistory()">🗑️</button>
         </div>
       </div>
       <div class="history-tools" id="history-tools">
@@ -164,7 +164,7 @@
           <div class="history-filter" data-filter-key="direction"></div>
           <div class="history-filter" data-filter-key="pos"></div>
           <div class="history-filter" data-filter-key="style"></div>
-          <div class="history-filter" data-filter-key="tag"></div>
+          <div class="history-filter" data-filter-key="folder"></div>
         </div>
         <div class="history-sortbar" id="history-sortbar">
           <button class="sort-btn active" data-sort="updated" onclick="setHistorySort('updated')">修改 <span>↓</span></button>
@@ -176,6 +176,28 @@
         </div>
       </div>
       <div class="history-list" id="history-list"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-folders">
+    <div class="panel folder-panel">
+      <div class="section-head">
+        <div>
+          <div class="section-title">收藏夹</div>
+          <div class="section-sub" id="folder-count">个人收藏与自定义收藏夹</div>
+        </div>
+        <div class="action-row compact">
+          <button class="icon-btn" data-tip="新建收藏夹" onclick="createFavoriteFolder()">＋</button>
+          <button class="icon-btn" data-tip="导出当前收藏夹" onclick="exportFolderJSON()">💾</button>
+        </div>
+      </div>
+      <div class="folder-layout">
+        <aside class="folder-sidebar" id="folder-sidebar"></aside>
+        <section class="folder-content">
+          <div class="folder-content-head" id="folder-content-head"></div>
+          <div class="history-list" id="folder-history-list"></div>
+        </section>
+      </div>
     </div>
   </section>
 
@@ -315,8 +337,8 @@
           </div>
         </div>
         <div class="setting-row stack-row">
-          <div><div class="setting-label">标签管理</div><div class="setting-sub">整理历史记录里的 Tag，可快速筛选、重命名或从全部词条中移除。</div></div>
-          <div class="tag-manager" id="tag-manager"></div>
+          <div><div class="setting-label">收藏夹管理</div><div class="setting-sub">旧 Tag 会自动转为收藏夹；同一条历史记录可以加入多个收藏夹，后续可继续扩展嵌套。</div></div>
+          <div class="tag-manager folder-manager" id="folder-manager"></div>
         </div>
         <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
         <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
@@ -370,8 +392,8 @@
           <input class="cloud-input" id="modal-query-edit" type="text">
         </label>
         <label class="setting-field">
-          <span>标签</span>
-          <input class="cloud-input" id="modal-tags-edit" type="text" placeholder="逗号或空格分隔，例如 写作 六级 熟词僻义">
+          <span>收藏夹</span>
+          <input class="cloud-input" id="modal-tags-edit" type="text" placeholder="逗号或空格分隔，例如 尼克书的课 写作 六级">
         </label>
         <label class="setting-field">
           <span>备注</span>

@@ -406,6 +406,20 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .history-load-more:hover{transform:translateY(-1px);border-color:var(--accent);background:var(--accent-bg)}
 .favorite-icon{color:var(--soft)}
 .favorite-icon.active{border-color:color-mix(in srgb,var(--warn) 78%,var(--line));background:radial-gradient(circle at 35% 24%,color-mix(in srgb,var(--warn-soft) 70%,var(--panel)),color-mix(in srgb,var(--warn) 20%,var(--panel)) 56%,var(--panel2));color:color-mix(in srgb,var(--warn) 78%,var(--text));box-shadow:0 0 0 1px color-mix(in srgb,var(--warn-soft) 42%,transparent) inset,0 0 18px color-mix(in srgb,var(--warn) 22%,transparent),0 8px 22px color-mix(in srgb,var(--warn) 14%,transparent);text-shadow:0 0 10px color-mix(in srgb,var(--warn-soft) 78%,transparent)}
+.folder-panel{display:grid;gap:14px}
+.folder-layout{display:grid;grid-template-columns:minmax(220px,.24fr) minmax(0,1fr);gap:14px;align-items:start}
+.folder-sidebar{position:sticky;top:18px;display:grid;gap:8px;max-height:calc(100vh - 160px);overflow:auto;padding-right:2px}
+.folder-tab{border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px;display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;text-align:left;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease}
+.folder-tab:hover{transform:translateY(-1px);border-color:var(--line2)}
+.folder-tab.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 10%,transparent)}
+.folder-tab span{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:color-mix(in srgb,var(--panel) 72%,transparent);font-size:13px}
+.folder-tab b{min-width:0;font-size:15px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-tab em{font-style:normal;font-size:12px;font-weight:850;color:var(--soft)}
+.folder-content{min-width:0;display:grid;gap:10px}
+.folder-content-head{border:1px solid var(--line);border-radius:10px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent-bg) 26%,var(--panel2)),var(--panel2));padding:14px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.folder-content-head h2{font-size:24px;line-height:1.18;margin:0 0 4px;color:var(--text)}
+.folder-content-head p{margin:0;color:var(--muted);font-size:14px;font-weight:700;line-height:1.45}
+.folder-head-actions,.folder-manager-head{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .settings-wrap{width:100%;max-width:none;display:grid;gap:12px}
 .setting-group{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:18px;display:grid;gap:12px;transition:transform .18s ease,border-color .18s ease}
 .setting-group:hover{transform:translateY(-1px);border-color:var(--line2)}
@@ -761,7 +775,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .app{padding:16px 14px 86px}
   .sidebar{position:fixed;top:auto;bottom:0;left:0;right:0;width:100%;height:auto;border-radius:0;border-left:0;border-right:0;border-bottom:0;border-top:1px solid var(--line);padding:7px 8px calc(7px + env(safe-area-inset-bottom));display:block;background:var(--panel);z-index:1000;box-shadow:0 -12px 30px rgba(0,0,0,.10)}
   .brand,.side-note{display:none}
-  .nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .nav{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
   .nav-item{text-align:center;justify-content:center;padding:10px 6px}
   .nav-item:hover{transform:translateY(-1px) scale(1.02)}
   .topbar{top:0;z-index:900;padding:8px 0;background:color-mix(in srgb,var(--bg) 86%,transparent)}
@@ -799,6 +813,12 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .prompt-actions{justify-content:flex-start}
   .tag-manager-item{grid-template-columns:1fr}
   .tag-manager-actions{justify-content:flex-start}
+  .folder-layout{grid-template-columns:1fr}
+  .folder-sidebar{position:static;display:flex;max-height:none;overflow-x:auto;gap:8px;padding:0 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .folder-sidebar::-webkit-scrollbar{display:none}
+  .folder-tab{flex:0 0 min(72vw,260px)}
+  .folder-content-head{display:grid;align-items:start}
+  .folder-head-actions{justify-content:flex-start}
   .model-field-row{grid-template-columns:1fr}
   .settings-grid{grid-template-columns:1fr}
   .history-panel{padding:14px}
