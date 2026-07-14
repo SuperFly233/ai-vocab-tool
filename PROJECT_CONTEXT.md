@@ -127,6 +127,7 @@ Expected behavior:
 - In v0.10.1, visual editing hints moved from a single banner to per-field hint bubbles with temporary close buttons and a synced pinned-display setting. History search also gained a scope selector so users can search only words, meanings, examples, collocations, confusions, or other metadata.
 - API profile and visual editor ordering should now favor drag handles instead of explicit up/down buttons. The drag interaction includes insertion feedback and slow edge autoscroll; future refinement can tune pointer/touch behavior if mobile browser drag support is inconsistent.
 - Home query focus should not bubble into automatic scroll-to-top anymore; only clicking the non-control editor surface should trigger that helper behavior.
+- v0.10.2 corrected the history modal display intent: keep the normal top header visible in preview, visual edit, and JSON edit modes; remove only the extra sticky summary block that appears inside the modal body after scrolling.
 
 ## Working Rules
 

@@ -111,12 +111,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.1',
+  version:'0.10.2',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.2',
+    date:'2026-07-14',
+    title:'修正历史详情编辑区顶部显示',
+    items:['恢复历史详情弹窗顶部标题、时间和操作按钮的原有显示方式，可视化编辑和 JSON 编辑时也保持一致。','取消滚动后额外出现的压缩信息浮块，避免它挤占编辑区域并重复展示词条摘要。'],
+  },
   {
     version:'0.10.1',
     date:'2026-07-14',
