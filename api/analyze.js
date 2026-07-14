@@ -21,6 +21,7 @@ const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句
 6. 语意要详细但尽量控制在一句话内。
 7. 例句必须自然，适合写作、翻译、口语交流等真实使用。
 8. 译文只翻译例句实际含义，不添加其他解释、评价或学习建议。
+9. 每个义项和固定搭配可以额外输出两个窄高亮字段：exampleHighlights 和 translationHighlights。exampleHighlights 只放例句中“当前查询词/短语本身”的实际出现形式或词形变化；translationHighlights 只放译文中对应该词/短语的译法。不要放例句或译文里的其它上下文词，例如宾语、形容词、结果评价、成本、可行性等。
 
 三、语义拆分规则
 只保留真实语义不同的义项。不要按以下方式拆分义项：
@@ -100,7 +101,9 @@ const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句
       "shortestLabel": "最短义标",
       "meaning": "语意说明，一句话内",
       "example": "自然例句",
-      "translation": "例句译文"
+      "translation": "例句译文",
+      "exampleHighlights": ["例句中当前词条的实际词形，可为空数组"],
+      "translationHighlights": ["译文中对应该词条的表达，可为空数组"]
     }
   ],
   "collocations": [
@@ -110,7 +113,9 @@ const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句
       "meaning": "搭配语意，一句话内",
       "example": "自然例句",
       "translation": "例句译文",
-      "note": ""
+      "note": "",
+      "exampleHighlights": ["例句中当前搭配的实际形式，可为空数组"],
+      "translationHighlights": ["译文中对应该搭配的表达，可为空数组"]
     }
   ],
   "register": {

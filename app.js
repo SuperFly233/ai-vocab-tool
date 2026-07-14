@@ -76,12 +76,24 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.48',
+  version:'0.9.50',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.50',
+    date:'2026-07-14',
+    title:'补回译文对应高亮但避免杂项污染',
+    items:['例句高亮继续只围绕查询词本身及模型给出的实际词形，不再高亮上下文里的其它内容。','译文行会高亮当前义项或搭配对应的中文表达，例如“除了”“除此之外”“完全撇开 / 不谈”，但不会把成本、可行等上下文词一起标出来。','新增更明确的 exampleHighlights / translationHighlights 输出约定，用来兼容英语、中文、法语、德语等不同语言里的词形或译文对应变化。'],
+  },
+  {
+    version:'0.9.49',
+    date:'2026-07-14',
+    title:'重做左右布局的宽屏工作台',
+    items:['左右布局改为真正的宽屏工作台：左侧用于长输入和侧重点，右侧保留结果阅读空间，避免只是把顶部布局硬拆成两栏。','左侧输入框不再被固定高度卡死，可以拖拽调整；查询按钮移到输入控制区底部，整体操作顺序更自然。','侧重点在左右布局里只保留一个字段，不再出现两个旧输入框并排挤在底部的古早样式。'],
+  },
   {
     version:'0.9.48',
     date:'2026-07-14',
@@ -1761,8 +1773,8 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
       <div class="item-body">
         <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
         <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
-        <div class="line"><b>例句</b><span>${highlightText(item.example,queryTerms)}</span></div>
-        <div class="line"><b>译文</b><span>${highlightText(item.translation,queryTerms)}</span></div>
+        <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
+        <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
       </div>
     `)}
     <div class="block">
@@ -1798,8 +1810,8 @@ function renderSenseGroups(senses=[],result={}){
         <div class="item-body">
           <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark></div>
           <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
-          <div class="line"><b>例句</b><span>${highlightText(item.example,queryTerms)}</span></div>
-          <div class="line"><b>译文</b><span>${highlightText(item.translation,queryTerms)}</span></div>
+          <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
+          <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
         </div>
       </div>`).join('')}
     </section>
@@ -1813,6 +1825,54 @@ function resultQueryHighlightTerms(result={}){
     meta.query,
     head.title,
   ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
+}
+function exampleHighlightTermsForItem(item={},queryTerms=[]){
+  return uniq([
+    ...(Array.isArray(queryTerms)?queryTerms:[queryTerms]),
+    ...rawList(item.exampleHighlights),
+    ...rawList(item.sourceHighlights),
+    ...rawList(item.inflectedForms),
+  ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
+}
+function translationHighlightTermsForItem(item={},result={}){
+  const terms=[
+    ...rawList(item.translationHighlights),
+    ...semanticLabelCandidates(item.shortestLabel),
+    ...semanticLabelCandidates(item.phraseTranslation),
+    ...semanticLabelCandidates(item.meaning),
+  ];
+  const head=result.headword||{};
+  terms.push(...semanticLabelCandidates(head.coreMeaning));
+  return uniq(terms.map(value=>String(value||'').trim()).filter(value=>value.length>=2&&value.length<=12)).slice(0,8);
+}
+function semanticLabelCandidates(value){
+  const raw=String(value||'').trim();
+  if(!raw)return [];
+  const withoutParen=raw.replace(/[（(][^）)]*[）)]/g,' ');
+  const chunks=withoutParen
+    .split(/[，。；;、]/)
+    .map(part=>part.trim())
+    .filter(Boolean)
+    .slice(0,1);
+  const candidates=[];
+  chunks.forEach(chunk=>{
+    const compact=chunk
+      .replace(/\s+/g,'')
+      .replace(/相当于.*$/,'')
+      .replace(/用于.*$/,'')
+      .replace(/表示/, '')
+      .trim();
+    if(!compact)return;
+    candidates.push(compact);
+    compact.split(/[.。…·—-]+/).forEach(part=>{
+      const cleaned=part.trim();
+      if(cleaned.length>=2)candidates.push(cleaned);
+    });
+    if(/除[.。…·—-]*外/.test(compact)){
+      candidates.push('除了','除外','除此之外');
+    }
+  });
+  return uniq(candidates.filter(term=>/[\u3400-\u9fff]/.test(term)));
 }
 function escapeRegExp(value){
   return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');

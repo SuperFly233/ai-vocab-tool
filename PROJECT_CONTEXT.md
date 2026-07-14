@@ -111,6 +111,8 @@ Expected behavior:
 - Added an optional IPv4 relay fallback for Cloudflare Pages. If an upstream model API returns an IPv6-block HTML page, `api/relay.js` can forward `analyze`, `followup`, `models`, and `test-profile` to `AI_IPV4_RELAY_BASE_URL` such as the Vercel deployment. The browser still only talks to Cloudflare; if the provider also blocks Vercel egress, replace the relay with another IPv4-capable endpoint.
 - Improved and then narrowed result highlighting. `highlightText()` expands common English inflections and highlights the full word form instead of only the base stem, but rendering now uses only the current query/headword as highlight terms and only applies marks in example and translation rows; meaning rows stay unmarked.
 - Made the home topbar and query panel sticky. When the home page scrolls, `home-scrolled` compacts the title and query controls; clicking the sticky query panel scrolls back to the top and focuses the query input for faster mobile reuse.
+- Reworked split layout as a wide-screen workbench. The left panel is now a compact sticky input console with a resizable long textarea, one focus field, and bottom-aligned query action; the right panel keeps the result readable instead of inheriting the old top-layout control shape.
+- Refined highlight scope again: examples use only query/headword terms plus narrow `exampleHighlights`; translations use `translationHighlights` and conservative Chinese label candidates so the translated equivalent can be marked without highlighting unrelated context words.
 
 ## Working Rules
 
