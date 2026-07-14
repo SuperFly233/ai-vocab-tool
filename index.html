@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./styles.css?v=0.11.1">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -105,6 +105,7 @@
             <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
           </div>
         </div>
+        <div class="lookup-folder-strip" id="lookup-folder-strip"></div>
         <div class="lookup-queue" id="lookup-queue"></div>
       </div>
 
@@ -137,10 +138,6 @@
         </div>
       </div>
       <div class="history-tools" id="history-tools">
-        <div class="history-scope" id="history-scope">
-          <button class="scope-btn active" data-scope="all" onclick="setHistoryScope('all')">全部</button>
-          <button class="scope-btn" data-scope="favorites" onclick="setHistoryScope('favorites')">收藏</button>
-        </div>
         <label class="history-search">
           <span>🔎</span>
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
@@ -465,6 +462,27 @@
   </div>
 </div>
 
+<div class="modal-layer folder-select-layer" id="folder-select-modal" onclick="closeFolderSelectModal(event)">
+  <div class="modal-card folder-select-card" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div class="modal-title-block">
+        <div class="section-title" id="folder-select-title">添加到收藏夹</div>
+        <div class="section-sub" id="folder-select-subtitle">可同时选择多个收藏夹</div>
+      </div>
+      <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeFolderSelectModal()">✕</button>
+    </div>
+    <div class="folder-select-body">
+      <div class="folder-select-list" id="folder-select-list"></div>
+      <button class="plain-btn ghost-btn" type="button" onclick="createFavoriteFolderFromSelector()">＋ 新建收藏夹</button>
+    </div>
+    <div class="modal-edit-footer">
+      <div class="json-status" id="folder-select-status">选择后会同步到历史和云端。</div>
+      <button class="plain-btn" type="button" onclick="closeFolderSelectModal()">取消</button>
+      <button class="plain-btn primary-btn" type="button" onclick="saveFolderSelection()">确定</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-layer" id="confirm-layer">
   <div class="confirm-card" id="confirm-card">
     <div class="confirm-title" id="confirm-title">确认操作</div>
@@ -479,6 +497,6 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./app.js"></script>
+<script src="./app.js?v=0.11.1"></script>
 </body>
 </html>

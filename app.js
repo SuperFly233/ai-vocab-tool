@@ -47,6 +47,9 @@ let passwordRecoveryMode=false;
 const cloudDirtyKeys=new Set();
 let editingFollowup=null;
 let pendingFollowup=null;
+let lookupFolderIds=[];
+let folderSelectContext=null;
+let folderDragState=null;
 let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
@@ -117,12 +120,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.0',
+  version:'0.11.1',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.1',
+    date:'2026-07-14',
+    title:'完善收藏夹工作流并加固历史导入',
+    items:['首页查询可预选一个或多个收藏夹，保存历史和排队请求会带入所选收藏夹；收藏夹页新增“查词加入此夹”入口。','历史页移除旧的“收藏”范围切换，历史卡片新增“添加到收藏夹”弹窗，可像常见收藏夹一样多选归档。','收藏夹左栏支持新建、删除策略确认和拖拽排序，视觉改为更轻的列表式结构。','为 app.js / styles.css 增加版本参数，避免浏览器继续使用旧脚本导致历史导入仍报 formatTime is not defined。'],
+  },
   {
     version:'0.11.0',
     date:'2026-07-14',
@@ -551,6 +560,12 @@ const els={
   resultCard:document.getElementById('result-card'),
   resultJson:document.getElementById('result-json'),
   lookupQueue:document.getElementById('lookup-queue'),
+  lookupFolderStrip:document.getElementById('lookup-folder-strip'),
+  folderSelectModal:document.getElementById('folder-select-modal'),
+  folderSelectTitle:document.getElementById('folder-select-title'),
+  folderSelectSubtitle:document.getElementById('folder-select-subtitle'),
+  folderSelectList:document.getElementById('folder-select-list'),
+  folderSelectStatus:document.getElementById('folder-select-status'),
   historyModal:document.getElementById('history-modal'),
   modalTitle:document.getElementById('modal-title'),
   modalSubtitle:document.getElementById('modal-subtitle'),
@@ -739,6 +754,7 @@ function resetConfirmUI(){
   const card=document.getElementById('confirm-card');
   card?.classList.remove('sync-card');
   document.getElementById('sync-merge')?.remove();
+  document.getElementById('folder-delete-keep')?.remove();
   if(els.confirmLayer)els.confirmLayer.onclick=null;
   if(els.confirmOk){
     els.confirmOk.textContent='确认';
@@ -930,6 +946,7 @@ function setHistory(items){
   writeJSON(STORAGE_KEYS.history,items);
   markCloudDirty(CLOUD_KEYS.history);
   renderHistory();
+  renderLookupFolderPicker();
   if(activeView==='folders')renderFoldersView();
   syncAllToCloud(true);
 }
@@ -937,11 +954,13 @@ function getSettings(){return normalizeSettings(readJSON(STORAGE_KEYS.settings,D
 function setSettings(settings){
   writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
   markCloudDirty(CLOUD_KEYS.settings);
+  renderLookupFolderPicker();
   syncAllToCloud(true);
 }
 function saveSettingsLocal(settings){
   writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
   markCloudDirty(CLOUD_KEYS.settings);
+  renderLookupFolderPicker();
 }
 function normalizeSettings(raw={}){
   const source={...raw};
@@ -2662,7 +2681,7 @@ async function runLookup(){
         return;
       }
     }
-    await submitLookup({query,existingId:existing?.id||null,direction:els.direction.value.trim(),note:els.note.value.trim()});
+    await submitLookup({query,existingId:existing?.id||null,direction:els.direction.value.trim(),note:els.note.value.trim(),folderIds:lookupFolderIds});
   }catch(error){
     console.error(error);
     notify(error?.message||'查询入口异常，请刷新后重试。','bad','无法查询');
@@ -2690,7 +2709,8 @@ function lookupRequestSignature(request){
   const direction=normalizeSearch(request.direction||'');
   const note=normalizeSearch(request.note||'');
   const existingId=String(request.existingId||'');
-  return [query,direction,note,existingId].join('\u001f');
+  const folders=normalizeSelectableFolderIds(request.folderIds||[]).sort().join(',');
+  return [query,direction,note,existingId,folders].join('\u001f');
 }
 function enqueueLookup(request){
   const item={...request,id:++lookupQueueId,queuedAt:new Date().toISOString(),signature:lookupRequestSignature(request)};
@@ -2714,7 +2734,7 @@ function renderLookupQueue(){
           <div class="queue-index">${index+1}</div>
           <div class="queue-copy">
             <strong>${escapeHTML(item.query)}</strong>
-            <span>${escapeHTML([item.direction,item.note].filter(Boolean).join(' · ')||'默认规则')}</span>
+            <span>${escapeHTML([item.direction,item.note,foldersFromIds(item.folderIds||[]).map(folder=>folder.name).join('、')].filter(Boolean).join(' · ')||'默认规则')}</span>
           </div>
           <div class="queue-actions">
             <button class="icon-btn" data-tip="上移" onclick="moveLookupQueueItem(${Number(item.id)},-1)">↑</button>
@@ -2763,10 +2783,12 @@ function applyLookupRequestToEditor(request){
   if(els.query)els.query.value=request.query||'';
   if(els.direction)els.direction.value=request.direction||'';
   if(els.note)els.note.value=request.note||'';
+  lookupFolderIds=normalizeSelectableFolderIds(request.folderIds||[]);
+  renderLookupFolderPicker();
   updateEditorState();
 }
-async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null}){
-  const request={query,existingId,sourceItem,direction,note};
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,folderIds=[]}){
+  const request={query,existingId,sourceItem,direction,note,folderIds:normalizeSelectableFolderIds(folderIds)};
   const settings=currentApiSettings();
   lookupBusy=true;
   activeLookupSignature=lookupRequestSignature(request);
@@ -2788,7 +2810,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   try{
     const data=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
-    const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo});
+    const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds});
     currentHistoryId=saved.id;
     currentFollowups=saved.followups||[];
     renderResult(data,{animate:false});
@@ -3124,24 +3146,31 @@ function findHistoryByQuery(query){
   const normalized=normalizeSearch(query);
   return getHistory().find(item=>normalizeSearch(item.query)===normalized);
 }
-function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={}}){
+function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={},folderIds=[]}){
   const now=new Date().toISOString();
   result=normalizeResultEntryType(result,query);
   const history=getHistory();
   const existing=sourceItem||history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query);
   const roll=makeHistoryRoll(result,now,null,modelInfo);
+  const selected=normalizeSelectableFolderIds(folderIds);
+  const favorite=selected.includes(FOLDER_LIKED_ID);
+  const selectedFolderIds=selected.filter(id=>id!==FOLDER_LIKED_ID);
   let saved;
   if(existing){
+    const normalized=normalizeHistoryItem(existing);
     saved={
-      ...normalizeHistoryItem(existing),
+      ...normalized,
       query,
       result,
+      favorite:favorite||normalized.favorite,
+      favoriteAt:favorite?(normalized.favoriteAt||now):normalized.favoriteAt,
+      folderIds:mergeFolderIds(normalized.folderIds,selectedFolderIds),
       updatedAt:now,
       rolls:dedupeRolls([roll,...getHistoryRolls(existing)]),
     };
     setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item));
   }else{
-    saved={id:Date.now(),query,result,followups:[],createdAt:now,updatedAt:now,rolls:[roll]};
+    saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',folderIds:selectedFolderIds,createdAt:now,updatedAt:now,rolls:[roll]};
     const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
     next.unshift(saved);
     setHistory(next);
@@ -3287,6 +3316,7 @@ function renderHistory(){
         </div>
       </div>
       <div class="history-actions">
+        <button class="icon-btn" data-tip="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">＋</button>
         <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
         <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
@@ -3391,6 +3421,131 @@ function exportFolderJSON(folderId=folderState.activeId){
   downloadText(`ai-vocab-tool-folder-${folderExportName(folder)}.json`,JSON.stringify({folder,items},null,2));
   notify(`已导出「${folder.name}」${items.length} 条记录。`,'good','收藏夹导出');
 }
+function normalizeSelectableFolderIds(ids=[]){
+  const valid=new Set(folderCatalog().map(folder=>folder.id));
+  return uniq((Array.isArray(ids)?ids:[ids]).map(id=>String(id||'').trim()).filter(id=>id&&valid.has(id)));
+}
+function foldersFromIds(ids=[]){
+  const idSet=new Set(normalizeSelectableFolderIds(ids));
+  return folderCatalog().filter(folder=>idSet.has(folder.id));
+}
+function renderLookupFolderPicker(){
+  if(!els.lookupFolderStrip)return;
+  lookupFolderIds=normalizeSelectableFolderIds(lookupFolderIds);
+  const folders=foldersFromIds(lookupFolderIds);
+  els.lookupFolderStrip.innerHTML=`
+    <button class="lookup-folder-trigger" type="button" onclick="openFolderSelectModal({type:'lookup'})">
+      <span>收藏夹</span>
+      <b>${folders.length?folders.slice(0,3).map(folder=>escapeHTML(folder.name)).join('、'):'不加入'}</b>
+      ${folders.length>3?`<em>+${folders.length-3}</em>`:''}
+    </button>
+  `;
+}
+function openFolderSelectModal(context={}){
+  if(!els.folderSelectModal||!els.folderSelectList)return;
+  const type=context.type||'history';
+  const historyId=Number(context.historyId||0);
+  const item=historyId?getHistory().find(row=>Number(row.id)===historyId):null;
+  const selected=type==='lookup'?lookupFolderIds:item?itemFolderIds(item):[];
+  folderSelectContext={type,historyId,selectedIds:normalizeSelectableFolderIds(selected)};
+  renderFolderSelectModal();
+  els.folderSelectModal.classList.add('open');
+  document.body.classList.add('modal-open');
+}
+function closeFolderSelectModal(event){
+  if(event&&event.target!==els.folderSelectModal)return;
+  els.folderSelectModal?.classList.remove('open');
+  document.body.classList.remove('modal-open');
+  folderSelectContext=null;
+}
+function renderFolderSelectModal(){
+  if(!folderSelectContext||!els.folderSelectList)return;
+  const selected=new Set(normalizeSelectableFolderIds(folderSelectContext.selectedIds));
+  const catalog=folderCatalog();
+  const isLookup=folderSelectContext.type==='lookup';
+  const item=!isLookup?getHistory().find(row=>Number(row.id)===Number(folderSelectContext.historyId)):null;
+  if(els.folderSelectTitle)els.folderSelectTitle.textContent=isLookup?'查询后加入收藏夹':'添加到收藏夹';
+  if(els.folderSelectSubtitle)els.folderSelectSubtitle.textContent=isLookup?'本次查询保存历史时自动加入所选收藏夹。':`「${item?.query||'这条记录'}」可同时加入多个收藏夹。`;
+  if(els.folderSelectStatus)els.folderSelectStatus.textContent=isLookup?'队列中的查询也会带上当前选择。':'选择后会同步到历史和云端。';
+  els.folderSelectList.innerHTML=catalog.map(folder=>`
+    <label class="folder-select-option ${selected.has(folder.id)?'active':''}">
+      <input type="checkbox" value="${escapeHTML(folder.id)}" ${selected.has(folder.id)?'checked':''} onchange="updateFolderSelectDraft()">
+      <span>${folder.system?'★':'▣'}</span>
+      <b>${escapeHTML(folder.name)}</b>
+      <em>${Number(folderStats().find(item=>item.id===folder.id)?.count||0)} 条</em>
+    </label>
+  `).join('');
+}
+function updateFolderSelectDraft(){
+  if(!folderSelectContext)return;
+  folderSelectContext.selectedIds=[...(els.folderSelectList?.querySelectorAll('input:checked')||[])].map(input=>input.value);
+  els.folderSelectList?.querySelectorAll('.folder-select-option').forEach(option=>{
+    option.classList.toggle('active',Boolean(option.querySelector('input')?.checked));
+  });
+}
+function createFavoriteFolderFromSelector(){
+  const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
+  if(!name)return;
+  const folder=createFavoriteFolderRecord(name);
+  if(folderSelectContext)folderSelectContext.selectedIds=normalizeSelectableFolderIds([...(folderSelectContext.selectedIds||[]),folder.id]);
+  renderFolderSelectModal();
+}
+function createFavoriteFolderRecord(name){
+  const settings=getSettings();
+  const now=new Date().toISOString();
+  const folder={id:`folder_${Date.now()}_${stableHash(name)}`,name,parentId:'',order:settings.favoriteFolders.length,createdAt:now,updatedAt:now};
+  setSettings({...settings,favoriteFolders:[...settings.favoriteFolders,folder],updatedAt:now});
+  renderFolderManager();
+  renderFoldersView();
+  notify(`已创建收藏夹「${name}」。`,'good','收藏夹');
+  return folder;
+}
+function saveFolderSelection(){
+  if(!folderSelectContext)return;
+  updateFolderSelectDraft();
+  const ids=normalizeSelectableFolderIds(folderSelectContext.selectedIds);
+  if(folderSelectContext.type==='lookup'){
+    lookupFolderIds=ids;
+    renderLookupFolderPicker();
+    notify(ids.length?'已设置本次查询收藏夹。':'本次查询不会自动加入收藏夹。','good','收藏夹');
+    closeFolderSelectModal();
+    return;
+  }
+  applyFolderSelectionToHistory(folderSelectContext.historyId,ids);
+  closeFolderSelectModal();
+}
+function applyFolderSelectionToHistory(historyId,ids=[]){
+  const now=new Date().toISOString();
+  const selected=normalizeSelectableFolderIds(ids);
+  const favorite=selected.includes(FOLDER_LIKED_ID);
+  const folderIds=selected.filter(id=>id!==FOLDER_LIKED_ID);
+  const history=getHistory().map(item=>{
+    if(Number(item.id)!==Number(historyId))return item;
+    const normalized=normalizeHistoryItem(item);
+    return {
+      ...normalized,
+      favorite,
+      favoriteAt:favorite?(normalized.favoriteAt||now):'',
+      folderIds,
+      tags:[],
+      updatedAt:now,
+    };
+  });
+  setHistory(history);
+  renderFolderManager();
+  notify('收藏夹已更新。','good','收藏夹');
+}
+function openHistoryFolderSelector(id,event){
+  event?.stopPropagation();
+  openFolderSelectModal({type:'history',historyId:id});
+}
+function startLookupInFolder(folderId=folderState.activeId){
+  lookupFolderIds=normalizeSelectableFolderIds([folderId]);
+  renderLookupFolderPicker();
+  showView('home',document.getElementById('nav-home'));
+  focusQueryInput();
+  notify('已把本次查询目标设为当前收藏夹。','good','收藏夹');
+}
 function renderFoldersView(){
   if(!els.folderSidebar||!els.folderHistoryList)return;
   const folders=folderStats();
@@ -3398,13 +3553,24 @@ function renderFoldersView(){
   const active=folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
   const items=historyForFolder(active.id);
   if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${items.length} 条`;
-  els.folderSidebar.innerHTML=folders.map(folder=>`
-    <button class="folder-tab ${folder.id===active.id?'active':''}" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
-      <span>${folder.system?'★':'▣'}</span>
-      <b>${escapeHTML(folder.name)}</b>
-      <em>${Number(folder.count||0)}</em>
-    </button>
-  `).join('')||'<div class="empty small-empty">暂无收藏夹</div>';
+  els.folderSidebar.innerHTML=`
+    <div class="folder-sidebar-head">
+      <b>我的收藏夹</b>
+      <button class="icon-btn" type="button" data-tip="新建收藏夹" onclick="createFavoriteFolder()">＋</button>
+    </div>
+    <div class="folder-tab-list">
+      ${folders.map(folder=>`
+        <article class="folder-tab ${folder.id===active.id?'active':''}" draggable="${folder.system?'false':'true'}" data-folder-id="${escapeHTML(folder.id)}" ondragstart="startFolderDrag(event,'${escapeAttr(folder.id)}')" ondragover="overFolderDrag(event,'${escapeAttr(folder.id)}')" ondragleave="clearFolderDropMarks()" ondragend="endFolderDrag()" ondrop="dropFolderDrag(event,'${escapeAttr(folder.id)}')">
+          <button class="folder-tab-main" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
+            <span>${folder.system?'★':'▣'}</span>
+            <b>${escapeHTML(folder.name)}</b>
+            <em>${Number(folder.count||0)}</em>
+          </button>
+          ${folder.system?'':`<button class="folder-tab-delete" type="button" data-tip="删除收藏夹" onclick="deleteFavoriteFolder('${escapeAttr(folder.id)}')">×</button>`}
+        </article>
+      `).join('')}
+    </div>
+  `;
   if(els.folderContentHead){
     els.folderContentHead.innerHTML=`
       <div>
@@ -3413,6 +3579,7 @@ function renderFoldersView(){
       </div>
       <div class="folder-head-actions">
         ${active.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">重命名</button>`}
+        <button class="plain-btn" type="button" onclick="startLookupInFolder('${escapeAttr(active.id)}')">查词加入此夹</button>
         <button class="plain-btn primary-btn" type="button" onclick="exportFolderJSON('${escapeAttr(active.id)}')">导出 JSON</button>
       </div>
     `;
@@ -3439,6 +3606,7 @@ function renderFolderHistoryItem(item){
         </div>
       </div>
       <div class="history-actions">
+        <button class="icon-btn" data-tip="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">＋</button>
         <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
         <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
@@ -3876,13 +4044,7 @@ function openFolderView(folderId){
 async function createFavoriteFolder(){
   const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
   if(!name)return;
-  const settings=getSettings();
-  const now=new Date().toISOString();
-  const folder={id:`folder_${Date.now()}`,name,parentId:'',order:settings.favoriteFolders.length,createdAt:now,updatedAt:now};
-  setSettings({...settings,favoriteFolders:[folder,...settings.favoriteFolders],updatedAt:now});
-  renderFolderManager();
-  renderFoldersView();
-  notify(`已创建收藏夹「${name}」。`,'good','收藏夹');
+  createFavoriteFolderRecord(name);
 }
 async function renameFavoriteFolder(folderId){
   const folder=folderById(folderId);
@@ -3903,17 +4065,20 @@ async function deleteFavoriteFolder(folderId){
   const folder=folderById(folderId);
   if(!folder||folder.system)return;
   const count=folderStats().find(item=>item.id===folder.id)?.count||0;
-  if(!await askConfirm(`确认从 ${count} 条历史记录中移除收藏夹「${folder.name}」？记录本身不会删除。`,'移除收藏夹'))return;
-  const history=getHistory().map(item=>{
-    const normalized=normalizeHistoryItem(item);
-    if(!normalized.folderIds.includes(folder.id)&&!normalized.tags.some(tag=>legacyTagFolderId(tag)===folder.id))return item;
-    return {
-      ...normalized,
-      folderIds:normalized.folderIds.filter(id=>id!==folder.id),
-      tags:normalized.tags.filter(tag=>legacyTagFolderId(tag)!==folder.id),
-      updatedAt:new Date().toISOString(),
-    };
-  });
+  const mode=await askFolderDeleteMode(folder,count);
+  if(!mode)return;
+  const history=mode==='records'
+    ? getHistory().filter(item=>!itemFolderIds(item).includes(folder.id))
+    : getHistory().map(item=>{
+      const normalized=normalizeHistoryItem(item);
+      if(!normalized.folderIds.includes(folder.id)&&!normalized.tags.some(tag=>legacyTagFolderId(tag)===folder.id))return item;
+      return {
+        ...normalized,
+        folderIds:normalized.folderIds.filter(id=>id!==folder.id),
+        tags:normalized.tags.filter(tag=>legacyTagFolderId(tag)!==folder.id),
+        updatedAt:new Date().toISOString(),
+      };
+    });
   const settings=getSettings();
   setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),updatedAt:new Date().toISOString()});
   historyState.filters.folder=historyState.filters.folder.filter(id=>id!==folder.id);
@@ -3921,7 +4086,92 @@ async function deleteFavoriteFolder(folderId){
   setHistory(history);
   renderFolderManager();
   renderFoldersView();
-  notify(`已移除收藏夹「${folder.name}」。`,'good','收藏夹');
+  notify(mode==='records'?`已删除「${folder.name}」及其中 ${count} 条记录。`:`已移除收藏夹「${folder.name}」，记录已保留。`,'good','收藏夹');
+}
+function askFolderDeleteMode(folder,count=0){
+  if(!els.confirmLayer)return Promise.resolve(window.confirm(`删除收藏夹「${folder.name}」？确认=连同记录删除，取消=不删除。`)?'records':null);
+  resetConfirmUI();
+  const card=document.getElementById('confirm-card');
+  const actions=card?.querySelector('.confirm-actions');
+  if(!actions)return Promise.resolve(null);
+  const keepBtn=document.createElement('button');
+  keepBtn.className='plain-btn primary-btn';
+  keepBtn.id='folder-delete-keep';
+  keepBtn.textContent='仅删除收藏夹';
+  actions.insertBefore(keepBtn,els.confirmOk);
+  els.confirmTitle.textContent='删除收藏夹';
+  els.confirmMessage.textContent=`「${folder.name}」里有 ${count} 条记录。请选择只移除收藏夹关系，还是连这些历史记录一起删除。`;
+  els.confirmCancel.textContent='取消';
+  els.confirmOk.textContent='连同记录删除';
+  els.confirmOk.className='danger-btn';
+  els.confirmLayer.classList.add('open');
+  return new Promise(resolve=>{
+    let done=false;
+    const close=result=>{
+      if(done)return;
+      done=true;
+      els.confirmLayer?.classList.remove('open');
+      keepBtn.remove();
+      confirmResolver=null;
+      resetConfirmUI();
+      resolve(result);
+    };
+    confirmResolver=()=>close(null);
+    keepBtn.onclick=()=>close('folder');
+    els.confirmOk.onclick=()=>close('records');
+    els.confirmCancel.onclick=()=>close(null);
+  });
+}
+function ensureFoldersPersistedForOrder(folders=[]){
+  const settings=getSettings();
+  const normalized=folders
+    .filter(folder=>folder&&!folder.system)
+    .map((folder,index)=>normalizeFavoriteFolder({...folder,order:index,updatedAt:new Date().toISOString()},index))
+    .filter(Boolean);
+  setSettings({...settings,favoriteFolders:normalized,updatedAt:new Date().toISOString()});
+}
+function startFolderDrag(event,folderId){
+  const folder=folderById(folderId);
+  if(!folder||folder.system){event.preventDefault();return}
+  folderDragState={id:folder.id};
+  event.currentTarget?.classList.add('dragging');
+  event.dataTransfer?.setData('text/plain',folder.id);
+}
+function overFolderDrag(event,folderId){
+  if(!folderDragState||folderDragState.id===folderId)return;
+  event.preventDefault();
+  clearFolderDropMarks();
+  const target=event.currentTarget;
+  const rect=target.getBoundingClientRect();
+  target.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
+}
+function clearFolderDropMarks(){
+  els.folderSidebar?.querySelectorAll('.folder-tab.drop-before,.folder-tab.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));
+}
+function endFolderDrag(){
+  els.folderSidebar?.querySelectorAll('.folder-tab.dragging').forEach(node=>node.classList.remove('dragging'));
+  clearFolderDropMarks();
+  folderDragState=null;
+}
+function dropFolderDrag(event,targetId){
+  event.preventDefault();
+  const state=folderDragState;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const after=event.clientY>rect.top+rect.height/2;
+  endFolderDrag();
+  if(!state||state.id===targetId)return;
+  const list=folderCatalog().filter(folder=>!folder.system);
+  const from=list.findIndex(folder=>folder.id===state.id);
+  const target=list.findIndex(folder=>folder.id===targetId);
+  if(from<0||target<0)return;
+  const [item]=list.splice(from,1);
+  let to=target+(after?1:0);
+  if(from<to)to-=1;
+  list.splice(Math.max(0,Math.min(list.length,to)),0,item);
+  ensureFoldersPersistedForOrder(list);
+  renderFoldersView();
+  renderFolderManager();
+  notify('收藏夹顺序已调整。','good','收藏夹');
 }
 function clearHistoryFilter(key){
   if(!key)return;
@@ -4485,8 +4735,13 @@ function historyImportKey(item={}){
 function historyRangeLabel(items=[]){
   const times=items.flatMap(item=>[item.createdAt,item.updatedAt]).filter(Boolean).map(value=>new Date(value).getTime()).filter(Boolean).sort((a,b)=>a-b);
   if(!times.length)return '无时间';
-  const first=formatHistoryTime(new Date(times[0]).toISOString())||new Date(times[0]).toISOString();
-  const last=formatHistoryTime(new Date(times[times.length-1]).toISOString())||new Date(times[times.length-1]).toISOString();
+  const formatImportTime=value=>{
+    const iso=new Date(value).toISOString();
+    if(typeof formatHistoryTime==='function')return formatHistoryTime(iso)||iso;
+    return iso;
+  };
+  const first=formatImportTime(times[0]);
+  const last=formatImportTime(times[times.length-1]);
   return `${first} → ${last}`;
 }
 function analyzeHistoryImport(text){
@@ -4802,6 +5057,7 @@ function toggleApiProfileMenu(){
 function renderSettings(){
   setupSettingGroupToggles();
   hydrateSettings();
+  renderLookupFolderPicker();
   renderFolderManager();
   renderLogs();
 }
@@ -5365,6 +5621,7 @@ document.addEventListener('keydown',event=>{
     closeApiProfileMenu();
     closeHistoryFilterMenus();
     closeHistorySearchScopeMenu();
+    if(els.folderSelectModal?.classList.contains('open'))closeFolderSelectModal();
     if(els.apiProfileModal?.classList.contains('open'))closeApiProfileModal();
   }
 });
@@ -5389,6 +5646,7 @@ renderEmpty();
 hydrateSettings();
 setupHistoryImportDrop();
 renderHistory();
+renderLookupFolderPicker();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
 ensureLayoutPreference(true);
 updateEditorState();

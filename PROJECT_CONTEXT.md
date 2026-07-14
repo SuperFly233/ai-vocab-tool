@@ -134,6 +134,7 @@ Expected behavior:
 - v0.10.6 extended history import with file picker and drag/drop loading through `loadHistoryImportFile()`. Settings desktop layout should use full-width/right-side work areas for API profiles, Prompt, import, and tag management rather than narrow left-aligned forms.
 - v0.10.7 fixed the history import preview crash caused by calling nonexistent `formatTime()` in `historyRangeLabel()`; use `formatHistoryTime()` with ISO fallback instead.
 - v0.11.0 introduced Favorites/Folders as the replacement user-facing model for Tag. Existing `tags` are still preserved for backward compatibility and are mapped to deterministic `tag_*` folder IDs; new edits write `folderIds` and settings store `favoriteFolders` with a reserved `parentId` for future nesting. The star/favorite boolean is the system folder `liked` / “个人收藏”. History top-right no longer exposes clear-history; keep that destructive action in Settings > Data.
+- v0.11.1 extends folder workflow: home lookup can preselect folders and queued requests carry those folder IDs; Folder view can start a lookup targeting the active folder; History rows can open a checkbox folder selector; folder sidebar supports create/delete-with-mode and drag sorting. Static `app.js`/`styles.css` URLs now include `?v=0.11.1` to avoid stale browser cache after import fixes.
 
 ## Working Rules
 
