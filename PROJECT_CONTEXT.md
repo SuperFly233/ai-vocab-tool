@@ -122,8 +122,11 @@ Expected behavior:
 - Improved history modal behavior: roll switching and reroll stay available as compact sticky controls while scrolling in preview mode, edit modes hide those learning-oriented sticky controls for more workspace, and API profile modal backdrop clicks no longer close drafts with typed content.
 - Bumped the project to `0.10.0` after the accumulated history/editor/settings/API-profile work became a minor-level UX and structure update. Future patch releases should be single bug/style fixes; minor releases should cover grouped cross-module experience changes; `1.0.0` should wait until lookup, sync, API settings, history editing, mobile behavior, and deployment docs are stable.
 - Fixed long translation highlight terms being dropped by the old length filter, so explicit `translationHighlights` can mark longer translated equivalents.
-- Expanded visual history editing with example/translation highlight fields, register fields, confusions, plus up/down and drag reordering for senses, collocations, and confusions.
+- Expanded visual history editing with example/translation highlight fields, register fields, confusions, and drag reordering for senses, collocations, and confusions.
 - Added collapsible settings groups, wider Prompt workspace behavior, fixed-position API profile menu placement, and manual API profile ordering.
+- In v0.10.1, visual editing hints moved from a single banner to per-field hint bubbles with temporary close buttons and a synced pinned-display setting. History search also gained a scope selector so users can search only words, meanings, examples, collocations, confusions, or other metadata.
+- API profile and visual editor ordering should now favor drag handles instead of explicit up/down buttons. The drag interaction includes insertion feedback and slow edge autoscroll; future refinement can tune pointer/touch behavior if mobile browser drag support is inconsistent.
+- Home query focus should not bubble into automatic scroll-to-top anymore; only clicking the non-control editor surface should trigger that helper behavior.
 
 ## Working Rules
 

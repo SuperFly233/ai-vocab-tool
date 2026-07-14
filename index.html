@@ -145,6 +145,13 @@
           <span>🔎</span>
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
           <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
+          <div class="history-search-scope" id="history-search-scope">
+            <button class="history-search-scope-toggle" id="history-search-scope-toggle" type="button" aria-expanded="false">
+              <span id="history-search-scope-summary">全部</span>
+              <i aria-hidden="true">⌄</i>
+            </button>
+            <div class="history-search-scope-menu" id="history-search-scope-menu"></div>
+          </div>
         </label>
         <button class="history-filter-toggle" id="history-filter-toggle" type="button" onclick="toggleHistoryFilters()">
           <span>筛选</span>
@@ -267,6 +274,13 @@
             <button id="time-mode-updated" onclick="setHistoryTimeMode('updated')">修改</button>
             <button id="time-mode-both" onclick="setHistoryTimeMode('both')">全部</button>
           </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">可视化填写提示</div><div class="setting-sub">关闭时只在聚焦字段时弹出气泡；开启后每个字段下方常驻显示填写规则。</div></div>
+          <label class="toggle-row">
+            <input id="visual-hints-pinned" type="checkbox" onchange="setVisualHintsPinned(this.checked)">
+            <span>常驻显示</span>
+          </label>
         </div>
       </div>
 

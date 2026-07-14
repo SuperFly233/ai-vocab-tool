@@ -57,6 +57,8 @@ const historyState={
   sort:'updated',
   sortDir:'desc',
   filtersOpen:false,
+  searchScopeOpen:false,
+  searchScopes:['word','meaning','example','collocation','confusion','other'],
   visibleCount:0,
   filters:{
     entryType:[],
@@ -72,17 +74,55 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   sensitivity:'base',
   ignorePunctuation:true,
 });
+const HISTORY_SEARCH_SCOPE_OPTIONS=[
+  {key:'word',label:'单词'},
+  {key:'meaning',label:'释义'},
+  {key:'example',label:'例句'},
+  {key:'collocation',label:'搭配'},
+  {key:'confusion',label:'辨析'},
+  {key:'other',label:'其他'},
+];
+const VISUAL_FIELD_HINTS={
+  'visual-title':['词条标题','填写用户真正查询的词、短语、表达或句子；不要把词性、解释或例句塞进标题。'],
+  'visual-core':['核心义','用最短中文抓住中心意思。优先写“可迁移的核心义”，不要写成长段例句翻译。'],
+  'visual-entry-type':['类型','只填 word 或 phrase。单个词填 word；短语、固定表达、句子、惯用搭配填 phrase。'],
+  'visual-pos':['词性','用固定词性或斜杠组合，例如 noun / verb / adjective / adverb / phrase；多词性用 / 分隔。'],
+  'visual-language':['语言','用短代码，例如 en、zh、ja、ko、fr、es、de；不确定时填 other。'],
+  'visual-direction':['方向','用“原语言-目标语言”，例如 en-zh、ja-zh、zh-en；不确定时填 other。'],
+  'visual-summary':['摘要','说明这个词条的总体用法、适用场景和容易误解处，可以写长一点。'],
+  partOfSpeech:['义项词性','只写当前义项的词性；如果同一词条有多个词性，应拆成多个义项组。'],
+  shortestLabel:['义标','用极短标签概括这个义项，例如“发生”“除...外”“总之”。不要写完整解释。'],
+  meaning:['语意','解释这个义项的真实含义、使用边界和语感；不要为了高亮而塞无关词。'],
+  example:['例句','写一个自然例句，必须包含当前词条或该义项实际词形。'],
+  translation:['译文','翻译例句，并保留与义项对应的中文片段，方便 translationHighlights 对齐。'],
+  exampleHighlights:['例句高亮','只填例句中要标出的真实片段。多个片段用逗号、顿号或换行分隔；不要填上下文杂项。'],
+  translationHighlights:['译文高亮','只填译文中与当前词条/义项对应的片段，例如“开发一款人工智能词汇工具”。可填较长短语。'],
+  phrase:['搭配短语','填写固定搭配或表达本身；如果有占位符可用 ~，例如 “つもり～ということだ”。'],
+  note:['标注','写语体、场景或简短提示，例如“口语常用”“写作常用”“用于强调”。'],
+  term:['易混项','填写要对比的近义词、短语或表达。'],
+  difference:['核心区别','写它和当前词条最容易混淆的差别，优先讲判断标准。'],
+  usage:['使用倾向','写语体、常见场景、搭配限制或错误用法提醒。'],
+  'visual-register-style':['语体属性','填写正式/非正式/口语/书面/学术等语体标签。'],
+  'visual-register-tone':['语义气质','填写褒贬、强弱、委婉/直接、客观/情绪化等感受。'],
+  'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
+};
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',modelPrompt:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.0',
+  version:'0.10.1',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.1',
+    date:'2026-07-14',
+    title:'补齐可视化填写提示与历史搜索范围',
+    items:['可视化编辑不再只显示顶部横条说明，字段聚焦时会在对应输入框旁弹出具体填写规则，气泡可临时关闭。','设置页新增可视化填写提示常驻选项，需要时可把字段说明直接固定显示在每个输入项下方。','历史搜索框右侧新增搜索范围选择器，可限定只搜词条、释义、例句、搭配、辨析或其他信息，避免只想搜单词时被例句命中。','可视化编辑和 JSON 编辑模式下隐藏顶部标题信息块，让编辑区域更干净。'],
+  },
   {
     version:'0.10.0',
     date:'2026-07-14',
@@ -491,11 +531,16 @@ const els={
   timeModeCreatedBtn:document.getElementById('time-mode-created'),
   timeModeUpdatedBtn:document.getElementById('time-mode-updated'),
   timeModeBothBtn:document.getElementById('time-mode-both'),
+  visualHintsPinnedInput:document.getElementById('visual-hints-pinned'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historyTools:document.getElementById('history-tools'),
   historySearch:document.getElementById('history-search'),
   historyClearBtn:document.getElementById('history-clear-btn'),
+  historySearchScope:document.getElementById('history-search-scope'),
+  historySearchScopeToggle:document.getElementById('history-search-scope-toggle'),
+  historySearchScopeSummary:document.getElementById('history-search-scope-summary'),
+  historySearchScopeMenu:document.getElementById('history-search-scope-menu'),
   historyFilterToggle:document.getElementById('history-filter-toggle'),
   historyFilterSummary:document.getElementById('history-filter-summary'),
   historyFilterbar:document.getElementById('history-filterbar'),
@@ -865,6 +910,7 @@ function normalizeSettings(raw={}){
   const labelMode=normalizeLabelMode(source.labelMode);
   const fontMode=normalizeFontMode(source.fontMode);
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
+  const visualHintsPinned=Boolean(source.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
   return {
     ...DEFAULT_SETTINGS,
@@ -877,6 +923,7 @@ function normalizeSettings(raw={}){
     labelMode,
     fontMode,
     historyTimeMode,
+    visualHintsPinned,
     modelPrompt,
   };
 }
@@ -930,6 +977,7 @@ function mergeSettings(localRaw,remoteRaw){
     labelMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.labelMode:remote.labelMode||local.labelMode,
     fontMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.fontMode:remote.fontMode||local.fontMode,
     historyTimeMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
+    visualHintsPinned:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.visualHintsPinned:Boolean(remote.visualHintsPinned||local.visualHintsPinned),
     modelPrompt:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
@@ -1501,7 +1549,7 @@ function updateHomeStickyState(){
 function focusHomeQueryFromSticky(event){
   if(activeView!=='home'||document.body.classList.contains('modal-open'))return;
   const target=event?.target;
-  if(target?.closest?.('.clear-query-btn,.query-actions,button'))return;
+  if(target?.closest?.('input,textarea,button,.clear-query-btn,.query-actions'))return;
   window.scrollTo({top:0,behavior:'smooth'});
   if(target!==els.direction&&target!==els.note){
     els.query?.focus({preventScroll:true});
@@ -2993,6 +3041,55 @@ function historyFilterSummaryText(){
   });
   return labels.length?labels.slice(0,3).join(' · ')+(labels.length>3?` +${labels.length-3}`:''):`${count} 项`;
 }
+function normalizeHistorySearchScopes(scopes){
+  const valid=HISTORY_SEARCH_SCOPE_OPTIONS.map(item=>item.key);
+  const picked=Array.isArray(scopes)?scopes.filter(key=>valid.includes(key)):[];
+  return picked.length?uniq(picked):[...valid];
+}
+function historySearchScopeSummary(){
+  const scopes=normalizeHistorySearchScopes(historyState.searchScopes);
+  if(scopes.length===HISTORY_SEARCH_SCOPE_OPTIONS.length)return '全部';
+  const labels=scopes.map(key=>HISTORY_SEARCH_SCOPE_OPTIONS.find(item=>item.key===key)?.label||key);
+  return labels.slice(0,2).join(' / ')+(labels.length>2?` +${labels.length-2}`:'');
+}
+function renderHistorySearchScopeControls(){
+  if(!els.historySearchScopeMenu)return;
+  historyState.searchScopes=normalizeHistorySearchScopes(historyState.searchScopes);
+  const scopes=new Set(historyState.searchScopes);
+  if(els.historySearchScopeSummary)els.historySearchScopeSummary.textContent=historySearchScopeSummary();
+  els.historySearchScope?.classList.toggle('open',historyState.searchScopeOpen);
+  els.historySearchScopeToggle?.setAttribute('aria-expanded',String(historyState.searchScopeOpen));
+  els.historySearchScopeMenu.innerHTML=`
+    ${HISTORY_SEARCH_SCOPE_OPTIONS.map(option=>`
+      <button class="history-search-scope-option ${scopes.has(option.key)?'active':''}" type="button" data-scope="${escapeHTML(option.key)}">
+        <span>${scopes.has(option.key)?'✓':' '}</span>${escapeHTML(option.label)}
+      </button>
+    `).join('')}
+    <button class="history-search-scope-clear" type="button" data-scope-action="all">全部范围</button>
+  `;
+}
+function toggleHistorySearchScopeMenu(){
+  historyState.searchScopeOpen=!historyState.searchScopeOpen;
+  renderHistorySearchScopeControls();
+}
+function closeHistorySearchScopeMenu(){
+  if(!historyState.searchScopeOpen)return;
+  historyState.searchScopeOpen=false;
+  renderHistorySearchScopeControls();
+}
+function toggleHistorySearchScope(scope){
+  const valid=HISTORY_SEARCH_SCOPE_OPTIONS.map(item=>item.key);
+  if(!valid.includes(scope))return;
+  const current=new Set(normalizeHistorySearchScopes(historyState.searchScopes));
+  if(current.has(scope)&&current.size>1)current.delete(scope);
+  else current.add(scope);
+  historyState.searchScopes=[...current];
+  rerenderHistoryFromStart();
+}
+function resetHistorySearchScopes(){
+  historyState.searchScopes=HISTORY_SEARCH_SCOPE_OPTIONS.map(item=>item.key);
+  rerenderHistoryFromStart();
+}
 function updateHistoryFilterToggle(){
   const count=historyFiltersActive();
   els.historyTools?.classList.toggle('filters-open',historyState.filtersOpen);
@@ -3020,6 +3117,7 @@ function toggleHistoryFilters(){
 }
 function renderHistory(){
   renderHistoryFilterOptions(getHistory());
+  renderHistorySearchScopeControls();
   renderHistorySortControls();
   renderHistoryScopeControls();
   ensureHistoryVisible();
@@ -3567,14 +3665,29 @@ function normalizeSearch(value){
   return String(value||'').toLocaleLowerCase().normalize('NFKC').trim();
 }
 function historySearchText(item){
-  return normalizeSearch(flattenText([
-    item.query,
-    item.createdAt,
-    normalizeHistoryItem(item).tags,
-    normalizeHistoryItem(item).note,
-    item.result,
-    item.followups,
-  ]));
+  const normalized=normalizeHistoryItem(item);
+  const result=normalized.result||{};
+  const scopes=normalizeHistorySearchScopes(historyState.searchScopes);
+  const pieces=[];
+  if(scopes.includes('word')){
+    pieces.push(normalized.query,result.meta?.query,result.meta?.normalized,result.headword?.title);
+  }
+  if(scopes.includes('meaning')){
+    pieces.push(result.headword?.coreMeaning,result.headword?.summary,result.senses?.map(sense=>[sense.shortestLabel,sense.meaning,sense.translation]),result.collocations?.map(item=>[item.phrase,item.meaning,item.translation]));
+  }
+  if(scopes.includes('example')){
+    pieces.push(result.senses?.map(sense=>sense.example),result.collocations?.map(item=>item.example));
+  }
+  if(scopes.includes('collocation')){
+    pieces.push(result.collocations);
+  }
+  if(scopes.includes('confusion')){
+    pieces.push(result.confusions);
+  }
+  if(scopes.includes('other')){
+    pieces.push(normalized.tags,normalized.note,normalized.createdAt,normalized.updatedAt,result.meta,result.register,normalized.followups);
+  }
+  return normalizeSearch(flattenText(pieces));
 }
 function flattenText(value){
   if(value==null)return '';
@@ -3641,8 +3754,8 @@ function renderVisualEditor(result=modalResult){
   const collocations=Array.isArray(data.collocations)?data.collocations:[];
   const register=data.register||{};
   const confusions=Array.isArray(data.confusions)?data.confusions:[];
+  els.modalVisualEditor.classList.toggle('hints-pinned',Boolean(getSettings().visualHintsPinned));
   els.modalVisualEditor.innerHTML=`
-    <div class="visual-help">可视化编辑会同步写回 JSON。高亮字段只填“例句/译文中需要标出的真实片段”，多个片段用逗号、顿号或换行分隔。</div>
     <div class="visual-grid visual-headword-grid">
       ${visualField('visual-title','词条标题',head.title||meta.query||'')}
       ${visualField('visual-core','核心义',head.coreMeaning||'')}
@@ -3666,10 +3779,10 @@ function renderVisualEditor(result=modalResult){
   `;
 }
 function visualField(id,label,value){
-  return `<label class="setting-field"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}"></label>`;
+  return `<label class="setting-field visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}">${visualHintHTML(id)}</label>`;
 }
 function visualTextarea(id,label,value){
-  return `<label class="setting-field visual-wide"><span>${escapeHTML(label)}</span><textarea class="visual-input" id="${id}">${escapeHTML(value)}</textarea></label>`;
+  return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" id="${id}">${escapeHTML(value)}</textarea>${visualHintHTML(id)}</label>`;
 }
 function visualList(kind,title,items,renderer){
   return `<section class="visual-section">
@@ -3680,8 +3793,8 @@ function visualList(kind,title,items,renderer){
   </section>`;
 }
 function renderVisualSense(item={},index=0){
-  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'senses',${index})" ondragover="event.preventDefault()" ondrop="dropVisualItem(event,'senses',${index})" data-visual-kind="senses" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="icon-btn" type="button" data-tip="上移" onclick="moveVisualItem('senses',${index},-1)">↑</button><button class="icon-btn" type="button" data-tip="下移" onclick="moveVisualItem('senses',${index},1)">↓</button><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
+  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'senses',${index})" ondragover="overVisualDrag(event,'senses',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'senses',${index})" data-visual-kind="senses" data-index="${index}">
+    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
     <div class="visual-grid compact visual-sense-grid">
       ${visualInlineField('partOfSpeech','词性',item.partOfSpeech||'')}
       ${visualInlineField('shortestLabel','义标',item.shortestLabel||'')}
@@ -3694,8 +3807,8 @@ function renderVisualSense(item={},index=0){
   </article>`;
 }
 function renderVisualCollocation(item={},index=0){
-  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'collocations',${index})" ondragover="event.preventDefault()" ondrop="dropVisualItem(event,'collocations',${index})" data-visual-kind="collocations" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="icon-btn" type="button" data-tip="上移" onclick="moveVisualItem('collocations',${index},-1)">↑</button><button class="icon-btn" type="button" data-tip="下移" onclick="moveVisualItem('collocations',${index},1)">↓</button><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
+  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'collocations',${index})" ondragover="overVisualDrag(event,'collocations',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'collocations',${index})" data-visual-kind="collocations" data-index="${index}">
+    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('phrase','短语',item.phrase||'')}
       ${visualInlineField('note','标注',item.note||'')}
@@ -3708,8 +3821,8 @@ function renderVisualCollocation(item={},index=0){
   </article>`;
 }
 function renderVisualConfusion(item={},index=0){
-  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'confusions',${index})" ondragover="event.preventDefault()" ondrop="dropVisualItem(event,'confusions',${index})" data-visual-kind="confusions" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="icon-btn" type="button" data-tip="上移" onclick="moveVisualItem('confusions',${index},-1)">↑</button><button class="icon-btn" type="button" data-tip="下移" onclick="moveVisualItem('confusions',${index},1)">↓</button><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
+  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'confusions',${index})" ondragover="overVisualDrag(event,'confusions',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'confusions',${index})" data-visual-kind="confusions" data-index="${index}">
+    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('term','词',item.term||'')}
       ${visualInlineTextarea('difference','核心区别',item.difference||'')}
@@ -3718,10 +3831,14 @@ function renderVisualConfusion(item={},index=0){
   </article>`;
 }
 function visualInlineField(key,label,value){
-  return `<label class="setting-field"><span>${escapeHTML(label)}</span><input class="cloud-input" data-field="${key}" type="text" value="${escapeHTML(value)}"></label>`;
+  return `<label class="setting-field visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><input class="cloud-input" data-field="${key}" type="text" value="${escapeHTML(value)}">${visualHintHTML(key)}</label>`;
 }
 function visualInlineTextarea(key,label,value){
-  return `<label class="setting-field visual-wide"><span>${escapeHTML(label)}</span><textarea class="visual-input" data-field="${key}">${escapeHTML(value)}</textarea></label>`;
+  return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" data-field="${key}">${escapeHTML(value)}</textarea>${visualHintHTML(key)}</label>`;
+}
+function visualHintHTML(key){
+  const hint=VISUAL_FIELD_HINTS[key]||['填写提示','按当前字段含义填写，保持简洁、准确，并能同步回 JSON。'];
+  return `<div class="visual-hint-pinned"><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div><div class="visual-hint-bubble" role="note"><button type="button" class="visual-hint-close" aria-label="关闭提示">×</button><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div>`;
 }
 function collectVisualResult(){
   const data=cloneResult(modalResult||{});
@@ -3793,19 +3910,55 @@ let visualDragState=null;
 function startVisualDrag(event,kind,index){
   visualDragState={kind,index};
   event.dataTransfer?.setData('text/plain',`${kind}:${index}`);
+  event.currentTarget?.classList.add('dragging');
+}
+function overVisualDrag(event,kind,index){
+  event.preventDefault();
+  if(!visualDragState||visualDragState.kind!==kind)return;
+  autoScrollDuringDrag(event.clientY);
+  clearVisualDropMarks();
+  const target=event.currentTarget;
+  const rect=target.getBoundingClientRect();
+  target.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
+}
+function clearVisualDropMarks(){
+  document.querySelectorAll('.visual-card.drop-before,.visual-card.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));
+}
+function endVisualDrag(){
+  document.querySelectorAll('.visual-card.dragging').forEach(node=>node.classList.remove('dragging'));
+  clearVisualDropMarks();
+  visualDragState=null;
 }
 function dropVisualItem(event,kind,index){
   event.preventDefault();
+  event.stopPropagation();
   const state=visualDragState;
-  visualDragState=null;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const after=event.clientY>rect.top+rect.height/2;
+  endVisualDrag();
   if(!state||state.kind!==kind||state.index===index)return;
   const data=collectVisualResult();
   const list=Array.isArray(data[kind])?data[kind]:[];
   const [item]=list.splice(state.index,1);
-  list.splice(index,0,item);
+  let targetIndex=index+(after?1:0);
+  if(state.index<targetIndex)targetIndex-=1;
+  list.splice(Math.max(0,Math.min(list.length,targetIndex)),0,item);
   data[kind]=list;
   modalResult=data;
   renderVisualEditor(data);
+}
+function autoScrollDuringDrag(clientY){
+  const scroller=els.historyModalBody||document.scrollingElement;
+  if(!scroller||typeof clientY!=='number')return;
+  const rect=scroller===document.scrollingElement
+    ? {top:0,bottom:window.innerHeight}
+    : scroller.getBoundingClientRect();
+  const edge=72;
+  const maxSpeed=18;
+  let delta=0;
+  if(clientY<rect.top+edge)delta=-Math.round(maxSpeed*(1-(clientY-rect.top)/edge));
+  else if(clientY>rect.bottom-edge)delta=Math.round(maxSpeed*(1-(rect.bottom-clientY)/edge));
+  if(delta)scroller.scrollBy({top:delta,behavior:'auto'});
 }
 function saveVisualHistoryEdit(){
   const data=collectVisualResult();
@@ -4056,6 +4209,7 @@ function hydrateSettings(){
   applyLabelMode(settings.labelMode);
   applyFontMode(settings.fontMode);
   applyHistoryTimeMode(settings.historyTimeMode);
+  applyVisualHintsPinned(settings.visualHintsPinned);
   renderModelPromptSettings(settings);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
@@ -4123,15 +4277,12 @@ function renderApiProfilePicker(settings,profile){
     <button class="api-profile-create" type="button" data-profile-action="new">新增配置</button>
     <div class="api-profile-menu-list">
       ${settings.apiProfiles.map((item,index)=>`
-        <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-id="${escapeHTML(item.id)}">
+        <div class="api-profile-option ${item.id===profile.id?'active':''}" draggable="true" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
+          <span class="api-profile-drag" aria-hidden="true">⋮⋮</span>
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
             <em>${escapeHTML(apiProfileSummary(item))}</em>
           </button>
-          <div class="api-profile-order">
-            <button type="button" data-profile-action="move-up" ${index===0?'disabled':''} aria-label="上移">↑</button>
-            <button type="button" data-profile-action="move-down" ${index===settings.apiProfiles.length-1?'disabled':''} aria-label="下移">↓</button>
-          </div>
           <button class="api-profile-edit" type="button" data-profile-action="edit">编辑</button>
           <button class="api-profile-delete" type="button" data-profile-action="delete" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">×</button>
         </div>
@@ -4151,6 +4302,8 @@ function closeApiProfileMenu(){
   els.apiProfilePicker?.closest('.setting-group')?.classList.remove('profile-menu-host-open');
   els.apiProfileMenuToggle?.setAttribute('aria-expanded','false');
   if(els.apiProfileMenu){
+    els.apiProfileMenu.classList.remove('floating-open');
+    if(els.apiProfileMenu.parentElement!==els.apiProfilePicker)els.apiProfilePicker?.appendChild(els.apiProfileMenu);
     els.apiProfileMenu.style.left='';
     els.apiProfileMenu.style.top='';
     els.apiProfileMenu.style.width='';
@@ -4166,7 +4319,7 @@ function positionApiProfileMenu(){
   const bottomReserve=mobile?96:margin;
   const width=Math.min(rect.width,window.innerWidth-margin*2);
   const left=Math.max(margin,Math.min(rect.left,window.innerWidth-width-margin));
-  const top=Math.min(rect.bottom+8,window.innerHeight-bottomReserve-120);
+  const top=Math.min(rect.bottom+2,window.innerHeight-bottomReserve-120);
   els.apiProfileMenu.style.left=`${left}px`;
   els.apiProfileMenu.style.top=`${Math.max(margin,top)}px`;
   els.apiProfileMenu.style.width=`${width}px`;
@@ -4177,7 +4330,13 @@ function toggleApiProfileMenu(){
   els.apiProfilePicker?.classList.toggle('open',open);
   els.apiProfilePicker?.closest('.setting-group')?.classList.toggle('profile-menu-host-open',open);
   els.apiProfileMenuToggle?.setAttribute('aria-expanded',String(open));
-  if(open)requestAnimationFrame(positionApiProfileMenu);
+  if(open){
+    if(els.apiProfileMenu&&els.apiProfileMenu.parentElement!==document.body)document.body.appendChild(els.apiProfileMenu);
+    els.apiProfileMenu?.classList.add('floating-open');
+    requestAnimationFrame(positionApiProfileMenu);
+  }else{
+    els.apiProfileMenu?.classList.remove('floating-open');
+  }
 }
 function renderSettings(){
   setupSettingGroupToggles();
@@ -4260,6 +4419,19 @@ function setHistoryTimeMode(mode){
     if(item)els.modalSubtitle.textContent=historyModalMeta(item);
   }
   notify(`历史时间默认显示已切换为${historyTimeModeLabel(next)}。`,'good','显示设置');
+}
+function applyVisualHintsPinned(value){
+  const enabled=Boolean(value);
+  if(els.visualHintsPinnedInput)els.visualHintsPinnedInput.checked=enabled;
+  els.modalVisualEditor?.classList.toggle('hints-pinned',enabled);
+}
+function setVisualHintsPinned(value){
+  const enabled=Boolean(value);
+  const settings=getSettings();
+  setSettings({...settings,visualHintsPinned:enabled,updatedAt:new Date().toISOString()});
+  applyVisualHintsPinned(enabled);
+  renderVisualEditor(modalResult);
+  notify(enabled?'可视化填写提示已设为常驻。':'可视化填写提示改为聚焦时显示。','good','显示设置');
 }
 function saveSettings(){
   openApiProfileModal('edit');
@@ -4417,6 +4589,57 @@ function moveApiProfile(id,delta){
   const profiles=[...settings.apiProfiles];
   const [item]=profiles.splice(index,1);
   profiles.splice(nextIndex,0,item);
+  setSettings({...settings,apiProfiles:profiles,updatedAt:new Date().toISOString()});
+  renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
+  requestAnimationFrame(positionApiProfileMenu);
+  notify('配置顺序已调整。','good','API 配置');
+}
+let apiProfileDragState=null;
+function startApiProfileDrag(event){
+  const option=event.target.closest('.api-profile-option');
+  if(!option)return;
+  apiProfileDragState={index:Number(option.dataset.profileIndex),id:option.dataset.profileId};
+  option.classList.add('dragging');
+  event.dataTransfer?.setData('text/plain',apiProfileDragState.id);
+}
+function overApiProfileDrag(event){
+  const option=event.target.closest('.api-profile-option');
+  if(!option||!apiProfileDragState)return;
+  event.preventDefault();
+  autoScrollDuringDrag(event.clientY);
+  clearApiProfileDropMarks();
+  const rect=option.getBoundingClientRect();
+  option.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
+}
+function clearApiProfileDropMarks(){
+  els.apiProfileMenu?.querySelectorAll('.api-profile-option.drop-before,.api-profile-option.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));
+}
+function endApiProfileDrag(){
+  els.apiProfileMenu?.querySelectorAll('.api-profile-option.dragging').forEach(node=>node.classList.remove('dragging'));
+  clearApiProfileDropMarks();
+  apiProfileDragState=null;
+}
+function dropApiProfile(event){
+  const option=event.target.closest('.api-profile-option');
+  if(!option||!apiProfileDragState)return;
+  event.preventDefault();
+  event.stopPropagation();
+  const from=apiProfileDragState.index;
+  const rect=option.getBoundingClientRect();
+  const after=event.clientY>rect.top+rect.height/2;
+  let to=Number(option.dataset.profileIndex)+(after?1:0);
+  if(from<to)to-=1;
+  endApiProfileDrag();
+  reorderApiProfile(from,to);
+}
+function reorderApiProfile(from,to){
+  const settings=getSettings();
+  const profiles=[...settings.apiProfiles];
+  if(from<0||from>=profiles.length)return;
+  const target=Math.max(0,Math.min(profiles.length-1,to));
+  if(target===from)return;
+  const [item]=profiles.splice(from,1);
+  profiles.splice(target,0,item);
   setSettings({...settings,apiProfiles:profiles,updatedAt:new Date().toISOString()});
   renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
   requestAnimationFrame(positionApiProfileMenu);
@@ -4595,7 +4818,29 @@ els.historySearch?.addEventListener('input',event=>{
   updateHistorySearchState();
   rerenderHistoryFromStart();
 });
+els.historySearchScopeToggle?.addEventListener('click',event=>{
+  event.preventDefault();
+  event.stopPropagation();
+  toggleHistorySearchScopeMenu();
+});
+els.historySearchScopeMenu?.addEventListener('click',event=>{
+  event.preventDefault();
+  event.stopPropagation();
+  if(event.target.closest('[data-scope-action="all"]'))return resetHistorySearchScopes();
+  const option=event.target.closest('[data-scope]');
+  if(option)return toggleHistorySearchScope(option.dataset.scope);
+});
 els.historyModalBody?.addEventListener('scroll',updateHistoryModalScrollState,{passive:true});
+els.modalVisualEditor?.addEventListener('focusin',event=>{
+  event.target.closest?.('.visual-field-hinted')?.classList.remove('hint-dismissed');
+});
+els.modalVisualEditor?.addEventListener('click',event=>{
+  const close=event.target.closest('.visual-hint-close');
+  if(!close)return;
+  event.preventDefault();
+  event.stopPropagation();
+  close.closest('.visual-field-hinted')?.classList.add('hint-dismissed');
+});
 els.historyFilterbar?.addEventListener('click',event=>{
   event.stopPropagation();
   const filter=event.target.closest('.history-filter');
@@ -4623,10 +4868,15 @@ els.apiProfileMenu?.addEventListener('click',event=>{
     closeApiProfileMenu();
     return editApiProfile(id);
   }
-  if(action==='move-up')return moveApiProfile(id,-1);
-  if(action==='move-down')return moveApiProfile(id,1);
   if(action==='delete')return deleteApiProfile(id);
 });
+els.apiProfileMenu?.addEventListener('dragstart',startApiProfileDrag);
+els.apiProfileMenu?.addEventListener('dragover',overApiProfileDrag);
+els.apiProfileMenu?.addEventListener('dragleave',event=>{
+  if(!els.apiProfileMenu?.contains(event.relatedTarget))clearApiProfileDropMarks();
+});
+els.apiProfileMenu?.addEventListener('dragend',endApiProfileDrag);
+els.apiProfileMenu?.addEventListener('drop',dropApiProfile);
 els.apiModelList?.addEventListener('click',event=>{
   const option=event.target.closest('.model-choice');
   if(!option)return;
@@ -4639,7 +4889,8 @@ els.apiProfileModalCancel?.addEventListener('click',()=>closeApiProfileModal());
 els.apiProfileModalClose?.addEventListener('click',()=>closeApiProfileModal());
 document.addEventListener('click',event=>{
   if(!els.historyFilterbar?.contains(event.target))closeHistoryFilterMenus();
-  if(!els.apiProfilePicker?.contains(event.target))closeApiProfileMenu();
+  if(!els.historySearchScope?.contains(event.target))closeHistorySearchScopeMenu();
+  if(!els.apiProfilePicker?.contains(event.target)&&!els.apiProfileMenu?.contains(event.target))closeApiProfileMenu();
 });
 window.addEventListener('resize',()=>{
   if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
@@ -4652,6 +4903,7 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){
     closeApiProfileMenu();
     closeHistoryFilterMenus();
+    closeHistorySearchScopeMenu();
     if(els.apiProfileModal?.classList.contains('open'))closeApiProfileModal();
   }
 });
