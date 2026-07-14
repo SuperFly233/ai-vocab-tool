@@ -111,12 +111,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.4',
+  version:'0.10.5',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.5',
+    date:'2026-07-14',
+    title:'新增历史 JSON 导入合并',
+    items:['设置页数据区新增历史 JSON 导入，支持粘贴数组、raw 字符串或 Supabase value.raw 格式。','导入前会预检当前历史与导入历史的新增、重叠、可更新和重复数量，确认后再合并导入并同步云端。'],
+  },
   {
     version:'0.10.4',
     date:'2026-07-14',
@@ -555,6 +561,8 @@ const els={
   historyTools:document.getElementById('history-tools'),
   historySearch:document.getElementById('history-search'),
   historyClearBtn:document.getElementById('history-clear-btn'),
+  historyImportText:document.getElementById('history-import-text'),
+  historyImportStatus:document.getElementById('history-import-status'),
   historySearchScope:document.getElementById('history-search-scope'),
   historySearchScopeToggle:document.getElementById('history-search-scope-toggle'),
   historySearchScopeSummary:document.getElementById('history-search-scope-summary'),
@@ -4190,6 +4198,124 @@ async function clearHistory(){
   notify('历史记录已清空。','good','历史记录');
 }
 function exportHistory(){downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2))}
+function parseHistoryImportPayload(text){
+  const unwrap=value=>{
+    if(typeof value==='string')return unwrap(JSON.parse(value));
+    if(Array.isArray(value))return value;
+    if(value&&typeof value==='object'){
+      if(Array.isArray(value.history))return value.history;
+      if(Array.isArray(value.items))return value.items;
+      if(value.value&&Object.prototype.hasOwnProperty.call(value.value,'raw'))return unwrap(value.value.raw);
+      if(Object.prototype.hasOwnProperty.call(value,'raw'))return unwrap(value.raw);
+      if(value.data)return unwrap(value.data);
+    }
+    return [];
+  };
+  return normalizeHistoryItems(unwrap(JSON.parse(String(text||'').trim())));
+}
+function historyImportKey(item={}){
+  const normalized=normalizeHistoryItem(item);
+  return normalizeSearch(normalized.query||normalized.result?.meta?.query||normalized.result?.headword?.title||normalized.id);
+}
+function historyRangeLabel(items=[]){
+  const times=items.flatMap(item=>[item.createdAt,item.updatedAt]).filter(Boolean).map(value=>new Date(value).getTime()).filter(Boolean).sort((a,b)=>a-b);
+  if(!times.length)return '无时间';
+  return `${formatTime(new Date(times[0]).toISOString())} → ${formatTime(new Date(times[times.length-1]).toISOString())}`;
+}
+function analyzeHistoryImport(text){
+  const imported=parseHistoryImportPayload(text);
+  const current=normalizeHistoryItems(getHistory());
+  const currentMap=new Map(current.map(item=>[historyImportKey(item),normalizeHistoryItem(item)]).filter(([key])=>key));
+  const importedUnique=mergeHistoryItems(imported,[]);
+  const importedMap=new Map();
+  importedUnique.forEach(item=>{
+    const key=historyImportKey(item);
+    if(key&&!importedMap.has(key))importedMap.set(key,normalizeHistoryItem(item));
+  });
+  const merged=mergeHistoryItems([...importedMap.values()],current);
+  const mergedMap=new Map(merged.map(item=>[historyImportKey(item),normalizeHistoryItem(item)]).filter(([key])=>key));
+  let newCount=0;
+  let changedCount=0;
+  let unchangedCount=0;
+  importedMap.forEach((item,key)=>{
+    if(!currentMap.has(key)){newCount+=1;return}
+    const before=JSON.stringify(currentMap.get(key));
+    const after=JSON.stringify(mergedMap.get(key));
+    if(before===after)unchangedCount+=1;
+    else changedCount+=1;
+  });
+  return {
+    imported,
+    importedUnique:[...importedMap.values()],
+    current,
+    merged,
+    rawCount:imported.length,
+    uniqueCount:importedMap.size,
+    duplicateCount:Math.max(0,imported.length-importedMap.size),
+    newCount,
+    overlapCount:importedMap.size-newCount,
+    changedCount,
+    unchangedCount,
+    currentCount:current.length,
+    mergedCount:merged.length,
+    range:historyRangeLabel(imported),
+  };
+}
+function renderHistoryImportStatus(stats,type='info'){
+  if(!els.historyImportStatus)return;
+  if(!stats){
+    els.historyImportStatus.className='import-status';
+    els.historyImportStatus.textContent='尚未预检。';
+    return;
+  }
+  els.historyImportStatus.className=`import-status ${type}`;
+  els.historyImportStatus.innerHTML=`
+    <b>预检完成</b>
+    <span>导入 ${stats.rawCount} 条，去重后 ${stats.uniqueCount} 条；当前 ${stats.currentCount} 条，合并后 ${stats.mergedCount} 条。</span>
+    <span>新增 ${stats.newCount} 条，重叠 ${stats.overlapCount} 条；重叠中可更新 ${stats.changedCount} 条，完全相同 ${stats.unchangedCount} 条；导入文件内部重复 ${stats.duplicateCount} 条。</span>
+    <span>导入时间范围：${escapeHTML(stats.range)}</span>
+  `;
+}
+function previewHistoryImport(){
+  try{
+    const text=els.historyImportText?.value||'';
+    if(!text.trim())return notify('先粘贴历史 JSON。','bad','无法预检');
+    const stats=analyzeHistoryImport(text);
+    renderHistoryImportStatus(stats,stats.newCount||stats.changedCount?'good':'warn');
+    notify(`预检完成：新增 ${stats.newCount}，可更新 ${stats.changedCount}。`,'good','历史导入');
+  }catch(error){
+    if(els.historyImportStatus){
+      els.historyImportStatus.className='import-status bad';
+      els.historyImportStatus.textContent=`解析失败：${error.message}`;
+    }
+    notify(`解析失败：${error.message}`,'bad','历史导入');
+  }
+}
+async function importHistoryFromText(){
+  try{
+    const text=els.historyImportText?.value||'';
+    if(!text.trim())return notify('先粘贴历史 JSON。','bad','无法导入');
+    const stats=analyzeHistoryImport(text);
+    renderHistoryImportStatus(stats,stats.newCount||stats.changedCount?'good':'warn');
+    if(!stats.rawCount)return notify('没有识别到可导入的历史记录。','bad','历史导入');
+    if(!stats.newCount&&!stats.changedCount)return notify('导入内容和当前历史完全重叠，不需要合并。','warn','历史导入');
+    const ok=await askConfirm(`将合并导入 ${stats.rawCount} 条历史：新增 ${stats.newCount} 条，更新 ${stats.changedCount} 条重叠记录。当前 ${stats.currentCount} 条，合并后 ${stats.mergedCount} 条。继续？`,'合并导入历史');
+    if(!ok)return;
+    setHistory(stats.merged);
+    renderHistoryImportStatus(stats,'good');
+    notify(`已合并导入：新增 ${stats.newCount}，更新 ${stats.changedCount}。`,'good','历史导入');
+  }catch(error){
+    if(els.historyImportStatus){
+      els.historyImportStatus.className='import-status bad';
+      els.historyImportStatus.textContent=`导入失败：${error.message}`;
+    }
+    notify(`导入失败：${error.message}`,'bad','历史导入');
+  }
+}
+function clearHistoryImportText(){
+  if(els.historyImportText)els.historyImportText.value='';
+  renderHistoryImportStatus(null);
+}
 function exportCurrent(){
   if(!currentResult)return notify('还没有结果。','bad','无法导出');
   const name=(currentResult.meta?.normalized||currentResult.meta?.query||'ai-vocab-tool').replace(/[\\/:*?"<>|]/g,'_');

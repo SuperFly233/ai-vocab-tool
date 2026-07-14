@@ -130,6 +130,7 @@ Expected behavior:
 - v0.10.2 corrected the history modal display intent: keep the normal top header visible in preview, visual edit, and JSON edit modes; remove only the extra sticky summary block that appears inside the modal body after scrolling.
 - v0.10.3 fixed the visual editor hint pin toggle sticking on after cloud sync. Boolean settings are normalized explicitly, and settings merge now prefers local pending/newer settings instead of OR-ing remote and local values.
 - v0.10.4 removed the old 120-entry storage cap from `addHistory()`, `saveLookupResult()`, and `mergeHistoryItems()`. History performance should rely on batched rendering, not data truncation; old entries already overwritten by capped saves cannot be reconstructed client-side.
+- v0.10.5 added a Settings > Data history JSON import flow. `parseHistoryImportPayload()` accepts plain arrays, `{raw:"..."}`, Supabase `{value:{raw:"..."}}`, `history`, `items`, and `data` wrappers; `analyzeHistoryImport()` previews new/overlap/changed/duplicate counts before `importHistoryFromText()` merges via `mergeHistoryItems()`.
 
 ## Working Rules
 

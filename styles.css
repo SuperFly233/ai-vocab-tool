@@ -467,6 +467,13 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .prompt-editor:focus{border-color:var(--accent);box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 10%,transparent);background:color-mix(in srgb,var(--panel) 72%,var(--panel2))}
 .prompt-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .prompt-actions .plain-btn{min-width:92px}
+.history-import-box{display:grid;gap:8px}
+.history-import-box textarea{width:100%;min-height:160px;max-height:34vh;font-family:var(--font-mono);font-size:12px;line-height:1.55;resize:vertical}
+.import-status{display:grid;gap:4px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--muted);padding:10px 12px;font-size:13px;font-weight:750;line-height:1.45}
+.import-status b{font-size:14px;color:var(--text)}
+.import-status.good{border-color:color-mix(in srgb,var(--good) 38%,var(--line));background:color-mix(in srgb,var(--good-bg) 58%,var(--panel))}
+.import-status.warn{border-color:color-mix(in srgb,var(--warn) 42%,var(--line));background:color-mix(in srgb,var(--warn-soft) 18%,var(--panel))}
+.import-status.bad{border-color:color-mix(in srgb,var(--bad) 38%,var(--line));background:color-mix(in srgb,var(--bad-bg) 62%,var(--panel))}
 .tag-manager{display:grid;gap:8px}
 .tag-manager-list{display:grid;gap:8px}
 .tag-manager-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:10px}
