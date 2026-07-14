@@ -118,8 +118,12 @@ Expected behavior:
 - Fixed lookup queue duplication: `submitLookup()` now signs query/direction/note/existingId and ignores repeated submissions already running or already queued.
 - Added a narrow tilde-placeholder highlight fallback for examples. Query/headword/current item strings containing `~`, `～`, or `…` are split into meaningful fragments so entries like `つもり～ということだ` can highlight `つもり` in examples without broadening semantic-row highlights.
 - Fixed a regression in lookup queue signing: it called a non-existent `normalizeQueryText()` helper, so non-empty lookups could fail before sending any request. The signature now uses `normalizeSearch()`, and `runLookup()` catches entry-point errors with a toast.
-- Added synced `historyTimeMode` settings and history date filtering. Lists/details can show created time, edited time, or both; unchanged records no longer show "已编辑"; history filters now include created/updated date ranges.
-- Improved history modal behavior: roll switching and reroll stay available as compact sticky controls while scrolling, a small sticky summary appears after scrolling, and API profile modal backdrop clicks no longer close drafts with typed content.
+- Added synced `historyTimeMode` settings, then corrected the history UI so time handling is global display preference plus explicit created/updated sorting rather than created/updated date range filters. Unchanged records show one plain time; edited records can show created, modified, or both according to settings.
+- Improved history modal behavior: roll switching and reroll stay available as compact sticky controls while scrolling in preview mode, edit modes hide those learning-oriented sticky controls for more workspace, and API profile modal backdrop clicks no longer close drafts with typed content.
+- Bumped the project to `0.10.0` after the accumulated history/editor/settings/API-profile work became a minor-level UX and structure update. Future patch releases should be single bug/style fixes; minor releases should cover grouped cross-module experience changes; `1.0.0` should wait until lookup, sync, API settings, history editing, mobile behavior, and deployment docs are stable.
+- Fixed long translation highlight terms being dropped by the old length filter, so explicit `translationHighlights` can mark longer translated equivalents.
+- Expanded visual history editing with example/translation highlight fields, register fields, confusions, plus up/down and drag reordering for senses, collocations, and confusions.
+- Added collapsible settings groups, wider Prompt workspace behavior, fixed-position API profile menu placement, and manual API profile ordering.
 
 ## Working Rules
 

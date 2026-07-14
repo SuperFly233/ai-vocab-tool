@@ -54,7 +54,7 @@ const activeToasts=new Map();
 const historyState={
   query:'',
   scope:'all',
-  sort:'time',
+  sort:'updated',
   sortDir:'desc',
   filtersOpen:false,
   visibleCount:0,
@@ -65,10 +65,6 @@ const historyState={
     pos:[],
     style:[],
     tag:[],
-    createdFrom:'',
-    createdTo:'',
-    updatedFrom:'',
-    updatedTo:'',
   },
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
@@ -81,12 +77,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.53',
+  version:'0.10.0',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.0',
+    date:'2026-07-14',
+    title:'纠正历史排序并升级编辑体验',
+    items:['移除历史筛选区误加的创建/修改日期范围输入，保持筛选区简洁。','历史排序拆成“修改”和“创建”两个明确按钮，不再用含糊的“时间”按钮；历史时间外显偏好只保留在设置里。','创建时间和修改时间一致时只显示一个裸时间；不一致时按设置明确显示创建、修改或全部。','修复较长 translationHighlights 被截掉的问题，让“开发一款人工智能词汇工具”这类整段译文高亮能正常命中。','可视化编辑补齐例句/译文高亮、语义感受和近义/易混词，并支持义项、搭配和易混词上移下移或拖拽排序。','设置页大模块支持折叠，模型 Prompt 工作区撑满宽度；API 配置下拉固定在当前配置条附近，并支持配置顺序调整。'],
+  },
   {
     version:'0.9.53',
     date:'2026-07-14',
@@ -489,9 +491,6 @@ const els={
   timeModeCreatedBtn:document.getElementById('time-mode-created'),
   timeModeUpdatedBtn:document.getElementById('time-mode-updated'),
   timeModeBothBtn:document.getElementById('time-mode-both'),
-  modalTimeCreatedBtn:document.getElementById('modal-time-created'),
-  modalTimeUpdatedBtn:document.getElementById('modal-time-updated'),
-  modalTimeBothBtn:document.getElementById('modal-time-both'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historyTools:document.getElementById('history-tools'),
@@ -500,10 +499,6 @@ const els={
   historyFilterToggle:document.getElementById('history-filter-toggle'),
   historyFilterSummary:document.getElementById('history-filter-summary'),
   historyFilterbar:document.getElementById('history-filterbar'),
-  historyCreatedFrom:document.getElementById('history-created-from'),
-  historyCreatedTo:document.getElementById('history-created-to'),
-  historyUpdatedFrom:document.getElementById('history-updated-from'),
-  historyUpdatedTo:document.getElementById('history-updated-to'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
   tagManager:document.getElementById('tag-manager'),
@@ -917,7 +912,7 @@ function dedupeApiProfiles(profiles){
     const existing=unique.get(signature);
     if(!existing||new Date(profile.updatedAt||0)>new Date(existing.updatedAt||0))unique.set(signature,profile);
   });
-  return [...unique.values()].sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));
+  return [...unique.values()];
 }
 function activeApiProfile(settings=getSettings()){
   return settings.apiProfiles.find(profile=>profile.id===settings.activeApiProfileId)||settings.apiProfiles[0]||DEFAULT_API_PROFILE;
@@ -1524,6 +1519,7 @@ function setModalTab(id,button){
   document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id===`modal-${id}-page`));
   document.querySelectorAll('.modal-head .tab-btn').forEach(btn=>btn.classList.remove('active'));
   button.classList.add('active');
+  els.historyModal?.querySelector('.modal-card')?.classList.toggle('editing-mode',id!=='card');
   if(id==='json')validateModalJSON(false);
 }
 function renderEmpty(){
@@ -1891,15 +1887,18 @@ function exampleHighlightTermsForItem(item={},queryTerms=[]){
   ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
 }
 function translationHighlightTermsForItem(item={},result={}){
+  const explicit=rawList(item.translationHighlights)
+    .map(value=>String(value||'').trim())
+    .filter(value=>value.length>=2&&value.length<=40);
   const terms=[
-    ...rawList(item.translationHighlights),
+    ...explicit,
     ...semanticLabelCandidates(item.shortestLabel),
     ...semanticLabelCandidates(item.phraseTranslation),
     ...semanticLabelCandidates(item.meaning),
   ];
   const head=result.headword||{};
   terms.push(...semanticLabelCandidates(head.coreMeaning));
-  return uniq(terms.map(value=>String(value||'').trim()).filter(value=>value.length>=2&&value.length<=12)).slice(0,8);
+  return uniq(terms.map(value=>String(value||'').trim()).filter(value=>value.length>=2&&value.length<=40)).slice(0,10);
 }
 function semanticLabelCandidates(value){
   const raw=String(value||'').trim();
@@ -3021,7 +3020,6 @@ function toggleHistoryFilters(){
 }
 function renderHistory(){
   renderHistoryFilterOptions(getHistory());
-  renderHistoryDateFilters();
   renderHistorySortControls();
   renderHistoryScopeControls();
   ensureHistoryVisible();
@@ -3116,9 +3114,13 @@ function historyTimeMetaHTML(item={},mode='created'){
   const created=formatHistoryTime(normalized.createdAt);
   const updated=formatHistoryTime(normalized.updatedAt);
   const edited=historyEdited(normalized);
+  if(!edited){
+    const single=created||updated;
+    return single?`<em>${escapeHTML(single)}</em>`:'';
+  }
   const parts=[];
-  if(next==='created'||next==='both'||!edited)parts.push(['创建',created]);
-  if(edited&&(next==='updated'||next==='both'))parts.push(['已编辑',updated]);
+  if(next==='created'||next==='both')parts.push(['创建',created]);
+  if(next==='updated'||next==='both')parts.push(['修改',updated]);
   if(!parts.length&&created)parts.push(['创建',created]);
   return parts.filter(([,value])=>value).map(([label,value])=>`<em>${escapeHTML(label)} ${escapeHTML(value)}</em>`).join('');
 }
@@ -3128,17 +3130,20 @@ function historyTimeMetaText(item={},mode='created'){
   const created=formatHistoryTime(normalized.createdAt);
   const updated=formatHistoryTime(normalized.updatedAt);
   const edited=historyEdited(normalized);
+  if(!edited)return created||updated||'';
   const parts=[];
-  if(next==='created'||next==='both'||!edited)parts.push(['创建',created]);
-  if(edited&&(next==='updated'||next==='both'))parts.push(['已编辑',updated]);
+  if(next==='created'||next==='both')parts.push(['创建',created]);
+  if(next==='updated'||next==='both')parts.push(['修改',updated]);
   if(!parts.length&&created)parts.push(['创建',created]);
   return parts.filter(([,value])=>value).map(([label,value])=>`${label} ${value}`).join(' · ');
 }
 function historyPrimaryTime(item={}){
-  const mode=normalizeHistoryTimeMode(getSettings().historyTimeMode);
-  if(mode==='updated'&&historyEdited(item))return new Date(item.updatedAt||item.createdAt||0).getTime();
-  if(mode==='both')return Math.max(new Date(item.updatedAt||0).getTime()||0,new Date(item.createdAt||0).getTime()||0);
-  return new Date(item.createdAt||0).getTime();
+  const updated=new Date(item.updatedAt||item.createdAt||0).getTime();
+  const created=new Date(item.createdAt||0).getTime();
+  return updated||created||0;
+}
+function historyCreatedTime(item={}){
+  return new Date(item.createdAt||0).getTime()||0;
 }
 function compactPartOfSpeech(head={},senses=[]){
   const tokens=uniq([
@@ -3170,6 +3175,7 @@ function filterAndSortHistory(history){
     else if(historyState.sort==='language')value=historyCollator.compare(historyField(a,'language'),historyField(b,'language'));
     else if(historyState.sort==='rolls')value=getHistoryRolls(a).length-getHistoryRolls(b).length;
     else if(historyState.sort==='followups')value=(a.followups||[]).length-(b.followups||[]).length;
+    else if(historyState.sort==='created')value=historyCreatedTime(a)-historyCreatedTime(b);
     else value=historyPrimaryTime(a)-historyPrimaryTime(b);
     return historyState.sortDir==='asc'?value:-value;
   });
@@ -3181,26 +3187,7 @@ function historyMatchesFilters(item){
     && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
     && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
     && filterMatches(historyCanonicalValues(item,'style'),filters.style)
-    && filterMatches(historyCanonicalValues(item,'tag'),filters.tag)
-    && historyDateMatches(item,'createdAt',filters.createdFrom,filters.createdTo)
-    && historyDateMatches(item,'updatedAt',filters.updatedFrom,filters.updatedTo);
-}
-function historyDateMatches(item={},field,from='',to=''){
-  if(!from&&!to)return true;
-  const source=field==='updatedAt'&&!historyEdited(item)?item.createdAt:item[field];
-  const time=new Date(source||0).getTime();
-  if(!time)return false;
-  if(from&&time<dateRangeStart(from))return false;
-  if(to&&time>dateRangeEnd(to))return false;
-  return true;
-}
-function dateRangeStart(value){
-  const time=new Date(`${value}T00:00:00`).getTime();
-  return Number.isNaN(time)?-Infinity:time;
-}
-function dateRangeEnd(value){
-  const time=new Date(`${value}T23:59:59.999`).getTime();
-  return Number.isNaN(time)?Infinity:time;
+    && filterMatches(historyCanonicalValues(item,'tag'),filters.tag);
 }
 function filterMatches(values,selected){
   const picks=Array.isArray(selected)?selected:[selected].filter(Boolean);
@@ -3412,12 +3399,6 @@ function renderHistoryFilterOptions(history){
   renderHistoryFilterGroup('style','语体',options.style);
   renderHistoryFilterGroup('tag','Tag',options.tag);
 }
-function renderHistoryDateFilters(){
-  if(els.historyCreatedFrom)els.historyCreatedFrom.value=historyState.filters.createdFrom||'';
-  if(els.historyCreatedTo)els.historyCreatedTo.value=historyState.filters.createdTo||'';
-  if(els.historyUpdatedFrom)els.historyUpdatedFrom.value=historyState.filters.updatedFrom||'';
-  if(els.historyUpdatedTo)els.historyUpdatedTo.value=historyState.filters.updatedTo||'';
-}
 function renderHistoryFilterGroup(key,label,values=[]){
   const root=els.historyFilterbar?.querySelector(`[data-filter-key="${key}"]`);
   if(!root)return;
@@ -3547,7 +3528,7 @@ async function deleteManagedTag(tag){
 }
 function clearHistoryFilter(key){
   if(!key)return;
-  historyState.filters[key]=['createdFrom','createdTo','updatedFrom','updatedTo'].includes(key)?'':[];
+  historyState.filters[key]=[];
   openHistoryFilterKey=key;
   rerenderHistoryFromStart();
 }
@@ -3565,7 +3546,7 @@ function setHistorySort(sort){
   if(historyState.sort===sort)historyState.sortDir=historyState.sortDir==='asc'?'desc':'asc';
   else{
     historyState.sort=sort;
-    historyState.sortDir=(sort==='time'||sort==='rolls'||sort==='followups')?'desc':'asc';
+    historyState.sortDir=(sort==='updated'||sort==='created'||sort==='rolls'||sort==='followups')?'desc':'asc';
   }
   rerenderHistoryFromStart();
 }
@@ -3606,11 +3587,6 @@ function clearHistorySearch(){
   historyState.query='';
   if(els.historySearch)els.historySearch.value='';
   updateHistorySearchState();
-  rerenderHistoryFromStart();
-}
-function setHistoryDateFilter(key,value){
-  if(!Object.prototype.hasOwnProperty.call(historyState.filters,key))return;
-  historyState.filters[key]=String(value||'');
   rerenderHistoryFromStart();
 }
 function toggleFavoriteHistory(id){
@@ -3663,8 +3639,11 @@ function renderVisualEditor(result=modalResult){
   const head=data.headword||{};
   const senses=Array.isArray(data.senses)?data.senses:[];
   const collocations=Array.isArray(data.collocations)?data.collocations:[];
+  const register=data.register||{};
+  const confusions=Array.isArray(data.confusions)?data.confusions:[];
   els.modalVisualEditor.innerHTML=`
-    <div class="visual-grid">
+    <div class="visual-help">可视化编辑会同步写回 JSON。高亮字段只填“例句/译文中需要标出的真实片段”，多个片段用逗号、顿号或换行分隔。</div>
+    <div class="visual-grid visual-headword-grid">
       ${visualField('visual-title','词条标题',head.title||meta.query||'')}
       ${visualField('visual-core','核心义',head.coreMeaning||'')}
       ${visualField('visual-entry-type','类型',entryTypeForResult(data,head.title||meta.query||''))}
@@ -3675,6 +3654,15 @@ function renderVisualEditor(result=modalResult){
     </div>
     ${visualList('senses','义项',senses,renderVisualSense)}
     ${visualList('collocations','固定搭配',collocations,renderVisualCollocation)}
+    <section class="visual-section">
+      <div class="visual-head"><b>语义感受</b><span>语体、语气和使用场景</span></div>
+      <div class="visual-grid compact">
+        ${visualField('visual-register-style','语体属性',register.style||'')}
+        ${visualField('visual-register-tone','语义气质',register.tone||'')}
+        ${visualTextarea('visual-register-environment','使用环境',register.environment||'')}
+      </div>
+    </section>
+    ${visualList('confusions','近义词 / 易混词',confusions,renderVisualConfusion)}
   `;
 }
 function visualField(id,label,value){
@@ -3685,33 +3673,47 @@ function visualTextarea(id,label,value){
 }
 function visualList(kind,title,items,renderer){
   return `<section class="visual-section">
-    <div class="visual-head"><b>${escapeHTML(title)}</b><button class="plain-btn" type="button" onclick="addVisualItem('${kind}')">新增</button></div>
+    <div class="visual-head"><b>${escapeHTML(title)}</b><button class="plain-btn icon-add-btn" type="button" data-tip="新增" onclick="addVisualItem('${kind}')">+</button></div>
     <div class="visual-list ${items.length?'':'empty'}">
       ${items.length?items.map((item,index)=>renderer(item,index)).join(''):'<div class="empty small-empty">暂无，可点击新增。</div>'}
     </div>
   </section>`;
 }
 function renderVisualSense(item={},index=0){
-  return `<article class="visual-card" data-visual-kind="senses" data-index="${index}">
-    <div class="visual-card-head"><b>义项 ${index+1}</b><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div>
-    <div class="visual-grid compact">
+  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'senses',${index})" ondragover="event.preventDefault()" ondrop="dropVisualItem(event,'senses',${index})" data-visual-kind="senses" data-index="${index}">
+    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="icon-btn" type="button" data-tip="上移" onclick="moveVisualItem('senses',${index},-1)">↑</button><button class="icon-btn" type="button" data-tip="下移" onclick="moveVisualItem('senses',${index},1)">↓</button><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
+    <div class="visual-grid compact visual-sense-grid">
       ${visualInlineField('partOfSpeech','词性',item.partOfSpeech||'')}
       ${visualInlineField('shortestLabel','义标',item.shortestLabel||'')}
       ${visualInlineTextarea('meaning','语意',item.meaning||'')}
       ${visualInlineTextarea('example','例句',item.example||'')}
       ${visualInlineTextarea('translation','译文',item.translation||'')}
+      ${visualInlineTextarea('exampleHighlights','例句高亮',rawList(item.exampleHighlights).join('\n'))}
+      ${visualInlineTextarea('translationHighlights','译文高亮',rawList(item.translationHighlights).join('\n'))}
     </div>
   </article>`;
 }
 function renderVisualCollocation(item={},index=0){
-  return `<article class="visual-card" data-visual-kind="collocations" data-index="${index}">
-    <div class="visual-card-head"><b>搭配 ${index+1}</b><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div>
+  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'collocations',${index})" ondragover="event.preventDefault()" ondrop="dropVisualItem(event,'collocations',${index})" data-visual-kind="collocations" data-index="${index}">
+    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="icon-btn" type="button" data-tip="上移" onclick="moveVisualItem('collocations',${index},-1)">↑</button><button class="icon-btn" type="button" data-tip="下移" onclick="moveVisualItem('collocations',${index},1)">↓</button><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('phrase','短语',item.phrase||'')}
       ${visualInlineField('note','标注',item.note||'')}
       ${visualInlineTextarea('meaning','语意',item.meaning||'')}
       ${visualInlineTextarea('example','例句',item.example||'')}
       ${visualInlineTextarea('translation','译文',item.translation||'')}
+      ${visualInlineTextarea('exampleHighlights','例句高亮',rawList(item.exampleHighlights).join('\n'))}
+      ${visualInlineTextarea('translationHighlights','译文高亮',rawList(item.translationHighlights).join('\n'))}
+    </div>
+  </article>`;
+}
+function renderVisualConfusion(item={},index=0){
+  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'confusions',${index})" ondragover="event.preventDefault()" ondrop="dropVisualItem(event,'confusions',${index})" data-visual-kind="confusions" data-index="${index}">
+    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="icon-btn" type="button" data-tip="上移" onclick="moveVisualItem('confusions',${index},-1)">↑</button><button class="icon-btn" type="button" data-tip="下移" onclick="moveVisualItem('confusions',${index},1)">↓</button><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
+    <div class="visual-grid compact">
+      ${visualInlineField('term','词',item.term||'')}
+      ${visualInlineTextarea('difference','核心区别',item.difference||'')}
+      ${visualInlineTextarea('usage','语体/使用倾向',item.usage||'')}
     </div>
   </article>`;
 }
@@ -3735,9 +3737,25 @@ function collectVisualResult(){
   data.meta.normalized=data.headword.title||data.meta.normalized||'';
   data.meta.language=data.headword.languageTag||data.meta.language||'';
   data.meta.defaultDirection=document.getElementById('visual-direction')?.value.trim()||'';
-  data.senses=collectVisualCards('senses');
-  data.collocations=collectVisualCards('collocations').map((item,index)=>({...item,index:item.index||String(index+1)}));
+  data.register={
+    style:document.getElementById('visual-register-style')?.value.trim()||'',
+    tone:document.getElementById('visual-register-tone')?.value.trim()||'',
+    environment:document.getElementById('visual-register-environment')?.value.trim()||'',
+  };
+  data.senses=collectVisualCards('senses').map(normalizeVisualHighlightFields);
+  data.collocations=collectVisualCards('collocations').map((item,index)=>({...normalizeVisualHighlightFields(item),index:item.index||String(index+1)}));
+  data.confusions=collectVisualCards('confusions');
   return data;
+}
+function normalizeVisualHighlightFields(item={}){
+  return {
+    ...item,
+    exampleHighlights:splitVisualList(item.exampleHighlights),
+    translationHighlights:splitVisualList(item.translationHighlights),
+  };
+}
+function splitVisualList(value){
+  return String(value||'').split(/[\n,，、;；]+/).map(item=>item.trim()).filter(Boolean);
 }
 function collectVisualCards(kind){
   return [...(els.modalVisualEditor?.querySelectorAll(`[data-visual-kind="${kind}"]`)||[])].map(card=>{
@@ -3750,12 +3768,42 @@ function addVisualItem(kind){
   const data=collectVisualResult();
   if(kind==='senses')data.senses=[...(data.senses||[]),{partOfSpeech:'',shortestLabel:'',meaning:'',example:'',translation:''}];
   if(kind==='collocations')data.collocations=[...(data.collocations||[]),{phrase:'',meaning:'',example:'',translation:'',note:''}];
+  if(kind==='confusions')data.confusions=[...(data.confusions||[]),{term:'',difference:'',usage:''}];
   modalResult=data;
   renderVisualEditor(data);
 }
 function removeVisualItem(kind,index){
   const data=collectVisualResult();
   if(Array.isArray(data[kind]))data[kind].splice(index,1);
+  modalResult=data;
+  renderVisualEditor(data);
+}
+function moveVisualItem(kind,index,delta){
+  const data=collectVisualResult();
+  const list=Array.isArray(data[kind])?data[kind]:[];
+  const nextIndex=Math.max(0,Math.min(list.length-1,index+delta));
+  if(index<0||index>=list.length||nextIndex===index)return;
+  const [item]=list.splice(index,1);
+  list.splice(nextIndex,0,item);
+  data[kind]=list;
+  modalResult=data;
+  renderVisualEditor(data);
+}
+let visualDragState=null;
+function startVisualDrag(event,kind,index){
+  visualDragState={kind,index};
+  event.dataTransfer?.setData('text/plain',`${kind}:${index}`);
+}
+function dropVisualItem(event,kind,index){
+  event.preventDefault();
+  const state=visualDragState;
+  visualDragState=null;
+  if(!state||state.kind!==kind||state.index===index)return;
+  const data=collectVisualResult();
+  const list=Array.isArray(data[kind])?data[kind]:[];
+  const [item]=list.splice(state.index,1);
+  list.splice(index,0,item);
+  data[kind]=list;
   modalResult=data;
   renderVisualEditor(data);
 }
@@ -3891,7 +3939,7 @@ function renderModalRollbar(item){
         </button>
       `).join('')}
     </div>
-    <button class="plain-btn primary-btn reroll-btn" onclick="regenerateModalHistory()">重新生成</button>
+    <button class="icon-btn primary-icon reroll-btn" data-tip="重新生成" aria-label="重新生成" onclick="regenerateModalHistory()">↻</button>
   `;
 }
 function setModalRoll(rollId){
@@ -4074,12 +4122,16 @@ function renderApiProfilePicker(settings,profile){
   els.apiProfileMenu.innerHTML=`
     <button class="api-profile-create" type="button" data-profile-action="new">新增配置</button>
     <div class="api-profile-menu-list">
-      ${settings.apiProfiles.map(item=>`
+      ${settings.apiProfiles.map((item,index)=>`
         <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-id="${escapeHTML(item.id)}">
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
             <em>${escapeHTML(apiProfileSummary(item))}</em>
           </button>
+          <div class="api-profile-order">
+            <button type="button" data-profile-action="move-up" ${index===0?'disabled':''} aria-label="上移">↑</button>
+            <button type="button" data-profile-action="move-down" ${index===settings.apiProfiles.length-1?'disabled':''} aria-label="下移">↓</button>
+          </div>
           <button class="api-profile-edit" type="button" data-profile-action="edit">编辑</button>
           <button class="api-profile-delete" type="button" data-profile-action="delete" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">×</button>
         </div>
@@ -4128,9 +4180,28 @@ function toggleApiProfileMenu(){
   if(open)requestAnimationFrame(positionApiProfileMenu);
 }
 function renderSettings(){
+  setupSettingGroupToggles();
   hydrateSettings();
   renderTagManager();
   renderLogs();
+}
+function setupSettingGroupToggles(){
+  document.querySelectorAll('.setting-group').forEach((group,index)=>{
+    const title=group.querySelector('.setting-title');
+    if(!title||title.querySelector('.setting-collapse-btn'))return;
+    const text=title.textContent.trim()||`模块 ${index+1}`;
+    title.innerHTML=`<span>${escapeHTML(text)}</span><button class="setting-collapse-btn" type="button" aria-label="折叠 ${escapeAttr(text)}">⌄</button>`;
+    title.querySelector('.setting-collapse-btn')?.addEventListener('click',event=>{
+      event.stopPropagation();
+      group.classList.toggle('collapsed');
+      event.currentTarget.setAttribute('aria-expanded',String(!group.classList.contains('collapsed')));
+    });
+    title.addEventListener('click',event=>{
+      if(event.target.closest('button'))return;
+      const button=title.querySelector('.setting-collapse-btn');
+      button?.click();
+    });
+  });
 }
 function applyLabelMode(mode){
   const next=normalizeLabelMode(mode);
@@ -4177,9 +4248,6 @@ function applyHistoryTimeMode(mode){
   els.timeModeCreatedBtn?.classList.toggle('active',next==='created');
   els.timeModeUpdatedBtn?.classList.toggle('active',next==='updated');
   els.timeModeBothBtn?.classList.toggle('active',next==='both');
-  els.modalTimeCreatedBtn?.classList.toggle('active',next==='created');
-  els.modalTimeUpdatedBtn?.classList.toggle('active',next==='updated');
-  els.modalTimeBothBtn?.classList.toggle('active',next==='both');
 }
 function setHistoryTimeMode(mode){
   const next=normalizeHistoryTimeMode(mode);
@@ -4340,6 +4408,20 @@ function selectApiProfile(id){
   hydrateSettings();
   closeApiProfileMenu();
 }
+function moveApiProfile(id,delta){
+  const settings=getSettings();
+  const index=settings.apiProfiles.findIndex(profile=>profile.id===id);
+  if(index<0)return;
+  const nextIndex=Math.max(0,Math.min(settings.apiProfiles.length-1,index+delta));
+  if(nextIndex===index)return;
+  const profiles=[...settings.apiProfiles];
+  const [item]=profiles.splice(index,1);
+  profiles.splice(nextIndex,0,item);
+  setSettings({...settings,apiProfiles:profiles,updatedAt:new Date().toISOString()});
+  renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
+  requestAnimationFrame(positionApiProfileMenu);
+  notify('配置顺序已调整。','good','API 配置');
+}
 function newApiProfile(){
   closeApiProfileMenu();
   openApiProfileModal('new');
@@ -4369,7 +4451,7 @@ async function factoryReset(){
   modalResult=null;
   historyState.query='';
   historyState.scope='all';
-  Object.keys(historyState.filters).forEach(key=>{historyState.filters[key]=['createdFrom','createdTo','updatedFrom','updatedTo'].includes(key)?'':[]});
+  Object.keys(historyState.filters).forEach(key=>{historyState.filters[key]=[]});
   if(els.historySearch)els.historySearch.value='';
   hydrateSettings();
   renderEmpty();
@@ -4513,10 +4595,6 @@ els.historySearch?.addEventListener('input',event=>{
   updateHistorySearchState();
   rerenderHistoryFromStart();
 });
-els.historyCreatedFrom?.addEventListener('input',event=>setHistoryDateFilter('createdFrom',event.target.value));
-els.historyCreatedTo?.addEventListener('input',event=>setHistoryDateFilter('createdTo',event.target.value));
-els.historyUpdatedFrom?.addEventListener('input',event=>setHistoryDateFilter('updatedFrom',event.target.value));
-els.historyUpdatedTo?.addEventListener('input',event=>setHistoryDateFilter('updatedTo',event.target.value));
 els.historyModalBody?.addEventListener('scroll',updateHistoryModalScrollState,{passive:true});
 els.historyFilterbar?.addEventListener('click',event=>{
   event.stopPropagation();
@@ -4545,6 +4623,8 @@ els.apiProfileMenu?.addEventListener('click',event=>{
     closeApiProfileMenu();
     return editApiProfile(id);
   }
+  if(action==='move-up')return moveApiProfile(id,-1);
+  if(action==='move-down')return moveApiProfile(id,1);
   if(action==='delete')return deleteApiProfile(id);
 });
 els.apiModelList?.addEventListener('click',event=>{
@@ -4566,7 +4646,6 @@ window.addEventListener('resize',()=>{
 });
 window.addEventListener('scroll',()=>{
   updateHomeStickyState();
-  if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
   maybeLoadMoreHistory();
 },{passive:true});
 document.addEventListener('keydown',event=>{
