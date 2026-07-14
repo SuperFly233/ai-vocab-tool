@@ -132,6 +132,7 @@ Expected behavior:
 - v0.10.4 removed the old 120-entry storage cap from `addHistory()`, `saveLookupResult()`, and `mergeHistoryItems()`. History performance should rely on batched rendering, not data truncation; old entries already overwritten by capped saves cannot be reconstructed client-side.
 - v0.10.5 added a Settings > Data history JSON import flow. `parseHistoryImportPayload()` accepts plain arrays, `{raw:"..."}`, Supabase `{value:{raw:"..."}}`, `history`, `items`, and `data` wrappers; `analyzeHistoryImport()` previews new/overlap/changed/duplicate counts before `importHistoryFromText()` merges via `mergeHistoryItems()`.
 - v0.10.6 extended history import with file picker and drag/drop loading through `loadHistoryImportFile()`. Settings desktop layout should use full-width/right-side work areas for API profiles, Prompt, import, and tag management rather than narrow left-aligned forms.
+- v0.10.7 fixed the history import preview crash caused by calling nonexistent `formatTime()` in `historyRangeLabel()`; use `formatHistoryTime()` with ISO fallback instead.
 
 ## Working Rules
 

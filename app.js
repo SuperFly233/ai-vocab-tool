@@ -111,12 +111,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.6',
+  version:'0.10.7',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.7',
+    date:'2026-07-14',
+    title:'修复历史导入预检时间格式错误',
+    items:['修复历史 JSON 文件读取后预检报 formatTime is not defined 的问题，导入时间范围改用现有历史时间格式化逻辑。'],
+  },
   {
     version:'0.10.6',
     date:'2026-07-14',
@@ -4228,7 +4234,9 @@ function historyImportKey(item={}){
 function historyRangeLabel(items=[]){
   const times=items.flatMap(item=>[item.createdAt,item.updatedAt]).filter(Boolean).map(value=>new Date(value).getTime()).filter(Boolean).sort((a,b)=>a-b);
   if(!times.length)return '无时间';
-  return `${formatTime(new Date(times[0]).toISOString())} → ${formatTime(new Date(times[times.length-1]).toISOString())}`;
+  const first=formatHistoryTime(new Date(times[0]).toISOString())||new Date(times[0]).toISOString();
+  const last=formatHistoryTime(new Date(times[times.length-1]).toISOString())||new Date(times[times.length-1]).toISOString();
+  return `${first} → ${last}`;
 }
 function analyzeHistoryImport(text){
   const imported=parseHistoryImportPayload(text);
