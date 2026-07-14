@@ -76,12 +76,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.47',
+  version:'0.9.48',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.48',
+    date:'2026-07-14',
+    title:'收窄结果高亮并固定首页查询区',
+    items:['结果高亮只使用当前查询词条本身及其常见英文词形变化，不再把义标、语意或模型给出的杂项词组一起高亮。','高亮只出现在例句和译文行，语意说明保持纯文本，避免阅读时出现一片零散标记。','首页标题和查询区滚动时保持置顶，并在滚动后自动压缩高度；点击查询输入区会回到顶部并聚焦输入。'],
+  },
   {
     version:'0.9.47',
     date:'2026-07-14',
@@ -1415,6 +1421,7 @@ function showView(id,button){
   if(id==='history')renderHistory();
   if(id==='settings')renderSettings();
   if(id==='about')renderAbout();
+  updateHomeStickyState();
   if(id==='home')focusQueryInput();
 }
 function goHomeAndFocus(){
@@ -1428,6 +1435,21 @@ function focusQueryInput(){
     const length=els.query?.value.length||0;
     els.query?.setSelectionRange(length,length);
   });
+}
+function updateHomeStickyState(){
+  const compact=activeView==='home'&&window.scrollY>56;
+  document.body.classList.toggle('home-scrolled',compact);
+}
+function focusHomeQueryFromSticky(event){
+  if(activeView!=='home'||document.body.classList.contains('modal-open'))return;
+  const target=event?.target;
+  if(target?.closest?.('.clear-query-btn,.query-actions,button'))return;
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(target!==els.direction&&target!==els.note){
+    els.query?.focus({preventScroll:true});
+    const length=els.query?.value.length||0;
+    els.query?.setSelectionRange(length,length);
+  }
 }
 function setResultTab(id,button){
   document.querySelectorAll('.result-page').forEach(page=>page.classList.remove('active'));
@@ -1719,7 +1741,7 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
   const collocations=result.collocations||[];
   const register=result.register||{};
   const confusions=result.confusions||[];
-  const highlightTerms=resultHighlightTerms(result);
+  const queryTerms=resultQueryHighlightTerms(result);
   const related=relatedHistoryItems(result,scope);
   return `
     <div class="entry-head">
@@ -1738,9 +1760,9 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
       <div class="item-index">${escapeHTML(item.index)}</div>
       <div class="item-body">
         <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
-        <div class="line"><b>语意</b><span>${highlightText(item.meaning,itemHighlightTerms(item,[item.phrase,item.note]))}</span></div>
-        <div class="line"><b>例句</b><span>${highlightText(item.example,itemHighlightTerms(item,[item.phrase,...highlightTerms]))}</span></div>
-        <div class="line"><b>译文</b><span>${highlightText(item.translation,itemHighlightTerms(item,[item.meaning,item.note]))}</span></div>
+        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
+        <div class="line"><b>例句</b><span>${highlightText(item.example,queryTerms)}</span></div>
+        <div class="line"><b>译文</b><span>${highlightText(item.translation,queryTerms)}</span></div>
       </div>
     `)}
     <div class="block">
@@ -1764,7 +1786,7 @@ function renderSenseGroups(senses=[],result={}){
   const list=Array.isArray(senses)?senses:[];
   if(!list.length)return '<div class="block"><div class="block-title">义项分析</div><div class="item empty-item">无</div></div>';
   const groups=groupSensesByPartOfSpeech(list);
-  const highlightTerms=resultHighlightTerms(result);
+  const queryTerms=resultQueryHighlightTerms(result);
   return `<div class="block"><div class="block-title">义项分析</div>${groups.map(group=>`
     <section class="sense-group">
       <div class="sense-group-head">
@@ -1775,36 +1797,25 @@ function renderSenseGroups(senses=[],result={}){
         <div class="item-index">${index+1}</div>
         <div class="item-body">
           <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark></div>
-          <div class="line"><b>语意</b><span>${highlightText(item.meaning,itemHighlightTerms(item,[item.shortestLabel]))}</span></div>
-          <div class="line"><b>例句</b><span>${highlightText(item.example,itemHighlightTerms(item,highlightTerms))}</span></div>
-          <div class="line"><b>译文</b><span>${highlightText(item.translation,itemHighlightTerms(item,[item.shortestLabel,item.meaning]))}</span></div>
+          <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
+          <div class="line"><b>例句</b><span>${highlightText(item.example,queryTerms)}</span></div>
+          <div class="line"><b>译文</b><span>${highlightText(item.translation,queryTerms)}</span></div>
         </div>
       </div>`).join('')}
     </section>
   `).join('')}</div>`;
 }
-function resultHighlightTerms(result={}){
+function resultQueryHighlightTerms(result={}){
   const head=result.headword||{};
   const meta=result.meta||{};
   return uniq([
     meta.normalized,
     meta.query,
     head.title,
-    head.coreMeaning,
   ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
 }
 function escapeRegExp(value){
   return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-}
-function itemHighlightTerms(item={},baseTerms=[]){
-  return uniq([
-    ...(Array.isArray(baseTerms)?baseTerms:[baseTerms]),
-    ...rawList(item.highlightTerms),
-    ...rawList(item.highlightHints),
-    ...rawList(item.aliases),
-    ...rawList(item.exampleHighlights),
-    ...rawList(item.translationHighlights),
-  ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
 }
 function englishInflectionVariants(term){
   const value=String(term||'').trim();
@@ -4198,6 +4209,7 @@ window.addEventListener('resize',()=>{
   if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
 });
 window.addEventListener('scroll',()=>{
+  updateHomeStickyState();
   if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
   maybeLoadMoreHistory();
 },{passive:true});
@@ -4209,6 +4221,7 @@ document.addEventListener('keydown',event=>{
   }
 });
 els.query?.addEventListener('input',handleQueryInput);
+document.querySelector('#view-home .editor-pane')?.addEventListener('click',focusHomeQueryFromSticky);
 els.query?.addEventListener('keydown',event=>{
   if(event.key==='Enter'&&!event.shiftKey){
     event.preventDefault();
