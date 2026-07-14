@@ -117,6 +117,9 @@ Expected behavior:
 - Reworked the settings-side model prompt area into a small implementation map plus a wider prompt workbench. It now shows the input -> frontend request -> system prompt -> model JSON -> validation/render path, default/custom source, default prompt length, and edit state.
 - Fixed lookup queue duplication: `submitLookup()` now signs query/direction/note/existingId and ignores repeated submissions already running or already queued.
 - Added a narrow tilde-placeholder highlight fallback for examples. Query/headword/current item strings containing `~`, `～`, or `…` are split into meaningful fragments so entries like `つもり～ということだ` can highlight `つもり` in examples without broadening semantic-row highlights.
+- Fixed a regression in lookup queue signing: it called a non-existent `normalizeQueryText()` helper, so non-empty lookups could fail before sending any request. The signature now uses `normalizeSearch()`, and `runLookup()` catches entry-point errors with a toast.
+- Added synced `historyTimeMode` settings and history date filtering. Lists/details can show created time, edited time, or both; unchanged records no longer show "已编辑"; history filters now include created/updated date ranges.
+- Improved history modal behavior: roll switching and reroll stay available as compact sticky controls while scrolling, a small sticky summary appears after scrolling, and API profile modal backdrop clicks no longer close drafts with typed content.
 
 ## Working Rules
 

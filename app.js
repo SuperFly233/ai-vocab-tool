@@ -65,6 +65,10 @@ const historyState={
     pos:[],
     style:[],
     tag:[],
+    createdFrom:'',
+    createdTo:'',
+    updatedFrom:'',
+    updatedTo:'',
   },
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
@@ -73,16 +77,22 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   ignorePunctuation:true,
 });
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',modelPrompt:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',modelPrompt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.52',
+  version:'0.9.53',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.53',
+    date:'2026-07-14',
+    title:'优化历史时间显示与筛选',
+    items:['修复重复排队去重里调用了不存在函数导致非空查询无反应的问题；查询入口现在也会把异常明确提示出来。','历史列表和详情页不会再把创建时间与修改时间相同的记录标成“已编辑”，只有真实修改后才显示已编辑时间。','设置页新增历史时间显示偏好，可选择默认展示创建时间、修改时间或全部时间；详情弹窗顶部也可直接切换。','历史页新增创建日期和修改日期范围筛选，方便按记录生成时间或后续编辑时间查找。','历史详情滚动时会保留压缩吸顶信息条，版本切换和重新生成按钮会缩小但不消失；API 配置弹窗有草稿时点击遮罩不会误关。'],
+  },
   {
     version:'0.9.52',
     date:'2026-07-14',
@@ -454,7 +464,9 @@ const els={
   historyModal:document.getElementById('history-modal'),
   modalTitle:document.getElementById('modal-title'),
   modalSubtitle:document.getElementById('modal-subtitle'),
+  historyModalBody:document.getElementById('history-modal-body'),
   modalRollbar:document.getElementById('modal-rollbar'),
+  modalStickySummary:document.getElementById('modal-sticky-summary'),
   modalCardPage:document.getElementById('modal-card-page'),
   modalVisualPage:document.getElementById('modal-visual-page'),
   modalVisualEditor:document.getElementById('modal-visual-editor'),
@@ -474,6 +486,12 @@ const els={
   fontModeSansBtn:document.getElementById('font-mode-sans'),
   fontModeSerifBtn:document.getElementById('font-mode-serif'),
   fontModeMonoBtn:document.getElementById('font-mode-mono'),
+  timeModeCreatedBtn:document.getElementById('time-mode-created'),
+  timeModeUpdatedBtn:document.getElementById('time-mode-updated'),
+  timeModeBothBtn:document.getElementById('time-mode-both'),
+  modalTimeCreatedBtn:document.getElementById('modal-time-created'),
+  modalTimeUpdatedBtn:document.getElementById('modal-time-updated'),
+  modalTimeBothBtn:document.getElementById('modal-time-both'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historyTools:document.getElementById('history-tools'),
@@ -482,6 +500,10 @@ const els={
   historyFilterToggle:document.getElementById('history-filter-toggle'),
   historyFilterSummary:document.getElementById('history-filter-summary'),
   historyFilterbar:document.getElementById('history-filterbar'),
+  historyCreatedFrom:document.getElementById('history-created-from'),
+  historyCreatedTo:document.getElementById('history-created-to'),
+  historyUpdatedFrom:document.getElementById('history-updated-from'),
+  historyUpdatedTo:document.getElementById('history-updated-to'),
   historySortbar:document.getElementById('history-sortbar'),
   historyScope:document.getElementById('history-scope'),
   tagManager:document.getElementById('tag-manager'),
@@ -847,6 +869,7 @@ function normalizeSettings(raw={}){
   const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
   const labelMode=normalizeLabelMode(source.labelMode);
   const fontMode=normalizeFontMode(source.fontMode);
+  const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
   const modelPrompt=String(source.modelPrompt||'');
   return {
     ...DEFAULT_SETTINGS,
@@ -858,6 +881,7 @@ function normalizeSettings(raw={}){
     model:active.model,
     labelMode,
     fontMode,
+    historyTimeMode,
     modelPrompt,
   };
 }
@@ -866,6 +890,9 @@ function normalizeLabelMode(value){
 }
 function normalizeFontMode(value){
   return ['system','sans','serif','mono'].includes(value)?value:'system';
+}
+function normalizeHistoryTimeMode(value){
+  return ['created','updated','both'].includes(value)?value:'created';
 }
 function normalizeApiProfile(profile={}){
   const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
@@ -907,6 +934,7 @@ function mergeSettings(localRaw,remoteRaw){
     ...remote,
     labelMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.labelMode:remote.labelMode||local.labelMode,
     fontMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.fontMode:remote.fontMode||local.fontMode,
+    historyTimeMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
     modelPrompt:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
@@ -1103,7 +1131,8 @@ function syncValuePreview(key,value){
     const active=currentApiSettings(settings);
     const labelMode=settings.labelMode==='zh'?'中文':settings.labelMode==='code'?'缩写':'双语';
     const fontMode={system:'系统',sans:'无衬线',serif:'衬线',mono:'等宽'}[settings.fontMode]||'系统';
-    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}，Prompt ${settings.modelPrompt?'自定义':'默认'}`;
+    const timeMode={created:'创建时间',updated:'修改时间',both:'全部时间'}[settings.historyTimeMode]||'创建时间';
+    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}，时间 ${timeMode}，Prompt ${settings.modelPrompt?'自定义':'默认'}`;
   }
   if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
@@ -2439,19 +2468,25 @@ function rerenderFollowupScope(scope){
   if(currentResult)renderResult(currentResult);
 }
 async function runLookup(){
-  const query=els.query.value.trim();
-  if(!query)return notify('请输入要查的内容。','bad','无法查询');
-  const existing=findHistoryByQuery(query);
-  if(existing&&!lookupBusy){
-    const rolls=getHistoryRolls(existing).length;
-    const ok=await askConfirm(`“${query}” 已经有历史记录${rolls>1?`（${rolls} 个版本）`:''}。确认重新生成并保留为新版本？取消则打开已有记录。`,'已有记录');
-    if(!ok){
-      showView('history',document.getElementById('nav-history'));
-      openHistoryModal(existing.id);
-      return;
+  try{
+    const query=els.query.value.trim();
+    if(!query)return notify('请输入要查的内容。','bad','无法查询');
+    const existing=findHistoryByQuery(query);
+    if(existing&&!lookupBusy){
+      const rolls=getHistoryRolls(existing).length;
+      notify(`“${query}” 已有历史记录，请确认是否重新生成。`,'info','已有记录');
+      const ok=await askConfirm(`“${query}” 已经有历史记录${rolls>1?`（${rolls} 个版本）`:''}。确认重新生成并保留为新版本？取消则打开已有记录。`,'已有记录');
+      if(!ok){
+        showView('history',document.getElementById('nav-history'));
+        openHistoryModal(existing.id);
+        return;
+      }
     }
+    await submitLookup({query,existingId:existing?.id||null,direction:els.direction.value.trim(),note:els.note.value.trim()});
+  }catch(error){
+    console.error(error);
+    notify(error?.message||'查询入口异常，请刷新后重试。','bad','无法查询');
   }
-  await submitLookup({query,existingId:existing?.id||null,direction:els.direction.value.trim(),note:els.note.value.trim()});
 }
 async function submitLookup(request){
   const signature=lookupRequestSignature(request);
@@ -2471,9 +2506,9 @@ async function submitLookup(request){
 }
 function lookupRequestSignature(request){
   if(!request)return'';
-  const query=normalizeQueryText(request.query||'');
-  const direction=normalizeQueryText(request.direction||'');
-  const note=normalizeQueryText(request.note||'');
+  const query=normalizeSearch(request.query||'');
+  const direction=normalizeSearch(request.direction||'');
+  const note=normalizeSearch(request.note||'');
   const existingId=String(request.existingId||'');
   return [query,direction,note,existingId].join('\u001f');
 }
@@ -2986,6 +3021,7 @@ function toggleHistoryFilters(){
 }
 function renderHistory(){
   renderHistoryFilterOptions(getHistory());
+  renderHistoryDateFilters();
   renderHistorySortControls();
   renderHistoryScopeControls();
   ensureHistoryVisible();
@@ -3016,7 +3052,7 @@ function renderHistory(){
         ${renderHistoryTags(normalized.tags)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
-          <em>${new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false})}</em>
+          ${historyTimeMetaHTML(item,getSettings().historyTimeMode)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
           ${favoriteInAll?'<em>已收藏</em>':''}
         </div>
@@ -3063,6 +3099,47 @@ function historyEntryMeta(item){
   const language=historyCanonicalValues(item,'language').map(value=>displayFieldLabel('language',value)).filter(Boolean)[0];
   return [entryType,pos,direction,language].filter(Boolean);
 }
+function formatHistoryTime(value){
+  if(!value)return '';
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return '';
+  return date.toLocaleString('zh-CN',{hour12:false});
+}
+function historyEdited(item={}){
+  const created=new Date(item.createdAt||0).getTime();
+  const updated=new Date(item.updatedAt||0).getTime();
+  return Boolean(created&&updated&&Math.abs(updated-created)>1000);
+}
+function historyTimeMetaHTML(item={},mode='created'){
+  const normalized=normalizeHistoryItem(item);
+  const next=normalizeHistoryTimeMode(mode);
+  const created=formatHistoryTime(normalized.createdAt);
+  const updated=formatHistoryTime(normalized.updatedAt);
+  const edited=historyEdited(normalized);
+  const parts=[];
+  if(next==='created'||next==='both'||!edited)parts.push(['创建',created]);
+  if(edited&&(next==='updated'||next==='both'))parts.push(['已编辑',updated]);
+  if(!parts.length&&created)parts.push(['创建',created]);
+  return parts.filter(([,value])=>value).map(([label,value])=>`<em>${escapeHTML(label)} ${escapeHTML(value)}</em>`).join('');
+}
+function historyTimeMetaText(item={},mode='created'){
+  const normalized=normalizeHistoryItem(item);
+  const next=normalizeHistoryTimeMode(mode);
+  const created=formatHistoryTime(normalized.createdAt);
+  const updated=formatHistoryTime(normalized.updatedAt);
+  const edited=historyEdited(normalized);
+  const parts=[];
+  if(next==='created'||next==='both'||!edited)parts.push(['创建',created]);
+  if(edited&&(next==='updated'||next==='both'))parts.push(['已编辑',updated]);
+  if(!parts.length&&created)parts.push(['创建',created]);
+  return parts.filter(([,value])=>value).map(([label,value])=>`${label} ${value}`).join(' · ');
+}
+function historyPrimaryTime(item={}){
+  const mode=normalizeHistoryTimeMode(getSettings().historyTimeMode);
+  if(mode==='updated'&&historyEdited(item))return new Date(item.updatedAt||item.createdAt||0).getTime();
+  if(mode==='both')return Math.max(new Date(item.updatedAt||0).getTime()||0,new Date(item.createdAt||0).getTime()||0);
+  return new Date(item.createdAt||0).getTime();
+}
 function compactPartOfSpeech(head={},senses=[]){
   const tokens=uniq([
     ...posTokensFromValue(head.basicPartOfSpeech),
@@ -3093,7 +3170,7 @@ function filterAndSortHistory(history){
     else if(historyState.sort==='language')value=historyCollator.compare(historyField(a,'language'),historyField(b,'language'));
     else if(historyState.sort==='rolls')value=getHistoryRolls(a).length-getHistoryRolls(b).length;
     else if(historyState.sort==='followups')value=(a.followups||[]).length-(b.followups||[]).length;
-    else value=new Date(a.createdAt)-new Date(b.createdAt);
+    else value=historyPrimaryTime(a)-historyPrimaryTime(b);
     return historyState.sortDir==='asc'?value:-value;
   });
 }
@@ -3104,7 +3181,26 @@ function historyMatchesFilters(item){
     && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
     && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
     && filterMatches(historyCanonicalValues(item,'style'),filters.style)
-    && filterMatches(historyCanonicalValues(item,'tag'),filters.tag);
+    && filterMatches(historyCanonicalValues(item,'tag'),filters.tag)
+    && historyDateMatches(item,'createdAt',filters.createdFrom,filters.createdTo)
+    && historyDateMatches(item,'updatedAt',filters.updatedFrom,filters.updatedTo);
+}
+function historyDateMatches(item={},field,from='',to=''){
+  if(!from&&!to)return true;
+  const source=field==='updatedAt'&&!historyEdited(item)?item.createdAt:item[field];
+  const time=new Date(source||0).getTime();
+  if(!time)return false;
+  if(from&&time<dateRangeStart(from))return false;
+  if(to&&time>dateRangeEnd(to))return false;
+  return true;
+}
+function dateRangeStart(value){
+  const time=new Date(`${value}T00:00:00`).getTime();
+  return Number.isNaN(time)?-Infinity:time;
+}
+function dateRangeEnd(value){
+  const time=new Date(`${value}T23:59:59.999`).getTime();
+  return Number.isNaN(time)?Infinity:time;
 }
 function filterMatches(values,selected){
   const picks=Array.isArray(selected)?selected:[selected].filter(Boolean);
@@ -3316,6 +3412,12 @@ function renderHistoryFilterOptions(history){
   renderHistoryFilterGroup('style','语体',options.style);
   renderHistoryFilterGroup('tag','Tag',options.tag);
 }
+function renderHistoryDateFilters(){
+  if(els.historyCreatedFrom)els.historyCreatedFrom.value=historyState.filters.createdFrom||'';
+  if(els.historyCreatedTo)els.historyCreatedTo.value=historyState.filters.createdTo||'';
+  if(els.historyUpdatedFrom)els.historyUpdatedFrom.value=historyState.filters.updatedFrom||'';
+  if(els.historyUpdatedTo)els.historyUpdatedTo.value=historyState.filters.updatedTo||'';
+}
 function renderHistoryFilterGroup(key,label,values=[]){
   const root=els.historyFilterbar?.querySelector(`[data-filter-key="${key}"]`);
   if(!root)return;
@@ -3445,7 +3547,7 @@ async function deleteManagedTag(tag){
 }
 function clearHistoryFilter(key){
   if(!key)return;
-  historyState.filters[key]=[];
+  historyState.filters[key]=['createdFrom','createdTo','updatedFrom','updatedTo'].includes(key)?'':[];
   openHistoryFilterKey=key;
   rerenderHistoryFromStart();
 }
@@ -3504,6 +3606,11 @@ function clearHistorySearch(){
   historyState.query='';
   if(els.historySearch)els.historySearch.value='';
   updateHistorySearchState();
+  rerenderHistoryFromStart();
+}
+function setHistoryDateFilter(key,value){
+  if(!Object.prototype.hasOwnProperty.call(historyState.filters,key))return;
+  historyState.filters[key]=String(value||'');
   rerenderHistoryFromStart();
 }
 function toggleFavoriteHistory(id){
@@ -3670,6 +3777,7 @@ function openHistoryModal(id){
   els.modalTitle.textContent=normalized.query;
   els.modalSubtitle.textContent=historyModalMeta(normalized);
   renderModalRollbar(normalized);
+  renderModalStickySummary(modalResult,normalized);
   els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal',normalized);
   renderVisualEditor(modalResult);
   els.modalQueryEdit.value=normalized.query;
@@ -3680,11 +3788,14 @@ function openHistoryModal(id){
   setModalTab('card',document.getElementById('modal-card-tab'));
   els.historyModal.classList.add('open');
   document.body.classList.add('modal-open');
+  els.historyModalBody?.scrollTo({top:0});
+  updateHistoryModalScrollState();
 }
 function closeHistoryModal(event){
   if(event&&event.target!==els.historyModal)return;
   els.historyModal.classList.remove('open');
   document.body.classList.remove('modal-open');
+  els.historyModal.querySelector('.modal-card')?.classList.remove('modal-scrolled');
 }
 function saveHistoryEdit(){
   if(!modalHistoryId)return;
@@ -3718,6 +3829,7 @@ function saveHistoryEdit(){
   const updatedFollowups=updatedItem?.followups||[];
   els.modalSubtitle.textContent=historyModalMeta(updatedItem);
   renderModalRollbar(updatedItem);
+  renderModalStickySummary(parsed,updatedItem);
   els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal',updatedItem);
   renderVisualEditor(parsed);
   if(els.modalTagsEdit)els.modalTagsEdit.value=tags.join(' ');
@@ -3730,13 +3842,36 @@ function saveHistoryEdit(){
 function historyModalMeta(item){
   if(!item)return '';
   const normalized=normalizeHistoryItem(item);
-  const created=new Date(item.createdAt).toLocaleString('zh-CN',{hour12:false});
   const followupCount=(item.followups||[]).length;
   const rollCount=getHistoryRolls(item).length;
   const tagText=normalized.tags.length?` · ${normalized.tags.length} 个标签`:'';
   const noteText=normalized.note?' · 有备注':'';
-  const updated=item.updatedAt?` · 已编辑 ${new Date(item.updatedAt).toLocaleString('zh-CN',{hour12:false})}`:'';
-  return `${created}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${tagText}${noteText}${updated}`;
+  const timeText=historyTimeMetaText(normalized,getSettings().historyTimeMode);
+  return `${timeText}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${tagText}${noteText}`;
+}
+function renderModalStickySummary(result={},historyItem=null){
+  if(!els.modalStickySummary)return;
+  const head=result?.headword||{};
+  const meta=result?.meta||{};
+  const title=historyItem?.query||head.title||meta.query||'历史记录';
+  const core=head.coreMeaning||head.summary||'';
+  const chips=[
+    displayLanguageLabel(head.languageTag||meta.language),
+    displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)),
+    headwordPartOfSpeech(head,result?.senses||[]),
+    displayDirectionLabel(meta.defaultDirection||meta.direction,result),
+  ].filter(Boolean);
+  els.modalStickySummary.innerHTML=`
+    <div class="modal-sticky-copy">
+      <strong>${escapeHTML(title)}</strong>
+      ${core?`<span>${escapeHTML(core)}</span>`:''}
+    </div>
+    <div class="modal-sticky-chips">${chips.slice(0,4).map(chip=>`<em>${escapeHTML(chip)}</em>`).join('')}</div>
+  `;
+}
+function updateHistoryModalScrollState(){
+  const scrolled=(els.historyModalBody?.scrollTop||0)>34;
+  els.historyModal?.querySelector('.modal-card')?.classList.toggle('modal-scrolled',scrolled);
 }
 function renderModalRollbar(item){
   if(!els.modalRollbar)return;
@@ -3770,6 +3905,7 @@ function setModalRoll(rollId){
   els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
   renderVisualEditor(roll.result);
   renderModalRollbar(item);
+  renderModalStickySummary(roll.result,item);
   validateModalJSON(false);
 }
 function validateModalJSON(showSuccess=true){
@@ -3871,6 +4007,7 @@ function hydrateSettings(){
   renderApiProfilePicker(settings,profile);
   applyLabelMode(settings.labelMode);
   applyFontMode(settings.fontMode);
+  applyHistoryTimeMode(settings.historyTimeMode);
   renderModelPromptSettings(settings);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
@@ -4032,6 +4169,30 @@ function setFontMode(mode){
   applyFontMode(next);
   notify(`字体风格已切换为${fontModeLabel(next)}。`,'good','显示设置');
 }
+function historyTimeModeLabel(mode){
+  return {created:'创建时间',updated:'修改时间',both:'全部时间'}[normalizeHistoryTimeMode(mode)]||'创建时间';
+}
+function applyHistoryTimeMode(mode){
+  const next=normalizeHistoryTimeMode(mode);
+  els.timeModeCreatedBtn?.classList.toggle('active',next==='created');
+  els.timeModeUpdatedBtn?.classList.toggle('active',next==='updated');
+  els.timeModeBothBtn?.classList.toggle('active',next==='both');
+  els.modalTimeCreatedBtn?.classList.toggle('active',next==='created');
+  els.modalTimeUpdatedBtn?.classList.toggle('active',next==='updated');
+  els.modalTimeBothBtn?.classList.toggle('active',next==='both');
+}
+function setHistoryTimeMode(mode){
+  const next=normalizeHistoryTimeMode(mode);
+  const settings=getSettings();
+  setSettings({...settings,historyTimeMode:next,updatedAt:new Date().toISOString()});
+  applyHistoryTimeMode(next);
+  renderHistory();
+  if(modalHistoryId){
+    const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+    if(item)els.modalSubtitle.textContent=historyModalMeta(item);
+  }
+  notify(`历史时间默认显示已切换为${historyTimeModeLabel(next)}。`,'good','显示设置');
+}
 function saveSettings(){
   openApiProfileModal('edit');
 }
@@ -4059,6 +4220,10 @@ function openApiProfileModal(mode='edit',profileId=null){
 }
 function closeApiProfileModal(event){
   if(event&&event.target!==els.apiProfileModal)return;
+  if(event&&event.target===els.apiProfileModal&&apiProfileModalHasDraft()){
+    notify('已保留当前填写内容；请用取消或关闭按钮退出。','info','未关闭');
+    return;
+  }
   els.apiProfileModal?.classList.remove('open');
   document.body.classList.remove('modal-open');
   editingApiProfileId=null;
@@ -4076,6 +4241,16 @@ function apiProfileDraftFromModal(){
     apiKey:els.apiModalKey?.value.trim()||'',
     model:els.apiModalModel?.value.trim()||'',
   };
+}
+function apiProfileModalHasDraft(){
+  if(!els.apiProfileModal?.classList.contains('open'))return false;
+  const draft=apiProfileDraftFromModal();
+  const settings=getSettings();
+  const current=settings.apiProfiles.find(item=>item.id===editingApiProfileId);
+  if(!current){
+    return Boolean(draft.name&&draft.name!=='未命名配置'||draft.apiUrl||draft.apiKey||draft.model);
+  }
+  return ['name','apiUrl','apiKey','model'].some(key=>String(draft[key]||'')!==String(current[key]||''));
 }
 function saveApiProfileFromModal(){
   try{
@@ -4194,7 +4369,7 @@ async function factoryReset(){
   modalResult=null;
   historyState.query='';
   historyState.scope='all';
-  Object.keys(historyState.filters).forEach(key=>{historyState.filters[key]=[]});
+  Object.keys(historyState.filters).forEach(key=>{historyState.filters[key]=['createdFrom','createdTo','updatedFrom','updatedTo'].includes(key)?'':[]});
   if(els.historySearch)els.historySearch.value='';
   hydrateSettings();
   renderEmpty();
@@ -4338,6 +4513,11 @@ els.historySearch?.addEventListener('input',event=>{
   updateHistorySearchState();
   rerenderHistoryFromStart();
 });
+els.historyCreatedFrom?.addEventListener('input',event=>setHistoryDateFilter('createdFrom',event.target.value));
+els.historyCreatedTo?.addEventListener('input',event=>setHistoryDateFilter('createdTo',event.target.value));
+els.historyUpdatedFrom?.addEventListener('input',event=>setHistoryDateFilter('updatedFrom',event.target.value));
+els.historyUpdatedTo?.addEventListener('input',event=>setHistoryDateFilter('updatedTo',event.target.value));
+els.historyModalBody?.addEventListener('scroll',updateHistoryModalScrollState,{passive:true});
 els.historyFilterbar?.addEventListener('click',event=>{
   event.stopPropagation();
   const filter=event.target.closest('.history-filter');

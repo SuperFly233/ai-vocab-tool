@@ -159,6 +159,12 @@
           <div class="history-filter" data-filter-key="style"></div>
           <div class="history-filter" data-filter-key="tag"></div>
         </div>
+        <div class="history-datebar" id="history-datebar">
+          <label><span>创建从</span><input id="history-created-from" type="date"></label>
+          <label><span>创建到</span><input id="history-created-to" type="date"></label>
+          <label><span>修改从</span><input id="history-updated-from" type="date"></label>
+          <label><span>修改到</span><input id="history-updated-to" type="date"></label>
+        </div>
         <div class="history-sortbar" id="history-sortbar">
           <button class="sort-btn active" data-sort="time" onclick="setHistorySort('time')">时间 <span>↓</span></button>
           <button class="sort-btn" data-sort="text" onclick="setHistorySort('text')">词条 <span>↑</span></button>
@@ -259,6 +265,14 @@
             <button id="font-mode-mono" onclick="setFontMode('mono')">等宽</button>
           </div>
         </div>
+        <div class="setting-row">
+          <div><div class="setting-label">历史时间显示</div><div class="setting-sub">控制历史列表和详情顶部默认显示创建时间、修改时间或两者。</div></div>
+          <div class="seg time-mode-seg">
+            <button id="time-mode-created" onclick="setHistoryTimeMode('created')">创建</button>
+            <button id="time-mode-updated" onclick="setHistoryTimeMode('updated')">修改</button>
+            <button id="time-mode-both" onclick="setHistoryTimeMode('both')">全部</button>
+          </div>
+        </div>
       </div>
 
       <div class="setting-group">
@@ -297,13 +311,18 @@
 </main>
 
 <div class="modal-layer" id="history-modal" onclick="closeHistoryModal(event)">
-  <div class="modal-card" onclick="event.stopPropagation()">
+  <div class="modal-card history-modal-card" onclick="event.stopPropagation()">
     <div class="modal-head">
       <div class="modal-title-block">
         <div class="section-title" id="modal-title">历史记录</div>
         <div class="section-sub" id="modal-subtitle"></div>
       </div>
       <div class="result-icons">
+        <div class="modal-time-switch" aria-label="详情时间显示">
+          <button id="modal-time-created" type="button" onclick="setHistoryTimeMode('created')">创建</button>
+          <button id="modal-time-updated" type="button" onclick="setHistoryTimeMode('updated')">修改</button>
+          <button id="modal-time-both" type="button" onclick="setHistoryTimeMode('both')">全部</button>
+        </div>
         <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">预览</button>
         <button class="tab-btn" id="modal-visual-tab" onclick="setModalTab('visual',this)">可视化编辑</button>
         <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
@@ -312,8 +331,9 @@
         <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
       </div>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" id="history-modal-body">
       <div class="modal-rollbar" id="modal-rollbar"></div>
+      <div class="modal-sticky-summary" id="modal-sticky-summary"></div>
       <section class="modal-page active" id="modal-card-page"></section>
       <section class="modal-page visual-page" id="modal-visual-page">
         <div class="visual-editor" id="modal-visual-editor"></div>
