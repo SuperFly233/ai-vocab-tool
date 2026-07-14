@@ -72,16 +72,22 @@ const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],
   ignorePunctuation:true,
 });
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system'};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',modelPrompt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.50',
+  version:'0.9.51',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.51',
+    date:'2026-07-14',
+    title:'新增模型 Prompt 设置专区',
+    items:['设置页新增模型 Prompt 专区，可查看默认查询 prompt、复制当前内容、保存自定义覆盖版或恢复默认。','自定义 prompt 会随 settings 云端同步；留空时继续使用内置默认 prompt，避免误改后影响查询。','查询请求会把自定义 system prompt 发送给 /api/analyze，默认 prompt 仍由后端统一维护并通过 /api/config 暴露给前端查看。'],
+  },
   {
     version:'0.9.50',
     date:'2026-07-14',
@@ -490,6 +496,8 @@ const els={
   apiProfileModalSave:document.getElementById('api-profile-modal-save'),
   apiProfileModalCancel:document.getElementById('api-profile-modal-cancel'),
   apiProfileModalClose:document.getElementById('api-profile-modal-close'),
+  modelPromptEditor:document.getElementById('model-prompt-editor'),
+  modelPromptStatus:document.getElementById('model-prompt-status'),
   storageStatus:document.getElementById('storage-status'),
   settingsSyncStatus:document.getElementById('settings-sync-status'),
   logList:document.getElementById('log-list'),
@@ -828,6 +836,7 @@ function normalizeSettings(raw={}){
   const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
   const labelMode=normalizeLabelMode(source.labelMode);
   const fontMode=normalizeFontMode(source.fontMode);
+  const modelPrompt=String(source.modelPrompt||'');
   return {
     ...DEFAULT_SETTINGS,
     ...source,
@@ -838,6 +847,7 @@ function normalizeSettings(raw={}){
     model:active.model,
     labelMode,
     fontMode,
+    modelPrompt,
   };
 }
 function normalizeLabelMode(value){
@@ -886,6 +896,7 @@ function mergeSettings(localRaw,remoteRaw){
     ...remote,
     labelMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.labelMode:remote.labelMode||local.labelMode,
     fontMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.fontMode:remote.fontMode||local.fontMode,
+    modelPrompt:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
@@ -1081,7 +1092,7 @@ function syncValuePreview(key,value){
     const active=currentApiSettings(settings);
     const labelMode=settings.labelMode==='zh'?'中文':settings.labelMode==='code'?'缩写':'双语';
     const fontMode={system:'系统',sans:'无衬线',serif:'衬线',mono:'等宽'}[settings.fontMode]||'系统';
-    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}`;
+    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}，Prompt ${settings.modelPrompt?'自定义':'默认'}`;
   }
   if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
@@ -2512,6 +2523,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     apiUrl:hasLocalEndpoint?settings.apiUrl:'',
     apiKey:hasLocalEndpoint?settings.apiKey:'',
     model:hasLocalEndpoint?settings.model:'',
+    systemPrompt:settings.modelPrompt||'',
   };
   try{
     const data=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
@@ -3813,7 +3825,59 @@ function hydrateSettings(){
   renderApiProfilePicker(settings,profile);
   applyLabelMode(settings.labelMode);
   applyFontMode(settings.fontMode);
+  renderModelPromptSettings(settings);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
+}
+function defaultModelPrompt(){
+  return String(configInfo?.defaultAnalyzePrompt||'');
+}
+function currentPromptText(settings=getSettings()){
+  return settings.modelPrompt||defaultModelPrompt();
+}
+function renderModelPromptSettings(settings=getSettings()){
+  if(els.modelPromptEditor&&document.activeElement!==els.modelPromptEditor){
+    els.modelPromptEditor.value=settings.modelPrompt||'';
+  }
+  if(els.modelPromptStatus){
+    const usingCustom=Boolean(settings.modelPrompt);
+    const defaultReady=Boolean(defaultModelPrompt());
+    els.modelPromptStatus.textContent=usingCustom
+      ? `正在使用自定义 Prompt，约 ${settings.modelPrompt.length} 字。`
+      : defaultReady
+        ? '当前使用内置默认 Prompt；编辑框留空时不会覆盖默认规则。'
+        : '默认 Prompt 正在读取中；留空会使用服务端内置规则。';
+    els.modelPromptStatus.classList.toggle('good',usingCustom);
+    els.modelPromptStatus.classList.toggle('info',!usingCustom);
+  }
+}
+function loadDefaultPromptIntoEditor(){
+  const text=defaultModelPrompt();
+  if(!text)return notify('默认 Prompt 还没加载完成。','bad','Prompt');
+  if(els.modelPromptEditor)els.modelPromptEditor.value=text;
+  notify('已把默认 Prompt 放入编辑框，保存后才会覆盖当前规则。','info','Prompt');
+}
+function copyModelPrompt(){
+  const text=els.modelPromptEditor?.value.trim()?els.modelPromptEditor.value:currentPromptText();
+  if(!text)return notify('还没有可复制的 Prompt。','bad','Prompt');
+  navigator.clipboard.writeText(text);
+  notify('Prompt 已复制。','good','复制完成');
+}
+function saveModelPrompt(){
+  const text=els.modelPromptEditor?.value.trim()||'';
+  const settings=getSettings();
+  setSettings({...settings,modelPrompt:text,updatedAt:new Date().toISOString()});
+  renderModelPromptSettings(getSettings());
+  notify(text?'自定义 Prompt 已保存。':'已切回默认 Prompt。','good','Prompt');
+}
+async function resetModelPrompt(){
+  const settings=getSettings();
+  if(settings.modelPrompt){
+    const ok=await askConfirm('确认恢复默认 Prompt？当前自定义 Prompt 会被清空，并随云端同步。','恢复默认 Prompt');
+    if(!ok)return;
+  }
+  setSettings({...settings,modelPrompt:'',updatedAt:new Date().toISOString()});
+  renderModelPromptSettings(getSettings());
+  notify('已恢复默认 Prompt。','good','Prompt');
 }
 function renderApiProfilePicker(settings,profile){
   if(els.apiProfileCurrentName)els.apiProfileCurrentName.textContent=profile.name||'未命名配置';

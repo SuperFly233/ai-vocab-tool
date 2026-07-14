@@ -190,6 +190,21 @@
             </div>
           </div>
         </div>
+        <div class="setting-row stack-row">
+          <div>
+            <div class="setting-label">模型 Prompt</div>
+            <div class="setting-sub" id="model-prompt-status">默认使用内置查询规则；需要时可以覆盖 system prompt。</div>
+          </div>
+          <div class="prompt-panel">
+            <textarea class="prompt-editor" id="model-prompt-editor" spellcheck="false" placeholder="留空则使用默认 Prompt"></textarea>
+            <div class="prompt-actions">
+              <button class="plain-btn ghost-btn" type="button" onclick="loadDefaultPromptIntoEditor()">查看默认</button>
+              <button class="plain-btn" type="button" onclick="copyModelPrompt()">复制</button>
+              <button class="plain-btn" type="button" onclick="resetModelPrompt()">恢复默认</button>
+              <button class="plain-btn primary-btn" type="button" onclick="saveModelPrompt()">保存 Prompt</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="setting-group">

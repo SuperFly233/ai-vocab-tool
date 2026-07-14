@@ -132,6 +132,8 @@ const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句
   ]
 }`;
 
+export const DEFAULT_SYSTEM_PROMPT = SYSTEM_PROMPT;
+
 async function assertCanUseEnvironmentKey(request, payload) {
   if (payload.apiKey) return;
   const admins = String(process.env.ADMIN_EMAILS || '')
@@ -309,6 +311,7 @@ export default async function handler(request, response) {
   const apiUrl = payload.apiUrl || process.env.AI_API_URL;
   const apiKey = payload.apiKey || process.env.AI_API_KEY;
   const model = payload.model || process.env.AI_MODEL || 'gpt-4o-mini';
+  const systemPrompt = String(payload.systemPrompt || '').trim() || SYSTEM_PROMPT;
 
   if (!apiUrl || !apiKey) {
     response.status(501).json({ error: '请先在设置里填写 API URL 和 API Key，或配置 Vercel 环境变量 AI_API_URL / AI_API_KEY。' });
@@ -338,7 +341,7 @@ export default async function handler(request, response) {
         stream,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
       }),

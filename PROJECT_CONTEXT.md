@@ -113,6 +113,7 @@ Expected behavior:
 - Made the home topbar and query panel sticky. When the home page scrolls, `home-scrolled` compacts the title and query controls; clicking the sticky query panel scrolls back to the top and focuses the query input for faster mobile reuse.
 - Reworked split layout as a wide-screen workbench. The left panel is now a compact sticky input console with a resizable long textarea, one focus field, and bottom-aligned query action; the right panel keeps the result readable instead of inheriting the old top-layout control shape.
 - Refined highlight scope again: examples use only query/headword terms plus narrow `exampleHighlights`; translations use `translationHighlights` and conservative Chinese label candidates so the translated equivalent can be marked without highlighting unrelated context words.
+- Added settings-side model prompt management. `/api/config` exposes the backend default analyze prompt, settings can store a synced `modelPrompt` override, and `/api/analyze` uses `payload.systemPrompt` when provided while falling back to the built-in prompt.
 
 ## Working Rules
 
