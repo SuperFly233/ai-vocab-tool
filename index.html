@@ -299,8 +299,14 @@
         <div class="setting-row stack-row">
           <div><div class="setting-label">导入历史 JSON</div><div class="setting-sub">粘贴导出的历史 JSON，先预检重叠和新增，再合并导入，不会清空当前历史。</div></div>
           <div class="history-import-box">
+            <input id="history-import-file" type="file" accept=".json,application/json,text/json,text/plain" onchange="handleHistoryImportFileInput(event)" hidden>
+            <label class="history-import-drop" id="history-import-drop" for="history-import-file" tabindex="0">
+              <strong>选择 JSON 文件或拖入这里</strong>
+              <span>也可以继续在下方粘贴文本；读取文件只填入预检区，不会直接导入。</span>
+            </label>
             <textarea id="history-import-text" class="visual-input" placeholder='粘贴 ai-vocab-tool-history.json 内容，支持数组、{"raw":"[...]"} 或 Supabase value.raw'></textarea>
             <div class="setting-actions">
+              <button class="plain-btn" onclick="pickHistoryImportFile()">选择文件</button>
               <button class="plain-btn" onclick="previewHistoryImport()">预检</button>
               <button class="plain-btn primary-btn" onclick="importHistoryFromText()">合并导入</button>
               <button class="plain-btn ghost-btn" onclick="clearHistoryImportText()">清空</button>

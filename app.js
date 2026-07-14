@@ -111,12 +111,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.5',
+  version:'0.10.6',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.6',
+    date:'2026-07-14',
+    title:'补齐历史文件导入并铺满设置页',
+    items:['历史 JSON 导入支持点击选择文件和拖拽文件，读取后自动进入预检流程，不会直接写入历史。','设置页桌面端改为左侧说明、右侧控件的宽屏布局，API 配置、Prompt、导入区和标签管理会尽量铺满可用宽度，减少右侧空白。'],
+  },
   {
     version:'0.10.5',
     date:'2026-07-14',
@@ -561,6 +567,8 @@ const els={
   historyTools:document.getElementById('history-tools'),
   historySearch:document.getElementById('history-search'),
   historyClearBtn:document.getElementById('history-clear-btn'),
+  historyImportFile:document.getElementById('history-import-file'),
+  historyImportDrop:document.getElementById('history-import-drop'),
   historyImportText:document.getElementById('history-import-text'),
   historyImportStatus:document.getElementById('history-import-status'),
   historySearchScope:document.getElementById('history-search-scope'),
@@ -4291,6 +4299,24 @@ function previewHistoryImport(){
     notify(`解析失败：${error.message}`,'bad','历史导入');
   }
 }
+function pickHistoryImportFile(){
+  els.historyImportFile?.click();
+}
+async function loadHistoryImportFile(file){
+  if(!file)return;
+  if(file.size>12*1024*1024){
+    notify('文件太大，先确认是不是历史 JSON。','bad','历史导入');
+    return;
+  }
+  const text=await file.text();
+  if(els.historyImportText)els.historyImportText.value=text;
+  notify(`已读取 ${file.name}，请检查预检结果后再合并。`,'good','历史导入');
+  previewHistoryImport();
+}
+function handleHistoryImportFileInput(event){
+  const file=event?.target?.files?.[0];
+  loadHistoryImportFile(file).finally(()=>{if(event?.target)event.target.value=''});
+}
 async function importHistoryFromText(){
   try{
     const text=els.historyImportText?.value||'';
@@ -4315,6 +4341,29 @@ async function importHistoryFromText(){
 function clearHistoryImportText(){
   if(els.historyImportText)els.historyImportText.value='';
   renderHistoryImportStatus(null);
+}
+function setupHistoryImportDrop(){
+  const drop=els.historyImportDrop;
+  if(!drop)return;
+  ['dragenter','dragover'].forEach(type=>drop.addEventListener(type,event=>{
+    event.preventDefault();
+    drop.classList.add('drag-over');
+  }));
+  ['dragleave','drop'].forEach(type=>drop.addEventListener(type,event=>{
+    event.preventDefault();
+    if(type==='dragleave'&&drop.contains(event.relatedTarget))return;
+    drop.classList.remove('drag-over');
+  }));
+  drop.addEventListener('drop',event=>{
+    const file=event.dataTransfer?.files?.[0];
+    loadHistoryImportFile(file);
+  });
+  drop.addEventListener('keydown',event=>{
+    if(event.key==='Enter'||event.key===' '){
+      event.preventDefault();
+      pickHistoryImportFile();
+    }
+  });
 }
 function exportCurrent(){
   if(!currentResult)return notify('还没有结果。','bad','无法导出');
@@ -5079,6 +5128,7 @@ els.confirmLayer?.addEventListener('click',event=>{
 
 renderEmpty();
 hydrateSettings();
+setupHistoryImportDrop();
 renderHistory();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
 ensureLayoutPreference(true);
