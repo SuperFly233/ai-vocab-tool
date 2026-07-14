@@ -36,6 +36,7 @@ let lookupBusy=false;
 let lookupRunId=0;
 let lookupQueueId=0;
 let lookupQueue=[];
+let activeLookupSignature='';
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -76,12 +77,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.51',
+  version:'0.9.52',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.52',
+    date:'2026-07-14',
+    title:'优化 Prompt 工作区并修复重复排队',
+    items:['设置页的模型 Prompt 专区改成实现路径 + 编辑工作区，直接展示输入、前端请求、system prompt、模型 JSON 和校验渲染的前后逻辑。','Prompt 编辑器改为更宽的工作台布局，并显示当前来源、默认长度和编辑状态，避免窄高输入框占着大片空白。','查询队列会识别正在执行或已经排队的相同请求，重复点击搜索不会继续堆出多条相同队列。','例句高亮支持 ~ / ～ 形式的搭配占位符，会把词条里的有效片段用于匹配实际例句。'],
+  },
   {
     version:'0.9.51',
     date:'2026-07-14',
@@ -498,6 +505,10 @@ const els={
   apiProfileModalClose:document.getElementById('api-profile-modal-close'),
   modelPromptEditor:document.getElementById('model-prompt-editor'),
   modelPromptStatus:document.getElementById('model-prompt-status'),
+  modelPromptSource:document.getElementById('model-prompt-source'),
+  modelPromptMetaSource:document.getElementById('model-prompt-meta-source'),
+  modelPromptDefaultSize:document.getElementById('model-prompt-default-size'),
+  modelPromptEditSize:document.getElementById('model-prompt-edit-size'),
   storageStatus:document.getElementById('storage-status'),
   settingsSyncStatus:document.getElementById('settings-sync-status'),
   logList:document.getElementById('log-list'),
@@ -1835,11 +1846,16 @@ function resultQueryHighlightTerms(result={}){
     meta.normalized,
     meta.query,
     head.title,
+    ...tildeHighlightFragments(meta.normalized),
+    ...tildeHighlightFragments(meta.query),
+    ...tildeHighlightFragments(head.title),
   ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
 }
 function exampleHighlightTermsForItem(item={},queryTerms=[]){
   return uniq([
     ...(Array.isArray(queryTerms)?queryTerms:[queryTerms]),
+    ...tildeHighlightFragments(item.shortestLabel),
+    ...tildeHighlightFragments(item.phrase),
     ...rawList(item.exampleHighlights),
     ...rawList(item.sourceHighlights),
     ...rawList(item.inflectedForms),
@@ -1884,6 +1900,16 @@ function semanticLabelCandidates(value){
     }
   });
   return uniq(candidates.filter(term=>/[\u3400-\u9fff]/.test(term)));
+}
+function tildeHighlightFragments(value){
+  const raw=String(value||'').trim();
+  if(!/[~～…]/.test(raw))return [];
+  return uniq(raw
+    .split(/[~～…]+/)
+    .map(part=>part.replace(/[（）()[\]{}"'“”‘’、，。；;:：,.\s]+/g,' ').trim())
+    .flatMap(part=>part.split(/\s+/))
+    .map(part=>part.trim())
+    .filter(part=>part.length>=2));
 }
 function escapeRegExp(value){
   return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -2428,14 +2454,31 @@ async function runLookup(){
   await submitLookup({query,existingId:existing?.id||null,direction:els.direction.value.trim(),note:els.note.value.trim()});
 }
 async function submitLookup(request){
+  const signature=lookupRequestSignature(request);
   if(lookupBusy){
+    if(signature&&signature===activeLookupSignature){
+      notify(`“${request.query}” 正在查询中。`,'info','查询中');
+      return;
+    }
+    if(signature&&lookupQueue.some(item=>item.signature===signature)){
+      notify(`“${request.query}” 已在查询队列里。`,'info','已排队');
+      return;
+    }
     enqueueLookup(request);
     return;
   }
   await performLookup(request);
 }
+function lookupRequestSignature(request){
+  if(!request)return'';
+  const query=normalizeQueryText(request.query||'');
+  const direction=normalizeQueryText(request.direction||'');
+  const note=normalizeQueryText(request.note||'');
+  const existingId=String(request.existingId||'');
+  return [query,direction,note,existingId].join('\u001f');
+}
 function enqueueLookup(request){
-  const item={...request,id:++lookupQueueId,queuedAt:new Date().toISOString()};
+  const item={...request,id:++lookupQueueId,queuedAt:new Date().toISOString(),signature:lookupRequestSignature(request)};
   lookupQueue.push(item);
   renderLookupQueue();
   notify(`“${item.query}” 已加入查询队列。`,'info','已排队');
@@ -2508,8 +2551,10 @@ function applyLookupRequestToEditor(request){
   updateEditorState();
 }
 async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null}){
+  const request={query,existingId,sourceItem,direction,note};
   const settings=currentApiSettings();
   lookupBusy=true;
+  activeLookupSignature=lookupRequestSignature(request);
   const runId=++lookupRunId;
   document.body.classList.add('lookup-busy');
   renderLookupLoading(query,settings,runId);
@@ -2540,6 +2585,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   }finally{
     if(runId===lookupRunId){
       lookupBusy=false;
+      activeLookupSignature='';
       document.body.classList.remove('lookup-busy');
       processNextLookup();
     }
@@ -3838,9 +3884,11 @@ function renderModelPromptSettings(settings=getSettings()){
   if(els.modelPromptEditor&&document.activeElement!==els.modelPromptEditor){
     els.modelPromptEditor.value=settings.modelPrompt||'';
   }
+  const usingCustom=Boolean(settings.modelPrompt);
+  const defaultText=defaultModelPrompt();
+  const defaultReady=Boolean(defaultText);
+  const sourceText=usingCustom?'自定义覆盖':'默认 Prompt';
   if(els.modelPromptStatus){
-    const usingCustom=Boolean(settings.modelPrompt);
-    const defaultReady=Boolean(defaultModelPrompt());
     els.modelPromptStatus.textContent=usingCustom
       ? `正在使用自定义 Prompt，约 ${settings.modelPrompt.length} 字。`
       : defaultReady
@@ -3849,6 +3897,10 @@ function renderModelPromptSettings(settings=getSettings()){
     els.modelPromptStatus.classList.toggle('good',usingCustom);
     els.modelPromptStatus.classList.toggle('info',!usingCustom);
   }
+  if(els.modelPromptSource)els.modelPromptSource.textContent=sourceText;
+  if(els.modelPromptMetaSource)els.modelPromptMetaSource.textContent=sourceText;
+  if(els.modelPromptDefaultSize)els.modelPromptDefaultSize.textContent=defaultReady?`${defaultText.length} 字`:'读取中';
+  if(els.modelPromptEditSize)els.modelPromptEditSize.textContent=usingCustom?`${settings.modelPrompt.length} 字`:'未覆盖';
 }
 function loadDefaultPromptIntoEditor(){
   const text=defaultModelPrompt();

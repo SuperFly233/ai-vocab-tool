@@ -190,18 +190,36 @@
             </div>
           </div>
         </div>
-        <div class="setting-row stack-row">
-          <div>
-            <div class="setting-label">模型 Prompt</div>
-            <div class="setting-sub" id="model-prompt-status">默认使用内置查询规则；需要时可以覆盖 system prompt。</div>
+        <div class="setting-row stack-row prompt-row">
+          <div class="prompt-head">
+            <div>
+              <div class="setting-label">模型 Prompt</div>
+              <div class="setting-sub" id="model-prompt-status">默认使用内置查询规则；需要时可以覆盖 system prompt。</div>
+            </div>
+            <div class="prompt-mode-chip" id="model-prompt-source">默认 Prompt</div>
           </div>
           <div class="prompt-panel">
-            <textarea class="prompt-editor" id="model-prompt-editor" spellcheck="false" placeholder="留空则使用默认 Prompt"></textarea>
-            <div class="prompt-actions">
-              <button class="plain-btn ghost-btn" type="button" onclick="loadDefaultPromptIntoEditor()">查看默认</button>
-              <button class="plain-btn" type="button" onclick="copyModelPrompt()">复制</button>
-              <button class="plain-btn" type="button" onclick="resetModelPrompt()">恢复默认</button>
-              <button class="plain-btn primary-btn" type="button" onclick="saveModelPrompt()">保存 Prompt</button>
+            <div class="prompt-flow" aria-label="查询实现路径">
+              <div class="prompt-flow-title">实现路径</div>
+              <div class="prompt-step"><b>1</b><span>输入</span><em>词条、方向、侧重点</em></div>
+              <div class="prompt-step"><b>2</b><span>前端请求</span><em>队列、重试、流式接收</em></div>
+              <div class="prompt-step active"><b>3</b><span>System Prompt</span><em>规则、JSON schema、高亮字段</em></div>
+              <div class="prompt-step"><b>4</b><span>模型 JSON</span><em>结构化义项、搭配、追问</em></div>
+              <div class="prompt-step"><b>5</b><span>校验渲染</span><em>修复、打字机、保存同步</em></div>
+            </div>
+            <div class="prompt-workbench">
+              <div class="prompt-meta">
+                <div><span>当前来源</span><strong id="model-prompt-meta-source">默认 Prompt</strong></div>
+                <div><span>默认长度</span><strong id="model-prompt-default-size">读取中</strong></div>
+                <div><span>编辑状态</span><strong id="model-prompt-edit-size">未覆盖</strong></div>
+              </div>
+              <textarea class="prompt-editor" id="model-prompt-editor" spellcheck="false" placeholder="留空则使用默认 Prompt"></textarea>
+              <div class="prompt-actions">
+                <button class="plain-btn ghost-btn" type="button" onclick="loadDefaultPromptIntoEditor()">查看默认</button>
+                <button class="plain-btn" type="button" onclick="copyModelPrompt()">复制</button>
+                <button class="plain-btn" type="button" onclick="resetModelPrompt()">恢复默认</button>
+                <button class="plain-btn primary-btn" type="button" onclick="saveModelPrompt()">保存 Prompt</button>
+              </div>
             </div>
           </div>
         </div>

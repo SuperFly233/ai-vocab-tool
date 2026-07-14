@@ -422,8 +422,24 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .api-profile-edit{border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--muted);padding:7px 9px;font-size:13px;font-weight:850}
 .api-profile-edit:hover{border-color:var(--accent);color:var(--accent)}
 .api-profile-delete{width:30px;height:30px;border:1px solid color-mix(in srgb,var(--bad) 48%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--bad) 9%,var(--panel));color:var(--bad);font-size:20px;font-weight:850;line-height:1}
-.prompt-panel{display:grid;gap:10px;width:100%}
-.prompt-editor{width:100%;min-height:220px;max-height:52vh;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:12px 13px;font-family:var(--font-mono);font-size:12.5px;line-height:1.62;resize:vertical;outline:0;white-space:pre-wrap}
+.prompt-row{gap:14px}
+.prompt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.prompt-mode-chip{border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line));border-radius:999px;background:var(--accent-bg);color:var(--accent);padding:7px 11px;font-size:12px;font-weight:850;white-space:nowrap}
+.prompt-panel{display:grid;grid-template-columns:minmax(240px,.76fr) minmax(420px,1.24fr);gap:14px;width:100%;align-items:stretch}
+.prompt-flow{border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,color-mix(in srgb,var(--panel2) 92%,var(--accent-bg)),var(--panel));padding:12px;display:grid;gap:8px;align-content:start;min-width:0}
+.prompt-flow-title{font-size:13px;color:var(--soft);font-weight:850;letter-spacing:.08em}
+.prompt-step{display:grid;grid-template-columns:32px minmax(0,1fr);gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 84%,transparent);padding:9px 10px}
+.prompt-step b{width:30px;height:30px;border-radius:9px;background:var(--panel2);color:var(--accent);display:grid;place-items:center;font-size:14px;font-weight:900}
+.prompt-step span{font-size:14px;color:var(--text);font-weight:850;line-height:1.15}
+.prompt-step em{grid-column:2;font-size:12px;color:var(--muted);font-style:normal;font-weight:700;line-height:1.35}
+.prompt-step.active{border-color:color-mix(in srgb,var(--accent) 56%,var(--line));background:var(--accent-bg)}
+.prompt-step.active b{background:color-mix(in srgb,var(--accent) 16%,var(--panel));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 26%,transparent)}
+.prompt-workbench{display:grid;gap:10px;min-width:0}
+.prompt-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.prompt-meta div{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:9px 10px;min-width:0}
+.prompt-meta span{display:block;font-size:11px;color:var(--soft);font-weight:850;letter-spacing:.05em}
+.prompt-meta strong{display:block;margin-top:3px;font-size:14px;color:var(--text);font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt-editor{width:100%;height:min(48vh,520px);min-height:360px;max-height:62vh;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:14px 15px;font-family:var(--font-mono);font-size:12.5px;line-height:1.62;resize:vertical;outline:0;white-space:pre-wrap}
 .prompt-editor:focus{border-color:var(--accent);box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 10%,transparent);background:color-mix(in srgb,var(--panel) 72%,var(--panel2))}
 .prompt-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .prompt-actions .plain-btn{min-width:92px}
@@ -697,6 +713,14 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .section-head,.setting-row{display:grid;align-items:stretch}
   .api-profile-bar{grid-template-columns:1fr}
   .api-profile-current{grid-template-columns:minmax(0,1fr) auto}
+  .prompt-head{display:grid;gap:8px}
+  .prompt-mode-chip{width:max-content}
+  .prompt-panel{grid-template-columns:1fr}
+  .prompt-flow{padding:10px}
+  .prompt-step{grid-template-columns:30px minmax(0,1fr);padding:8px}
+  .prompt-meta{grid-template-columns:1fr}
+  .prompt-editor{height:320px;min-height:260px;max-height:55vh}
+  .prompt-actions{justify-content:flex-start}
   .tag-manager-item{grid-template-columns:1fr}
   .tag-manager-actions{justify-content:flex-start}
   .model-field-row{grid-template-columns:1fr}

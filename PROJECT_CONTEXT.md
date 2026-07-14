@@ -114,6 +114,9 @@ Expected behavior:
 - Reworked split layout as a wide-screen workbench. The left panel is now a compact sticky input console with a resizable long textarea, one focus field, and bottom-aligned query action; the right panel keeps the result readable instead of inheriting the old top-layout control shape.
 - Refined highlight scope again: examples use only query/headword terms plus narrow `exampleHighlights`; translations use `translationHighlights` and conservative Chinese label candidates so the translated equivalent can be marked without highlighting unrelated context words.
 - Added settings-side model prompt management. `/api/config` exposes the backend default analyze prompt, settings can store a synced `modelPrompt` override, and `/api/analyze` uses `payload.systemPrompt` when provided while falling back to the built-in prompt.
+- Reworked the settings-side model prompt area into a small implementation map plus a wider prompt workbench. It now shows the input -> frontend request -> system prompt -> model JSON -> validation/render path, default/custom source, default prompt length, and edit state.
+- Fixed lookup queue duplication: `submitLookup()` now signs query/direction/note/existingId and ignores repeated submissions already running or already queued.
+- Added a narrow tilde-placeholder highlight fallback for examples. Query/headword/current item strings containing `~`, `～`, or `…` are split into meaningful fragments so entries like `つもり～ということだ` can highlight `つもり` in examples without broadening semantic-row highlights.
 
 ## Working Rules
 
