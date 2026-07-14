@@ -1,3 +1,5 @@
+import { ipv6Blocked, relayIfIpv6Blocked } from './relay.js';
+
 async function assertCanUseEnvironmentKey(request, payload) {
   if (payload.apiKey) return;
   const admins = String(process.env.ADMIN_EMAILS || '')
@@ -76,6 +78,9 @@ export default async function handler(request, response) {
 
     const elapsedMs = Date.now() - started;
     const text = await upstream.text();
+    if (ipv6Blocked(text) && await relayIfIpv6Blocked({ request, response, endpoint: 'test-profile', payload, status: upstream.status, text })) {
+      return;
+    }
     if (!upstream.ok) {
       response.status(upstream.status).json({
         ok: false,

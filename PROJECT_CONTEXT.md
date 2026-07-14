@@ -19,6 +19,7 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 - GitHub: `https://github.com/SuperFly233/ai-vocab-tool`
 - Main branch: `main`
 - Deployment target: Vercel
+- Secondary deployment target: Cloudflare Pages (`ai-vocab-tool`, output `dist`, Functions in `functions/`)
 - Supabase table: `public.study_store`
 - Supabase project URL: `https://uoifrqehkfvpzqojaazh.supabase.co`
 
@@ -106,6 +107,8 @@ Expected behavior:
 - Fixed API profile menu stacking on mobile by positioning the menu as a fixed viewport layer and temporarily raising the host settings card while the menu is open. The menu reserves bottom space for the mobile nav so profile rows and delete/edit controls are not covered.
 - Fixed mobile follow-up table overflow. `.followup-answer` and `.followup-item` now clamp their own width, `.md-table-wrap` owns horizontal scrolling without negative mobile margins, mobile table column minimums are smaller, and table cells convert escaped `<br>` into actual line breaks.
 - Replaced the fake main lookup loading reveal with true streaming. `/api/analyze` now accepts `stream:true`, forwards OpenAI-style SSE deltas while accumulating the model JSON, then runs the existing final JSON parse/repair before sending `{result, done:true}`. The front end reads the stream, writes raw JSON into the JSON pane, and uses best-effort extraction from partial JSON to update headword, senses, collocations, register, and confusions before the final validated result is saved.
+- Added Cloudflare Pages double-deploy support. `functions/_utils/vercel-adapter.js` turns Pages Functions `Request/env` into the existing Vercel-style handlers, so `/api/analyze`, `/api/followup`, `/api/sync`, `/api/models`, `/api/test-profile`, and `/api/config` work on Cloudflare without duplicating business logic. `npm run build:pages` writes only public static assets into `dist`; Supabase remains the same `study_store` backend.
+- Added an optional IPv4 relay fallback for Cloudflare Pages. If an upstream model API returns an IPv6-block HTML page, `api/relay.js` can forward `analyze`, `followup`, `models`, and `test-profile` to `AI_IPV4_RELAY_BASE_URL` such as the Vercel deployment. The browser still only talks to Cloudflare; if the provider also blocks Vercel egress, replace the relay with another IPv4-capable endpoint.
 
 ## Working Rules
 

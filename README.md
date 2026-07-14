@@ -3,6 +3,8 @@
 `ai-vocab-tool` 是一个个人 AI 查词工具：输入单词、短语、表达或句子后，模型返回结构化词条，前端再渲染成更像词典页的排版。它同时保留 JSON 视图，方便修改、导出和复用。
 
 ## 最新进展
+- v0.9.46 为 Cloudflare 版增加 IPv4 relay 兜底：模型供应商如果拦截 Cloudflare IPv6 出口，会自动转发到 `AI_IPV4_RELAY_BASE_URL` 指向的 IPv4 relay；浏览器仍然只需要访问 Cloudflare。
+- v0.9.45 新增 Cloudflare Pages 双部署支持：`functions/api/*` 复用现有 API handler，`npm run build:pages` 只输出公开静态资源到 `dist`，Cloudflare 版继续使用同一套 Supabase 数据库和同源 `/api/*`。
 - v0.9.44 修复流式查询时的排队输入：查询进行中清空主输入不再取消当前查询或清空队列，队列下一条开始时会同步回输入框，忙碌时遇到已有历史也会直接排队。
 - v0.9.43 回退主查询频繁重启动画：主查询流式预览不再给整块内容添加上浮动画，追问生成中也只保留光标和 pending 状态，避免内容频繁刷新时抖动。
 - v0.9.42 压缩移动端历史页：高级筛选默认折叠，排序变为横向条，历史条目按钮置底，列表分批渲染以减少大量记录时的滚动卡顿；主查询和追问流式内容增加柔和入场动效。
@@ -102,6 +104,44 @@ ADMIN_EMAILS=你的登录邮箱@example.com
 - 普通用户：只能使用自己的 API Key。
 - 访客/离线模式：只能使用本地保存，不能调用服务端环境变量 API。
 - 可选：增加额度、审计日志、禁用注册或邀请制。
+
+## Cloudflare Pages
+
+本项目可以和 Vercel 并行部署到 Cloudflare Pages，项目名建议继续使用 `ai-vocab-tool`，默认域名会是：
+
+```text
+https://ai-vocab-tool.pages.dev
+```
+
+Cloudflare Pages 配置：
+
+```text
+Build command: npm run build:pages
+Build output directory: dist
+Functions directory: functions
+```
+
+需要在 Cloudflare Pages 的环境变量里配置与 Vercel 等价的值：
+
+```text
+AI_API_URL
+AI_API_KEY
+AI_MODEL
+ADMIN_EMAILS
+SUPABASE_URL
+SUPABASE_ANON_KEY
+AI_IPV4_RELAY_BASE_URL
+```
+
+`AI_IPV4_RELAY_BASE_URL` 是可选兜底项，用于处理模型供应商拒绝 Cloudflare IPv6 出口的情况。它可以先指向现有 Vercel 版域名，例如：
+
+```text
+AI_IPV4_RELAY_BASE_URL=https://ai-vocab-tool.vercel.app
+```
+
+用户浏览器仍然只访问 Cloudflare；只有 Cloudflare Functions 在发现上游返回“正在使用 IPv6 访问”等拦截页时，才会在服务端把同一个 `/api/analyze`、`/api/followup`、`/api/models` 或 `/api/test-profile` 请求转发给 relay。如果供应商同时拒绝 Vercel 出口，则需要换成一个有 IPv4 出口的自有 relay。
+
+数据库不需要迁移。Cloudflare 版和 Vercel 版共用同一个 Supabase 项目、同一张 `public.study_store` 表和同一组 `ai_vocab_tool_*` key；同账号登录后历史、API profiles、主题、布局和日志会继续同步。上线后需要在 Supabase Auth 的 Site URL / Redirect URLs 中加入 Cloudflare Pages 域名，例如 `https://ai-vocab-tool.pages.dev`，绑定自定义域名后也要把自定义域名加入允许列表。
 
 ## Supabase
 

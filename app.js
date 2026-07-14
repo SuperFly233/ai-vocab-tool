@@ -76,12 +76,24 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.44',
+  version:'0.9.46',
   releaseDate:'2026-07-13',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.46',
+    date:'2026-07-14',
+    title:'为 Cloudflare 版增加 IPv4 relay 兜底',
+    items:['当模型供应商返回“正在使用 IPv6 访问”一类 HTML 拦截页时，服务端会自动把 analyze、followup、models 和 test-profile 请求转发到配置的 IPv4 relay。','Cloudflare 版可把 AI_IPV4_RELAY_BASE_URL 指向 Vercel 版域名，浏览器仍然全程访问 Cloudflare，但模型请求可借用 Vercel 的 IPv4 出口。','/api/config 会返回 hasIpv4Relay，便于确认当前部署是否启用了 IPv4 relay。'],
+  },
+  {
+    version:'0.9.45',
+    date:'2026-07-14',
+    title:'新增 Cloudflare Pages 双部署支持',
+    items:['新增 Cloudflare Pages Functions 适配层，复用现有 Vercel API handler 覆盖 analyze、followup、sync、models、test-profile 和 config。','新增 build:pages 构建脚本，只把公开静态资源复制到 dist，避免 Cloudflare Pages 直接公开仓库辅助文件。','补充 wrangler.toml 与 package.json，Cloudflare 版可继续使用同一个 Supabase study_store 数据库和同源 /api/* 调用。'],
+  },
   {
     version:'0.9.44',
     date:'2026-07-14',

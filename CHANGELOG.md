@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.9.46 - 2026-07-14
+
+- 当模型供应商返回“正在使用 IPv6 访问”一类 HTML 拦截页时，服务端会自动把 `analyze`、`followup`、`models` 和 `test-profile` 请求转发到配置的 IPv4 relay。
+- Cloudflare 版可把 `AI_IPV4_RELAY_BASE_URL` 指向 Vercel 版域名，浏览器仍然全程访问 Cloudflare，但模型请求可借用 Vercel 的 IPv4 出口。
+- `/api/config` 会返回 `hasIpv4Relay`，便于确认当前部署是否启用了 IPv4 relay。
+
+## v0.9.45 - 2026-07-14
+
+- 新增 Cloudflare Pages Functions 适配层，复用现有 Vercel API handler 覆盖 `analyze`、`followup`、`sync`、`models`、`test-profile` 和 `config`。
+- 新增 `build:pages` 构建脚本，只把公开静态资源复制到 `dist`，避免 Cloudflare Pages 直接公开仓库辅助文件。
+- 补充 `wrangler.toml` 与 `package.json`，Cloudflare 版可继续使用同一个 Supabase `study_store` 数据库和同源 `/api/*` 调用。
+
 ## v0.9.44 - 2026-07-14
 
 - 查询进行中清空主输入框不再触发 `resetCurrentLookupState()`，因此不会意外取消当前流式查询或清空等待队列。
