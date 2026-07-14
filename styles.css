@@ -406,8 +406,6 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .history-actions{display:flex;gap:8px}
 .history-load-more{border:1px dashed color-mix(in srgb,var(--accent) 42%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent-bg) 42%,var(--panel));color:var(--accent);padding:12px 14px;font-size:14px;font-weight:900;transition:transform .16s ease,border-color .16s ease,background .16s ease}
 .history-load-more:hover{transform:translateY(-1px);border-color:var(--accent);background:var(--accent-bg)}
-.favorite-icon{color:var(--soft)}
-.favorite-icon.active{border-color:color-mix(in srgb,var(--warn) 78%,var(--line));background:radial-gradient(circle at 35% 24%,color-mix(in srgb,var(--warn-soft) 70%,var(--panel)),color-mix(in srgb,var(--warn) 20%,var(--panel)) 56%,var(--panel2));color:color-mix(in srgb,var(--warn) 78%,var(--text));box-shadow:0 0 0 1px color-mix(in srgb,var(--warn-soft) 42%,transparent) inset,0 0 18px color-mix(in srgb,var(--warn) 22%,transparent),0 8px 22px color-mix(in srgb,var(--warn) 14%,transparent);text-shadow:0 0 10px color-mix(in srgb,var(--warn-soft) 78%,transparent)}
 .folder-panel{display:grid;gap:14px}
 .folder-layout{display:grid;grid-template-columns:minmax(220px,.22fr) minmax(0,1fr);gap:16px;align-items:start}
 .folder-sidebar{position:sticky;top:18px;display:grid;gap:8px;max-height:calc(100vh - 160px);overflow:auto;padding-right:2px}

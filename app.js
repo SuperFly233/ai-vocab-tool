@@ -58,7 +58,6 @@ const FOLDER_LIKED_ID='liked';
 const FOLDER_UNFILED_ID='unfiled';
 const historyState={
   query:'',
-  scope:'all',
   sort:'updated',
   sortDir:'desc',
   filtersOpen:false,
@@ -120,12 +119,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.1',
+  version:'0.11.2',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.2',
+    date:'2026-07-14',
+    title:'收敛历史页收藏入口',
+    items:['历史页不再保留旧的“收藏”范围状态和星标入口，收藏相关操作统一收进收藏夹体系。','历史列表始终从全部历史记录筛选，避免旧 favorites scope 状态导致看起来少记录。'],
+  },
   {
     version:'0.11.1',
     date:'2026-07-14',
@@ -612,7 +617,6 @@ const els={
   historyFilterSummary:document.getElementById('history-filter-summary'),
   historyFilterbar:document.getElementById('history-filterbar'),
   historySortbar:document.getElementById('history-sortbar'),
-  historyScope:document.getElementById('history-scope'),
   folderCount:document.getElementById('folder-count'),
   folderSidebar:document.getElementById('folder-sidebar'),
   folderContentHead:document.getElementById('folder-content-head'),
@@ -3281,29 +3285,26 @@ function renderHistory(){
   renderHistoryFilterOptions(getHistory());
   renderHistorySearchScopeControls();
   renderHistorySortControls();
-  renderHistoryScopeControls();
   ensureHistoryVisible();
   updateHistoryFilterToggle();
   const history=filterAndSortHistory(getHistory());
   window.__historyFilteredCount=history.length;
   const total=getHistory().length;
-  const favoriteTotal=getHistory().filter(item=>normalizeHistoryItem(item).favorite).length;
-  const constrained=historyState.scope!=='all'||historyState.query||Object.values(historyState.filters).some(filterHasValues);
+  const constrained=historyState.query||Object.values(historyState.filters).some(filterHasValues);
   els.historyCount.textContent=constrained?`${history.length}/${total} 条`:`${total} 条`;
   if(!history.length){
-    els.historyList.innerHTML=`<div class="empty">${historyState.scope==='favorites'&&!favoriteTotal?'暂无收藏记录':constrained?'没有匹配记录':'暂无历史记录'}</div>`;
+    els.historyList.innerHTML=`<div class="empty">${constrained?'没有匹配记录':'暂无历史记录'}</div>`;
     return;
   }
   const visible=history.slice(0,Math.min(historyState.visibleCount,history.length));
   const more=visible.length<history.length;
   els.historyList.innerHTML=visible.map(item=>{
     const normalized=normalizeHistoryItem(item);
-    const favoriteInAll=normalized.favorite&&historyState.scope==='all';
     const summary=historyEntrySummary(normalized);
     const meta=historyEntryMeta(normalized);
     const versionText=getHistoryRolls(normalized).length>1?`${getHistoryRolls(normalized).length} 个版本`:'';
     return `
-    <div class="history-item ${favoriteInAll?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+    <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
         <div class="history-word">${escapeHTML(item.query)}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
@@ -3312,12 +3313,10 @@ function renderHistory(){
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
           ${historyTimeMetaHTML(item,getSettings().historyTimeMode)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
-          ${favoriteInAll?'<em>已收藏</em>':''}
         </div>
       </div>
       <div class="history-actions">
         <button class="icon-btn" data-tip="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">＋</button>
-        <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
         <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
         <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
@@ -3607,7 +3606,6 @@ function renderFolderHistoryItem(item){
       </div>
       <div class="history-actions">
         <button class="icon-btn" data-tip="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">＋</button>
-        <button class="icon-btn favorite-icon ${normalized.favorite?'active':''}" data-tip="${normalized.favorite?'取消收藏':'收藏'}" aria-label="${normalized.favorite?'取消收藏':'收藏'}" onclick="event.stopPropagation();toggleFavoriteHistory(${Number(item.id)})">${normalized.favorite?'★':'☆'}</button>
         <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
         <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
         <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
@@ -3703,9 +3701,7 @@ function handleHistoryItemKey(event,id){
 }
 function filterAndSortHistory(history){
   const query=normalizeSearch(historyState.query);
-  const scoped=historyState.scope==='favorites'
-    ? history.filter(item=>normalizeHistoryItem(item).favorite)
-    : [...history];
+  const scoped=[...history];
   const filteredByText=query
     ? scoped.filter(item=>historySearchText(item).includes(query))
     : scoped;
@@ -4185,10 +4181,6 @@ function closeHistoryFilterMenus(except=null){
     if(filter!==except)filter.classList.remove('open');
   });
 }
-function setHistoryScope(scope){
-  historyState.scope=scope==='favorites'?'favorites':'all';
-  rerenderHistoryFromStart();
-}
 function setHistorySort(sort){
   if(historyState.sort===sort)historyState.sortDir=historyState.sortDir==='asc'?'desc':'asc';
   else{
@@ -4203,11 +4195,6 @@ function renderHistorySortControls(){
     button.classList.toggle('active',active);
     const mark=button.querySelector('span');
     if(mark)mark.textContent=active?(historyState.sortDir==='asc'?'↑':'↓'):'';
-  });
-}
-function renderHistoryScopeControls(){
-  els.historyScope?.querySelectorAll('.scope-btn').forEach(button=>{
-    button.classList.toggle('active',button.dataset.scope===historyState.scope);
   });
 }
 function normalizeSearch(value){
@@ -4250,18 +4237,6 @@ function clearHistorySearch(){
   if(els.historySearch)els.historySearch.value='';
   updateHistorySearchState();
   rerenderHistoryFromStart();
-}
-function toggleFavoriteHistory(id){
-  const now=new Date().toISOString();
-  let favorite=false;
-  const history=getHistory().map(item=>{
-    if(Number(item.id)!==Number(id))return item;
-    const normalized=normalizeHistoryItem(item);
-    favorite=!normalized.favorite;
-    return {...normalized,favorite,favoriteAt:favorite?now:'',updatedAt:now};
-  });
-  setHistory(history);
-  notify(favorite?'已收藏。':'已取消收藏。','good','收藏');
 }
 function updateHistorySearchState(){
   const hasText=Boolean(els.historySearch?.value.trim());
@@ -5390,7 +5365,6 @@ async function factoryReset(){
   currentFollowups=[];
   modalResult=null;
   historyState.query='';
-  historyState.scope='all';
   Object.keys(historyState.filters).forEach(key=>{historyState.filters[key]=[]});
   if(els.historySearch)els.historySearch.value='';
   hydrateSettings();
