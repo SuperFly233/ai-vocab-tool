@@ -128,6 +128,7 @@ Expected behavior:
 - API profile and visual editor ordering should now favor drag handles instead of explicit up/down buttons. The drag interaction includes insertion feedback and slow edge autoscroll; future refinement can tune pointer/touch behavior if mobile browser drag support is inconsistent.
 - Home query focus should not bubble into automatic scroll-to-top anymore; only clicking the non-control editor surface should trigger that helper behavior.
 - v0.10.2 corrected the history modal display intent: keep the normal top header visible in preview, visual edit, and JSON edit modes; remove only the extra sticky summary block that appears inside the modal body after scrolling.
+- v0.10.3 fixed the visual editor hint pin toggle sticking on after cloud sync. Boolean settings are normalized explicitly, and settings merge now prefers local pending/newer settings instead of OR-ing remote and local values.
 
 ## Working Rules
 

@@ -111,12 +111,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.2',
+  version:'0.10.3',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.3',
+    date:'2026-07-14',
+    title:'修复可视化提示常驻开关',
+    items:['修复可视化编辑提示的常驻显示开关被云端旧值粘住的问题，关闭后再次进入编辑页会恢复为聚焦气泡。','设置同步合并改为按本地未同步修改或更新时间决定开关状态，不再把曾经开启过的 true 当成永久优先。'],
+  },
   {
     version:'0.10.2',
     date:'2026-07-14',
@@ -916,7 +922,7 @@ function normalizeSettings(raw={}){
   const labelMode=normalizeLabelMode(source.labelMode);
   const fontMode=normalizeFontMode(source.fontMode);
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
-  const visualHintsPinned=Boolean(source.visualHintsPinned);
+  const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
   return {
     ...DEFAULT_SETTINGS,
@@ -941,6 +947,11 @@ function normalizeFontMode(value){
 }
 function normalizeHistoryTimeMode(value){
   return ['created','updated','both'].includes(value)?value:'created';
+}
+function normalizeBooleanSetting(value,fallback=false){
+  if(value===true||value==='true'||value===1||value==='1')return true;
+  if(value===false||value==='false'||value===0||value==='0')return false;
+  return fallback;
 }
 function normalizeApiProfile(profile={}){
   const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
@@ -975,16 +986,20 @@ function mergeSettings(localRaw,remoteRaw){
   const remote=remoteRaw?normalizeSettings(remoteRaw):{apiProfiles:[],activeApiProfileId:''};
   const profiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
   if(!profiles.length)return normalizeSettings(DEFAULT_SETTINGS);
-  const activeId=cloudDirtyKeys.has(CLOUD_KEYS.settings)
+  const localHasPendingSettings=cloudDirtyKeys.has(CLOUD_KEYS.settings);
+  const localTime=new Date(local.updatedAt||0).getTime()||0;
+  const remoteTime=new Date(remote.updatedAt||0).getTime()||0;
+  const preferLocalSettings=localHasPendingSettings||localTime>remoteTime;
+  const activeId=preferLocalSettings
     ? local.activeApiProfileId
     : remote.activeApiProfileId||local.activeApiProfileId;
   return normalizeSettings({
     ...remote,
-    labelMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.labelMode:remote.labelMode||local.labelMode,
-    fontMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.fontMode:remote.fontMode||local.fontMode,
-    historyTimeMode:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
-    visualHintsPinned:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.visualHintsPinned:Boolean(remote.visualHintsPinned||local.visualHintsPinned),
-    modelPrompt:cloudDirtyKeys.has(CLOUD_KEYS.settings)?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
+    labelMode:preferLocalSettings?local.labelMode:remote.labelMode||local.labelMode,
+    fontMode:preferLocalSettings?local.fontMode:remote.fontMode||local.fontMode,
+    historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
+    visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
+    modelPrompt:preferLocalSettings?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     apiProfiles:profiles,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
@@ -3760,7 +3775,7 @@ function renderVisualEditor(result=modalResult){
   const collocations=Array.isArray(data.collocations)?data.collocations:[];
   const register=data.register||{};
   const confusions=Array.isArray(data.confusions)?data.confusions:[];
-  els.modalVisualEditor.classList.toggle('hints-pinned',Boolean(getSettings().visualHintsPinned));
+  els.modalVisualEditor.classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
   els.modalVisualEditor.innerHTML=`
     <div class="visual-grid visual-headword-grid">
       ${visualField('visual-title','词条标题',head.title||meta.query||'')}
@@ -4427,12 +4442,12 @@ function setHistoryTimeMode(mode){
   notify(`历史时间默认显示已切换为${historyTimeModeLabel(next)}。`,'good','显示设置');
 }
 function applyVisualHintsPinned(value){
-  const enabled=Boolean(value);
+  const enabled=normalizeBooleanSetting(value,false);
   if(els.visualHintsPinnedInput)els.visualHintsPinnedInput.checked=enabled;
   els.modalVisualEditor?.classList.toggle('hints-pinned',enabled);
 }
 function setVisualHintsPinned(value){
-  const enabled=Boolean(value);
+  const enabled=normalizeBooleanSetting(value,false);
   const settings=getSettings();
   setSettings({...settings,visualHintsPinned:enabled,updatedAt:new Date().toISOString()});
   applyVisualHintsPinned(enabled);
