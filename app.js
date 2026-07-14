@@ -111,12 +111,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.10.3',
+  version:'0.10.4',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.10.4',
+    date:'2026-07-14',
+    title:'修复历史记录 120 条上限',
+    items:['移除历史保存和云同步合并里的 120 条截断，历史总数会按真实存储数量显示。','历史列表仍保留分批渲染和继续加载按钮，避免大量记录一次性渲染导致滚动卡顿。'],
+  },
   {
     version:'0.10.3',
     date:'2026-07-14',
@@ -1275,7 +1281,7 @@ function mergeHistoryItems(localHistory,remoteHistory){
   };
   remoteHistory.forEach(put);
   localHistory.forEach(put);
-  return [...map.values()].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt)).slice(0,120);
+  return [...map.values()].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt));
 }
 function mergeTags(...groups){
   return uniq(groups.flatMap(normalizeTags));
@@ -3006,7 +3012,7 @@ async function analyzeHeaders(hasLocalEndpoint){
 function addHistory(item){
   const history=getHistory().filter(existing=>normalizeSearch(existing.query)!==normalizeSearch(item.query));
   history.unshift(normalizeHistoryItem(item));
-  setHistory(history.slice(0,120));
+  setHistory(history);
 }
 function findHistoryByQuery(query){
   const normalized=normalizeSearch(query);
@@ -3032,7 +3038,7 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
     saved={id:Date.now(),query,result,followups:[],createdAt:now,updatedAt:now,rolls:[roll]};
     const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
     next.unshift(saved);
-    setHistory(next.slice(0,120));
+    setHistory(next);
   }
   return saved;
 }
