@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="./styles.css?v=0.11.2">
+<link rel="stylesheet" href="./styles.css?v=0.11.3">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -101,11 +101,11 @@
             <input id="direction-input" type="text" placeholder="语言方向，侧重点">
             <input id="note-input" type="text" placeholder="侧重点：写作 / 考试 / 口语">
           </div>
+          <div class="lookup-folder-strip" id="lookup-folder-strip"></div>
           <div class="query-actions">
             <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
           </div>
         </div>
-        <div class="lookup-folder-strip" id="lookup-folder-strip"></div>
         <div class="lookup-queue" id="lookup-queue"></div>
       </div>
 
@@ -497,6 +497,6 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./app.js?v=0.11.2"></script>
+<script src="./app.js?v=0.11.3"></script>
 </body>
 </html>

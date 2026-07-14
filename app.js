@@ -119,12 +119,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.2',
+  version:'0.11.3',
   releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.3',
+    date:'2026-07-14',
+    title:'修正收藏夹页面溢出与间距',
+    items:['收藏夹页面补齐面板内边距，标题和右侧操作不再贴边。','收住桌面端收藏夹侧栏宽度与横向溢出，左侧“我的收藏夹”不再露出横向滚动条。','隐藏页面和内部滚动条外观，同时保留滚动能力，避免浏览器右侧和底部出现突兀滚动条。','首页收藏夹选择并入主搜索横条，位于语言方向和搜索按钮之间；多选时只展示前几个名称并用 +N 收束，避免挤爆方向输入框。','加强历史版本去重：内容完全相同的查询结果不会因为加入收藏夹或重复生成而制造新版本，版本选中状态也改为稳定 key，避免多个版本同时高亮。'],
+  },
   {
     version:'0.11.2',
     date:'2026-07-14',
@@ -672,6 +678,9 @@ function escapeHTML(value){
 }
 function escapeAttr(value){
   return escapeHTML(value).replace(/`/g,'&#96;');
+}
+function jsArg(value){
+  return JSON.stringify(String(value??'')).replace(/</g,'\\u003c');
 }
 function notify(message,type='info',title='ai-vocab-tool',record=true){
   if(record)pushLog(message,type,title);
@@ -1427,17 +1436,37 @@ function dedupeFollowups(items){
 }
 function dedupeRolls(rolls){
   const seen=new Set();
-  return rolls
+  return [...(Array.isArray(rolls)?rolls:[])]
+    .filter(Boolean)
+    .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
     .filter(roll=>{
-      const key=JSON.stringify(roll.result||{});
+      const key=historyRollContentKey(roll);
       if(seen.has(key))return false;
       seen.add(key);
       return true;
-    })
-    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    });
 }
 function makeHistoryRoll(result,createdAt=new Date().toISOString(),id=null,meta={}){
   return {id:id||Date.now()+Math.floor(Math.random()*1000),createdAt,result,...meta};
+}
+function comparableResultValue(value,key=''){
+  const volatile=new Set(['model','modelSource','createdAt','updatedAt','generatedAt','timestamp','requestId']);
+  if(volatile.has(key))return undefined;
+  if(Array.isArray(value))return value.map(item=>comparableResultValue(item)).filter(item=>item!==undefined);
+  if(value&&typeof value==='object'){
+    return Object.keys(value).sort().reduce((next,itemKey)=>{
+      const item=comparableResultValue(value[itemKey],itemKey);
+      if(item!==undefined&&item!==''&&!(Array.isArray(item)&&!item.length))next[itemKey]=item;
+      return next;
+    },{});
+  }
+  return value;
+}
+function historyRollContentKey(roll={}){
+  return JSON.stringify(comparableResultValue(roll.result||{}));
+}
+function historyRollViewKey(roll={},index=0){
+  return `${String(roll.id||'roll')}|${index}|${stableHash(historyRollContentKey(roll))}`;
 }
 function normalizeHistoryItems(items){
   return Array.isArray(items)?items.map(normalizeHistoryItem).filter(item=>item.query||item.result):[];
@@ -3162,15 +3191,18 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
   let saved;
   if(existing){
     const normalized=normalizeHistoryItem(existing);
+    const existingRolls=getHistoryRolls(normalized);
+    const duplicateRoll=existingRolls.some(item=>historyRollContentKey(item)===historyRollContentKey(roll));
+    const nextRolls=duplicateRoll?existingRolls:dedupeRolls([roll,...existingRolls]);
     saved={
       ...normalized,
       query,
-      result,
+      result:duplicateRoll?(existingRolls[0]?.result||normalized.result):result,
       favorite:favorite||normalized.favorite,
       favoriteAt:favorite?(normalized.favoriteAt||now):normalized.favoriteAt,
       folderIds:mergeFolderIds(normalized.folderIds,selectedFolderIds),
       updatedAt:now,
-      rolls:dedupeRolls([roll,...getHistoryRolls(existing)]),
+      rolls:nextRolls,
     };
     setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item));
   }else{
@@ -3435,8 +3467,8 @@ function renderLookupFolderPicker(){
   els.lookupFolderStrip.innerHTML=`
     <button class="lookup-folder-trigger" type="button" onclick="openFolderSelectModal({type:'lookup'})">
       <span>收藏夹</span>
-      <b>${folders.length?folders.slice(0,3).map(folder=>escapeHTML(folder.name)).join('、'):'不加入'}</b>
-      ${folders.length>3?`<em>+${folders.length-3}</em>`:''}
+      <b>${folders.length?folders.slice(0,2).map(folder=>escapeHTML(folder.name)).join('、'):'不加入'}</b>
+      ${folders.length>2?`<em>+${folders.length-2}</em>`:''}
     </button>
   `;
 }
@@ -4498,7 +4530,7 @@ function openHistoryModal(id){
   const latest=getHistoryRolls(normalized)[0];
   modalResult=latest?.result||normalized.result;
   modalHistoryId=Number(item.id);
-  modalRollId=latest?.id||null;
+  modalRollId=latest?historyRollViewKey(latest,0):null;
   els.modalTitle.textContent=normalized.query;
   els.modalSubtitle.textContent=historyModalMeta(normalized);
   renderModalRollbar(normalized);
@@ -4542,9 +4574,11 @@ function saveHistoryEdit(){
     const rolls=getHistoryRolls(item);
     const normalized=normalizeHistoryItem(item);
     const noteChanged=note!==normalized.note;
-    const updatedRolls=rolls.map((roll,index)=>Number(roll.id)===Number(modalRollId)||(!modalRollId&&index===0)
+    const selectedIndex=Math.max(0,rolls.findIndex((roll,index)=>historyRollViewKey(roll,index)===String(modalRollId)));
+    const updatedRolls=rolls.map((roll,index)=>index===selectedIndex||(!modalRollId&&index===0)
       ? {...roll,result:parsed,updatedAt:now}
       : roll);
+    modalRollId=updatedRolls[selectedIndex]?historyRollViewKey(updatedRolls[selectedIndex],selectedIndex):modalRollId;
     return {...normalized,query,tags:[],folderIds,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
   setHistory(history);
@@ -4610,7 +4644,7 @@ function renderModalRollbar(item){
   els.modalRollbar.innerHTML=`
     <div class="roll-tabs">
       ${rolls.map((roll,index)=>`
-        <button class="roll-btn ${Number(roll.id)===Number(modalRollId)?'active':''}" onclick="setModalRoll(${Number(roll.id)})">
+        <button class="roll-btn ${historyRollViewKey(roll,index)===String(modalRollId)?'active':''}" onclick="setModalRoll(${jsArg(historyRollViewKey(roll,index))})">
           <span>版本 ${rolls.length-index}</span>
           <em>${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN',{hour12:false}))}</em>
           <strong>${escapeHTML(roll.model||'未记录')}</strong>
@@ -4623,9 +4657,11 @@ function renderModalRollbar(item){
 function setModalRoll(rollId){
   const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
   if(!item)return;
-  const roll=getHistoryRolls(item).find(row=>Number(row.id)===Number(rollId));
+  const rolls=getHistoryRolls(item);
+  const index=rolls.findIndex((row,rowIndex)=>historyRollViewKey(row,rowIndex)===String(rollId));
+  const roll=rolls[index];
   if(!roll)return;
-  modalRollId=Number(roll.id);
+  modalRollId=historyRollViewKey(roll,index);
   modalResult=roll.result;
   els.modalCardPage.innerHTML=renderResultHTML(roll.result,item.followups||[],'modal',item);
   els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
