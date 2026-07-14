@@ -76,12 +76,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.9.46',
-  releaseDate:'2026-07-13',
+  version:'0.9.47',
+  releaseDate:'2026-07-14',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.9.47',
+    date:'2026-07-14',
+    title:'优化结果高亮的词形与译文对应',
+    items:['英文高亮会识别常见屈折变化，像 transpire / transpired / transpiring 会作为完整单词一起包住，不再只高亮半截词干。','义项和搭配支持可选 highlightTerms，模型可以把译文里实际对应的中文表达写进 JSON，避免 shortestLabel 与译文措辞不一致时漏高亮。','结果渲染会合并词条、义标、语意和 highlightTerms 做去重匹配，保留旧历史的兼容兜底。'],
+  },
   {
     version:'0.9.46',
     date:'2026-07-14',
@@ -1732,9 +1738,9 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
       <div class="item-index">${escapeHTML(item.index)}</div>
       <div class="item-body">
         <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
-        <div class="line"><b>语意</b><span>${highlightText(item.meaning,[item.phrase,item.note])}</span></div>
-        <div class="line"><b>例句</b><span>${highlightText(item.example,[item.phrase,...highlightTerms])}</span></div>
-        <div class="line"><b>译文</b><span>${highlightText(item.translation,[item.meaning,item.note])}</span></div>
+        <div class="line"><b>语意</b><span>${highlightText(item.meaning,itemHighlightTerms(item,[item.phrase,item.note]))}</span></div>
+        <div class="line"><b>例句</b><span>${highlightText(item.example,itemHighlightTerms(item,[item.phrase,...highlightTerms]))}</span></div>
+        <div class="line"><b>译文</b><span>${highlightText(item.translation,itemHighlightTerms(item,[item.meaning,item.note]))}</span></div>
       </div>
     `)}
     <div class="block">
@@ -1769,9 +1775,9 @@ function renderSenseGroups(senses=[],result={}){
         <div class="item-index">${index+1}</div>
         <div class="item-body">
           <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark></div>
-          <div class="line"><b>语意</b><span>${highlightText(item.meaning,[item.shortestLabel])}</span></div>
-          <div class="line"><b>例句</b><span>${highlightText(item.example,highlightTerms)}</span></div>
-          <div class="line"><b>译文</b><span>${highlightText(item.translation,[item.shortestLabel,item.meaning])}</span></div>
+          <div class="line"><b>语意</b><span>${highlightText(item.meaning,itemHighlightTerms(item,[item.shortestLabel]))}</span></div>
+          <div class="line"><b>例句</b><span>${highlightText(item.example,itemHighlightTerms(item,highlightTerms))}</span></div>
+          <div class="line"><b>译文</b><span>${highlightText(item.translation,itemHighlightTerms(item,[item.shortestLabel,item.meaning]))}</span></div>
         </div>
       </div>`).join('')}
     </section>
@@ -1790,6 +1796,52 @@ function resultHighlightTerms(result={}){
 function escapeRegExp(value){
   return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 }
+function itemHighlightTerms(item={},baseTerms=[]){
+  return uniq([
+    ...(Array.isArray(baseTerms)?baseTerms:[baseTerms]),
+    ...rawList(item.highlightTerms),
+    ...rawList(item.highlightHints),
+    ...rawList(item.aliases),
+    ...rawList(item.exampleHighlights),
+    ...rawList(item.translationHighlights),
+  ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
+}
+function englishInflectionVariants(term){
+  const value=String(term||'').trim();
+  if(!/^[A-Za-z][A-Za-z'-]*$/.test(value))return [value];
+  const variants=new Set([value]);
+  const lower=value.toLowerCase();
+  const add=suffix=>variants.add(value+suffix);
+  add('s');
+  add('es');
+  add('ed');
+  add('d');
+  add('ing');
+  if(/[bcdfghjklmnpqrstvwxyz]y$/i.test(value)){
+    variants.add(value.slice(0,-1)+'ies');
+    variants.add(value.slice(0,-1)+'ied');
+  }
+  if(/e$/i.test(value)&&!/(ee|ye|oe)$/i.test(value)){
+    variants.add(value.slice(0,-1)+'ing');
+  }
+  if(/[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]$/i.test(value)&&!/w|x|y$/i.test(lower)){
+    variants.add(value+value.slice(-1)+'ed');
+    variants.add(value+value.slice(-1)+'ing');
+  }
+  return [...variants].sort((a,b)=>b.length-a.length);
+}
+function highlightPatternForTerm(term){
+  const raw=String(term||'').trim();
+  if(!raw)return '';
+  if(/^[A-Za-z][A-Za-z'-]*$/.test(raw)){
+    const variants=englishInflectionVariants(raw)
+      .map(value=>escapeRegExp(escapeHTML(value)))
+      .filter(Boolean);
+    return variants.length?`\\b(?:${variants.join('|')})\\b`:'';
+  }
+  const escaped=raw.split(/\s+/).map(part=>escapeRegExp(escapeHTML(part))).join('\\s+');
+  return escaped;
+}
 function highlightText(value,terms=[]){
   const escaped=escapeHTML(value||'');
   const tokens=uniq((Array.isArray(terms)?terms:[terms])
@@ -1797,7 +1849,8 @@ function highlightText(value,terms=[]){
     .filter(term=>term.length>=2))
     .sort((a,b)=>b.length-a.length)
     .slice(0,8)
-    .map(term=>escapeRegExp(escapeHTML(term)));
+    .map(highlightPatternForTerm)
+    .filter(Boolean);
   if(!tokens.length)return escaped;
   return escaped.replace(new RegExp(`(${tokens.join('|')})`,'gi'),'<mark class="hit-mark">$1</mark>');
 }

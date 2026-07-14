@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.47 - 2026-07-14
+
+- 英文高亮会识别常见屈折变化，像 `transpire` / `transpired` / `transpiring` 会作为完整单词一起包住，不再只高亮半截词干。
+- 义项和搭配支持可选 `highlightTerms`，模型可以把译文里实际对应的中文表达写进 JSON，避免 `shortestLabel` 与译文措辞不一致时漏高亮。
+- 结果渲染会合并词条、义标、语意和 `highlightTerms` 做去重匹配，保留旧历史的兼容兜底。
+
 ## v0.9.46 - 2026-07-14
 
 - 当模型供应商返回“正在使用 IPv6 访问”一类 HTML 拦截页时，服务端会自动把 `analyze`、`followup`、`models` 和 `test-profile` 请求转发到配置的 IPv4 relay。
