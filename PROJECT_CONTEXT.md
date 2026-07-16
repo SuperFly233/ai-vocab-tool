@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -137,6 +137,7 @@ Expected behavior:
 - v0.11.1 extends folder workflow: home lookup can preselect folders and queued requests carry those folder IDs; Folder view can start a lookup targeting the active folder; History rows can open a checkbox folder selector; folder sidebar supports create/delete-with-mode and drag sorting. Static `app.js`/`styles.css` URLs now include `?v=0.11.1` to avoid stale browser cache after import fixes.
 - v0.11.2 removes the remaining old History-page favorite entry points: no hidden `historyState.scope`, no star button in the History list. Favorites remain as data/system folder semantics and can be changed through the folder selector or Folder view.
 - v0.11.3 tightens Folder view layout: the folder panel now has its own padding like History, desktop folder sidebar clips horizontal overflow, and scrollbar chrome is hidden globally while scroll behavior remains available. The home folder picker is folded into the main query row between direction and search, with truncated labels and `+N` overflow. History rolls now dedupe by a stable comparable result fingerprint and modal roll selection uses a stable view key instead of numeric ids, preventing visually identical duplicate versions and multiple active version tabs. Static asset query params are bumped to `?v=0.11.3`.
+- v0.11.4 restores top-layout Home scrolling so the sticky query panel can actually stay fixed while results scroll in the page. The query row gives more width to the main input, narrows direction/folder controls, and equalizes control heights. History/folder derived folder catalogs, stats, item mappings, and folder item lists are cached until history/settings change; Folder view now renders records in batches like History. Home lookup drafts are saved locally under `ai_vocab_tool_lookup_draft_v1` so refresh/crash restores query, direction, note, and selected lookup folders. About changelog items are collapsible. Highlight filtering now allows single Han/Hiragana/Katakana/Hangul fragments from tilde placeholders, fixing cases like `流石の～も` while still rejecting single Latin letters.
 
 ## Working Rules
 

@@ -10,6 +10,7 @@ const STORAGE_KEYS={
   offline:'ai_vocab_tool_offline_mode',
   layout:'ai_vocab_tool_layout',
   logs:'ai_vocab_tool_logs_v1',
+  lookupDraft:'ai_vocab_tool_lookup_draft_v1',
 };
 const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
@@ -50,6 +51,7 @@ let pendingFollowup=null;
 let lookupFolderIds=[];
 let folderSelectContext=null;
 let folderDragState=null;
+let historyDerivedCache=null;
 let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
@@ -119,12 +121,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.3',
-  releaseDate:'2026-07-14',
+  version:'0.11.4',
+  releaseDate:'2026-07-16',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.4',
+    date:'2026-07-16',
+    title:'修复首页吸顶与历史收藏夹卡顿',
+    items:['首页顶栏布局下结果区改回页面滚动，搜索区下滑时会继续吸顶；搜索框权重加大，语言方向和收藏夹控件收窄并统一高度。','历史和收藏夹派生数据增加缓存，收藏夹详情改为分批渲染，避免切换页面时全量扫描和一次性铺 DOM 导致卡顿。','首页查询草稿会本机保存，刷新或崩溃后可恢复查询词、方向、备注和本次收藏夹选择。','关于页更新记录改为折叠列表，只默认展开最近 3 条。','高亮规则允许单个汉字、假名或韩文片段，修复 `流石の～も` 里 `も` 被长度过滤掉的问题，同时继续过滤英文单字母。'],
+  },
   {
     version:'0.11.3',
     date:'2026-07-14',
@@ -954,8 +962,10 @@ function exitOfflineMode(){
 function toggleAccountPanel(){els.accountPanel.classList.toggle('open')}
 function closeAccountPanel(){els.accountPanel.classList.remove('open')}
 
+function invalidateHistoryDerivedCache(){historyDerivedCache=null}
 function getHistory(){return readJSON(STORAGE_KEYS.history,[])}
 function setHistory(items){
+  invalidateHistoryDerivedCache();
   writeJSON(STORAGE_KEYS.history,items);
   markCloudDirty(CLOUD_KEYS.history);
   renderHistory();
@@ -965,12 +975,14 @@ function setHistory(items){
 }
 function getSettings(){return normalizeSettings(readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS))}
 function setSettings(settings){
+  invalidateHistoryDerivedCache();
   writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
   syncAllToCloud(true);
 }
 function saveSettingsLocal(settings){
+  invalidateHistoryDerivedCache();
   writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
@@ -1261,6 +1273,7 @@ function mapsEqual(a,b){
   return true;
 }
 function replaceLocalWithItems(items){
+  invalidateHistoryDerivedCache();
   localStorage.removeItem(STORAGE_KEYS.history);
   localStorage.removeItem(STORAGE_KEYS.settings);
   localStorage.removeItem(STORAGE_KEYS.theme);
@@ -2106,7 +2119,7 @@ function resultQueryHighlightTerms(result={}){
     ...tildeHighlightFragments(meta.normalized),
     ...tildeHighlightFragments(meta.query),
     ...tildeHighlightFragments(head.title),
-  ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
+  ].map(value=>String(value||'').trim()).filter(value=>isHighlightTerm(value,{allowSingleCjk:true})));
 }
 function exampleHighlightTermsForItem(item={},queryTerms=[]){
   return uniq([
@@ -2116,12 +2129,12 @@ function exampleHighlightTermsForItem(item={},queryTerms=[]){
     ...rawList(item.exampleHighlights),
     ...rawList(item.sourceHighlights),
     ...rawList(item.inflectedForms),
-  ].map(value=>String(value||'').trim()).filter(value=>value.length>=2));
+  ].map(value=>String(value||'').trim()).filter(value=>isHighlightTerm(value,{allowSingleCjk:true})));
 }
 function translationHighlightTermsForItem(item={},result={}){
   const explicit=rawList(item.translationHighlights)
     .map(value=>String(value||'').trim())
-    .filter(value=>value.length>=2&&value.length<=40);
+    .filter(value=>isHighlightTerm(value,{allowSingleCjk:true,max:40}));
   const terms=[
     ...explicit,
     ...semanticLabelCandidates(item.shortestLabel),
@@ -2130,7 +2143,7 @@ function translationHighlightTermsForItem(item={},result={}){
   ];
   const head=result.headword||{};
   terms.push(...semanticLabelCandidates(head.coreMeaning));
-  return uniq(terms.map(value=>String(value||'').trim()).filter(value=>value.length>=2&&value.length<=40)).slice(0,10);
+  return uniq(terms.map(value=>String(value||'').trim()).filter(value=>isHighlightTerm(value,{allowSingleCjk:true,max:40}))).slice(0,10);
 }
 function semanticLabelCandidates(value){
   const raw=String(value||'').trim();
@@ -2169,10 +2182,19 @@ function tildeHighlightFragments(value){
     .map(part=>part.replace(/[（）()[\]{}"'“”‘’、，。；;:：,.\s]+/g,' ').trim())
     .flatMap(part=>part.split(/\s+/))
     .map(part=>part.trim())
-    .filter(part=>part.length>=2));
+    .filter(part=>isHighlightTerm(part,{allowSingleCjk:true})));
 }
 function escapeRegExp(value){
   return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+function isCjkSingleHighlight(value){
+  return /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]$/u.test(String(value||'').trim());
+}
+function isHighlightTerm(value,{allowSingleCjk=false,max=80}={}){
+  const text=String(value||'').trim();
+  if(!text)return false;
+  if(text.length>=2&&text.length<=max)return true;
+  return allowSingleCjk&&text.length===1&&isCjkSingleHighlight(text);
 }
 function englishInflectionVariants(term){
   const value=String(term||'').trim();
@@ -2214,7 +2236,7 @@ function highlightText(value,terms=[]){
   const escaped=escapeHTML(value||'');
   const tokens=uniq((Array.isArray(terms)?terms:[terms])
     .map(term=>String(term||'').trim())
-    .filter(term=>term.length>=2))
+    .filter(term=>isHighlightTerm(term,{allowSingleCjk:true})))
     .sort((a,b)=>b.length-a.length)
     .slice(0,8)
     .map(highlightPatternForTerm)
@@ -3216,8 +3238,18 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
 function historyBatchSize(){
   return window.matchMedia?.('(max-width: 900px)').matches?18:42;
 }
+function folderBatchSize(){
+  return window.matchMedia?.('(max-width: 900px)').matches?16:36;
+}
 function resetHistoryVisible(){
   historyState.visibleCount=historyBatchSize();
+}
+function ensureFolderVisible(){
+  if(!folderState.visibleCount)folderState.visibleCount=folderBatchSize();
+}
+function loadMoreFolders(){
+  folderState.visibleCount+=folderBatchSize();
+  renderFoldersView();
 }
 function rerenderHistoryFromStart(){
   resetHistoryVisible();
@@ -3303,18 +3335,25 @@ function loadMoreHistory(){
   renderHistory();
 }
 function maybeLoadMoreHistory(){
-  if(activeView!=='history')return;
-  if((historyState.visibleCount||0)>=(window.__historyFilteredCount||0))return;
   const remaining=document.documentElement.scrollHeight-window.scrollY-window.innerHeight;
-  if(remaining<420)loadMoreHistory();
+  if(activeView==='history'){
+    if((historyState.visibleCount||0)>=(window.__historyFilteredCount||0))return;
+    if(remaining<420)loadMoreHistory();
+    return;
+  }
+  if(activeView==='folders'){
+    const items=historyForFolder(folderState.activeId);
+    if((folderState.visibleCount||0)<items.length&&remaining<420)loadMoreFolders();
+  }
 }
 function toggleHistoryFilters(){
   historyState.filtersOpen=!historyState.filtersOpen;
   if(!historyState.filtersOpen)closeHistoryFilterMenus();
+  else renderHistoryFilterOptions(getHistory());
   updateHistoryFilterToggle();
 }
 function renderHistory(){
-  renderHistoryFilterOptions(getHistory());
+  if(historyState.filtersOpen||openHistoryFilterKey)renderHistoryFilterOptions(getHistory());
   renderHistorySearchScopeControls();
   renderHistorySortControls();
   ensureHistoryVisible();
@@ -3366,7 +3405,7 @@ function renderHistoryFolders(item={}){
   if(!list.length)return '';
   return `<div class="history-tags">${list.slice(0,5).map(folder=>`<button type="button" onclick="filterByHistoryFolder('${escapeAttr(folder.id)}',event)">${escapeHTML(folder.name)}</button>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
 }
-function folderCatalog(history=getHistory(),settings=getSettings()){
+function buildFolderCatalog(history=getHistory(),settings=getSettings()){
   const map=new Map();
   const add=folder=>{
     if(!folder?.id||!folder?.name)return;
@@ -3383,28 +3422,70 @@ function folderCatalog(history=getHistory(),settings=getSettings()){
   });
   return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
 }
-function folderById(folderId){
-  return folderCatalog().find(folder=>folder.id===folderId)||null;
+function folderCatalog(history=getHistory(),settings=getSettings()){
+  if(arguments.length)return buildFolderCatalog(history,settings);
+  return getHistoryDerived().catalog;
 }
-function itemFolderIds(item={}){
+function folderById(folderId){
+  return getHistoryDerived().folderMap.get(String(folderId||''))||null;
+}
+function normalizeItemFolderIds(item={},catalog=folderCatalog()){
   const normalized=normalizeHistoryItem(item);
   return uniq([
     ...(normalized.favorite?[FOLDER_LIKED_ID]:[]),
     ...normalized.folderIds,
     ...normalized.tags.map(legacyTagFolderId),
-  ]);
+  ]).filter(id=>catalog.some(folder=>folder.id===id));
+}
+function itemFolderIds(item={}){
+  const key=String(item?.id||'');
+  if(key&&historyDerivedCache?.itemFolderMap?.has(key))return historyDerivedCache.itemFolderMap.get(key);
+  return normalizeItemFolderIds(item);
 }
 function itemFolders(item={}){
-  const catalog=folderCatalog();
+  const derived=getHistoryDerived();
   const ids=new Set(itemFolderIds(item));
-  return catalog.filter(folder=>ids.has(folder.id));
+  return derived.catalog.filter(folder=>ids.has(folder.id));
 }
 function historyForFolder(folderId=folderState.activeId){
   const id=String(folderId||FOLDER_LIKED_ID);
-  return filterAndSortRawHistory(getHistory().filter(item=>itemFolderIds(item).includes(id)));
+  return getHistoryDerived().itemsByFolder.get(id)||[];
 }
 function filterAndSortRawHistory(history){
   return [...history].sort((a,b)=>historyPrimaryTime(b)-historyPrimaryTime(a));
+}
+function getHistoryDerived(){
+  if(historyDerivedCache)return historyDerivedCache;
+  const history=getHistory();
+  const settings=getSettings();
+  const catalog=buildFolderCatalog(history,settings);
+  const folderMap=new Map(catalog.map(folder=>[folder.id,folder]));
+  const itemFolderMap=new Map();
+  const statsMap=new Map(catalog.map(folder=>[folder.id,{...folder,count:0}]));
+  const itemsByFolder=new Map(catalog.map(folder=>[folder.id,[]]));
+  const normalizedHistory=history.map(item=>normalizeHistoryItem(item));
+  normalizedHistory.forEach((item,index)=>{
+    const ids=normalizeItemFolderIds(item,catalog);
+    itemFolderMap.set(String(item.id||history[index]?.id||index),ids);
+    ids.forEach(id=>{
+      const folder=folderMap.get(id);
+      if(!folder)return;
+      const stats=statsMap.get(id)||{...folder,count:0};
+      stats.count+=1;
+      statsMap.set(id,stats);
+      if(!itemsByFolder.has(id))itemsByFolder.set(id,[]);
+      itemsByFolder.get(id).push(history[index]);
+    });
+  });
+  itemsByFolder.forEach((items,id)=>{
+    itemsByFolder.set(id,filterAndSortRawHistory(items));
+  });
+  const stats=[...statsMap.values()].sort((a,b)=>{
+    if(a.system!==b.system)return a.system?-1:1;
+    return b.count-a.count||historyCollator.compare(a.name,b.name);
+  });
+  historyDerivedCache={history,settings,catalog,folderMap,itemFolderMap,stats,itemsByFolder};
+  return historyDerivedCache;
 }
 function upsertFavoriteFolder(folder,folders=[]){
   const normalized=normalizeFavoriteFolder(folder,0);
@@ -3493,6 +3574,7 @@ function renderFolderSelectModal(){
   if(!folderSelectContext||!els.folderSelectList)return;
   const selected=new Set(normalizeSelectableFolderIds(folderSelectContext.selectedIds));
   const catalog=folderCatalog();
+  const statsMap=new Map(folderStats().map(folder=>[folder.id,folder.count]));
   const isLookup=folderSelectContext.type==='lookup';
   const item=!isLookup?getHistory().find(row=>Number(row.id)===Number(folderSelectContext.historyId)):null;
   if(els.folderSelectTitle)els.folderSelectTitle.textContent=isLookup?'查询后加入收藏夹':'添加到收藏夹';
@@ -3503,7 +3585,7 @@ function renderFolderSelectModal(){
       <input type="checkbox" value="${escapeHTML(folder.id)}" ${selected.has(folder.id)?'checked':''} onchange="updateFolderSelectDraft()">
       <span>${folder.system?'★':'▣'}</span>
       <b>${escapeHTML(folder.name)}</b>
-      <em>${Number(folderStats().find(item=>item.id===folder.id)?.count||0)} 条</em>
+      <em>${Number(statsMap.get(folder.id)||0)} 条</em>
     </label>
   `).join('');
 }
@@ -3538,6 +3620,7 @@ function saveFolderSelection(){
   if(folderSelectContext.type==='lookup'){
     lookupFolderIds=ids;
     renderLookupFolderPicker();
+    saveLookupDraft();
     notify(ids.length?'已设置本次查询收藏夹。':'本次查询不会自动加入收藏夹。','good','收藏夹');
     closeFolderSelectModal();
     return;
@@ -3579,10 +3662,13 @@ function startLookupInFolder(folderId=folderState.activeId){
 }
 function renderFoldersView(){
   if(!els.folderSidebar||!els.folderHistoryList)return;
+  ensureFolderVisible();
   const folders=folderStats();
   if(!folders.some(folder=>folder.id===folderState.activeId))folderState.activeId=folders[0]?.id||FOLDER_LIKED_ID;
   const active=folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
   const items=historyForFolder(active.id);
+  const visible=items.slice(0,Math.min(folderState.visibleCount,items.length));
+  const more=visible.length<items.length;
   if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${items.length} 条`;
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
@@ -3616,7 +3702,11 @@ function renderFoldersView(){
     `;
   }
   els.folderHistoryList.innerHTML=items.length
-    ? items.map(renderFolderHistoryItem).join('')
+    ? visible.map(renderFolderHistoryItem).join('')+(more?`
+      <button class="history-load-more" type="button" onclick="loadMoreFolders()">
+        继续显示 ${Math.min(folderBatchSize(),items.length-visible.length)} 条
+      </button>
+    `:'')
     : '<div class="empty">这个收藏夹还没有记录。</div>';
 }
 function renderFolderHistoryItem(item){
@@ -4019,19 +4109,7 @@ function filterByHistoryFolder(folderId,event){
   rerenderHistoryFromStart();
 }
 function folderStats(){
-  const map=new Map();
-  folderCatalog().forEach(folder=>map.set(folder.id,{...folder,count:0}));
-  getHistory().forEach(item=>{
-    itemFolders(item).forEach(folder=>{
-      const stats=map.get(folder.id)||{...folder,count:0};
-      stats.count+=1;
-      map.set(folder.id,stats);
-    });
-  });
-  return [...map.values()].sort((a,b)=>{
-    if(a.system!==b.system)return a.system?-1:1;
-    return b.count-a.count||historyCollator.compare(a.name,b.name);
-  });
+  return getHistoryDerived().stats;
 }
 function renderFolderManager(){
   if(!els.folderManager)return;
@@ -4066,6 +4144,7 @@ function renderFolderManager(){
 function openFolderView(folderId){
   const value=String(folderId||FOLDER_LIKED_ID).trim();
   if(!value)return;
+  if(folderState.activeId!==value)folderState.visibleCount=0;
   folderState.activeId=value;
   showView('folders',document.getElementById('nav-folders'));
 }
@@ -4926,6 +5005,7 @@ function clearEditor(){
   els.query.value='';
   els.direction.value='';
   els.note.value='';
+  localStorage.removeItem(STORAGE_KEYS.lookupDraft);
   resetCurrentLookupState();
   updateEditorState();
 }
@@ -5451,12 +5531,14 @@ function renderAbout(){
     <div class="about-card">
       <div class="setting-title">更新记录</div>
       <div class="release-list">
-        ${CHANGELOG.map(entry=>`
-          <article class="release-item">
-            <div class="release-head"><b>v${escapeHTML(entry.version)}</b><span>${escapeHTML(entry.date)}</span></div>
-            <h3>${escapeHTML(entry.title)}</h3>
+        ${CHANGELOG.map((entry,index)=>`
+          <details class="release-item" ${index<3?'open':''}>
+            <summary>
+              <span class="release-head"><b>v${escapeHTML(entry.version)}</b><em>${escapeHTML(entry.date)}</em></span>
+              <strong>${escapeHTML(entry.title)}</strong>
+            </summary>
             <ul>${entry.items.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul>
-          </article>
+          </details>
         `).join('')}
       </div>
     </div>
@@ -5512,11 +5594,34 @@ function updateEditorState(){
   const hasText=Boolean(els.query.value.trim()||els.direction.value.trim()||els.note.value.trim());
   els.clearQueryBtn?.classList.toggle('hidden',!hasText);
 }
+function saveLookupDraft(){
+  const draft={
+    query:els.query?.value||'',
+    direction:els.direction?.value||'',
+    note:els.note?.value||'',
+    folderIds:normalizeSelectableFolderIds(lookupFolderIds),
+    updatedAt:new Date().toISOString(),
+  };
+  if(draft.query.trim()||draft.direction.trim()||draft.note.trim()||draft.folderIds.length){
+    writeJSON(STORAGE_KEYS.lookupDraft,draft);
+  }else{
+    localStorage.removeItem(STORAGE_KEYS.lookupDraft);
+  }
+}
+function hydrateLookupDraft(){
+  const draft=readJSON(STORAGE_KEYS.lookupDraft,null);
+  if(!draft||typeof draft!=='object')return;
+  if(els.query&&!els.query.value)els.query.value=String(draft.query||'');
+  if(els.direction&&!els.direction.value)els.direction.value=String(draft.direction||'');
+  if(els.note&&!els.note.value)els.note.value=String(draft.note||'');
+  lookupFolderIds=normalizeSelectableFolderIds(draft.folderIds||[]);
+}
 function handleQueryInput(){
   if(!els.query.value.trim()&&currentResult&&!lookupBusy){
     resetCurrentLookupState();
   }
   updateEditorState();
+  saveLookupDraft();
 }
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open'))closeConfirm(false);
@@ -5643,8 +5748,8 @@ els.query?.addEventListener('keydown',event=>{
     runLookup();
   }
 });
-els.direction?.addEventListener('input',updateEditorState);
-els.note?.addEventListener('input',updateEditorState);
+els.direction?.addEventListener('input',()=>{updateEditorState();saveLookupDraft()});
+els.note?.addEventListener('input',()=>{updateEditorState();saveLookupDraft()});
 els.modalJsonEdit?.addEventListener('input',()=>validateModalJSON(false));
 els.confirmCancel?.addEventListener('click',()=>closeConfirm(false));
 els.confirmOk?.addEventListener('click',()=>closeConfirm(true));
@@ -5656,6 +5761,7 @@ renderEmpty();
 hydrateSettings();
 setupHistoryImportDrop();
 renderHistory();
+hydrateLookupDraft();
 renderLookupFolderPicker();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
 ensureLayoutPreference(true);
