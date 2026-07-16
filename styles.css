@@ -122,26 +122,26 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .view.active{display:block;animation:enter .18s ease both}
 @keyframes enter{from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:none}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
-.workspace{min-height:calc(100vh - 108px);display:grid;gap:14px}
+.workspace{min-height:0;display:grid;gap:14px}
 .workspace.layout-top{grid-template-rows:auto auto}
 .workspace.layout-split{height:auto;min-height:calc(100vh - 108px);grid-template-columns:minmax(340px,.44fr) minmax(560px,1fr);align-items:start}
 .editor-pane{position:relative;display:grid;padding:10px 12px;gap:10px}
 #view-home .editor-pane{position:sticky;top:82px;z-index:820;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(18px);transition:top .18s ease,padding .18s ease,border-color .18s ease,box-shadow .18s ease}
-.layout-top .editor-pane{grid-template-columns:1fr;align-items:center}
+.layout-top .editor-pane{grid-template-columns:1fr;align-items:stretch;height:auto;min-height:0}
 .layout-split .editor-pane{align-content:start}
-.query-row{display:grid;grid-template-columns:minmax(420px,1.7fr) minmax(150px,260px) minmax(104px,176px) auto;gap:10px;align-items:center}
-.query-shell{position:relative;display:block;height:56px;min-height:56px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--panel) 70%,transparent);overflow:visible;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+.query-row{display:grid;grid-template-columns:minmax(520px,2.1fr) minmax(140px,240px) minmax(96px,168px) auto;gap:10px;align-items:center}
+.query-shell{position:relative;display:block;height:64px;min-height:64px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--panel) 70%,transparent);overflow:visible;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
 .query-shell:focus-within,.query-shell:hover{border-color:color-mix(in srgb,var(--accent) 70%,var(--line));box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 10%,transparent),inset 0 1px 0 color-mix(in srgb,var(--panel) 78%,transparent)}
-#query-input{display:block;width:100%;height:54px;min-height:54px;max-height:54px;resize:none;border:0;background:transparent;color:var(--text);padding:11px 66px 11px 24px;font-size:20px;font-weight:650;line-height:32px;overflow:hidden;outline:0}
+#query-input{display:block;width:100%;height:62px;min-height:62px;max-height:62px;resize:none;border:0;background:transparent;color:var(--text);padding:15px 68px 15px 26px;font-size:21px;font-weight:700;line-height:32px;overflow:hidden;outline:0}
 .clear-query-btn{position:absolute;right:22px;top:50%;z-index:30;width:28px;height:28px;border:1px solid color-mix(in srgb,var(--bad) 26%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--bad-bg) 72%,var(--panel));color:var(--bad);display:grid;place-items:center;font-size:16px;font-weight:800;line-height:1;cursor:pointer;opacity:.9;transform:translateY(-50%) scale(.9);transition:opacity .16s ease,transform .16s ease,background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
 .clear-query-btn:hover,.clear-query-btn:focus-visible{opacity:1;transform:translateY(-50%) scale(1.08);background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 36%,var(--line));color:var(--bad);box-shadow:0 6px 16px color-mix(in srgb,var(--bad) 12%,transparent);outline:0}
 .clear-query-btn:active{transform:translateY(-50%) scale(.88)}
-.assist-fields{display:grid;grid-template-columns:1fr;gap:6px;height:56px;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--panel2);padding:7px 14px;transition:border-color .16s ease,box-shadow .16s ease}
+.assist-fields{display:grid;grid-template-columns:1fr;gap:6px;height:48px;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--panel2);padding:6px 14px;transition:border-color .16s ease,box-shadow .16s ease}
 .assist-fields:hover,.assist-fields:focus-within{border-color:var(--accent);box-shadow:0 12px 30px color-mix(in srgb,var(--accent) 8%,transparent)}
 .assist-fields input{width:100%;min-width:0;border:0;background:transparent;color:var(--text);font-size:14px;font-weight:550;outline:0}
 .assist-fields input+input{display:none}
 .query-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:none}
-.query-actions .primary-icon{width:56px;min-width:56px;height:56px}
+.query-actions .primary-icon{width:48px;min-width:48px;height:48px}
 .lookup-queue{display:none;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 78%,var(--panel));padding:10px;gap:9px}
 .lookup-queue.open{display:grid}
 .queue-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px;font-weight:800}
@@ -155,7 +155,7 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .queue-actions{display:flex;align-items:center;gap:4px}
 .queue-actions .icon-btn{width:30px;min-width:30px;height:30px;font-size:13px}
 .lookup-folder-strip{min-width:0;display:flex;align-items:center;gap:8px}
-.lookup-folder-trigger{width:100%;min-width:0;height:56px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--accent-bg) 34%,transparent);color:var(--muted);padding:0 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;font-size:13px;font-weight:850;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.lookup-folder-trigger{width:100%;min-width:0;height:48px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--accent-bg) 34%,transparent);color:var(--muted);padding:0 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px;font-size:13px;font-weight:850;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
 .lookup-folder-trigger:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent) 38%,var(--line));background:var(--accent-bg);color:var(--accent)}
 .lookup-folder-trigger span{color:var(--soft)}
 .lookup-folder-trigger b{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
@@ -176,6 +176,8 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .layout-split .result-pane{height:calc(100vh - 108px);min-height:620px}
 .layout-top .result-pane{display:block}
 .layout-top .result-page{overflow:visible}
+.layout-top .result-pane:has(.empty){min-height:180px}
+.layout-top .result-page:has(.empty){min-height:128px}
 #query-input::placeholder,.cloud-input::placeholder{color:var(--soft)}
 .home-scrolled .topbar{margin-bottom:8px;padding:4px 0}
 .home-scrolled .app-title{font-size:22px}
@@ -242,7 +244,7 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .json-view.json-typing .json-section.typing pre:after,.json-stream-loading pre:after{content:"";display:inline-block;width:7px;height:1.1em;margin-left:4px;border-radius:999px;background:var(--accent);vertical-align:-.18em;animation:streamCaret 1s ease-in-out infinite}
 .json-stream-loading{height:100%;min-height:280px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:14px;overflow:auto;color:var(--muted)}
 .json-stream-loading pre{margin:0;white-space:pre-wrap;font-family:var(--font-mono);font-size:13px;line-height:1.65}
-.empty{height:100%;display:grid;place-items:center;color:var(--soft);font-size:20px;font-weight:650}
+.empty{min-height:120px;display:grid;place-items:center;color:var(--soft);font-size:20px;font-weight:650}
 .lookup-state{height:100%;min-height:300px;display:grid;place-items:center;color:var(--muted);text-align:left;padding:24px}
 .lookup-stream{position:relative;display:grid;gap:14px;min-height:100%;padding:4px 0 18px}
 .lookup-progress-badge{position:sticky;top:4px;z-index:25;justify-self:end;display:flex;align-items:center;gap:8px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(14px);box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent);font-size:13px;font-weight:900;padding:6px 10px}

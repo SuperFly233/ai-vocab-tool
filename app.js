@@ -121,12 +121,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.4',
+  version:'0.11.5',
   releaseDate:'2026-07-16',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.5',
+    date:'2026-07-16',
+    title:'收回首页空态巨型留白',
+    items:['修复首页顶栏布局下输入卡片被空工作区撑成巨型面板的问题；空结果态改为轻量高度，搜索区按内容高度收缩。'],
+  },
   {
     version:'0.11.4',
     date:'2026-07-16',
