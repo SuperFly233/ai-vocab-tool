@@ -121,12 +121,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.5',
+  version:'0.11.6',
   releaseDate:'2026-07-16',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.6',
+    date:'2026-07-16',
+    title:'修正首页空态铺底和搜索吸顶',
+    items:['首页无结果时，结果面板重新铺到首屏底部，避免页面下方露出不对齐的空白背景。','滚动后标题栏收起，搜索区固定到视口顶部，确保主搜索框、方向、收藏夹和查询按钮都能真正贴顶可见。'],
+  },
   {
     version:'0.11.5',
     date:'2026-07-16',

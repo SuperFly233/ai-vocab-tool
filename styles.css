@@ -176,13 +176,13 @@ body.cloud-logged-in .account-form #account-email{display:none}
 .layout-split .result-pane{height:calc(100vh - 108px);min-height:620px}
 .layout-top .result-pane{display:block}
 .layout-top .result-page{overflow:visible}
-.layout-top .result-pane:has(.empty){min-height:180px}
-.layout-top .result-page:has(.empty){min-height:128px}
+.layout-top .result-pane:has(.empty){min-height:max(360px,calc(100vh - 292px))}
+.layout-top .result-page:has(.empty){min-height:calc(max(360px,calc(100vh - 292px)) - 66px)}
 #query-input::placeholder,.cloud-input::placeholder{color:var(--soft)}
-.home-scrolled .topbar{margin-bottom:8px;padding:4px 0}
+.home-scrolled .topbar{height:0;margin:0;padding:0;opacity:0;overflow:hidden;pointer-events:none}
 .home-scrolled .app-title{font-size:22px}
 .home-scrolled .app-sub{font-size:12px;opacity:.72}
-.home-scrolled #view-home .editor-pane{top:62px;padding:7px 10px;border-color:color-mix(in srgb,var(--accent) 18%,var(--line));box-shadow:0 14px 36px color-mix(in srgb,var(--accent) 8%,transparent),var(--shadow)}
+.home-scrolled #view-home .editor-pane{top:0;z-index:960;padding:7px 10px;border-color:color-mix(in srgb,var(--accent) 18%,var(--line));box-shadow:0 14px 36px color-mix(in srgb,var(--accent) 8%,transparent),var(--shadow)}
 .home-scrolled .layout-top .query-row{grid-template-columns:minmax(280px,1fr) minmax(190px,300px) minmax(104px,184px) auto}
 .home-scrolled .layout-top .query-shell{height:48px;min-height:48px}
 .home-scrolled .layout-top #query-input{height:46px;min-height:46px;max-height:46px;padding:9px 58px 9px 20px;font-size:17px;line-height:28px}
@@ -811,10 +811,10 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .nav-item:hover{transform:translateY(-1px) scale(1.02)}
   .topbar{top:0;z-index:900;padding:8px 0;background:color-mix(in srgb,var(--bg) 86%,transparent)}
   #view-home .editor-pane{top:72px;z-index:820}
-  .home-scrolled .topbar{padding:5px 0;margin-bottom:8px}
+  .home-scrolled .topbar{height:0;margin:0;padding:0;opacity:0;overflow:hidden;pointer-events:none}
   .home-scrolled .app-title{font-size:20px}
   .home-scrolled .app-sub{font-size:11px}
-  .home-scrolled #view-home .editor-pane{top:58px;padding:7px}
+  .home-scrolled #view-home .editor-pane{top:0;z-index:960;padding:7px}
   .home-scrolled .layout-top .query-row{grid-template-columns:minmax(0,1fr) auto;gap:7px}
   .home-scrolled .layout-top .query-shell{height:46px;min-height:46px}
   .home-scrolled .layout-top #query-input{height:44px;min-height:44px;max-height:44px;padding:8px 50px 8px 16px;font-size:16px;line-height:26px}
