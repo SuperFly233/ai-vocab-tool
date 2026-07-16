@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="./styles.css?v=0.11.6">
+<link rel="stylesheet" href="./styles.css?v=0.11.7">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -369,7 +369,7 @@
         <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
         <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">📋</button>
         <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">💾</button>
-        <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
+        <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
       </div>
     </div>
     <div class="modal-body" id="history-modal-body">
@@ -497,6 +497,6 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./app.js?v=0.11.6"></script>
+<script src="./app.js?v=0.11.7"></script>
 </body>
 </html>

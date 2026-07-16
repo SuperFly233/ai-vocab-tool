@@ -43,6 +43,13 @@ Expected behavior:
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
+
+## Latest UI Notes
+
+- v0.11.7 adjusts the mobile Home lookup controls into two rows: the main search field spans the first two columns with the search button fixed beside it, while language direction and folder selection share the second row.
+- On mobile Home scroll, the lookup editor becomes fixed at the viewport top with a spacer on the workspace, so the compact search controls remain visible instead of only animating out of view.
+- History detail modals now keep the close button fixed at the top-right, keep version tabs and regenerate on one row, and support left-edge swipe-to-close.
+- Version, API profile, and visual editor item ordering use long-press pointer drag. `dedupeRolls()` preserves input order so manual version ordering is not undone by normalization.
 - UI busy state and the actual cloud read/write lock are separate; login status messages must not block `bootstrapCloudSync()`.
 - Browser sync tries Supabase REST directly first; on mobile-style network errors such as `TypeError: Load failed`, it falls back to same-origin `/api/sync`, which verifies the Supabase session token and reads/writes `public.study_store` from Vercel. The fallback token path reads the local Supabase session cache before calling SDK `getSession()`.
 

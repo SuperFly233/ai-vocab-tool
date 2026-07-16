@@ -51,6 +51,11 @@ let pendingFollowup=null;
 let lookupFolderIds=[];
 let folderSelectContext=null;
 let folderDragState=null;
+let modalSwipeState=null;
+let visualPointerDragState=null;
+let apiProfilePointerDragState=null;
+let rollPointerDragState=null;
+let suppressRollClick=false;
 let historyDerivedCache=null;
 let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
@@ -121,12 +126,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.6',
+  version:'0.11.7',
   releaseDate:'2026-07-16',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.7',
+    date:'2026-07-16',
+    title:'优化移动端搜索吸顶与详情页操作栏',
+    items:['手机首页搜索区改为两行：主搜索框和搜索按钮同行，语言方向和收藏夹同行，避免控件堆成三四行。','首页滚动后搜索区在移动端固定到视口顶部，并补足占位，避免吸顶动画有但控件不可见。','历史详情页关闭按钮固定在右上角，版本列表和重新生成按钮合并为同一行，版本过多时横向滑动。','详情页支持从屏幕左缘右滑关闭；版本、API 配置和可视化编辑块增加长按拖动排序入口。'],
+  },
   {
     version:'0.11.6',
     date:'2026-07-16',
@@ -1463,7 +1474,6 @@ function dedupeRolls(rolls){
   const seen=new Set();
   return [...(Array.isArray(rolls)?rolls:[])]
     .filter(Boolean)
-    .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
     .filter(roll=>{
       const key=historyRollContentKey(roll);
       if(seen.has(key))return false;
@@ -4607,6 +4617,170 @@ function autoScrollDuringDrag(clientY){
   else if(clientY>rect.bottom-edge)delta=Math.round(maxSpeed*(1-(rect.bottom-clientY)/edge));
   if(delta)scroller.scrollBy({top:delta,behavior:'auto'});
 }
+function reorderDropMeta(clientX,clientY,itemSelector,scope=null){
+  const element=document.elementFromPoint(clientX,clientY);
+  const item=element?.closest?.(itemSelector);
+  if(!item||scope&&!scope.contains(item))return null;
+  const rect=item.getBoundingClientRect();
+  return {item,after:clientY>rect.top+rect.height/2};
+}
+function clearDropMarks(selector){
+  document.querySelectorAll(`${selector}.drop-before,${selector}.drop-after`).forEach(node=>node.classList.remove('drop-before','drop-after'));
+}
+function markDropTarget(meta){
+  if(!meta)return;
+  meta.item.classList.add(meta.after?'drop-after':'drop-before');
+}
+function startVisualPointerDrag(event){
+  const handle=event.target.closest('.drag-handle');
+  const card=event.target.closest('.visual-card');
+  if(!handle||!card)return;
+  visualPointerDragState={
+    pointerId:event.pointerId,
+    kind:card.dataset.visualKind,
+    from:Number(card.dataset.index),
+    active:false,
+    target:null,
+    timer:setTimeout(()=>{
+      if(!visualPointerDragState)return;
+      visualPointerDragState.active=true;
+      card.classList.add('dragging');
+      card.setPointerCapture?.(event.pointerId);
+    },260),
+  };
+}
+function moveVisualPointerDrag(event){
+  const state=visualPointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  if(!state.active)return;
+  event.preventDefault();
+  autoScrollDuringDrag(event.clientY);
+  clearDropMarks('.visual-card');
+  const meta=reorderDropMeta(event.clientX,event.clientY,`.visual-card[data-visual-kind="${state.kind}"]`,els.modalVisualEditor);
+  state.target=meta;
+  markDropTarget(meta);
+}
+function endVisualPointerDrag(event){
+  const state=visualPointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  clearTimeout(state.timer);
+  document.querySelectorAll('.visual-card.dragging').forEach(node=>node.classList.remove('dragging'));
+  clearDropMarks('.visual-card');
+  visualPointerDragState=null;
+  if(!state.active||!state.target)return;
+  const toBase=Number(state.target.item.dataset.index);
+  let to=toBase+(state.target.after?1:0);
+  if(state.from<to)to-=1;
+  moveVisualItem(state.kind,state.from,to-state.from);
+}
+function startApiProfilePointerDrag(event){
+  const handle=event.target.closest('.api-profile-drag');
+  const option=event.target.closest('.api-profile-option');
+  if(!handle||!option)return;
+  apiProfilePointerDragState={
+    pointerId:event.pointerId,
+    from:Number(option.dataset.profileIndex),
+    active:false,
+    target:null,
+    timer:setTimeout(()=>{
+      if(!apiProfilePointerDragState)return;
+      apiProfilePointerDragState.active=true;
+      option.classList.add('dragging');
+      option.setPointerCapture?.(event.pointerId);
+    },260),
+  };
+}
+function moveApiProfilePointerDrag(event){
+  const state=apiProfilePointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  if(!state.active)return;
+  event.preventDefault();
+  autoScrollDuringDrag(event.clientY);
+  clearApiProfileDropMarks();
+  const meta=reorderDropMeta(event.clientX,event.clientY,'.api-profile-option',els.apiProfileMenu);
+  state.target=meta;
+  markDropTarget(meta);
+}
+function endApiProfilePointerDrag(event){
+  const state=apiProfilePointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  clearTimeout(state.timer);
+  endApiProfileDrag();
+  apiProfilePointerDragState=null;
+  if(!state.active||!state.target)return;
+  const toBase=Number(state.target.item.dataset.profileIndex);
+  let to=toBase+(state.target.after?1:0);
+  if(state.from<to)to-=1;
+  reorderApiProfile(state.from,to);
+}
+function startRollPointerDrag(event){
+  const roll=event.target.closest('.roll-btn');
+  if(!roll)return;
+  rollPointerDragState={
+    pointerId:event.pointerId,
+    from:Number(roll.dataset.rollIndex),
+    active:false,
+    target:null,
+    timer:setTimeout(()=>{
+      if(!rollPointerDragState)return;
+      rollPointerDragState.active=true;
+      suppressRollClick=true;
+      roll.classList.add('dragging');
+      roll.setPointerCapture?.(event.pointerId);
+    },320),
+  };
+}
+function moveRollPointerDrag(event){
+  const state=rollPointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  if(!state.active)return;
+  event.preventDefault();
+  autoScrollDuringDrag(event.clientY);
+  clearDropMarks('.roll-btn');
+  const meta=reorderDropMeta(event.clientX,event.clientY,'.roll-btn',els.modalRollbar);
+  state.target=meta;
+  markDropTarget(meta);
+}
+function endRollPointerDrag(event){
+  const state=rollPointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  clearTimeout(state.timer);
+  document.querySelectorAll('.roll-btn.dragging').forEach(node=>node.classList.remove('dragging'));
+  clearDropMarks('.roll-btn');
+  rollPointerDragState=null;
+  if(!state.active||!state.target){
+    setTimeout(()=>{suppressRollClick=false},180);
+    return;
+  }
+  const toBase=Number(state.target.item.dataset.rollIndex);
+  let to=toBase+(state.target.after?1:0);
+  if(state.from<to)to-=1;
+  moveModalRoll(state.from,to);
+  setTimeout(()=>{suppressRollClick=false},180);
+}
+function startHistoryModalEdgeSwipe(event){
+  if(!els.historyModal?.classList.contains('open'))return;
+  const touch=event.touches?.[0];
+  if(!touch||touch.clientX>28)return;
+  modalSwipeState={startX:touch.clientX,startY:touch.clientY,active:true};
+}
+function moveHistoryModalEdgeSwipe(event){
+  if(!modalSwipeState?.active)return;
+  const touch=event.touches?.[0];
+  if(!touch)return;
+  const dx=touch.clientX-modalSwipeState.startX;
+  const dy=Math.abs(touch.clientY-modalSwipeState.startY);
+  els.historyModal?.querySelector('.modal-card')?.classList.toggle('swipe-peek',dx>40&&dy<70);
+}
+function endHistoryModalEdgeSwipe(event){
+  if(!modalSwipeState?.active)return;
+  const touch=event.changedTouches?.[0];
+  const dx=(touch?.clientX||0)-modalSwipeState.startX;
+  const dy=Math.abs((touch?.clientY||0)-modalSwipeState.startY);
+  els.historyModal?.querySelector('.modal-card')?.classList.remove('swipe-peek');
+  modalSwipeState=null;
+  if(dx>96&&dy<80)closeHistoryModal();
+}
 function saveVisualHistoryEdit(){
   const data=collectVisualResult();
   modalResult=data;
@@ -4735,7 +4909,7 @@ function renderModalRollbar(item){
   els.modalRollbar.innerHTML=`
     <div class="roll-tabs">
       ${rolls.map((roll,index)=>`
-        <button class="roll-btn ${historyRollViewKey(roll,index)===String(modalRollId)?'active':''}" onclick="setModalRoll(${jsArg(historyRollViewKey(roll,index))})">
+        <button class="roll-btn ${historyRollViewKey(roll,index)===String(modalRollId)?'active':''}" data-roll-index="${index}" data-roll-key="${escapeAttr(historyRollViewKey(roll,index))}" onclick="setModalRoll(${jsArg(historyRollViewKey(roll,index))})">
           <span>版本 ${rolls.length-index}</span>
           <em>${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN',{hour12:false}))}</em>
           <strong>${escapeHTML(roll.model||'未记录')}</strong>
@@ -4760,6 +4934,27 @@ function setModalRoll(rollId){
   renderModalRollbar(item);
   renderModalStickySummary(roll.result,item);
   validateModalJSON(false);
+}
+function moveModalRoll(from,to){
+  const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+  if(!item)return;
+  const normalized=normalizeHistoryItem(item);
+  const rolls=[...getHistoryRolls(normalized)];
+  if(from<0||from>=rolls.length)return;
+  const target=Math.max(0,Math.min(rolls.length-1,to));
+  if(target===from)return;
+  const [roll]=rolls.splice(from,1);
+  rolls.splice(target,0,roll);
+  modalRollId=historyRollViewKey(roll,target);
+  const updated={...normalized,rolls,result:roll.result,updatedAt:new Date().toISOString()};
+  setHistory(getHistory().map(row=>Number(row.id)===Number(modalHistoryId)?updated:row));
+  modalResult=roll.result;
+  els.modalCardPage.innerHTML=renderResultHTML(roll.result,updated.followups||[],'modal',updated);
+  els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
+  renderVisualEditor(roll.result);
+  renderModalRollbar(updated);
+  renderModalStickySummary(roll.result,updated);
+  notify('版本顺序已调整。','good','版本');
 }
 function validateModalJSON(showSuccess=true){
   if(!els.modalJsonEdit)return false;
@@ -5675,9 +5870,26 @@ els.historySearchScopeMenu?.addEventListener('click',event=>{
   if(option)return toggleHistorySearchScope(option.dataset.scope);
 });
 els.historyModalBody?.addEventListener('scroll',updateHistoryModalScrollState,{passive:true});
+els.historyModal?.addEventListener('touchstart',startHistoryModalEdgeSwipe,{passive:true});
+els.historyModal?.addEventListener('touchmove',moveHistoryModalEdgeSwipe,{passive:true});
+els.historyModal?.addEventListener('touchend',endHistoryModalEdgeSwipe,{passive:true});
+els.modalRollbar?.addEventListener('pointerdown',startRollPointerDrag);
+els.modalRollbar?.addEventListener('pointermove',moveRollPointerDrag);
+els.modalRollbar?.addEventListener('pointerup',endRollPointerDrag);
+els.modalRollbar?.addEventListener('pointercancel',endRollPointerDrag);
+els.modalRollbar?.addEventListener('click',event=>{
+  if(!suppressRollClick)return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressRollClick=false;
+},true);
 els.modalVisualEditor?.addEventListener('focusin',event=>{
   event.target.closest?.('.visual-field-hinted')?.classList.remove('hint-dismissed');
 });
+els.modalVisualEditor?.addEventListener('pointerdown',startVisualPointerDrag);
+els.modalVisualEditor?.addEventListener('pointermove',moveVisualPointerDrag);
+els.modalVisualEditor?.addEventListener('pointerup',endVisualPointerDrag);
+els.modalVisualEditor?.addEventListener('pointercancel',endVisualPointerDrag);
 els.modalVisualEditor?.addEventListener('click',event=>{
   const close=event.target.closest('.visual-hint-close');
   if(!close)return;
@@ -5721,6 +5933,10 @@ els.apiProfileMenu?.addEventListener('dragleave',event=>{
 });
 els.apiProfileMenu?.addEventListener('dragend',endApiProfileDrag);
 els.apiProfileMenu?.addEventListener('drop',dropApiProfile);
+els.apiProfileMenu?.addEventListener('pointerdown',startApiProfilePointerDrag);
+els.apiProfileMenu?.addEventListener('pointermove',moveApiProfilePointerDrag);
+els.apiProfileMenu?.addEventListener('pointerup',endApiProfilePointerDrag);
+els.apiProfileMenu?.addEventListener('pointercancel',endApiProfilePointerDrag);
 els.apiModelList?.addEventListener('click',event=>{
   const option=event.target.closest('.model-choice');
   if(!option)return;
