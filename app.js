@@ -12,6 +12,7 @@ const STORAGE_KEYS={
   layout:'ai_vocab_tool_layout',
   logs:'ai_vocab_tool_logs_v1',
   lookupDraft:'ai_vocab_tool_lookup_draft_v1',
+  lookupTasks:'ai_vocab_tool_lookup_tasks_v1',
 };
 const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
@@ -47,6 +48,8 @@ let lookupRunId=0;
 let lookupQueueId=0;
 let lookupQueue=[];
 let activeLookupSignature='';
+let activeLookupRequest=null;
+let lookupRecoveryPending=false;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -136,12 +139,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.12',
+  version:'0.11.13',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.13',
+    date:'2026-07-26',
+    title:'恢复刷新或崩溃中断的查询队列',
+    items:['正在查询的请求和后续排队项会持续保存到本机；页面刷新或浏览器崩溃后，未完成任务会按原顺序恢复。','恢复前会对照历史保存时间，已经成功落库或由云同步带回的结果不会重复调用模型。','恢复任务只留在发起查询的设备，不跨设备自动执行，避免多端重复请求和额外 API 消耗。'],
+  },
   {
     version:'0.11.12',
     date:'2026-07-26',
@@ -893,6 +902,7 @@ function renderAuthGate(){
     els.storageStatus.textContent=cloudUser?'localStorage + Supabase 自动同步':'localStorage，本机本浏览器记录。';
   }
   if(!couldEnter&&canEnterApp())focusQueryInput();
+  if(canEnterApp())scheduleRecoveredLookups();
 }
 function authRedirectTo(){
   return `${location.origin}${location.pathname}`;
@@ -1729,6 +1739,7 @@ async function bootstrapCloudSync(mode='ask',manual=false){
     notify(message,'bad','同步失败');
   }finally{
     setCloudBusy(false,false);
+    if(lookupRecoveryPending)hydrateLookupTasks();
     flushQueuedCloudSync();
   }
 }
@@ -2920,16 +2931,46 @@ async function submitLookup(request){
 }
 function lookupRequestSignature(request){
   if(!request)return'';
-  const query=normalizeSearch(request.query||'');
-  const direction=normalizeSearch(request.direction||'');
-  const note=normalizeSearch(request.note||'');
-  const existingId=String(request.existingId||'');
-  const folders=normalizeSelectableFolderIds(request.folderIds||[]).sort().join(',');
-  return [query,direction,note,existingId,folders].join('\u001f');
+  return LookupTasks.requestSignature({...request,folderIds:normalizeSelectableFolderIds(request.folderIds||[])});
+}
+function storableLookupRequest(request,extra={}){
+  return LookupTasks.normalizeRequest({...request,...extra,folderIds:normalizeSelectableFolderIds(request?.folderIds||[])});
+}
+function persistLookupTasks(){
+  const active=lookupBusy&&activeLookupRequest?storableLookupRequest(activeLookupRequest):null;
+  const queue=lookupQueue.map(item=>storableLookupRequest(item)).filter(Boolean);
+  if(!active&&!queue.length){
+    localStorage.removeItem(STORAGE_KEYS.lookupTasks);
+    return;
+  }
+  writeJSON(STORAGE_KEYS.lookupTasks,{active,queue,savedAt:new Date().toISOString()});
+}
+function hydrateLookupTasks(){
+  const recovered=LookupTasks.recoverRequests(readJSON(STORAGE_KEYS.lookupTasks,{}),getHistory());
+  lookupQueue=recovered.map(item=>({
+    ...item,
+    id:++lookupQueueId,
+    queuedAt:item.queuedAt||new Date().toISOString(),
+    signature:lookupRequestSignature(item),
+  }));
+  lookupRecoveryPending=lookupQueue.length>0;
+  renderLookupQueue();
+  persistLookupTasks();
+  scheduleRecoveredLookups();
+  return lookupQueue.length;
+}
+function scheduleRecoveredLookups(){
+  if(!lookupRecoveryPending||lookupBusy||!lookupQueue.length||!canEnterApp())return;
+  if(cloudUser&&!cloudBootstrapped)return;
+  lookupRecoveryPending=false;
+  const count=lookupQueue.length;
+  notify(`已恢复 ${count} 个未完成查询，将从中断处继续。`,'info','恢复查询');
+  setTimeout(processNextLookup,80);
 }
 function enqueueLookup(request){
   const item={...request,id:++lookupQueueId,queuedAt:new Date().toISOString(),signature:lookupRequestSignature(request)};
   lookupQueue.push(item);
+  persistLookupTasks();
   renderLookupQueue();
   notify(`“${item.query}” 已加入查询队列。`,'info','已排队');
 }
@@ -2949,7 +2990,7 @@ function renderLookupQueue(){
           <div class="queue-index">${index+1}</div>
           <div class="queue-copy">
             <strong>${escapeHTML(item.query)}</strong>
-            <span>${escapeHTML([item.direction,item.note,foldersFromIds(item.folderIds||[]).map(folder=>folder.name).join('、')].filter(Boolean).join(' · ')||'默认规则')}</span>
+            <span>${item.recovered?'恢复任务 · ':''}${escapeHTML([item.direction,item.note,foldersFromIds(item.folderIds||[]).map(folder=>folder.name).join('、')].filter(Boolean).join(' · ')||'默认规则')}</span>
           </div>
           <div class="queue-actions">
             <button class="icon-btn" data-tip="上移" onclick="moveLookupQueueItem(${Number(item.id)},-1)">↑</button>
@@ -2969,6 +3010,7 @@ function moveLookupQueueItem(id,delta){
   if(nextIndex===index)return;
   const [item]=lookupQueue.splice(index,1);
   lookupQueue.splice(nextIndex,0,item);
+  persistLookupTasks();
   renderLookupQueue();
 }
 function promoteLookupQueueItem(id){
@@ -2976,14 +3018,18 @@ function promoteLookupQueueItem(id){
   if(index<=0)return;
   const [item]=lookupQueue.splice(index,1);
   lookupQueue.unshift(item);
+  persistLookupTasks();
   renderLookupQueue();
 }
 function removeLookupQueueItem(id){
   lookupQueue=lookupQueue.filter(item=>Number(item.id)!==Number(id));
+  persistLookupTasks();
   renderLookupQueue();
 }
 function clearLookupQueue(){
   lookupQueue=[];
+  lookupRecoveryPending=false;
+  persistLookupTasks();
   renderLookupQueue();
 }
 function processNextLookup(){
@@ -3002,15 +3048,17 @@ function applyLookupRequestToEditor(request){
   renderLookupFolderPicker();
   updateEditorState();
 }
-async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,folderIds=[]}){
-  const request={query,existingId,sourceItem,direction,note,folderIds:normalizeSelectableFolderIds(folderIds)};
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,folderIds=[],recovered=false}){
+  const request={query,existingId,sourceItem,direction,note,folderIds:normalizeSelectableFolderIds(folderIds),recovered};
   const settings=currentApiSettings();
   lookupBusy=true;
   activeLookupSignature=lookupRequestSignature(request);
+  activeLookupRequest=storableLookupRequest(request,{startedAt:new Date().toISOString()});
+  persistLookupTasks();
   const runId=++lookupRunId;
   document.body.classList.add('lookup-busy');
   renderLookupLoading(query,settings,runId);
-  notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
+  if(!recovered)notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   const modelInfo=lookupModelInfo(settings,hasLocalEndpoint);
   const payload={
@@ -3038,6 +3086,8 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     if(runId===lookupRunId){
       lookupBusy=false;
       activeLookupSignature='';
+      activeLookupRequest=null;
+      persistLookupTasks();
       document.body.classList.remove('lookup-busy');
       processNextLookup();
     }
@@ -5345,6 +5395,8 @@ function resetCurrentLookupState(){
   clearResultTypewriter();
   lookupRunId+=1;
   lookupBusy=false;
+  activeLookupSignature='';
+  activeLookupRequest=null;
   clearLookupQueue();
   document.body.classList.remove('lookup-busy');
   currentResult=null;
@@ -5830,6 +5882,16 @@ async function factoryReset(){
   localStorage.removeItem(STORAGE_KEYS.theme);
   localStorage.removeItem(STORAGE_KEYS.layout);
   localStorage.removeItem(STORAGE_KEYS.logs);
+  localStorage.removeItem(STORAGE_KEYS.lookupDraft);
+  localStorage.removeItem(STORAGE_KEYS.lookupTasks);
+  lookupRunId+=1;
+  lookupBusy=false;
+  activeLookupSignature='';
+  activeLookupRequest=null;
+  lookupQueue=[];
+  lookupRecoveryPending=false;
+  document.body.classList.remove('lookup-busy');
+  renderLookupQueue();
   currentResult=null;
   currentHistoryId=null;
   currentFollowups=[];
@@ -6140,6 +6202,7 @@ setupHistoryImportDrop();
 renderHistory();
 hydrateLookupDraft();
 renderLookupFolderPicker();
+hydrateLookupTasks();
 applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
 ensureLayoutPreference(true);
 updateEditorState();

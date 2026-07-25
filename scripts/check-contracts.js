@@ -27,6 +27,7 @@ const versions = {
   cssAsset: firstMatch(html, /\/styles\.css\?v=([\d.]+)/),
   jsAsset: firstMatch(html, /\/app\.js\?v=([\d.]+)/),
   historyAsset: firstMatch(html, /\/history-data\.js\?v=([\d.]+)/),
+  lookupTasksAsset: firstMatch(html, /\/lookup-tasks\.js\?v=([\d.]+)/),
   changelog: firstMatch(changelog, /^## v([\d.]+)/m),
   readme: firstMatch(readme, /^- v([\d.]+)/m),
   context: firstMatch(projectContext, /^- v([\d.]+)/m),
@@ -62,6 +63,7 @@ expect(!missingHandlers.length, `内联交互引用了不存在的函数：${mis
 expect(/href="\/styles\.css\?v=/.test(html), 'styles.css 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/app\.js\?v=/.test(html), 'app.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/history-data\.js\?v=/.test(html), 'history-data.js 必须使用根绝对路径，避免二级 URL 加载失败');
+expect(/src="\/lookup-tasks\.js\?v=/.test(html), 'lookup-tasks.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(app.includes("historyTombstones:'ai_vocab_tool_history_tombstones'"), '前端同步键缺少历史删除墓碑');
 expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白名单缺少历史删除墓碑');
 
