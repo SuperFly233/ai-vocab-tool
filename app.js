@@ -60,6 +60,7 @@ let historyDerivedCache=null;
 let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
+let homeEmptyLayoutTimer=null;
 const activeToasts=new Map();
 const FOLDER_LIKED_ID='liked';
 const FOLDER_UNFILED_ID='unfiled';
@@ -126,12 +127,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.7',
+  version:'0.11.8',
   releaseDate:'2026-07-16',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.8',
+    date:'2026-07-16',
+    title:'校准详情页关闭键与首页空状态',
+    items:['历史详情页关闭键从横向工具栏中拆出，直接固定在弹窗右上角，桌面端和手机端都不再跟随按钮流错位。','首页等待查询面板改为读取当前视口、侧栏和移动底栏的真实边界，底部与页面框架对齐；等待文字在结果内容区严格水平、垂直居中。'],
+  },
   {
     version:'0.11.7',
     date:'2026-07-16',
@@ -1747,7 +1754,10 @@ function showView(id,button){
   if(id==='settings')renderSettings();
   if(id==='about')renderAbout();
   updateHomeStickyState();
-  if(id==='home')focusQueryInput();
+  if(id==='home'){
+    focusQueryInput();
+    updateHomeEmptyLayout();
+  }
 }
 function goHomeAndFocus(){
   showView('home',document.getElementById('nav-home'));
@@ -1781,6 +1791,7 @@ function setResultTab(id,button){
   document.getElementById(id==='card'?'result-card':'result-json').classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
   button.classList.add('active');
+  updateHomeEmptyLayout();
 }
 function setModalTab(id,button){
   document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id===`modal-${id}-page`));
@@ -1789,12 +1800,36 @@ function setModalTab(id,button){
   els.historyModal?.querySelector('.modal-card')?.classList.toggle('editing-mode',id!=='card');
   if(id==='json')validateModalJSON(false);
 }
+function updateHomeEmptyLayout(){
+  const resultPane=document.querySelector('#view-home .result-pane');
+  const activePage=resultPane?.querySelector('.result-page.active');
+  const isEmpty=activePage?.firstElementChild?.classList.contains('empty');
+  if(!resultPane||activeView!=='home'||!isEmpty||!els.workspace?.classList.contains('layout-top')){
+    resultPane?.style.removeProperty('--home-empty-height');
+    return;
+  }
+  const measure=()=>{
+    if(activeView!=='home'||!activePage.isConnected)return;
+    const paneTop=resultPane.getBoundingClientRect().top;
+    const mobileNav=document.querySelector('.sidebar');
+    const mobile=window.matchMedia('(max-width:900px)').matches;
+    const viewportBottom=mobile&&mobileNav
+      ? mobileNav.getBoundingClientRect().top-12
+      : Math.min(window.innerHeight-22,mobileNav?.getBoundingClientRect().bottom||window.innerHeight-22);
+    const available=Math.max(320,Math.floor(viewportBottom-paneTop));
+    resultPane.style.setProperty('--home-empty-height',`${available}px`);
+  };
+  requestAnimationFrame(measure);
+  clearTimeout(homeEmptyLayoutTimer);
+  homeEmptyLayoutTimer=setTimeout(measure,220);
+}
 function renderEmpty(){
   clearLookupLoadingTimers();
   clearResultTypewriter();
   clearJSONTypewriter();
   els.resultCard.innerHTML='<div class="empty">等待查询</div>';
   els.resultJson.innerHTML='<div class="empty">等待 JSON</div>';
+  updateHomeEmptyLayout();
 }
 function clearLookupLoadingTimers(){
   lookupLoadingTimers.forEach(timer=>clearInterval(timer));
@@ -5954,6 +5989,7 @@ document.addEventListener('click',event=>{
 });
 window.addEventListener('resize',()=>{
   if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
+  updateHomeEmptyLayout();
 });
 window.addEventListener('scroll',()=>{
   updateHomeStickyState();
