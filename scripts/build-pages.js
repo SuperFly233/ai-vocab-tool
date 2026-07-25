@@ -6,6 +6,7 @@ const dist = join(root, 'dist');
 const files = [
   'index.html',
   'app.js',
+  'history-data.js',
   'styles.css',
   'favicon.svg',
   'site.webmanifest',
@@ -21,4 +22,3 @@ for (const file of files) {
 }
 
 console.log(`Cloudflare Pages static output written to ${dist}`);
-

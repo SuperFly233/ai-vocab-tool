@@ -2,6 +2,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABAS
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_G-_4O-n-Q73TbJ4R2YmG9w_7WlKHC80';
 const CLOUD_KEYS = new Set([
   'ai_vocab_tool_history',
+  'ai_vocab_tool_history_tombstones',
   'ai_vocab_tool_settings',
   'ai_vocab_tool_theme',
   'ai_vocab_tool_layout',

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const [app, html, changelog, readme, projectContext, packageText, vercelText] = await Promise.all([
+const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi] = await Promise.all([
   read('app.js'),
   read('index.html'),
   read('CHANGELOG.md'),
@@ -9,6 +9,7 @@ const [app, html, changelog, readme, projectContext, packageText, vercelText] = 
   read('PROJECT_CONTEXT.md'),
   read('package.json'),
   read('vercel.json'),
+  read('api/sync.js'),
 ]);
 
 const failures = [];
@@ -25,6 +26,7 @@ const versions = {
   appChangelog: firstMatch(app, /const CHANGELOG=\[\s*\{\s*version:'([\d.]+)'/),
   cssAsset: firstMatch(html, /\/styles\.css\?v=([\d.]+)/),
   jsAsset: firstMatch(html, /\/app\.js\?v=([\d.]+)/),
+  historyAsset: firstMatch(html, /\/history-data\.js\?v=([\d.]+)/),
   changelog: firstMatch(changelog, /^## v([\d.]+)/m),
   readme: firstMatch(readme, /^- v([\d.]+)/m),
   context: firstMatch(projectContext, /^- v([\d.]+)/m),
@@ -59,6 +61,9 @@ expect(!missingHandlers.length, `内联交互引用了不存在的函数：${mis
 
 expect(/href="\/styles\.css\?v=/.test(html), 'styles.css 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/app\.js\?v=/.test(html), 'app.js 必须使用根绝对路径，避免二级 URL 加载失败');
+expect(/src="\/history-data\.js\?v=/.test(html), 'history-data.js 必须使用根绝对路径，避免二级 URL 加载失败');
+expect(app.includes("historyTombstones:'ai_vocab_tool_history_tombstones'"), '前端同步键缺少历史删除墓碑');
+expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白名单缺少历史删除墓碑');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));

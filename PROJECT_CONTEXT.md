@@ -30,6 +30,7 @@ The app uses the same Supabase project and `study_store` table as `study-kanban`
 Currently synced keys:
 
 - `ai_vocab_tool_history`
+- `ai_vocab_tool_history_tombstones`
 - `ai_vocab_tool_settings`
 - `ai_vocab_tool_theme`
 - `ai_vocab_tool_layout`
@@ -46,6 +47,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.12 adds synced history deletion tombstones so stale cloud copies cannot resurrect offline deletions, resolves same-id followup edits by update/create time, force-anchors the History detail close control to the modal top-right, and removes the active-view transform that made a computed `position: fixed` Home search panel still scroll out of view.
 - v0.11.11 adds `npm run check:contracts` to catch version drift, duplicate DOM ids, missing inline handlers, non-root static asset paths, and missing Vercel rewrites before deployment.
 - v0.11.10 gives each primary view a real route (`/history`, `/favorites`, `/settings`, `/about`), restores the correct view on refresh and browser back/forward, uses Cloudflare's native SPA fallback, and adds Vercel rewrites for direct entry.
 - v0.11.9 makes the Home top-layout query textarea behave as a true single-line field, preventing mobile placeholder and query text from wrapping into a clipped second line. Split layout explicitly restores multiline wrapping.

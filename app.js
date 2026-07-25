@@ -5,6 +5,7 @@ const SUPABASE_CONFIG={
 
 const STORAGE_KEYS={
   history:'ai_vocab_tool_history_v1',
+  historyTombstones:'ai_vocab_tool_history_tombstones_v1',
   settings:'ai_vocab_tool_settings_v1',
   theme:'ai_vocab_tool_theme',
   offline:'ai_vocab_tool_offline_mode',
@@ -14,6 +15,7 @@ const STORAGE_KEYS={
 };
 const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
+  historyTombstones:'ai_vocab_tool_history_tombstones',
   settings:'ai_vocab_tool_settings',
   theme:'ai_vocab_tool_theme',
   layout:'ai_vocab_tool_layout',
@@ -134,12 +136,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.11',
+  version:'0.11.12',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.12',
+    date:'2026-07-26',
+    title:'阻止历史删除复活并修正追问合并',
+    items:['历史删除现在写入本机与云端墓碑；离线删除后重新联网，旧云副本不会在自动合并时复活。','同一词条在删除后重新查询或显式导入可以正常恢复，并清除旧墓碑。','同 id 追问在多设备编辑时按 updatedAt / createdAt 保留较新内容，不再固定让先合并的一端覆盖。','历史详情关闭键强制脱离工具按钮流并固定在弹窗右上角，修复移动端实际落到左下方的问题。','主视图切换移除残留位移变换，修复滚动后搜索控件虽为 fixed 却继续滑出视口的问题。'],
+  },
   {
     version:'0.11.11',
     date:'2026-07-26',
@@ -1018,10 +1026,41 @@ function toggleAccountPanel(){els.accountPanel.classList.toggle('open')}
 function closeAccountPanel(){els.accountPanel.classList.remove('open')}
 
 function invalidateHistoryDerivedCache(){historyDerivedCache=null}
-function getHistory(){return readJSON(STORAGE_KEYS.history,[])}
-function setHistory(items){
+function historyIdentityKey(item={}){
+  return normalizeSearch(item.query||item.result?.meta?.query||item.result?.headword?.title||item.id);
+}
+function getHistoryTombstones(){
+  return HistoryData.normalizeTombstones(readJSON(STORAGE_KEYS.historyTombstones,[]));
+}
+function setHistoryTombstones(items,{dirty=true}={}){
+  const next=HistoryData.normalizeTombstones(items);
+  const current=readJSON(STORAGE_KEYS.historyTombstones,[]);
+  if(JSON.stringify(current)===JSON.stringify(next))return next;
+  writeJSON(STORAGE_KEYS.historyTombstones,next);
+  if(dirty)markCloudDirty(CLOUD_KEYS.historyTombstones);
+  return next;
+}
+function recordHistoryDeletions(items,deletedAt=new Date().toISOString()){
+  const additions=normalizeHistoryItems(items).map(item=>({key:historyIdentityKey(item),deletedAt})).filter(item=>item.key);
+  return setHistoryTombstones(HistoryData.normalizeTombstones(getHistoryTombstones(),additions));
+}
+function reviveHistoryItems(items){
+  const keys=new Set(normalizeHistoryItems(items).map(historyIdentityKey).filter(Boolean));
+  if(!keys.size)return getHistoryTombstones();
+  return setHistoryTombstones(getHistoryTombstones().filter(item=>!keys.has(item.key)));
+}
+function reconcileHistoryData(items,tombstones=getHistoryTombstones()){
+  return HistoryData.reconcileHistory(normalizeHistoryItems(items),tombstones,historyIdentityKey);
+}
+function getHistory(){
+  return reconcileHistoryData(readJSON(STORAGE_KEYS.history,[])).history;
+}
+function setHistory(items,{revive=false}={}){
   invalidateHistoryDerivedCache();
-  writeJSON(STORAGE_KEYS.history,items);
+  if(revive)reviveHistoryItems(items);
+  const reconciled=reconcileHistoryData(items);
+  writeJSON(STORAGE_KEYS.history,reconciled.history);
+  setHistoryTombstones(reconciled.tombstones);
   markCloudDirty(CLOUD_KEYS.history);
   renderHistory();
   renderLookupFolderPicker();
@@ -1306,6 +1345,7 @@ function clearCloudDirty(keys=Object.values(CLOUD_KEYS)){
 function syncableItems(){
   return {
     [CLOUD_KEYS.history]:JSON.stringify(getHistory()),
+    [CLOUD_KEYS.historyTombstones]:JSON.stringify(getHistoryTombstones()),
     [CLOUD_KEYS.settings]:JSON.stringify(getSettings()),
     [CLOUD_KEYS.theme]:localStorage.getItem(STORAGE_KEYS.theme)||'auto',
     [CLOUD_KEYS.layout]:localStorage.getItem(STORAGE_KEYS.layout)||'top',
@@ -1330,6 +1370,7 @@ function mapsEqual(a,b){
 function replaceLocalWithItems(items){
   invalidateHistoryDerivedCache();
   localStorage.removeItem(STORAGE_KEYS.history);
+  localStorage.removeItem(STORAGE_KEYS.historyTombstones);
   localStorage.removeItem(STORAGE_KEYS.settings);
   localStorage.removeItem(STORAGE_KEYS.theme);
   localStorage.removeItem(STORAGE_KEYS.layout);
@@ -1337,6 +1378,12 @@ function replaceLocalWithItems(items){
   if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.history)){
     writeJSON(STORAGE_KEYS.history,safeHistoryFromRaw(items[CLOUD_KEYS.history]));
   }
+  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.historyTombstones)){
+    writeJSON(STORAGE_KEYS.historyTombstones,safeHistoryTombstonesFromRaw(items[CLOUD_KEYS.historyTombstones]));
+  }
+  const reconciledHistory=reconcileHistoryData(readJSON(STORAGE_KEYS.history,[]),getHistoryTombstones());
+  writeJSON(STORAGE_KEYS.history,reconciledHistory.history);
+  setHistoryTombstones(reconciledHistory.tombstones,{dirty:false});
   if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.settings)){
     writeJSON(STORAGE_KEYS.settings,safeObjectFromRaw(items[CLOUD_KEYS.settings],DEFAULT_SETTINGS));
   }
@@ -1362,6 +1409,9 @@ function safeObjectFromRaw(raw,fallback={}){
 function safeHistoryFromRaw(raw){
   try{return normalizeHistoryItems(JSON.parse(raw||'[]'))}catch{return []}
 }
+function safeHistoryTombstonesFromRaw(raw){
+  try{return HistoryData.normalizeTombstones(JSON.parse(raw||'[]'))}catch{return []}
+}
 function safeLogsFromRaw(raw){
   try{
     const logs=JSON.parse(raw||'[]');
@@ -1370,6 +1420,7 @@ function safeLogsFromRaw(raw){
 }
 function syncKind(key){
   if(key===CLOUD_KEYS.history)return '历史记录';
+  if(key===CLOUD_KEYS.historyTombstones)return '历史删除记录';
   if(key===CLOUD_KEYS.settings)return '模型设置';
   if(key===CLOUD_KEYS.theme)return '主题';
   if(key===CLOUD_KEYS.layout)return '布局';
@@ -1383,6 +1434,7 @@ function syncValuePreview(key,value){
     const rolls=history.reduce((sum,item)=>sum+getHistoryRolls(item).length,0);
     return `${history.length} 条历史，${rolls} 个结果版本`;
   }
+  if(key===CLOUD_KEYS.historyTombstones)return `${safeHistoryTombstonesFromRaw(value).length} 条删除记录`;
   if(key===CLOUD_KEYS.settings){
     const settings=normalizeSettings(safeObjectFromRaw(value,DEFAULT_SETTINGS));
     const active=currentApiSettings(settings);
@@ -1413,10 +1465,18 @@ function syncDiffStats(local,remote){
 }
 function mergeSyncItems(local,remote){
   const merged={...remote,...local};
+  const tombstones=HistoryData.normalizeTombstones(
+    safeHistoryTombstonesFromRaw(local[CLOUD_KEYS.historyTombstones]),
+    safeHistoryTombstonesFromRaw(remote[CLOUD_KEYS.historyTombstones]),
+  );
   if(remote[CLOUD_KEYS.history]||local[CLOUD_KEYS.history]){
     const remoteHistory=safeHistoryFromRaw(remote[CLOUD_KEYS.history]);
     const localHistory=safeHistoryFromRaw(local[CLOUD_KEYS.history]);
-    merged[CLOUD_KEYS.history]=JSON.stringify(mergeHistoryItems(localHistory,remoteHistory));
+    const reconciled=HistoryData.reconcileHistory(mergeHistoryItems(localHistory,remoteHistory),tombstones,historyIdentityKey);
+    merged[CLOUD_KEYS.history]=JSON.stringify(reconciled.history);
+    merged[CLOUD_KEYS.historyTombstones]=JSON.stringify(reconciled.tombstones);
+  }else if(tombstones.length){
+    merged[CLOUD_KEYS.historyTombstones]=JSON.stringify(tombstones);
   }
   if(remote[CLOUD_KEYS.settings]||local[CLOUD_KEYS.settings]){
     merged[CLOUD_KEYS.settings]=JSON.stringify(mergeSettings(
@@ -1494,13 +1554,7 @@ function historyNoteTime(item={}){
   return 0;
 }
 function dedupeFollowups(items){
-  const seen=new Set();
-  return items.filter(item=>{
-    const key=String(item.id||`${item.question}|${item.answer}`);
-    if(seen.has(key))return false;
-    seen.add(key);
-    return true;
-  });
+  return HistoryData.mergeFollowups(items);
 }
 function dedupeRolls(rolls){
   const seen=new Set();
@@ -1557,7 +1611,7 @@ function normalizeHistoryItem(item){
   const tags=normalizeTags(base.tags);
   const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
   const legacyFolderIds=tags.map(legacyTagFolderId);
-  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags,folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls};
+  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags,folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
 }
 function normalizeTags(value){
   const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
@@ -1589,7 +1643,7 @@ async function askSyncConflict(local,remote){
     mergeBtn.textContent='合并';
     actions.insertBefore(mergeBtn,els.confirmOk);
     const stats=syncDiffStats(local,remote);
-    const kinds=['历史记录','模型设置','主题','布局','日志'].map(kind=>{
+    const kinds=['历史记录','历史删除记录','模型设置','主题','布局','日志'].map(kind=>{
       const row=stats.kinds[kind]||{local:0,remote:0,diff:0};
       return `<div class="sync-kind"><b>${kind}</b><span>本机 ${row.local}</span><span>云端 ${row.remote}</span><em>${row.diff} 项不一致</em></div>`;
     }).join('');
@@ -3301,7 +3355,7 @@ async function analyzeHeaders(hasLocalEndpoint){
 function addHistory(item){
   const history=getHistory().filter(existing=>normalizeSearch(existing.query)!==normalizeSearch(item.query));
   history.unshift(normalizeHistoryItem(item));
-  setHistory(history);
+  setHistory(history,{revive:true});
 }
 function findHistoryByQuery(query){
   const normalized=normalizeSearch(query);
@@ -3332,12 +3386,12 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
       updatedAt:now,
       rolls:nextRolls,
     };
-    setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item));
+    setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item),{revive:true});
   }else{
     saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',folderIds:selectedFolderIds,createdAt:now,updatedAt:now,rolls:[roll]};
     const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
     next.unshift(saved);
-    setHistory(next);
+    setHistory(next,{revive:true});
   }
   return saved;
 }
@@ -4280,9 +4334,11 @@ async function deleteFavoriteFolder(folderId){
   const count=folderStats().find(item=>item.id===folder.id)?.count||0;
   const mode=await askFolderDeleteMode(folder,count);
   if(!mode)return;
+  const currentHistory=getHistory();
+  if(mode==='records')recordHistoryDeletions(currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)));
   const history=mode==='records'
-    ? getHistory().filter(item=>!itemFolderIds(item).includes(folder.id))
-    : getHistory().map(item=>{
+    ? currentHistory.filter(item=>!itemFolderIds(item).includes(folder.id))
+    : currentHistory.map(item=>{
       const normalized=normalizeHistoryItem(item);
       if(!normalized.folderIds.includes(folder.id)&&!normalized.tags.some(tag=>legacyTagFolderId(tag)===folder.id))return item;
       return {
@@ -4918,6 +4974,7 @@ function saveHistoryEdit(){
   const folderIds=ensureFavoriteFoldersByNames(els.modalTagsEdit?.value||'');
   const note=String(els.modalNoteEdit?.value||'').trim();
   const now=new Date().toISOString();
+  const originalItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   const history=getHistory().map(item=>{
     if(Number(item.id)!==Number(modalHistoryId))return item;
     const rolls=getHistoryRolls(item);
@@ -4930,7 +4987,8 @@ function saveHistoryEdit(){
     modalRollId=updatedRolls[selectedIndex]?historyRollViewKey(updatedRolls[selectedIndex],selectedIndex):modalRollId;
     return {...normalized,query,tags:[],folderIds,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
-  setHistory(history);
+  if(originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query))recordHistoryDeletions([originalItem]);
+  setHistory(history,{revive:true});
   modalResult=parsed;
   els.modalTitle.textContent=query;
   const updatedItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
@@ -5084,12 +5142,16 @@ function exportModalJSON(){
 }
 async function deleteHistory(id){
   if(!await askConfirm('确认删除这条历史记录？','删除记录'))return;
-  setHistory(getHistory().filter(item=>Number(item.id)!==Number(id)));
+  const history=getHistory();
+  recordHistoryDeletions(history.filter(item=>Number(item.id)===Number(id)));
+  setHistory(history.filter(item=>Number(item.id)!==Number(id)));
   notify('记录已删除。','good','历史记录');
 }
 async function clearHistory(){
-  const count=getHistory().length;
+  const history=getHistory();
+  const count=history.length;
   if(!await askConfirm(`确认清空全部 ${count} 条历史记录？这会同步到云端，所有设备都会清空。`,'危险操作：清空历史'))return;
+  recordHistoryDeletions(history);
   setHistory([]);
   notify('历史记录已清空。','good','历史记录');
 }
@@ -5222,7 +5284,7 @@ async function importHistoryFromText(){
     if(!stats.newCount&&!stats.changedCount)return notify('导入内容和当前历史完全重叠，不需要合并。','warn','历史导入');
     const ok=await askConfirm(`将合并导入 ${stats.rawCount} 条历史：新增 ${stats.newCount} 条，更新 ${stats.changedCount} 条重叠记录。当前 ${stats.currentCount} 条，合并后 ${stats.mergedCount} 条。继续？`,'合并导入历史');
     if(!ok)return;
-    setHistory(stats.merged);
+    setHistory(stats.merged,{revive:true});
     renderHistoryImportStatus(stats,'good');
     notify(`已合并导入：新增 ${stats.newCount}，更新 ${stats.changedCount}。`,'good','历史导入');
   }catch(error){
@@ -5763,6 +5825,7 @@ async function deleteApiProfile(id=null){
 async function factoryReset(){
   if(!await askConfirm('这会清空本机历史、接口配置、主题、布局和日志。','恢复出厂设置'))return;
   localStorage.removeItem(STORAGE_KEYS.history);
+  localStorage.removeItem(STORAGE_KEYS.historyTombstones);
   localStorage.removeItem(STORAGE_KEYS.settings);
   localStorage.removeItem(STORAGE_KEYS.theme);
   localStorage.removeItem(STORAGE_KEYS.layout);
