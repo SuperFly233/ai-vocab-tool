@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.11 - 2026-07-26
+
+- 新增 `npm run check:contracts`，自动核对 package、`APP_INFO`、应用内日志、README、项目上下文与静态资源版本号。
+- 自动检查重复 DOM id、HTML/模板内联交互引用的缺失函数、二级页面根路径资源和 Vercel 路由 rewrite。
+- `npm run check` 接入契约检查，以后类似 `formatTime is not defined` 或版本号漏改会在部署前直接失败。
+
 ## v0.11.10 - 2026-07-26
 
 - 首页、历史记录、收藏夹、设置和关于页使用独立 URL：`/`、`/history`、`/favorites`、`/settings`、`/about`。

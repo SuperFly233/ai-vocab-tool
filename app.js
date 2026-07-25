@@ -134,12 +134,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.10',
+  version:'0.11.11',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.11',
+    date:'2026-07-26',
+    title:'增加前端契约防回归检查',
+    items:['新增 check:contracts，自动核对 package、APP_INFO、应用日志、README、项目上下文与静态资源版本号。','自动扫描重复 DOM id、内联按钮缺失函数、二级页面绝对资源路径和 Vercel 路由 rewrite；npm run check 会统一执行。'],
+  },
   {
     version:'0.11.10',
     date:'2026-07-26',

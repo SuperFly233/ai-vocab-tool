@@ -1,10 +1,11 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.11.10",
+  "version": "0.11.11",
   "private": true,
   "type": "module",
   "scripts": {
     "build:pages": "node scripts/build-pages.js",
-    "check": "node --check app.js && node --check api/analyze.js && node --check api/followup.js && node --check api/models.js && node --check api/sync.js && node --check api/test-profile.js && node --check functions/_utils/vercel-adapter.js"
+    "check:contracts": "node scripts/check-contracts.js",
+    "check": "node --check app.js && node --check api/analyze.js && node --check api/followup.js && node --check api/models.js && node --check api/sync.js && node --check api/test-profile.js && node --check functions/_utils/vercel-adapter.js && npm run check:contracts"
   }
 }
