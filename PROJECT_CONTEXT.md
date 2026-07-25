@@ -46,6 +46,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.9 makes the Home top-layout query textarea behave as a true single-line field, preventing mobile placeholder and query text from wrapping into a clipped second line. Split layout explicitly restores multiline wrapping.
 - v0.11.8 moves the History detail close button out of the horizontally scrolling action group and makes it a direct child of the modal header, so it is anchored to the modal top-right on desktop and mobile. Home empty-state height is measured from the result panel to the desktop sidebar bottom or mobile navigation top; its label is centered by the result-page grid rather than fixed offsets.
 - v0.11.7 adjusts the mobile Home lookup controls into two rows: the main search field spans the first two columns with the search button fixed beside it, while language direction and folder selection share the second row.
 - On mobile Home scroll, the lookup editor becomes fixed at the viewport top with a spacer on the workspace, so the compact search controls remain visible instead of only animating out of view.

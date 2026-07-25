@@ -127,12 +127,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.8',
-  releaseDate:'2026-07-16',
+  version:'0.11.9',
+  releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.vercel.app',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.9',
+    date:'2026-07-26',
+    title:'修正手机主查询控件文字折行',
+    items:['顶部布局的主查询框改为真正的单行输入，手机端占位文字和较长查询不再折成被裁切的第二行。','精简主查询框占位文案；左右布局仍保留可换行、可调整高度的多行输入能力。'],
+  },
   {
     version:'0.11.8',
     date:'2026-07-16',
