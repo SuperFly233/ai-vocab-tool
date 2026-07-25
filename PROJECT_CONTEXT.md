@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-07-16
+Last updated: 2026-07-26
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -18,8 +18,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 - Local path: `d:\Files\Projects\lexi-glass`
 - GitHub: `https://github.com/SuperFly233/ai-vocab-tool`
 - Main branch: `main`
-- Deployment target: Vercel
-- Secondary deployment target: Cloudflare Pages (`ai-vocab-tool`, output `dist`, Functions in `functions/`)
+- Primary deployment target: Cloudflare Pages (`ai-vocab-tool`, output `dist`, Functions in `functions/`)
+- Secondary deployment target: Vercel (also used as the optional IPv4 model relay)
 - Supabase table: `public.study_store`
 - Supabase project URL: `https://uoifrqehkfvpzqojaazh.supabase.co`
 
@@ -46,6 +46,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.10 gives each primary view a real route (`/history`, `/favorites`, `/settings`, `/about`), restores the correct view on refresh and browser back/forward, uses Cloudflare's native SPA fallback, and adds Vercel rewrites for direct entry.
 - v0.11.9 makes the Home top-layout query textarea behave as a true single-line field, preventing mobile placeholder and query text from wrapping into a clipped second line. Split layout explicitly restores multiline wrapping.
 - v0.11.8 moves the History detail close button out of the horizontally scrolling action group and makes it a direct child of the modal header, so it is anchored to the modal top-right on desktop and mobile. Home empty-state height is measured from the result panel to the desktop sidebar bottom or mobile navigation top; its label is centered by the result-page grid rather than fixed offsets.
 - v0.11.7 adjusts the mobile Home lookup controls into two rows: the main search field spans the first two columns with the search button fixed beside it, while language direction and folder selection share the second row.

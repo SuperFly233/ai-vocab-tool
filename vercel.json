@@ -1,1 +1,14 @@
-{}
+{
+  "rewrites": [
+    { "source": "/history", "destination": "/" },
+    { "source": "/history/:path*", "destination": "/" },
+    { "source": "/favorites", "destination": "/" },
+    { "source": "/favorites/:path*", "destination": "/" },
+    { "source": "/folders", "destination": "/" },
+    { "source": "/folders/:path*", "destination": "/" },
+    { "source": "/settings", "destination": "/" },
+    { "source": "/settings/:path*", "destination": "/" },
+    { "source": "/about", "destination": "/" },
+    { "source": "/about/:path*", "destination": "/" }
+  ]
+}

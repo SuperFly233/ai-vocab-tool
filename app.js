@@ -23,6 +23,13 @@ const CLOUD_KEYS={
 let cloudClient=null;
 let cloudUser=null;
 let activeView='home';
+const VIEW_ROUTES={
+  home:'/',
+  history:'/history',
+  folders:'/favorites',
+  settings:'/settings',
+  about:'/about',
+};
 let currentResult=null;
 let currentHistoryId=null;
 let currentFollowups=[];
@@ -127,12 +134,18 @@ const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default
 const LOOKUP_MAX_ATTEMPTS=2;
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.9',
+  version:'0.11.10',
   releaseDate:'2026-07-26',
-  site:'https://ai-vocab-tool.vercel.app',
+  site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.10',
+    date:'2026-07-26',
+    title:'补齐页面路径与浏览器导航',
+    items:['首页、历史记录、收藏夹、设置和关于页现在分别使用独立 URL；刷新会保留当前页面。','浏览器前进/后退会恢复对应视图且返回首页时不会擅自聚焦输入框；普通导航切页时回到页面顶部。','Cloudflare Pages 使用原生 SPA 回退，Vercel 补齐显式路径 rewrite，静态资源使用根路径以兼容尾斜杠。'],
+  },
   {
     version:'0.11.9',
     date:'2026-07-26',
@@ -1750,19 +1763,43 @@ async function loadConfigInfo(){
   hydrateSettings();
 }
 
-function showView(id,button){
-  activeView=id;
-  document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${id}`));
+function viewFromPath(pathname=location.pathname){
+  const path=`/${String(pathname||'').split('/').filter(Boolean).join('/')}`.replace(/\/$/,'')||'/';
+  if(path==='/folders')return 'folders';
+  return Object.entries(VIEW_ROUTES).find(([,route])=>route===path)?.[0]||'home';
+}
+function updateViewRoute(id,mode='push'){
+  if(mode==='none')return;
+  const route=VIEW_ROUTES[id]||VIEW_ROUTES.home;
+  if(location.pathname===route)return;
+  const method=mode==='replace'?'replaceState':'pushState';
+  window.history[method]({view:id},'',`${route}${location.search}${location.hash}`);
+}
+function showView(id,button,options={}){
+  const next=VIEW_ROUTES[id]?id:'home';
+  const changed=activeView!==next;
+  activeView=next;
+  updateViewRoute(next,options.route||'push');
+  document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${next}`));
   document.querySelectorAll('.nav-item').forEach(item=>item.classList.remove('active'));
-  if(button)button.classList.add('active');
-  if(id==='history')renderHistory();
-  if(id==='folders')renderFoldersView();
-  if(id==='settings')renderSettings();
-  if(id==='about')renderAbout();
+  (button||document.getElementById(`nav-${next}`))?.classList.add('active');
+  if(next==='history')renderHistory();
+  if(next==='folders')renderFoldersView();
+  if(next==='settings')renderSettings();
+  if(next==='about')renderAbout();
+  if(changed&&options.scroll!==false)window.scrollTo({top:0,behavior:'auto'});
   updateHomeStickyState();
-  if(id==='home'){
-    focusQueryInput();
+  if(next==='home'){
+    if(options.focus!==false)focusQueryInput();
     updateHomeEmptyLayout();
+  }
+}
+function restoreViewFromLocation({replace=false,focus=true}={}){
+  const view=viewFromPath();
+  const canonical=VIEW_ROUTES[view];
+  showView(view,document.getElementById(`nav-${view}`),{route:'none',scroll:false,focus});
+  if(replace&&location.pathname!==canonical){
+    window.history.replaceState({view},'',`${canonical}${location.search}${location.hash}`);
   }
 }
 function goHomeAndFocus(){
@@ -5893,6 +5930,7 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('focus',()=>{
   if(cloudClient&&cloudUser)bootstrapCloudSync('merge',false);
 });
+window.addEventListener('popstate',()=>restoreViewFromLocation({focus:false}));
 els.historySearch?.addEventListener('input',event=>{
   historyState.query=event.target.value;
   updateHistorySearchState();
@@ -6039,4 +6077,4 @@ updateEditorState();
 updateHistorySearchState();
 loadConfigInfo();
 initCloud();
-focusQueryInput();
+restoreViewFromLocation({replace:true});
