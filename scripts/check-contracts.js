@@ -66,6 +66,9 @@ expect(/src="\/history-data\.js\?v=/.test(html), 'history-data.js 必须使用�
 expect(/src="\/lookup-tasks\.js\?v=/.test(html), 'lookup-tasks.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(app.includes("historyTombstones:'ai_vocab_tool_history_tombstones'"), '前端同步键缺少历史删除墓碑');
 expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白名单缺少历史删除墓碑');
+expect(/const allHistory=getHistory\(\);[\s\S]{0,500}filterAndSortHistory\(allHistory\)/.test(app), '历史渲染必须复用单次 getHistory 结果');
+expect(/const hasFilters=Object\.values\(historyState\.filters\)\.some\(filterHasValues\)/.test(app), '历史筛选缺少无筛选快路径');
+expect(app.includes("const HISTORY_NORMALIZED=Symbol('historyNormalized')"), '历史记录缺少规范化复用标记');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));

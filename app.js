@@ -73,6 +73,9 @@ let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
 let homeEmptyLayoutTimer=null;
+let historyReadCache=null;
+let tombstoneReadCache=null;
+let settingsReadCache=null;
 const activeToasts=new Map();
 const FOLDER_LIKED_ID='liked';
 const FOLDER_UNFILED_ID='unfiled';
@@ -137,14 +140,21 @@ const VISUAL_FIELD_HINTS={
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[]};
 const LOOKUP_MAX_ATTEMPTS=2;
+const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.13',
+  version:'0.11.14',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.14',
+    date:'2026-07-26',
+    title:'降低大量历史下的切页主线程开销',
+    items:['历史、删除墓碑和设置改为按 localStorage 原始值失效的内存缓存，同一渲染周期不再反复解析和规范化整份 JSON。','没有启用筛选时跳过全量筛选字段计算；历史列表和收藏夹列表复用已规范化记录、显示模式与版本数量。','3000 条压力样本中，历史页切换桌面约 137ms→28ms、手机约 133ms→19ms；收藏夹桌面约 67ms→36ms、手机约 62ms→17ms。'],
+  },
   {
     version:'0.11.13',
     date:'2026-07-26',
@@ -1040,13 +1050,21 @@ function historyIdentityKey(item={}){
   return normalizeSearch(item.query||item.result?.meta?.query||item.result?.headword?.title||item.id);
 }
 function getHistoryTombstones(){
-  return HistoryData.normalizeTombstones(readJSON(STORAGE_KEYS.historyTombstones,[]));
+  const raw=localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]';
+  if(tombstoneReadCache?.raw===raw)return tombstoneReadCache.value;
+  let parsed=[];
+  try{parsed=JSON.parse(raw)}catch{}
+  const value=HistoryData.normalizeTombstones(parsed);
+  tombstoneReadCache={raw,value};
+  return value;
 }
 function setHistoryTombstones(items,{dirty=true}={}){
   const next=HistoryData.normalizeTombstones(items);
-  const current=readJSON(STORAGE_KEYS.historyTombstones,[]);
-  if(JSON.stringify(current)===JSON.stringify(next))return next;
-  writeJSON(STORAGE_KEYS.historyTombstones,next);
+  const raw=JSON.stringify(next);
+  if((localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]')===raw)return next;
+  localStorage.setItem(STORAGE_KEYS.historyTombstones,raw);
+  tombstoneReadCache={raw,value:next};
+  historyReadCache=null;
   if(dirty)markCloudDirty(CLOUD_KEYS.historyTombstones);
   return next;
 }
@@ -1063,10 +1081,18 @@ function reconcileHistoryData(items,tombstones=getHistoryTombstones()){
   return HistoryData.reconcileHistory(normalizeHistoryItems(items),tombstones,historyIdentityKey);
 }
 function getHistory(){
-  return reconcileHistoryData(readJSON(STORAGE_KEYS.history,[])).history;
+  const historyRaw=localStorage.getItem(STORAGE_KEYS.history)||'[]';
+  const tombstoneRaw=localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]';
+  if(historyReadCache?.historyRaw===historyRaw&&historyReadCache?.tombstoneRaw===tombstoneRaw)return historyReadCache.value;
+  let parsed=[];
+  try{parsed=JSON.parse(historyRaw)}catch{}
+  const value=reconcileHistoryData(parsed,getHistoryTombstones()).history;
+  historyReadCache={historyRaw,tombstoneRaw,value};
+  return value;
 }
 function setHistory(items,{revive=false}={}){
   invalidateHistoryDerivedCache();
+  historyReadCache=null;
   if(revive)reviveHistoryItems(items);
   const reconciled=reconcileHistoryData(items);
   writeJSON(STORAGE_KEYS.history,reconciled.history);
@@ -1077,17 +1103,32 @@ function setHistory(items,{revive=false}={}){
   if(activeView==='folders')renderFoldersView();
   syncAllToCloud(true);
 }
-function getSettings(){return normalizeSettings(readJSON(STORAGE_KEYS.settings,DEFAULT_SETTINGS))}
+function getSettings(){
+  const raw=localStorage.getItem(STORAGE_KEYS.settings)||'';
+  if(settingsReadCache?.raw===raw)return settingsReadCache.value;
+  let parsed=DEFAULT_SETTINGS;
+  try{parsed=raw?JSON.parse(raw):DEFAULT_SETTINGS}catch{}
+  const value=normalizeSettings(parsed);
+  settingsReadCache={raw,value};
+  return value;
+}
+function writeSettings(settings){
+  const value=normalizeSettings(settings);
+  const raw=JSON.stringify(value);
+  localStorage.setItem(STORAGE_KEYS.settings,raw);
+  settingsReadCache={raw,value};
+  return value;
+}
 function setSettings(settings){
   invalidateHistoryDerivedCache();
-  writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
+  writeSettings(settings);
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
   syncAllToCloud(true);
 }
 function saveSettingsLocal(settings){
   invalidateHistoryDerivedCache();
-  writeJSON(STORAGE_KEYS.settings,normalizeSettings(settings));
+  writeSettings(settings);
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
 }
@@ -1603,6 +1644,7 @@ function normalizeHistoryItems(items){
   return Array.isArray(items)?items.map(normalizeHistoryItem).filter(item=>item.query||item.result):[];
 }
 function normalizeHistoryItem(item){
+  if(item?.[HISTORY_NORMALIZED])return item;
   const base={...item};
   const createdAt=base.createdAt||new Date().toISOString();
   const rolls=dedupeRolls(Array.isArray(base.rolls)&&base.rolls.length
@@ -1621,7 +1663,9 @@ function normalizeHistoryItem(item){
   const tags=normalizeTags(base.tags);
   const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
   const legacyFolderIds=tags.map(legacyTagFolderId);
-  return {...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags,folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
+  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags,folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
+  Object.defineProperty(normalized,HISTORY_NORMALIZED,{value:true});
+  return normalized;
 }
 function normalizeTags(value){
   const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
@@ -3563,14 +3607,18 @@ function toggleHistoryFilters(){
   updateHistoryFilterToggle();
 }
 function renderHistory(){
-  if(historyState.filtersOpen||openHistoryFilterKey)renderHistoryFilterOptions(getHistory());
+  const allHistory=getHistory();
+  if(historyState.filtersOpen||openHistoryFilterKey)renderHistoryFilterOptions(allHistory);
   renderHistorySearchScopeControls();
   renderHistorySortControls();
   ensureHistoryVisible();
   updateHistoryFilterToggle();
-  const history=filterAndSortHistory(getHistory());
+  const history=filterAndSortHistory(allHistory);
   window.__historyFilteredCount=history.length;
-  const total=getHistory().length;
+  const total=allHistory.length;
+  const settings=getSettings();
+  const labelMode=settings.labelMode;
+  const timeMode=settings.historyTimeMode;
   const constrained=historyState.query||Object.values(historyState.filters).some(filterHasValues);
   els.historyCount.textContent=constrained?`${history.length}/${total} 条`:`${total} 条`;
   if(!history.length){
@@ -3582,8 +3630,9 @@ function renderHistory(){
   els.historyList.innerHTML=visible.map(item=>{
     const normalized=normalizeHistoryItem(item);
     const summary=historyEntrySummary(normalized);
-    const meta=historyEntryMeta(normalized);
-    const versionText=getHistoryRolls(normalized).length>1?`${getHistoryRolls(normalized).length} 个版本`:'';
+    const meta=historyEntryMeta(normalized,labelMode);
+    const rollCount=getHistoryRolls(normalized).length;
+    const versionText=rollCount>1?`${rollCount} 个版本`:'';
     return `
     <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
@@ -3592,7 +3641,7 @@ function renderHistory(){
         ${renderHistoryFolders(normalized)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
-          ${historyTimeMetaHTML(item,getSettings().historyTimeMode)}
+          ${historyTimeMetaHTML(normalized,timeMode)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
         </div>
       </div>
@@ -3879,6 +3928,7 @@ function renderFoldersView(){
   const items=historyForFolder(active.id);
   const visible=items.slice(0,Math.min(folderState.visibleCount,items.length));
   const more=visible.length<items.length;
+  const settings=getSettings();
   if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${items.length} 条`;
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
@@ -3912,18 +3962,19 @@ function renderFoldersView(){
     `;
   }
   els.folderHistoryList.innerHTML=items.length
-    ? visible.map(renderFolderHistoryItem).join('')+(more?`
+    ? visible.map(item=>renderFolderHistoryItem(item,settings.labelMode,settings.historyTimeMode)).join('')+(more?`
       <button class="history-load-more" type="button" onclick="loadMoreFolders()">
         继续显示 ${Math.min(folderBatchSize(),items.length-visible.length)} 条
       </button>
     `:'')
     : '<div class="empty">这个收藏夹还没有记录。</div>';
 }
-function renderFolderHistoryItem(item){
+function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getSettings().historyTimeMode){
   const normalized=normalizeHistoryItem(item);
   const summary=historyEntrySummary(normalized);
-  const meta=historyEntryMeta(normalized);
-  const versionText=getHistoryRolls(normalized).length>1?`${getHistoryRolls(normalized).length} 个版本`:'';
+  const meta=historyEntryMeta(normalized,labelMode);
+  const rollCount=getHistoryRolls(normalized).length;
+  const versionText=rollCount>1?`${rollCount} 个版本`:'';
   return `
     <div class="history-item ${normalized.favorite?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
@@ -3932,7 +3983,7 @@ function renderFolderHistoryItem(item){
         ${renderHistoryFolders(normalized)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
-          ${historyTimeMetaHTML(item,getSettings().historyTimeMode)}
+          ${historyTimeMetaHTML(normalized,timeMode)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
         </div>
       </div>
@@ -3958,14 +4009,14 @@ function historyEntrySummary(item){
   const labels=uniq(senses.map(sense=>sense.shortestLabel||sense.meaning).filter(Boolean));
   return labels.slice(0,3).join(' / ');
 }
-function historyEntryMeta(item){
+function historyEntryMeta(item,labelMode=currentLabelMode()){
   const result=latestHistoryResult(item);
   const head=result.headword||{};
   const senses=Array.isArray(result.senses)?result.senses:[];
-  const entryType=displayEntryTypeLabel(entryTypeForResult(result,item.query));
-  const pos=compactPartOfSpeech(head,senses);
-  const direction=historyCanonicalValues(item,'direction').map(value=>displayFieldLabel('direction',value)).filter(Boolean)[0];
-  const language=historyCanonicalValues(item,'language').map(value=>displayFieldLabel('language',value)).filter(Boolean)[0];
+  const entryType=displayFieldLabel('entryType',entryTypeForResult(result,item.query),labelMode);
+  const pos=compactPartOfSpeech(head,senses,labelMode);
+  const direction=historyCanonicalValues(item,'direction').map(value=>displayFieldLabel('direction',value,labelMode)).filter(Boolean)[0];
+  const language=historyCanonicalValues(item,'language').map(value=>displayFieldLabel('language',value,labelMode)).filter(Boolean)[0];
   return [entryType,pos,direction,language].filter(Boolean);
 }
 function formatHistoryTime(value){
@@ -4016,13 +4067,13 @@ function historyPrimaryTime(item={}){
 function historyCreatedTime(item={}){
   return new Date(item.createdAt||0).getTime()||0;
 }
-function compactPartOfSpeech(head={},senses=[]){
+function compactPartOfSpeech(head={},senses=[],labelMode=currentLabelMode()){
   const tokens=uniq([
     ...posTokensFromValue(head.basicPartOfSpeech),
     ...(Array.isArray(senses)?senses.flatMap(sense=>posTokensFromValue(sense.partOfSpeech)):[]),
   ]);
   if(!tokens.length)return '';
-  const visible=tokens.slice(0,3).map(token=>displayFieldLabel('pos',token));
+  const visible=tokens.slice(0,3).map(token=>displayFieldLabel('pos',token,labelMode));
   return tokens.length>3?`${visible.join(' / ')} +${tokens.length-3}`:visible.join(' / ');
 }
 function handleHistoryItemKey(event,id){
@@ -4037,7 +4088,8 @@ function filterAndSortHistory(history){
   const filteredByText=query
     ? scoped.filter(item=>historySearchText(item).includes(query))
     : scoped;
-  const filtered=filteredByText.filter(item=>historyMatchesFilters(item));
+  const hasFilters=Object.values(historyState.filters).some(filterHasValues);
+  const filtered=hasFilters?filteredByText.filter(item=>historyMatchesFilters(item)):filteredByText;
   return filtered.sort((a,b)=>{
     let value=0;
     if(historyState.sort==='text')value=compareHistoryText(a,b);

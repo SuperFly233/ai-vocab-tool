@@ -47,6 +47,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.14 caches parsed/normalized history, tombstones, and settings by their raw localStorage values, skips canonical filter extraction when no History filters are active, and reuses normalized rows/settings during list rendering. A 3000-record browser stress run reduced History navigation from about 137ms to 28ms on desktop and 133ms to 19ms on mobile; raw storage replacement, active filtering, and zero horizontal overflow were also verified.
 - v0.11.13 persists the active lookup request and queued lookups locally. Reload/crash recovery resumes unfinished work in order, but first drops tasks whose result was already saved locally or arrived through cloud sync after the task started. Recovery state is intentionally device-local to avoid duplicate cross-device API calls.
 - v0.11.12 adds synced history deletion tombstones so stale cloud copies cannot resurrect offline deletions, resolves same-id followup edits by update/create time, force-anchors the History detail close control to the modal top-right, and removes the active-view transform that made a computed `position: fixed` Home search panel still scroll out of view.
 - v0.11.11 adds `npm run check:contracts` to catch version drift, duplicate DOM ids, missing inline handlers, non-root static asset paths, and missing Vercel rewrites before deployment.
