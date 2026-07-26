@@ -591,6 +591,10 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .release-head em{font-style:normal;font-size:13px;color:var(--soft);font-weight:850}
 .release-item summary strong{grid-column:1 / -1;font-size:17px;color:var(--text);font-weight:900;line-height:1.3}
 .release-item ul{margin:0;padding:0 16px 14px 34px;color:var(--muted);font-size:15px;font-weight:750;line-height:1.65}
+.release-more-btn{width:100%;min-height:44px;border:1px dashed color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--accent-bg) 34%,var(--panel2));color:var(--accent);display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;font-size:14px;font-weight:850;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+.release-more-btn:hover,.release-more-btn:focus-visible{transform:translateY(-1px);border-color:var(--accent);background:var(--accent-bg);outline:0}
+.release-more-btn i{font-style:normal;transition:transform .16s ease}
+.release-more-btn.active i{transform:rotate(180deg)}
 .toast-stack{position:fixed;right:22px;top:22px;z-index:4000;display:grid;gap:12px;width:min(370px,calc(100vw - 28px));pointer-events:none}
 .toast{--toast-color:var(--accent);--toast-glow:color-mix(in srgb,var(--accent) 18%,transparent);position:relative;overflow:hidden;border:1px solid color-mix(in srgb,var(--toast-color) 24%,var(--line));border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--toast-color) 9%,var(--panel)) 0%,color-mix(in srgb,var(--panel) 94%,transparent) 48%,color-mix(in srgb,var(--panel2) 90%,transparent) 100%);backdrop-filter:blur(22px) saturate(1.25);box-shadow:0 20px 54px rgba(0,0,0,.16),0 0 0 1px rgba(255,255,255,.06) inset,0 0 34px var(--toast-glow);padding:13px 13px 14px 14px;pointer-events:auto;animation:toastIn .34s cubic-bezier(.2,.9,.25,1.18) both}
 .toast:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,color-mix(in srgb,var(--toast-color) 78%,white),var(--toast-color));box-shadow:0 0 22px color-mix(in srgb,var(--toast-color) 52%,transparent)}

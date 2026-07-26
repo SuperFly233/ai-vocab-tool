@@ -102,6 +102,9 @@ expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.fo
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');
 expect(/class="modal-head-actions"[\s\S]*class="modal-view-tabs"[\s\S]*class="modal-file-actions"/.test(html), 'History modal header must separate view tabs from file actions');
 expect(/<\/div>\s*<button class="icon-btn danger-icon modal-close-btn"/.test(html), 'History modal close control must remain outside the scrolling action group');
+expect(app.includes('const ABOUT_RELEASE_LIMIT=6'), 'About page must cap the initial release archive');
+expect(app.includes('CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT)'), 'About page must render only recent releases by default');
+expect(app.includes("index===0?'open':''"), 'About page must expand only the latest release by default');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));

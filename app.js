@@ -142,15 +142,22 @@ const VISUAL_FIELD_HINTS={
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
 const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
+const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.24',
+  version:'0.11.25',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.25',
+    date:'2026-07-26',
+    title:'让关于页真正按需加载更新记录',
+    items:['主动巡检五个主页面后发现，关于页虽然每条更新使用了折叠控件，但仍一次性渲染全部 93 个版本摘要，手机页面高度约 14052px、桌面约 13141px。','关于页现在默认只渲染最近 6 个版本且只展开最新一条；本次发布后更早的 88 个版本通过底部入口按需加载，加载后仍可完整查看并再次收起。','隔离 Edge 按最终 v0.11.25 数据实测手机初始高度降至 2183px、桌面降至 1617px，横向溢出为 0；首页、历史、收藏夹、设置和关于页均未出现页面级横向滚动或脚本异常。'],
+  },
   {
     version:'0.11.24',
     date:'2026-07-26',
@@ -6261,9 +6268,17 @@ function renderLogs(){
     </article>
   `).join('');
 }
+let aboutShowAllReleases=false;
+function toggleAboutReleases(){
+  aboutShowAllReleases=!aboutShowAllReleases;
+  renderAbout();
+  requestAnimationFrame(()=>els.aboutContainer?.querySelector('.release-more-btn')?.focus({preventScroll:true}));
+}
 function renderAbout(){
   if(!els.aboutContainer)return;
   const latest=CHANGELOG[0];
+  const visibleReleases=aboutShowAllReleases?CHANGELOG:CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT);
+  const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <div class="about-hero">
       <div>
@@ -6286,8 +6301,8 @@ function renderAbout(){
     <div class="about-card">
       <div class="setting-title">更新记录</div>
       <div class="release-list">
-        ${CHANGELOG.map((entry,index)=>`
-          <details class="release-item" ${index<3?'open':''}>
+        ${visibleReleases.map((entry,index)=>`
+          <details class="release-item" ${index===0?'open':''}>
             <summary>
               <span class="release-head"><b>v${escapeHTML(entry.version)}</b><em>${escapeHTML(entry.date)}</em></span>
               <strong>${escapeHTML(entry.title)}</strong>
@@ -6295,6 +6310,7 @@ function renderAbout(){
             <ul>${entry.items.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul>
           </details>
         `).join('')}
+        ${archivedCount?`<button class="release-more-btn ${aboutShowAllReleases?'active':''}" type="button" aria-expanded="${aboutShowAllReleases}" onclick="toggleAboutReleases()"><span>${aboutShowAllReleases?'收起较早版本':`查看更早的 ${archivedCount} 个版本`}</span><i aria-hidden="true">⌄</i></button>`:''}
       </div>
     </div>
   `;
