@@ -44,9 +44,11 @@ Expected behavior:
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
+- Stable background polls request only `key + updated_at`; full `value` rows are fetched only when one of the six cloud row versions changes. Upserts return refreshed row versions so the next poll stays metadata-only.
 
 ## Latest UI Notes
 
+- v0.11.17 replaces periodic full-value cloud downloads with six-row `key + updated_at` probes. In a 3000-record browser run, the full response was about 2,673,614 bytes and the metadata response about 439 bytes (roughly 6090x smaller). A remote-only record still promoted the probe to a full fetch, merge, and represented upsert. The same protocol is covered by a mocked `/api/sync` regression test.
 - v0.11.16 adds a raw-value equality fast path before cloud polling parses or merges data. With 3000 browser records, unchanged polling averaged about 0.14ms while the skipped full merge averaged about 160.8ms. A remote-only record still triggered one merge, local restoration, and a unified cloud upload. Raw map equality now has production-module regression tests.
 - v0.11.15 changes automatic cloud writes to dirty-key-only uploads with a 180ms debounce. Per-key version snapshots prevent an older upload from clearing a newer edit, and bootstrap captures the local snapshot after the remote fetch so edits made during that fetch survive. Factory reset and explicit manual upload remain authoritative full writes. Mobile Home reserves a 44px right-side safe area for browser-injected floating tools, including the compact sticky state.
 - v0.11.14 caches parsed/normalized history, tombstones, and settings by their raw localStorage values, skips canonical filter extraction when no History filters are active, and reuses normalized rows/settings during list rendering. A 3000-record browser stress run reduced History navigation from about 137ms to 28ms on desktop and 133ms to 19ms on mobile; raw storage replacement, active filtering, and zero horizontal overflow were also verified.

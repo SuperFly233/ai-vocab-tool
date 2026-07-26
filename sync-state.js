@@ -7,6 +7,15 @@
     return true;
   }
 
+  function versionMap(rows=[]){
+    return (Array.isArray(rows)?rows:[]).reduce((versions,row)=>{
+      const key=String(row?.key||'');
+      const updatedAt=String(row?.updated_at||'');
+      if(key&&updatedAt)versions[key]=updatedAt;
+      return versions;
+    },{});
+  }
+
   function createDirtyState(){
     const versions=new Map();
 
@@ -47,5 +56,5 @@
     });
   }
 
-  root.SyncState=Object.freeze({createDirtyState,mapsEqual});
+  root.SyncState=Object.freeze({createDirtyState,mapsEqual,versionMap});
 })(typeof globalThis==='object'?globalThis:this);

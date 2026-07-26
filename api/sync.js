@@ -72,7 +72,8 @@ export default async function handler(request, response) {
         return;
       }
       const keyList = keys.map(key => encodeURIComponent(`"${key}"`)).join(',');
-      const path = `/rest/v1/study_store?select=key,value&user_id=eq.${encodeURIComponent(user.id)}&key=in.(${keyList})`;
+      const columns = payload.metadata ? 'key,updated_at' : 'key,value,updated_at';
+      const path = `/rest/v1/study_store?select=${columns}&user_id=eq.${encodeURIComponent(user.id)}&key=in.(${keyList})`;
       const rows = await supabaseFetch(path, token, { method: 'GET' });
       json(response, 200, { rows });
       return;
@@ -91,12 +92,12 @@ export default async function handler(request, response) {
         json(response, 200, { count: 0 });
         return;
       }
-      await supabaseFetch('/rest/v1/study_store?on_conflict=user_id,key', token, {
+      const updatedRows = await supabaseFetch('/rest/v1/study_store?on_conflict=user_id,key&select=key,updated_at', token, {
         method: 'POST',
-        prefer: 'resolution=merge-duplicates,return=minimal',
+        prefer: 'resolution=merge-duplicates,return=representation',
         body: JSON.stringify(safeRows),
       });
-      json(response, 200, { count: safeRows.length });
+      json(response, 200, { count: safeRows.length, rows: updatedRows || [] });
       return;
     }
 

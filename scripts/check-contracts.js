@@ -77,6 +77,10 @@ expect(app.includes('const dirtySnapshot=cloudDirtyState.snapshot(keys)'), 'Clou
 expect(app.includes('syncAllToCloud(true,{force:true})'), 'Factory reset must force an authoritative full cloud upload');
 expect(app.includes('const rawLocal=rawSyncableItems()'), 'Cloud polling must compare raw local values before parsing and merging history');
 expect(app.includes('mapsEqual(rawLocal,remote)'), 'Cloud polling must preserve an unchanged-data fast path');
+expect(app.includes("select('key,updated_at')"), 'Cloud polling must probe lightweight row versions before downloading values');
+expect(app.includes("{probe:true}"), 'Automatic cloud refreshes must use the metadata probe path');
+expect(syncApi.includes("payload.metadata ? 'key,updated_at' : 'key,value,updated_at'"), 'Sync proxy must expose metadata-only selects');
+expect(syncApi.includes('return=representation'), 'Sync proxy upserts must return updated row versions');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));

@@ -56,6 +56,7 @@ let cloudSyncBusy=false;
 let cloudBootstrapped=false;
 let cloudSyncQueued=false;
 let cloudAutoTimer=null;
+let cloudRemoteVersions=null;
 let passwordRecoveryMode=false;
 const cloudDirtyState=SyncState.createDirtyState();
 let cloudSyncDebounceTimer=null;
@@ -144,12 +145,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.16',
+  version:'0.11.17',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.17',
+    date:'2026-07-26',
+    title:'用行版本探测替代周期性完整历史下载',
+    items:['自动轮询只读取 6 个云键的 key 与 updated_at；版本没有变化时不再从 Supabase 下载 value。','3000 条浏览器样本中，完整响应约 2,673,614 字节，元数据响应约 439 字节，缩小约 6090 倍；发现远端版本变化后仍会自动升级为完整读取、合并和回写。','同步代理支持元数据查询并在 upsert 后返回新版本；新增服务端回归测试覆盖轻量读取、版本返回与键白名单。'],
+  },
   {
     version:'0.11.16',
     date:'2026-07-26',
@@ -1391,7 +1398,7 @@ async function syncViaServer(action,payload={}){
 }
 async function fetchCloudRows(keys=Object.values(CLOUD_KEYS)){
   try{
-    const {data,error}=await cloudClient.from('study_store').select('key,value').eq('user_id',cloudUser.id).in('key',keys);
+    const {data,error}=await cloudClient.from('study_store').select('key,value,updated_at').eq('user_id',cloudUser.id).in('key',keys);
     if(error)throw error;
     return data||[];
   }catch(error){
@@ -1399,6 +1406,29 @@ async function fetchCloudRows(keys=Object.values(CLOUD_KEYS)){
     const data=await syncViaServer('select',{keys});
     return data.rows||[];
   }
+}
+async function fetchCloudVersions(keys=Object.values(CLOUD_KEYS)){
+  try{
+    const {data,error}=await cloudClient.from('study_store').select('key,updated_at').eq('user_id',cloudUser.id).in('key',keys);
+    if(error)throw error;
+    return data||[];
+  }catch(error){
+    if(!isCloudNetworkError(error))throw error;
+    const data=await syncViaServer('select',{keys,metadata:true});
+    return data.rows||[];
+  }
+}
+function rememberCloudVersions(rows,{merge=false}={}){
+  const versions=SyncState.versionMap(rows);
+  if((rows||[]).length&&!Object.keys(versions).length){
+    cloudRemoteVersions=null;
+    return;
+  }
+  if(merge){
+    cloudRemoteVersions=cloudRemoteVersions===null?null:{...cloudRemoteVersions,...versions};
+    return;
+  }
+  cloudRemoteVersions=versions;
 }
 function markCloudDirty(key){
   cloudDirtyState.mark(key);
@@ -1780,14 +1810,27 @@ async function askSyncConflict(local,remote){
     layer.onclick=event=>{if(event.target===layer)close('remote')};
   });
 }
-async function bootstrapCloudSync(mode='ask',manual=false){
+async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
   if(!cloudReady())return;
-  if(cloudSyncBusy){cloudSyncQueued=true;return}
+  if(cloudSyncBusy){if(!probe)cloudSyncQueued=true;return}
   cloudBootstrapped=true;
   setCloudBusy(true,manual);
   if(manual)setCloudStatus('正在读取云端数据...','info',true);
   try{
+    if(probe&&cloudRemoteVersions!==null){
+      try{
+        const versions=SyncState.versionMap(await fetchCloudVersions());
+        if(mapsEqual(versions,cloudRemoteVersions)){
+          setCloudStatus('云端数据没有变化。','good');
+          startCloudAutoSync();
+          return;
+        }
+      }catch{
+        cloudRemoteVersions=null;
+      }
+    }
     const data=await fetchCloudRows();
+    rememberCloudVersions(data);
     const remote=cloudRawMap(data);
     if(mode==='cloud'){
       replaceLocalWithItems(remote);
@@ -1839,14 +1882,18 @@ async function uploadItemsToCloud(items,dirtySnapshot={}){
   const rows=Object.entries(items).map(([key,raw])=>({user_id:cloudUser.id,key,value:{raw}}));
   if(!rows.length)return {count:0};
   try{
-    const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
+    const request=cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
+    const response=typeof request.select==='function'?await request.select('key,updated_at'):await request;
+    const {data,error}=response||{};
     if(error)throw error;
+    rememberCloudVersions(data||[],{merge:true});
     clearCloudDirty(dirtySnapshot);
     return {count:rows.length};
   }catch(error){
     if(!isCloudNetworkError(error))return {error,count:rows.length};
     try{
       const data=await syncViaServer('upsert',{rows});
+      rememberCloudVersions(data.rows||[],{merge:true});
       clearCloudDirty(dirtySnapshot);
       return {count:data.count||rows.length,proxied:true};
     }catch(proxyError){
@@ -1897,11 +1944,12 @@ function flushQueuedCloudSync(){
 function startCloudAutoSync(){
   if(cloudAutoTimer)clearInterval(cloudAutoTimer);
   if(!cloudClient||!cloudUser)return;
-  cloudAutoTimer=setInterval(()=>bootstrapCloudSync('merge',false),15000);
+  cloudAutoTimer=setInterval(()=>bootstrapCloudSync('merge',false,{probe:true}),15000);
 }
 function stopCloudAutoSync(){
   if(cloudAutoTimer)clearInterval(cloudAutoTimer);
   cloudAutoTimer=null;
+  cloudRemoteVersions=null;
   clearTimeout(cloudSyncDebounceTimer);
   cloudSyncDebounceTimer=null;
 }
@@ -6172,10 +6220,10 @@ document.addEventListener('keydown',event=>{
   }
 });
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&cloudClient&&cloudUser)bootstrapCloudSync('merge',false);
+  if(document.visibilityState==='visible'&&cloudClient&&cloudUser)bootstrapCloudSync('merge',false,{probe:true});
 });
 window.addEventListener('focus',()=>{
-  if(cloudClient&&cloudUser)bootstrapCloudSync('merge',false);
+  if(cloudClient&&cloudUser)bootstrapCloudSync('merge',false,{probe:true});
 });
 window.addEventListener('popstate',()=>restoreViewFromLocation({focus:false}));
 els.historySearch?.addEventListener('input',event=>{
