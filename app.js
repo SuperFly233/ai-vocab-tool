@@ -145,12 +145,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.20',
+  version:'0.11.21',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.21',
+    date:'2026-07-26',
+    title:'让重复确认也成为有效的同步操作',
+    items:['首页查询明确选中收藏或收藏夹时，即使词条原本已经处于相同状态，也会刷新对应字段时钟；另一台设备上较新的旧操作不再反压用户刚刚重申的选择。','历史可视化/JSON 编辑保存会把当前收藏夹与旧标签状态视为完整确认，包括“仍为空”的情况；空状态现在也能可靠覆盖远端过期关系。','隔离浏览器直接调用生产写入函数验证：重复收藏与重复加入收藏夹的时钟均前进，编辑保存空关系同时写入两个时钟；契约检查锁定三条语义，防止以后退化为仅在值变化时更新时间。'],
+  },
   {
     version:'0.11.20',
     date:'2026-07-26',
@@ -3646,17 +3652,15 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
     const nextRolls=duplicateRoll?existingRolls:dedupeRolls([roll,...existingRolls]);
     const nextFavorite=favorite||normalized.favorite;
     const nextFolderIds=mergeFolderIds(normalized.folderIds,selectedFolderIds);
-    const favoriteChanged=nextFavorite!==normalized.favorite;
-    const foldersChanged=JSON.stringify(nextFolderIds)!==JSON.stringify(normalized.folderIds);
     saved={
       ...normalized,
       query,
       result:duplicateRoll?(existingRolls[0]?.result||normalized.result):result,
       favorite:nextFavorite,
       favoriteAt:favorite?(normalized.favoriteAt||now):normalized.favoriteAt,
-      favoriteUpdatedAt:favoriteChanged?now:normalized.favoriteUpdatedAt,
+      favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt,
       folderIds:nextFolderIds,
-      foldersUpdatedAt:foldersChanged?now:normalized.foldersUpdatedAt,
+      foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt,
       updatedAt:now,
       rolls:nextRolls,
     };
@@ -5268,14 +5272,12 @@ function saveHistoryEdit(){
     const rolls=getHistoryRolls(item);
     const normalized=normalizeHistoryItem(item);
     const noteChanged=note!==normalized.note;
-    const foldersChanged=JSON.stringify(folderIds)!==JSON.stringify(normalized.folderIds);
-    const tagsChanged=normalized.tags.length>0;
     const selectedIndex=Math.max(0,rolls.findIndex((roll,index)=>historyRollViewKey(roll,index)===String(modalRollId)));
     const updatedRolls=rolls.map((roll,index)=>index===selectedIndex||(!modalRollId&&index===0)
       ? {...roll,result:parsed,updatedAt:now}
       : roll);
     modalRollId=updatedRolls[selectedIndex]?historyRollViewKey(updatedRolls[selectedIndex],selectedIndex):modalRollId;
-    return {...normalized,query,tags:[],tagsUpdatedAt:tagsChanged?now:normalized.tagsUpdatedAt,folderIds,foldersUpdatedAt:foldersChanged?now:normalized.foldersUpdatedAt,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
+    return {...normalized,query,tags:[],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
   if(originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query))recordHistoryDeletions([originalItem]);
   setHistory(history,{revive:true});

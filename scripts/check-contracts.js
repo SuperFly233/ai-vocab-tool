@@ -87,6 +87,9 @@ expect(app.includes('HistoryData.resolveMutableField('), 'History merge must res
 expect(app.includes('favoriteUpdatedAt:now'), 'Explicit favorite selection must record a favorite field clock');
 expect(app.includes('foldersUpdatedAt:now'), 'Explicit folder selection/removal must record a folder field clock');
 expect(app.includes('tagsUpdatedAt:now'), 'Legacy tag removal must record a tag field clock');
+expect(app.includes('favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt'), 'Reasserting an existing favorite must refresh its field clock');
+expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt'), 'Reasserting an existing lookup folder must refresh its field clock');
+expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');
 expect(/class="modal-head-actions"[\s\S]*class="modal-view-tabs"[\s\S]*class="modal-file-actions"/.test(html), 'History modal header must separate view tabs from file actions');
 expect(/<\/div>\s*<button class="icon-btn danger-icon modal-close-btn"/.test(html), 'History modal close control must remain outside the scrolling action group');
 
