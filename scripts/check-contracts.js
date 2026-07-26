@@ -27,6 +27,7 @@ const versions = {
   cssAsset: firstMatch(html, /\/styles\.css\?v=([\d.]+)/),
   jsAsset: firstMatch(html, /\/app\.js\?v=([\d.]+)/),
   historyAsset: firstMatch(html, /\/history-data\.js\?v=([\d.]+)/),
+  settingsDataAsset: firstMatch(html, /\/settings-data\.js\?v=([\d.]+)/),
   lookupTasksAsset: firstMatch(html, /\/lookup-tasks\.js\?v=([\d.]+)/),
   syncStateAsset: firstMatch(html, /\/sync-state\.js\?v=([\d.]+)/),
   changelog: firstMatch(changelog, /^## v([\d.]+)/m),
@@ -64,6 +65,8 @@ expect(!missingHandlers.length, `内联交互引用了不存在的函数：${mis
 expect(/href="\/styles\.css\?v=/.test(html), 'styles.css 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/app\.js\?v=/.test(html), 'app.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/history-data\.js\?v=/.test(html), 'history-data.js 必须使用根绝对路径，避免二级 URL 加载失败');
+expect(/src="\/settings-data\.js\?v=/.test(html), 'settings-data.js must use a root-absolute versioned asset path');
+expect(html.indexOf('/settings-data.js?v=')<html.indexOf('/app.js?v='), 'settings-data.js must load before app.js');
 expect(/src="\/lookup-tasks\.js\?v=/.test(html), 'lookup-tasks.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(app.includes("historyTombstones:'ai_vocab_tool_history_tombstones'"), '前端同步键缺少历史删除墓碑');
 expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白名单缺少历史删除墓碑');
@@ -87,6 +90,8 @@ expect(app.includes('HistoryData.resolveMutableField('), 'History merge must res
 expect(app.includes('favoriteUpdatedAt:now'), 'Explicit favorite selection must record a favorite field clock');
 expect(app.includes('foldersUpdatedAt:now'), 'Explicit folder selection/removal must record a folder field clock');
 expect(app.includes('tagsUpdatedAt:now'), 'Legacy tag removal must record a tag field clock');
+expect(app.includes('favoriteFolderTombstones:SettingsData.addTombstone'), 'Favorite folder deletion must create a settings tombstone');
+expect(app.includes('SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now)'), 'API profile deletion must create a settings tombstone');
 expect(app.includes('favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt'), 'Reasserting an existing favorite must refresh its field clock');
 expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt'), 'Reasserting an existing lookup folder must refresh its field clock');
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');

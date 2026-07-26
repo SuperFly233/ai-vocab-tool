@@ -41,6 +41,7 @@ Expected behavior:
 - On login/session restore, sync should be silent and automatic.
 - History is merged by normalized query, preserving rolls and followups with deterministic conflict rules.
 - Favorite, folder membership, and legacy tags use independent field clocks. Explicit newer removals beat stale additions; records without clocks retain the legacy OR/union behavior for migration safety.
+- Favorite-folder definitions and API profiles use item tombstones inside settings. Older copies of deleted ids are filtered during merge, while unrelated concurrent additions and genuinely newer recreations survive.
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
@@ -48,6 +49,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.22 adds item tombstones for favorite-folder definitions and API profiles, closing the remaining settings-list resurrection path. Pure data tests and isolated production `mergeSettings()` probes confirmed order-independent deletion, preservation of unrelated concurrent additions, and newer recreation. `settings-data.js` is included in both static asset version contracts and the Cloudflare build output.
 - v0.11.21 treats explicit user confirmation as a write even when the visible metadata value is unchanged. Lookup folder/favorite reassertions refresh their field clocks, while History editor saves authoritatively clock folder and legacy-tag state including empty arrays. Isolated browser probes called the production write paths and confirmed all relevant clocks advance.
 - v0.11.20 adds field-level clocks for favorite state, folder membership, and legacy tags so explicit removals converge instead of being resurrected by stale devices. Legacy records without clocks still use OR/union compatibility. Mobile Home also removes the obsolete 44px query-row reserve, widens the primary input, and equalizes compact secondary control heights; isolated Edge checks at 390x844 confirmed `top:0` and zero horizontal overflow.
 - v0.11.19 separates the History detail header into title, view tabs, file utilities, and an independently anchored close control. Desktop keeps one aligned row; mobile reserves the top-right corner for close, lets only the view tabs scroll horizontally, and keeps copy/export visible. Isolated Edge checks at 1440x900 and 390x844 reported zero page overflow; Home empty states remained aligned with the desktop sidebar and mobile nav.

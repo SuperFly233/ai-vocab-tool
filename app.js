@@ -140,17 +140,23 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[]};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[]};
 const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.21',
+  version:'0.11.22',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.22',
+    date:'2026-07-26',
+    title:'阻止已删除的收藏夹与 API 配置复活',
+    items:['设置同步为收藏夹定义和 API 配置增加条目级删除墓碑；旧设备仍保存的同 ID 条目不会再通过并集合并重新出现，“恢复接口默认”也不会被远端旧配置污染。','墓碑只压制删除时间之前的旧副本；两台设备并发新增的不同收藏夹和 API 配置仍会全部保留，同 ID 在删除之后明确重新创建也能正常恢复。','新增 settings-data 纯数据模块和专项测试，并用隔离浏览器直接验证生产 mergeSettings：正反设备顺序结果一致，删除不复活、并发新增不丢失、较新重建可恢复；Cloudflare 构建清单和资源版本契约已覆盖新模块。'],
+  },
   {
     version:'0.11.21',
     date:'2026-07-26',
@@ -1194,7 +1200,9 @@ function normalizeSettings(raw={}){
     if(existingIndex>=0)profiles[existingIndex]={...profiles[existingIndex],...legacyProfile};
     else profiles.unshift(legacyProfile);
   }
-  profiles=dedupeApiProfiles(profiles.length?profiles:[DEFAULT_API_PROFILE]);
+  const apiProfileTombstones=SettingsData.normalizeTombstones(source.apiProfileTombstones);
+  profiles=SettingsData.reconcileItems(dedupeApiProfiles(profiles.length?profiles:[DEFAULT_API_PROFILE]),apiProfileTombstones);
+  if(!profiles.length)profiles=[normalizeApiProfile(DEFAULT_API_PROFILE)];
   const activeId=profiles.some(profile=>profile.id===source.activeApiProfileId)?source.activeApiProfileId:profiles[0].id;
   const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
   const labelMode=normalizeLabelMode(source.labelMode);
@@ -1202,11 +1210,13 @@ function normalizeSettings(raw={}){
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
-  const favoriteFolders=normalizeFavoriteFolders(source.favoriteFolders);
+  const favoriteFolderTombstones=SettingsData.normalizeTombstones(source.favoriteFolderTombstones);
+  const favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders),favoriteFolderTombstones);
   return {
     ...DEFAULT_SETTINGS,
     ...source,
     apiProfiles:profiles,
+    apiProfileTombstones,
     activeApiProfileId:active.id,
     apiUrl:active.apiUrl,
     apiKey:active.apiKey,
@@ -1217,6 +1227,7 @@ function normalizeSettings(raw={}){
     visualHintsPinned,
     modelPrompt,
     favoriteFolders,
+    favoriteFolderTombstones,
   };
 }
 function normalizeLabelMode(value){
@@ -1300,9 +1311,12 @@ function activeApiProfile(settings=getSettings()){
 function mergeSettings(localRaw,remoteRaw){
   const local=localRaw?normalizeSettings(localRaw):{apiProfiles:[],activeApiProfileId:''};
   const remote=remoteRaw?normalizeSettings(remoteRaw):{apiProfiles:[],activeApiProfileId:''};
-  const profiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
-  const favoriteFolders=mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]);
-  if(!profiles.length)return normalizeSettings(DEFAULT_SETTINGS);
+  const apiProfileTombstones=SettingsData.normalizeTombstones(remote.apiProfileTombstones,local.apiProfileTombstones);
+  const favoriteFolderTombstones=SettingsData.normalizeTombstones(remote.favoriteFolderTombstones,local.favoriteFolderTombstones);
+  const mergedProfiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
+  const profiles=SettingsData.reconcileItems(mergedProfiles,apiProfileTombstones);
+  const favoriteFolders=SettingsData.reconcileItems(mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]),favoriteFolderTombstones);
+  if(!profiles.length)profiles.push(normalizeApiProfile(DEFAULT_API_PROFILE));
   const localHasPendingSettings=cloudDirtyState.has(CLOUD_KEYS.settings);
   const localTime=new Date(local.updatedAt||0).getTime()||0;
   const remoteTime=new Date(remote.updatedAt||0).getTime()||0;
@@ -1318,7 +1332,9 @@ function mergeSettings(localRaw,remoteRaw){
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
     modelPrompt:preferLocalSettings?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     favoriteFolders,
+    favoriteFolderTombstones,
     apiProfiles:profiles,
+    apiProfileTombstones,
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
     apiKey:'',
@@ -4641,7 +4657,7 @@ async function deleteFavoriteFolder(folderId){
       };
     });
   const settings=getSettings();
-  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),updatedAt:now});
+  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),favoriteFolderTombstones:SettingsData.addTombstone(settings.favoriteFolderTombstones,folder.id,now),updatedAt:now});
   historyState.filters.folder=historyState.filters.folder.filter(id=>id!==folder.id);
   if(folderState.activeId===folder.id)folderState.activeId=FOLDER_LIKED_ID;
   setHistory(history);
@@ -6023,7 +6039,12 @@ function renderModelChoices(models){
 }
 async function resetModelSettings(){
   if(!await askConfirm('这会清空所有自定义 API 配置组，改回 Vercel 环境变量。','恢复接口默认'))return;
-  setSettings({...getSettings(),apiProfiles:[DEFAULT_API_PROFILE],activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:new Date().toISOString()});
+  const settings=getSettings();
+  const now=new Date().toISOString();
+  const apiProfileTombstones=settings.apiProfiles
+    .filter(profile=>profile.id!==DEFAULT_API_PROFILE.id)
+    .reduce((items,profile)=>SettingsData.addTombstone(items,profile.id,now),settings.apiProfileTombstones);
+  setSettings({...settings,apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones,activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:now});
   hydrateSettings();
   closeApiProfileMenu();
   notify('接口配置已恢复默认。','good','设置');
@@ -6111,7 +6132,9 @@ async function deleteApiProfile(id=null){
   const profiles=settings.apiProfiles.filter(profile=>profile.id!==current.id);
   const nextProfiles=profiles.length?profiles:[DEFAULT_API_PROFILE];
   const activeId=current.id===settings.activeApiProfileId?nextProfiles[0].id:settings.activeApiProfileId;
-  setSettings({...settings,apiProfiles:nextProfiles,activeApiProfileId:activeId,updatedAt:new Date().toISOString()});
+  const now=new Date().toISOString();
+  const apiProfileTombstones=SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now);
+  setSettings({...settings,apiProfiles:nextProfiles,apiProfileTombstones,activeApiProfileId:activeId,updatedAt:now});
   hydrateSettings();
   closeApiProfileMenu();
   notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置');

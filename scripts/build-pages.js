@@ -7,6 +7,7 @@ const files = [
   'index.html',
   'app.js',
   'history-data.js',
+  'settings-data.js',
   'lookup-tasks.js',
   'sync-state.js',
   'styles.css',
