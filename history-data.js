@@ -4,6 +4,26 @@
     return Number.isFinite(time)?time:0;
   };
 
+  const canonical=value=>{
+    if(Array.isArray(value))return value.map(canonical);
+    if(value&&typeof value==='object'){
+      return Object.keys(value).sort().reduce((result,key)=>{
+        result[key]=canonical(value[key]);
+        return result;
+      },{});
+    }
+    return value;
+  };
+
+  const signature=value=>JSON.stringify(canonical(value));
+
+  function preferNewer(left={},right={}){
+    const leftTime=timestamp(left?.updatedAt||left?.createdAt);
+    const rightTime=timestamp(right?.updatedAt||right?.createdAt);
+    if(leftTime!==rightTime)return leftTime>rightTime?[left,right]:[right,left];
+    return signature(left)>=signature(right)?[left,right]:[right,left];
+  }
+
   function normalizeTombstones(...groups){
     const map=new Map();
     groups.flatMap(group=>Array.isArray(group)?group:[]).forEach(item=>{
@@ -13,7 +33,7 @@
       const existing=map.get(key);
       if(!existing||timestamp(deletedAt)>=timestamp(existing.deletedAt))map.set(key,{key,deletedAt});
     });
-    return [...map.values()].sort((a,b)=>timestamp(b.deletedAt)-timestamp(a.deletedAt));
+    return [...map.values()].sort((a,b)=>timestamp(b.deletedAt)-timestamp(a.deletedAt)||a.key.localeCompare(b.key));
   }
 
   function reconcileHistory(history=[],tombstones=[],keyOf=item=>item?.key){
@@ -40,10 +60,17 @@
       const existing=map.get(key);
       const currentTime=timestamp(item.updatedAt||item.createdAt);
       const existingTime=timestamp(existing?.updatedAt||existing?.createdAt);
-      if(!existing||currentTime>=existingTime)map.set(key,existing?{...existing,...item}:item);
+      if(!existing||currentTime>existingTime||(currentTime===existingTime&&signature(item)>=signature(existing))){
+        map.set(key,existing?{...existing,...item}:item);
+      }
     });
-    return [...map.values()];
+    return [...map.entries()]
+      .sort((left,right)=>{
+        const timeDiff=timestamp(left[1]?.createdAt)-timestamp(right[1]?.createdAt);
+        return timeDiff||left[0].localeCompare(right[0]);
+      })
+      .map(([,item])=>item);
   }
 
-  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups});
+  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer});
 })(typeof globalThis==='object'?globalThis:this);

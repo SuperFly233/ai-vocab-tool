@@ -145,12 +145,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.17',
+  version:'0.11.18',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.18',
+    date:'2026-07-26',
+    title:'让多设备历史版本合并稳定收敛',
+    items:['同词条两端版本现在优先采用更新时间较新的版本顺序，再追加另一端独有版本；不再固定让云端旧顺序压住本机新结果。','历史 id、标签、收藏夹成员、同时间备注、追问冲突和墓碑排序增加确定性规则，正反方向合并会得到同一份 JSON。','浏览器验证正反合并与重复合并均一致；100 组生产函数交换顺序测试失败数为 0，较新版本正确保持为当前结果。'],
+  },
   {
     version:'0.11.17',
     date:'2026-07-26',
@@ -1617,13 +1623,14 @@ function mergeHistoryItems(localHistory,remoteHistory){
     const key=normalizeSearch(normalized.query||normalized.result?.meta?.query||normalized.result?.headword?.title||normalized.id);
     const existing=map.get(key);
     if(!existing){map.set(key,normalized);return}
-    const rolls=dedupeRolls([...getHistoryRolls(existing),...getHistoryRolls(normalized)]);
+    const [primary,secondary]=HistoryData.preferNewer(existing,normalized);
+    const rolls=dedupeRolls([...getHistoryRolls(primary),...getHistoryRolls(secondary)]);
     const latest=rolls[0]||makeHistoryRoll(normalized.result,normalized.createdAt);
     map.set(key,{
-      ...existing,
-      ...normalized,
-      id:existing.id||normalized.id,
-      query:existing.query||normalized.query,
+      ...secondary,
+      ...primary,
+      id:stableHistoryId(existing,normalized),
+      query:primary.query||secondary.query,
       favorite:Boolean(existing.favorite||normalized.favorite),
       favoriteAt:[existing.favoriteAt,normalized.favoriteAt].filter(Boolean).sort().pop()||'',
       tags:mergeTags(existing.tags,normalized.tags),
@@ -1639,16 +1646,29 @@ function mergeHistoryItems(localHistory,remoteHistory){
   };
   remoteHistory.forEach(put);
   localHistory.forEach(put);
-  return [...map.values()].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt));
+  return [...map.values()].sort((a,b)=>{
+    const timeDiff=(new Date(b.updatedAt||b.createdAt).getTime()||0)-(new Date(a.updatedAt||a.createdAt).getTime()||0);
+    return timeDiff||historyIdentityKey(a).localeCompare(historyIdentityKey(b));
+  });
 }
 function mergeTags(...groups){
-  return uniq(groups.flatMap(normalizeTags));
+  return uniq(groups.flatMap(normalizeTags)).sort((a,b)=>a.localeCompare(b));
 }
 function mergeFolderIds(...groups){
   return uniq(groups.flatMap(group=>{
     if(Array.isArray(group))return group.every(item=>String(item||'').startsWith('tag_')||String(item||'').startsWith('folder_'))?normalizeFolderIds(group):normalizeTags(group).map(legacyTagFolderId);
     return normalizeFolderIds(group);
-  })).slice(0,64);
+  })).sort((a,b)=>a.localeCompare(b)).slice(0,64);
+}
+function stableHistoryId(left={},right={}){
+  const leftId=left.id;
+  const rightId=right.id;
+  if(leftId===undefined||leftId===null||leftId==='')return rightId;
+  if(rightId===undefined||rightId===null||rightId==='')return leftId;
+  const leftCreated=new Date(left.createdAt||0).getTime()||0;
+  const rightCreated=new Date(right.createdAt||0).getTime()||0;
+  if(leftCreated&&rightCreated&&leftCreated!==rightCreated)return leftCreated<rightCreated?leftId:rightId;
+  return String(leftId).localeCompare(String(rightId))<=0?leftId:rightId;
 }
 function latestHistoryNote(a={},b={}){
   const left=String(a.note||'');
@@ -1656,7 +1676,8 @@ function latestHistoryNote(a={},b={}){
   const leftTime=historyNoteTime(a);
   const rightTime=historyNoteTime(b);
   if(!leftTime&&!rightTime)return left||right;
-  return rightTime>=leftTime?right:left;
+  if(rightTime!==leftTime)return rightTime>leftTime?right:left;
+  return right.localeCompare(left)>=0?right:left;
 }
 function historyNoteTime(item={}){
   if(item.noteUpdatedAt)return new Date(item.noteUpdatedAt).getTime()||0;

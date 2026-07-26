@@ -81,6 +81,8 @@ expect(app.includes("select('key,updated_at')"), 'Cloud polling must probe light
 expect(app.includes("{probe:true}"), 'Automatic cloud refreshes must use the metadata probe path');
 expect(syncApi.includes("payload.metadata ? 'key,updated_at' : 'key,value,updated_at'"), 'Sync proxy must expose metadata-only selects');
 expect(syncApi.includes('return=representation'), 'Sync proxy upserts must return updated row versions');
+expect(app.includes('HistoryData.preferNewer(existing,normalized)'), 'History merge must prefer the newer device record deterministically');
+expect(app.includes('id:stableHistoryId(existing,normalized)'), 'History merge must choose a stable cross-device record id');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));
