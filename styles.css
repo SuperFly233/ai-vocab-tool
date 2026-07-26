@@ -917,9 +917,10 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .about-hero h2{font-size:32px}
 }
 @media(max-width:560px){
+  .topbar{padding-right:44px}
   #query-input{font-size:18px;padding:13px 60px 13px 18px}
   body.home-scrolled #view-home .workspace{padding-top:116px}
-  .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:minmax(0,1fr) minmax(110px,.46fr) 48px}
+  .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:minmax(0,1fr) minmax(110px,.46fr) 48px;padding-right:44px}
   .query-actions{grid-column:3 / 4;grid-row:1;justify-content:flex-end}
   .assist-fields{grid-column:1 / 2}
   .lookup-folder-strip{grid-column:2 / 4}

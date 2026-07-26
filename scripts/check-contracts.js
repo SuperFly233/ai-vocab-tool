@@ -28,6 +28,7 @@ const versions = {
   jsAsset: firstMatch(html, /\/app\.js\?v=([\d.]+)/),
   historyAsset: firstMatch(html, /\/history-data\.js\?v=([\d.]+)/),
   lookupTasksAsset: firstMatch(html, /\/lookup-tasks\.js\?v=([\d.]+)/),
+  syncStateAsset: firstMatch(html, /\/sync-state\.js\?v=([\d.]+)/),
   changelog: firstMatch(changelog, /^## v([\d.]+)/m),
   readme: firstMatch(readme, /^- v([\d.]+)/m),
   context: firstMatch(projectContext, /^- v([\d.]+)/m),
@@ -69,6 +70,11 @@ expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白�
 expect(/const allHistory=getHistory\(\);[\s\S]{0,500}filterAndSortHistory\(allHistory\)/.test(app), '历史渲染必须复用单次 getHistory 结果');
 expect(/const hasFilters=Object\.values\(historyState\.filters\)\.some\(filterHasValues\)/.test(app), '历史筛选缺少无筛选快路径');
 expect(app.includes("const HISTORY_NORMALIZED=Symbol('historyNormalized')"), '历史记录缺少规范化复用标记');
+
+expect(/src="\/sync-state\.js\?v=/.test(html), 'sync-state.js must use a root-absolute versioned asset path');
+expect(app.includes('const keys=force?Object.values(CLOUD_KEYS):cloudDirtyState.keys()'), 'Automatic cloud sync must upload only dirty keys');
+expect(app.includes('const dirtySnapshot=cloudDirtyState.snapshot(keys)'), 'Cloud sync must capture versioned dirty snapshots');
+expect(app.includes('syncAllToCloud(true,{force:true})'), 'Factory reset must force an authoritative full cloud upload');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));

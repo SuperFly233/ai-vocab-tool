@@ -57,7 +57,8 @@ let cloudBootstrapped=false;
 let cloudSyncQueued=false;
 let cloudAutoTimer=null;
 let passwordRecoveryMode=false;
-const cloudDirtyKeys=new Set();
+const cloudDirtyState=SyncState.createDirtyState();
+let cloudSyncDebounceTimer=null;
 let editingFollowup=null;
 let pendingFollowup=null;
 let lookupFolderIds=[];
@@ -143,12 +144,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.14',
+  version:'0.11.15',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.15',
+    date:'2026-07-26',
+    title:'让云同步增量化并保护窄屏关键控件',
+    items:['自动保存只序列化并上传本次发生变化的数据项；180ms 内的连续修改会合并为一次请求，不再每次重传整份历史。','每个待同步项使用递增版本快照；旧上传完成时不会清除请求期间产生的新修改，远端读取期间的新本机数据也不会被旧快照覆盖。','窄屏首页为右侧浏览器悬浮工具预留 44px 安全区，查询和主题按钮保持完整可见；滚动贴顶后同样生效且不产生横向溢出。'],
+  },
   {
     version:'0.11.14',
     date:'2026-07-26',
@@ -874,7 +881,7 @@ function setLogs(items){
   writeJSON(STORAGE_KEYS.logs,items.slice(0,80));
   markCloudDirty(CLOUD_KEYS.logs);
   renderLogs();
-  syncAllToCloud(true);
+  scheduleCloudSync();
 }
 function pushLog(message,type='info',title='ai-vocab-tool'){
   const logs=getLogs();
@@ -1101,7 +1108,7 @@ function setHistory(items,{revive=false}={}){
   renderHistory();
   renderLookupFolderPicker();
   if(activeView==='folders')renderFoldersView();
-  syncAllToCloud(true);
+  scheduleCloudSync();
 }
 function getSettings(){
   const raw=localStorage.getItem(STORAGE_KEYS.settings)||'';
@@ -1124,7 +1131,7 @@ function setSettings(settings){
   writeSettings(settings);
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
-  syncAllToCloud(true);
+  scheduleCloudSync();
 }
 function saveSettingsLocal(settings){
   invalidateHistoryDerivedCache();
@@ -1259,7 +1266,7 @@ function mergeSettings(localRaw,remoteRaw){
   const profiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
   const favoriteFolders=mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]);
   if(!profiles.length)return normalizeSettings(DEFAULT_SETTINGS);
-  const localHasPendingSettings=cloudDirtyKeys.has(CLOUD_KEYS.settings);
+  const localHasPendingSettings=cloudDirtyState.has(CLOUD_KEYS.settings);
   const localTime=new Date(local.updatedAt||0).getTime()||0;
   const remoteTime=new Date(remote.updatedAt||0).getTime()||0;
   const preferLocalSettings=localHasPendingSettings||localTime>remoteTime;
@@ -1388,20 +1395,30 @@ async function fetchCloudRows(keys=Object.values(CLOUD_KEYS)){
   }
 }
 function markCloudDirty(key){
-  if(key)cloudDirtyKeys.add(key);
+  cloudDirtyState.mark(key);
 }
-function clearCloudDirty(keys=Object.values(CLOUD_KEYS)){
-  keys.forEach(key=>cloudDirtyKeys.delete(key));
+function clearCloudDirty(snapshot=null,{force=false}={}){
+  if(force){
+    cloudDirtyState.clearKeys(Array.isArray(snapshot)?snapshot:Object.keys(snapshot||{}));
+    return;
+  }
+  cloudDirtyState.clear(snapshot||{});
 }
-function syncableItems(){
-  return {
-    [CLOUD_KEYS.history]:JSON.stringify(getHistory()),
-    [CLOUD_KEYS.historyTombstones]:JSON.stringify(getHistoryTombstones()),
-    [CLOUD_KEYS.settings]:JSON.stringify(getSettings()),
-    [CLOUD_KEYS.theme]:localStorage.getItem(STORAGE_KEYS.theme)||'auto',
-    [CLOUD_KEYS.layout]:localStorage.getItem(STORAGE_KEYS.layout)||'top',
-    [CLOUD_KEYS.logs]:JSON.stringify(getLogs()),
-  };
+function syncableValue(key){
+  if(key===CLOUD_KEYS.history)return JSON.stringify(getHistory());
+  if(key===CLOUD_KEYS.historyTombstones)return JSON.stringify(getHistoryTombstones());
+  if(key===CLOUD_KEYS.settings)return JSON.stringify(getSettings());
+  if(key===CLOUD_KEYS.theme)return localStorage.getItem(STORAGE_KEYS.theme)||'auto';
+  if(key===CLOUD_KEYS.layout)return localStorage.getItem(STORAGE_KEYS.layout)||'top';
+  if(key===CLOUD_KEYS.logs)return JSON.stringify(getLogs());
+  return null;
+}
+function syncableItems(keys=Object.values(CLOUD_KEYS)){
+  return (Array.isArray(keys)?keys:[]).reduce((items,key)=>{
+    const value=syncableValue(key);
+    if(value!==null)items[key]=value;
+    return items;
+  },{});
 }
 function cloudRawMap(rows){
   const allowed=new Set(Object.values(CLOUD_KEYS));
@@ -1535,8 +1552,8 @@ function mergeSyncItems(local,remote){
       Object.prototype.hasOwnProperty.call(remote,CLOUD_KEYS.settings)?safeObjectFromRaw(remote[CLOUD_KEYS.settings],DEFAULT_SETTINGS):null,
     ));
   }
-  if(remote[CLOUD_KEYS.theme]&&!cloudDirtyKeys.has(CLOUD_KEYS.theme))merged[CLOUD_KEYS.theme]=remote[CLOUD_KEYS.theme];
-  if(remote[CLOUD_KEYS.layout]&&!cloudDirtyKeys.has(CLOUD_KEYS.layout))merged[CLOUD_KEYS.layout]=remote[CLOUD_KEYS.layout];
+  if(remote[CLOUD_KEYS.theme]&&!cloudDirtyState.has(CLOUD_KEYS.theme))merged[CLOUD_KEYS.theme]=remote[CLOUD_KEYS.theme];
+  if(remote[CLOUD_KEYS.layout]&&!cloudDirtyState.has(CLOUD_KEYS.layout))merged[CLOUD_KEYS.layout]=remote[CLOUD_KEYS.layout];
   if(remote[CLOUD_KEYS.logs]||local[CLOUD_KEYS.logs]){
     merged[CLOUD_KEYS.logs]=JSON.stringify(mergeLogs(safeLogsFromRaw(local[CLOUD_KEYS.logs]),safeLogsFromRaw(remote[CLOUD_KEYS.logs])));
   }
@@ -1758,21 +1775,25 @@ async function bootstrapCloudSync(mode='ask',manual=false){
   setCloudBusy(true,manual);
   if(manual)setCloudStatus('正在读取云端数据...','info',true);
   try{
-    const local=syncableItems();
     const data=await fetchCloudRows();
     const remote=cloudRawMap(data);
     if(mode==='cloud'){
       replaceLocalWithItems(remote);
+      clearCloudDirty(Object.keys(remote),{force:true});
       setCloudStatus('已读取云端最新数据。','good');
       if(manual)notify('已读取云端最新数据。','good','云端同步');
       startCloudAutoSync();
       return;
     }
+    const local=syncableItems();
+    const dirtySnapshot=cloudDirtyState.snapshot();
     const merged=Object.keys(remote).length?mergeSyncItems(local,remote):local;
     if(!mapsEqual(local,merged))replaceLocalWithItems(merged);
     if(!Object.keys(remote).length||!mapsEqual(remote,merged)){
-      const result=await replaceCloudWithItems(merged);
+      const result=await replaceCloudWithItems(merged,dirtySnapshot);
       if(result.error)throw result.error;
+    }else{
+      clearCloudDirty(dirtySnapshot);
     }
     setCloudStatus('已自动同步本机和云端数据。','good');
     if(manual)notify('已自动同步本机和云端数据。','good','同步完成');
@@ -1787,35 +1808,48 @@ async function bootstrapCloudSync(mode='ask',manual=false){
     flushQueuedCloudSync();
   }
 }
-async function uploadItemsToCloud(items){
+async function uploadItemsToCloud(items,dirtySnapshot={}){
   const rows=Object.entries(items).map(([key,raw])=>({user_id:cloudUser.id,key,value:{raw}}));
   if(!rows.length)return {count:0};
   try{
     const {error}=await cloudClient.from('study_store').upsert(rows,{onConflict:'user_id,key'});
     if(error)throw error;
-    clearCloudDirty(Object.keys(items));
+    clearCloudDirty(dirtySnapshot);
     return {count:rows.length};
   }catch(error){
     if(!isCloudNetworkError(error))return {error,count:rows.length};
     try{
       const data=await syncViaServer('upsert',{rows});
-      clearCloudDirty(Object.keys(items));
+      clearCloudDirty(dirtySnapshot);
       return {count:data.count||rows.length,proxied:true};
     }catch(proxyError){
       return {error:proxyError,count:rows.length};
     }
   }
 }
-async function replaceCloudWithItems(items){
-  return uploadItemsToCloud(items);
+async function replaceCloudWithItems(items,dirtySnapshot={}){
+  return uploadItemsToCloud(items,dirtySnapshot);
 }
-async function syncAllToCloud(silent=false){
+function scheduleCloudSync(delay=180){
+  clearTimeout(cloudSyncDebounceTimer);
+  if(!cloudClient||!cloudUser)return;
+  cloudSyncDebounceTimer=setTimeout(()=>{
+    cloudSyncDebounceTimer=null;
+    syncAllToCloud(true);
+  },delay);
+}
+async function syncAllToCloud(silent=false,{force=false}={}){
   if(!cloudClient||!cloudUser)return;
   if(cloudSyncBusy){cloudSyncQueued=true;return}
+  clearTimeout(cloudSyncDebounceTimer);
+  cloudSyncDebounceTimer=null;
+  const keys=force?Object.values(CLOUD_KEYS):cloudDirtyState.keys();
+  if(!keys.length)return;
+  const dirtySnapshot=cloudDirtyState.snapshot(keys);
   setCloudBusy(true,!silent);
   setCloudStatus('正在保存到云端...','info',!silent);
   try{
-    const result=await uploadItemsToCloud(syncableItems());
+    const result=await uploadItemsToCloud(syncableItems(keys),dirtySnapshot);
     if(result.error)throw result.error;
     setCloudStatus(`已同步 ${result.count} 项到云端。`,'good');
     if(!silent)notify('已同步到云端。','good','同步完成');
@@ -1841,6 +1875,8 @@ function startCloudAutoSync(){
 function stopCloudAutoSync(){
   if(cloudAutoTimer)clearInterval(cloudAutoTimer);
   cloudAutoTimer=null;
+  clearTimeout(cloudSyncDebounceTimer);
+  cloudSyncDebounceTimer=null;
 }
 async function uploadCloud(){
   if(!cloudReady())return;
@@ -1849,7 +1885,8 @@ async function uploadCloud(){
   setCloudBusy(true,true);
   setCloudStatus('正在上传本机数据...','info',true);
   try{
-    const result=await replaceCloudWithItems(syncableItems());
+    const keys=Object.values(CLOUD_KEYS);
+    const result=await replaceCloudWithItems(syncableItems(keys),cloudDirtyState.snapshot(keys));
     if(result.error)throw result.error;
     setCloudStatus(`已上传 ${result.count} 项本机数据。`,'good');
     notify('本机数据已覆盖云端。','good','上传完成');
@@ -5775,7 +5812,7 @@ function saveApiProfileFromModal(){
     hydrateSettings();
     closeApiProfileModal();
     notify(`已保存「${draft.name}」。`,'good','API 配置');
-    setTimeout(()=>syncAllToCloud(true),0);
+    scheduleCloudSync();
   }catch(error){
     const message=error?.message||String(error||'保存失败');
     notify(message,'bad','API 配置保存失败');
@@ -5957,7 +5994,7 @@ async function factoryReset(){
   renderLogs();
   applyTheme('auto');
   applyLayout('top');
-  syncAllToCloud(true);
+  syncAllToCloud(true,{force:true});
   notify('已恢复默认设置。','good','恢复出厂',false);
 }
 function renderLogs(){
@@ -6024,7 +6061,7 @@ function setTheme(theme){
   localStorage.setItem(STORAGE_KEYS.theme,theme);
   markCloudDirty(CLOUD_KEYS.theme);
   applyTheme(theme);
-  syncAllToCloud(true);
+  scheduleCloudSync();
 }
 function cycleTheme(){
   const order=['auto','light','dark'];
@@ -6056,7 +6093,7 @@ function setLayout(layout){
   localStorage.setItem(STORAGE_KEYS.layout,next);
   markCloudDirty(CLOUD_KEYS.layout);
   applyLayout(next);
-  syncAllToCloud(true);
+  scheduleCloudSync();
 }
 function updateEditorState(){
   const hasText=Boolean(els.query.value.trim()||els.direction.value.trim()||els.note.value.trim());

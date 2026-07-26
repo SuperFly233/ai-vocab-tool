@@ -8,6 +8,7 @@ const files = [
   'app.js',
   'history-data.js',
   'lookup-tasks.js',
+  'sync-state.js',
   'styles.css',
   'favicon.svg',
   'site.webmanifest',
