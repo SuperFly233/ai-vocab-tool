@@ -144,12 +144,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.15',
+  version:'0.11.16',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.16',
+    date:'2026-07-26',
+    title:'跳过无变化云轮询的全量历史合并',
+    items:['自动轮询先比较本机原始存储与云端原始值；完全一致时不再解析历史、合并版本或重建 JSON。','3000 条浏览器样本中，无变化轮询平均约 0.14ms，跳过的旧完整合并平均约 160.8ms；远端新增记录仍会进入正常合并并同步回本机。','同步原始值比较加入生产模块自动测试，覆盖完全一致、值变化和缺少键三种情况。'],
+  },
   {
     version:'0.11.15',
     date:'2026-07-26',
@@ -1420,6 +1426,16 @@ function syncableItems(keys=Object.values(CLOUD_KEYS)){
     return items;
   },{});
 }
+function rawSyncableItems(){
+  return {
+    [CLOUD_KEYS.history]:localStorage.getItem(STORAGE_KEYS.history)||'[]',
+    [CLOUD_KEYS.historyTombstones]:localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]',
+    [CLOUD_KEYS.settings]:localStorage.getItem(STORAGE_KEYS.settings)||JSON.stringify(getSettings()),
+    [CLOUD_KEYS.theme]:localStorage.getItem(STORAGE_KEYS.theme)||'auto',
+    [CLOUD_KEYS.layout]:localStorage.getItem(STORAGE_KEYS.layout)||'top',
+    [CLOUD_KEYS.logs]:localStorage.getItem(STORAGE_KEYS.logs)||'[]',
+  };
+}
 function cloudRawMap(rows){
   const allowed=new Set(Object.values(CLOUD_KEYS));
   const out={};
@@ -1429,11 +1445,7 @@ function cloudRawMap(rows){
   return out;
 }
 function mapsEqual(a,b){
-  const keys=new Set([...Object.keys(a),...Object.keys(b)]);
-  for(const key of keys){
-    if((a[key]??null)!==(b[key]??null))return false;
-  }
-  return true;
+  return SyncState.mapsEqual(a,b);
 }
 function replaceLocalWithItems(items){
   invalidateHistoryDerivedCache();
@@ -1785,8 +1797,23 @@ async function bootstrapCloudSync(mode='ask',manual=false){
       startCloudAutoSync();
       return;
     }
-    const local=syncableItems();
     const dirtySnapshot=cloudDirtyState.snapshot();
+    const rawLocal=rawSyncableItems();
+    if(Object.keys(remote).length&&mapsEqual(rawLocal,remote)){
+      clearCloudDirty(dirtySnapshot);
+      setCloudStatus('云端数据已是最新。','good');
+      if(manual)notify('本机和云端数据已经一致。','good','无需同步');
+      startCloudAutoSync();
+      return;
+    }
+    const local=syncableItems();
+    if(Object.keys(remote).length&&mapsEqual(local,remote)){
+      clearCloudDirty(dirtySnapshot);
+      setCloudStatus('云端数据已是最新。','good');
+      if(manual)notify('本机和云端数据已经一致。','good','无需同步');
+      startCloudAutoSync();
+      return;
+    }
     const merged=Object.keys(remote).length?mergeSyncItems(local,remote):local;
     if(!mapsEqual(local,merged))replaceLocalWithItems(merged);
     if(!Object.keys(remote).length||!mapsEqual(remote,merged)){

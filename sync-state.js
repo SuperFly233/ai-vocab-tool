@@ -1,4 +1,12 @@
 (function attachSyncState(root){
+  function mapsEqual(left={},right={}){
+    const keys=new Set([...Object.keys(left||{}),...Object.keys(right||{})]);
+    for(const key of keys){
+      if((left?.[key]??null)!==(right?.[key]??null))return false;
+    }
+    return true;
+  }
+
   function createDirtyState(){
     const versions=new Map();
 
@@ -39,5 +47,5 @@
     });
   }
 
-  root.SyncState=Object.freeze({createDirtyState});
+  root.SyncState=Object.freeze({createDirtyState,mapsEqual});
 })(typeof globalThis==='object'?globalThis:this);

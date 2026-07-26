@@ -1,10 +1,13 @@
 await import('../sync-state.js');
 
-const {createDirtyState}=globalThis.SyncState||{};
+const {createDirtyState,mapsEqual}=globalThis.SyncState||{};
 const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 
 expect(typeof createDirtyState==='function','SyncState production module did not load');
+expect(mapsEqual({history:'same'},{history:'same'}),'Equal raw sync maps must use the no-op path');
+expect(!mapsEqual({history:'local'},{history:'remote'}),'Changed raw values must continue to the merge path');
+expect(!mapsEqual({history:'same'},{history:'same',logs:'[]'}),'Missing remote or local keys must not be treated as equal');
 
 const state=createDirtyState();
 state.mark('history');

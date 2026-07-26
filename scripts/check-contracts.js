@@ -75,6 +75,8 @@ expect(/src="\/sync-state\.js\?v=/.test(html), 'sync-state.js must use a root-ab
 expect(app.includes('const keys=force?Object.values(CLOUD_KEYS):cloudDirtyState.keys()'), 'Automatic cloud sync must upload only dirty keys');
 expect(app.includes('const dirtySnapshot=cloudDirtyState.snapshot(keys)'), 'Cloud sync must capture versioned dirty snapshots');
 expect(app.includes('syncAllToCloud(true,{force:true})'), 'Factory reset must force an authoritative full cloud upload');
+expect(app.includes('const rawLocal=rawSyncableItems()'), 'Cloud polling must compare raw local values before parsing and merging history');
+expect(app.includes('mapsEqual(rawLocal,remote)'), 'Cloud polling must preserve an unchanged-data fast path');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));
