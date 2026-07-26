@@ -24,6 +24,24 @@
     return signature(left)>=signature(right)?[left,right]:[right,left];
   }
 
+  function resolveMutableField(leftValue,leftUpdatedAt,rightValue,rightUpdatedAt,legacyValue){
+    const leftTime=timestamp(leftUpdatedAt);
+    const rightTime=timestamp(rightUpdatedAt);
+    if(!leftTime&&!rightTime)return {value:legacyValue,updatedAt:'',side:'legacy'};
+    if(leftTime&&!rightTime)return {value:leftValue,updatedAt:leftUpdatedAt,side:'left'};
+    if(rightTime&&!leftTime)return {value:rightValue,updatedAt:rightUpdatedAt,side:'right'};
+    if(leftTime!==rightTime){
+      return leftTime>rightTime
+        ? {value:leftValue,updatedAt:leftUpdatedAt,side:'left'}
+        : {value:rightValue,updatedAt:rightUpdatedAt,side:'right'};
+    }
+    const leftSignature=signature(leftValue);
+    const rightSignature=signature(rightValue);
+    return leftSignature>=rightSignature
+      ? {value:leftValue,updatedAt:leftUpdatedAt,side:'left'}
+      : {value:rightValue,updatedAt:rightUpdatedAt,side:'right'};
+  }
+
   function normalizeTombstones(...groups){
     const map=new Map();
     groups.flatMap(group=>Array.isArray(group)?group:[]).forEach(item=>{
@@ -72,5 +90,5 @@
       .map(([,item])=>item);
   }
 
-  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer});
+  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer,resolveMutableField});
 })(typeof globalThis==='object'?globalThis:this);

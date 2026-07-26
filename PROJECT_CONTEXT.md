@@ -39,8 +39,8 @@ Currently synced keys:
 Expected behavior:
 
 - On login/session restore, sync should be silent and automatic.
-- History is merged by normalized query, preserving rolls, followups, and favorites.
-- Favorites survive if either side has the item favorited.
+- History is merged by normalized query, preserving rolls and followups with deterministic conflict rules.
+- Favorite, folder membership, and legacy tags use independent field clocks. Explicit newer removals beat stale additions; records without clocks retain the legacy OR/union behavior for migration safety.
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
@@ -48,6 +48,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.20 adds field-level clocks for favorite state, folder membership, and legacy tags so explicit removals converge instead of being resurrected by stale devices. Legacy records without clocks still use OR/union compatibility. Mobile Home also removes the obsolete 44px query-row reserve, widens the primary input, and equalizes compact secondary control heights; isolated Edge checks at 390x844 confirmed `top:0` and zero horizontal overflow.
 - v0.11.19 separates the History detail header into title, view tabs, file utilities, and an independently anchored close control. Desktop keeps one aligned row; mobile reserves the top-right corner for close, lets only the view tabs scroll horizontally, and keeps copy/export visible. Isolated Edge checks at 1440x900 and 390x844 reported zero page overflow; Home empty states remained aligned with the desktop sidebar and mobile nav.
 - v0.11.18 makes cross-device History merging commutative and idempotent. The newer parent record determines roll order, missing rolls are appended, stable rules resolve record ids, tags/folders, equal-time notes/followups, and tombstone ties. Direct browser checks produced identical forward/reverse/repeated JSON, and 100 swapped production merges had zero failures.
 - v0.11.17 replaces periodic full-value cloud downloads with six-row `key + updated_at` probes. In a 3000-record browser run, the full response was about 2,673,614 bytes and the metadata response about 439 bytes (roughly 6090x smaller). A remote-only record still promoted the probe to a full fetch, merge, and represented upsert. The same protocol is covered by a mocked `/api/sync` regression test.

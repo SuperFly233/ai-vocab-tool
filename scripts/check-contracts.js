@@ -83,6 +83,10 @@ expect(syncApi.includes("payload.metadata ? 'key,updated_at' : 'key,value,update
 expect(syncApi.includes('return=representation'), 'Sync proxy upserts must return updated row versions');
 expect(app.includes('HistoryData.preferNewer(existing,normalized)'), 'History merge must prefer the newer device record deterministically');
 expect(app.includes('id:stableHistoryId(existing,normalized)'), 'History merge must choose a stable cross-device record id');
+expect(app.includes('HistoryData.resolveMutableField('), 'History merge must resolve removable metadata with field-level clocks');
+expect(app.includes('favoriteUpdatedAt:now'), 'Explicit favorite selection must record a favorite field clock');
+expect(app.includes('foldersUpdatedAt:now'), 'Explicit folder selection/removal must record a folder field clock');
+expect(app.includes('tagsUpdatedAt:now'), 'Legacy tag removal must record a tag field clock');
 expect(/class="modal-head-actions"[\s\S]*class="modal-view-tabs"[\s\S]*class="modal-file-actions"/.test(html), 'History modal header must separate view tabs from file actions');
 expect(/<\/div>\s*<button class="icon-btn danger-icon modal-close-btn"/.test(html), 'History modal close control must remain outside the scrolling action group');
 

@@ -145,12 +145,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.19',
+  version:'0.11.20',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.20',
+    date:'2026-07-26',
+    title:'阻止收藏关系被旧设备复活，并校正首页控件',
+    items:['收藏、收藏夹成员和旧标签现在各自记录更新时间；明确取消收藏、移出收藏夹或清除标签后，较旧设备的副本不会再把它们合并回来。没有字段时钟的旧数据仍沿用并集兼容规则，不会在升级时突然丢失。','真实页面函数已验证新旧记录的正向、反向和重复合并：显式移除保持为空，交换合并顺序结果完全一致；自动检查覆盖字段时钟与旧数据兼容。','手机首页去掉查询控件右侧无效的 44px 留白，主输入框恢复更大宽度，搜索键贴近面板右侧；滚动紧凑态的方向、收藏夹和搜索控件统一高度，桌面与手机均保持 top=0 且无横向溢出。'],
+  },
   {
     version:'0.11.19',
     date:'2026-07-26',
@@ -1632,15 +1638,40 @@ function mergeHistoryItems(localHistory,remoteHistory){
     const [primary,secondary]=HistoryData.preferNewer(existing,normalized);
     const rolls=dedupeRolls([...getHistoryRolls(primary),...getHistoryRolls(secondary)]);
     const latest=rolls[0]||makeHistoryRoll(normalized.result,normalized.createdAt);
+    const favoriteField=HistoryData.resolveMutableField(
+      existing.favorite,existing.favoriteUpdatedAt,
+      normalized.favorite,normalized.favoriteUpdatedAt,
+      Boolean(existing.favorite||normalized.favorite),
+    );
+    const tagsField=HistoryData.resolveMutableField(
+      existing.tags,existing.tagsUpdatedAt,
+      normalized.tags,normalized.tagsUpdatedAt,
+      mergeTags(existing.tags,normalized.tags),
+    );
+    const foldersField=HistoryData.resolveMutableField(
+      existing.folderIds,existing.foldersUpdatedAt,
+      normalized.folderIds,normalized.foldersUpdatedAt,
+      mergeFolderIds(existing.folderIds,normalized.folderIds,existing.tags,normalized.tags),
+    );
+    const favoriteAt=favoriteField.value
+      ? favoriteField.side==='left'
+        ? existing.favoriteAt||favoriteField.updatedAt
+        : favoriteField.side==='right'
+          ? normalized.favoriteAt||favoriteField.updatedAt
+          : [existing.favoriteAt,normalized.favoriteAt].filter(Boolean).sort().pop()||''
+      : '';
     map.set(key,{
       ...secondary,
       ...primary,
       id:stableHistoryId(existing,normalized),
       query:primary.query||secondary.query,
-      favorite:Boolean(existing.favorite||normalized.favorite),
-      favoriteAt:[existing.favoriteAt,normalized.favoriteAt].filter(Boolean).sort().pop()||'',
-      tags:mergeTags(existing.tags,normalized.tags),
-      folderIds:mergeFolderIds(existing.folderIds,normalized.folderIds,existing.tags,normalized.tags),
+      favorite:Boolean(favoriteField.value),
+      favoriteAt,
+      favoriteUpdatedAt:favoriteField.updatedAt||'',
+      tags:normalizeTags(tagsField.value),
+      tagsUpdatedAt:tagsField.updatedAt||'',
+      folderIds:normalizeFolderIds(foldersField.value),
+      foldersUpdatedAt:foldersField.updatedAt||'',
       note:latestHistoryNote(existing,normalized),
       noteUpdatedAt:Math.max(historyNoteTime(existing),historyNoteTime(normalized))?new Date(Math.max(historyNoteTime(existing),historyNoteTime(normalized))).toISOString():'',
       createdAt:new Date(Math.min(new Date(existing.createdAt||Date.now()),new Date(normalized.createdAt||Date.now()))).toISOString(),
@@ -1749,9 +1780,13 @@ function normalizeHistoryItem(item){
   const tags=normalizeTags(base.tags);
   const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
   const legacyFolderIds=tags.map(legacyTagFolderId);
-  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',tags,folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
+  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
   Object.defineProperty(normalized,HISTORY_NORMALIZED,{value:true});
   return normalized;
+}
+function normalizeHistoryClock(value){
+  const time=new Date(value||0).getTime();
+  return time?new Date(time).toISOString():'';
 }
 function normalizeTags(value){
   const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
@@ -3609,19 +3644,25 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
     const existingRolls=getHistoryRolls(normalized);
     const duplicateRoll=existingRolls.some(item=>historyRollContentKey(item)===historyRollContentKey(roll));
     const nextRolls=duplicateRoll?existingRolls:dedupeRolls([roll,...existingRolls]);
+    const nextFavorite=favorite||normalized.favorite;
+    const nextFolderIds=mergeFolderIds(normalized.folderIds,selectedFolderIds);
+    const favoriteChanged=nextFavorite!==normalized.favorite;
+    const foldersChanged=JSON.stringify(nextFolderIds)!==JSON.stringify(normalized.folderIds);
     saved={
       ...normalized,
       query,
       result:duplicateRoll?(existingRolls[0]?.result||normalized.result):result,
-      favorite:favorite||normalized.favorite,
+      favorite:nextFavorite,
       favoriteAt:favorite?(normalized.favoriteAt||now):normalized.favoriteAt,
-      folderIds:mergeFolderIds(normalized.folderIds,selectedFolderIds),
+      favoriteUpdatedAt:favoriteChanged?now:normalized.favoriteUpdatedAt,
+      folderIds:nextFolderIds,
+      foldersUpdatedAt:foldersChanged?now:normalized.foldersUpdatedAt,
       updatedAt:now,
       rolls:nextRolls,
     };
     setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item),{revive:true});
   }else{
-    saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',folderIds:selectedFolderIds,createdAt:now,updatedAt:now,rolls:[roll]};
+    saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',favoriteUpdatedAt:favorite?now:'',tags:[],tagsUpdatedAt:'',folderIds:selectedFolderIds,foldersUpdatedAt:selectedFolderIds.length?now:'',createdAt:now,updatedAt:now,rolls:[roll]};
     const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
     next.unshift(saved);
     setHistory(next,{revive:true});
@@ -4038,8 +4079,11 @@ function applyFolderSelectionToHistory(historyId,ids=[]){
       ...normalized,
       favorite,
       favoriteAt:favorite?(normalized.favoriteAt||now):'',
+      favoriteUpdatedAt:now,
       folderIds,
+      foldersUpdatedAt:now,
       tags:[],
+      tagsUpdatedAt:now,
       updatedAt:now,
     };
   });
@@ -4575,6 +4619,7 @@ async function deleteFavoriteFolder(folderId){
   const count=folderStats().find(item=>item.id===folder.id)?.count||0;
   const mode=await askFolderDeleteMode(folder,count);
   if(!mode)return;
+  const now=new Date().toISOString();
   const currentHistory=getHistory();
   if(mode==='records')recordHistoryDeletions(currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)));
   const history=mode==='records'
@@ -4585,12 +4630,14 @@ async function deleteFavoriteFolder(folderId){
       return {
         ...normalized,
         folderIds:normalized.folderIds.filter(id=>id!==folder.id),
+        foldersUpdatedAt:now,
         tags:normalized.tags.filter(tag=>legacyTagFolderId(tag)!==folder.id),
-        updatedAt:new Date().toISOString(),
+        tagsUpdatedAt:now,
+        updatedAt:now,
       };
     });
   const settings=getSettings();
-  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),updatedAt:new Date().toISOString()});
+  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),updatedAt:now});
   historyState.filters.folder=historyState.filters.folder.filter(id=>id!==folder.id);
   if(folderState.activeId===folder.id)folderState.activeId=FOLDER_LIKED_ID;
   setHistory(history);
@@ -5221,12 +5268,14 @@ function saveHistoryEdit(){
     const rolls=getHistoryRolls(item);
     const normalized=normalizeHistoryItem(item);
     const noteChanged=note!==normalized.note;
+    const foldersChanged=JSON.stringify(folderIds)!==JSON.stringify(normalized.folderIds);
+    const tagsChanged=normalized.tags.length>0;
     const selectedIndex=Math.max(0,rolls.findIndex((roll,index)=>historyRollViewKey(roll,index)===String(modalRollId)));
     const updatedRolls=rolls.map((roll,index)=>index===selectedIndex||(!modalRollId&&index===0)
       ? {...roll,result:parsed,updatedAt:now}
       : roll);
     modalRollId=updatedRolls[selectedIndex]?historyRollViewKey(updatedRolls[selectedIndex],selectedIndex):modalRollId;
-    return {...normalized,query,tags:[],folderIds,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
+    return {...normalized,query,tags:[],tagsUpdatedAt:tagsChanged?now:normalized.tagsUpdatedAt,folderIds,foldersUpdatedAt:foldersChanged?now:normalized.foldersUpdatedAt,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
   if(originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query))recordHistoryDeletions([originalItem]);
   setHistory(history,{revive:true});

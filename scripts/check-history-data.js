@@ -1,6 +1,6 @@
 await import('../history-data.js');
 
-const {normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer}=globalThis.HistoryData||{};
+const {normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer,resolveMutableField}=globalThis.HistoryData||{};
 const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 const keyOf=item=>item.query;
@@ -58,10 +58,20 @@ const newerOrder={id:'same',updatedAt:'2026-01-03T00:00:00.000Z',rolls:['new','o
 expect(preferNewer(olderOrder,newerOrder)[0]===newerOrder,'Newer record order must take precedence');
 expect(preferNewer(newerOrder,olderOrder)[0]===newerOrder,'Record precedence must be independent of merge direction');
 
+const legacyFolders=resolveMutableField(['alpha'],'',['beta'],'',['alpha','beta']);
+expect(JSON.stringify(legacyFolders.value)===JSON.stringify(['alpha','beta']),'Legacy metadata without field clocks must retain the compatibility union');
+const removedFavorite=resolveMutableField(true,'2026-01-02T00:00:00.000Z',false,'2026-01-03T00:00:00.000Z',true);
+expect(removedFavorite.value===false&&removedFavorite.side==='right','A newer explicit favorite removal must beat an older addition');
+const reverseRemovedFavorite=resolveMutableField(false,'2026-01-03T00:00:00.000Z',true,'2026-01-02T00:00:00.000Z',true);
+expect(reverseRemovedFavorite.value===false&&reverseRemovedFavorite.side==='left','Favorite removal must not depend on merge direction');
+const equalClockLeft=resolveMutableField(['alpha'],'2026-01-03T00:00:00.000Z',['beta'],'2026-01-03T00:00:00.000Z',['alpha','beta']);
+const equalClockRight=resolveMutableField(['beta'],'2026-01-03T00:00:00.000Z',['alpha'],'2026-01-03T00:00:00.000Z',['alpha','beta']);
+expect(JSON.stringify(equalClockLeft.value)===JSON.stringify(equalClockRight.value),'Equal-clock metadata conflicts must converge deterministically');
+
 if(failures.length){
   console.error(`History data check failed (${failures.length}):`);
   failures.forEach(message=>console.error(`- ${message}`));
   process.exitCode=1;
 }else{
-  console.log('History data check passed: deletion, recreation, deterministic ordering, followup freshness, and merge precedence.');
+  console.log('History data check passed: records, tombstones, followups, and mutable metadata converge deterministically.');
 }

@@ -189,9 +189,9 @@ body.home-scrolled #view-home .workspace{padding-top:84px}
 .home-scrolled .layout-top .query-row{grid-template-columns:minmax(280px,1fr) minmax(190px,300px) minmax(104px,184px) auto}
 .home-scrolled .layout-top .query-shell{height:48px;min-height:48px}
 .home-scrolled .layout-top #query-input{height:46px;min-height:46px;max-height:46px;padding:9px 58px 9px 20px;font-size:17px;line-height:28px}
-.home-scrolled .layout-top .assist-fields{padding:5px 12px}
+.home-scrolled .layout-top .assist-fields{height:38px;padding:5px 12px}
 .home-scrolled .layout-top .assist-fields input{font-size:13px}
-.home-scrolled .layout-top .lookup-folder-trigger{height:36px;padding:0 10px;font-size:12px}
+.home-scrolled .layout-top .lookup-folder-trigger{height:38px;padding:0 10px;font-size:12px}
 .home-scrolled .layout-top .query-actions .icon-btn{width:38px;min-width:38px;height:38px;font-size:16px}
 .home-scrolled .layout-top .clear-query-btn{right:16px;width:26px;height:26px}
 .home-scrolled .layout-split .editor-pane{padding:10px}
@@ -836,6 +836,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .home-scrolled .layout-top .query-actions{grid-column:3 / 4;grid-row:1}
   .home-scrolled .layout-top .assist-fields{grid-column:1 / 2;padding:4px 10px}
   .home-scrolled .layout-top .lookup-folder-strip{grid-column:2 / 4}
+  .home-scrolled .layout-top .assist-fields,.home-scrolled .layout-top .lookup-folder-trigger{height:36px}
   .home-scrolled .layout-top .query-actions .icon-btn{width:36px;min-width:36px;height:36px}
   .workspace,.workspace.layout-top,.workspace.layout-split{height:auto;min-height:0;grid-template-columns:1fr;grid-template-rows:auto auto}
   .layout-top .editor-pane{grid-template-columns:1fr}
@@ -926,7 +927,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .topbar{padding-right:44px}
   #query-input{font-size:18px;padding:13px 60px 13px 18px}
   body.home-scrolled #view-home .workspace{padding-top:116px}
-  .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:minmax(0,1fr) minmax(110px,.46fr) 48px;padding-right:44px}
+  .query-row,.query-row:hover,.query-row:focus-within{grid-template-columns:minmax(0,1fr) minmax(110px,.46fr) 48px}
   .query-actions{grid-column:3 / 4;grid-row:1;justify-content:flex-end}
   .assist-fields{grid-column:1 / 2}
   .lookup-folder-strip{grid-column:2 / 4}
