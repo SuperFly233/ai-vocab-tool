@@ -140,17 +140,23 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[]};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.23',
+  version:'0.11.24',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.24',
+    date:'2026-07-26',
+    title:'补齐手机详情控件，并让收藏夹顺序安全同步',
+    items:['手机历史详情头部不再把关闭键预留空间强加给整行操作区：三个显示模式完整可见，复制与导出保持在右侧，关闭键收回弹窗右上角且不再越界。桌面、手机和滚动态均已用隔离 Edge 测量，页面横向溢出为 0。','收藏夹新增独立的 favoriteFolderOrder 与顺序更新时间。拖拽只推进顺序时钟，不再批量改写每个收藏夹的内容更新时间，因此另一台设备较新的重命名不会被旧名称覆盖。','生产 mergeSettings 正反合并均验证：本机较新 B→A 顺序、远端较新重命名和并发新增 C 可以同时保留；实际拖拽后既有收藏夹内容时间保持不变。'],
+  },
   {
     version:'0.11.23',
     date:'2026-07-26',
@@ -1223,7 +1229,15 @@ function normalizeSettings(raw={}){
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
   const favoriteFolderTombstones=SettingsData.normalizeTombstones(source.favoriteFolderTombstones);
-  const favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders),favoriteFolderTombstones);
+  let favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders),favoriteFolderTombstones);
+  const folderIds=favoriteFolders.map(folder=>folder.id);
+  const requestedFolderOrder=Array.isArray(source.favoriteFolderOrder)&&source.favoriteFolderOrder.length?source.favoriteFolderOrder:folderIds;
+  const favoriteFolderOrderUpdatedAt=normalizeHistoryClock(source.favoriteFolderOrderUpdatedAt);
+  const favoriteFolderOrder=SettingsData.resolveOrderedIds(requestedFolderOrder,favoriteFolderOrderUpdatedAt,[], '',folderIds,requestedFolderOrder);
+  const folderOrderIndex=new Map(favoriteFolderOrder.map((id,index)=>[id,index]));
+  favoriteFolders=favoriteFolders
+    .sort((a,b)=>(folderOrderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(folderOrderIndex.get(b.id)??Number.MAX_SAFE_INTEGER))
+    .map((folder,index)=>({...folder,order:index}));
   return {
     ...DEFAULT_SETTINGS,
     ...source,
@@ -1242,6 +1256,8 @@ function normalizeSettings(raw={}){
     modelPrompt,
     favoriteFolders,
     favoriteFolderTombstones,
+    favoriteFolderOrder,
+    favoriteFolderOrderUpdatedAt,
   };
 }
 function normalizeLabelMode(value){
@@ -1329,7 +1345,7 @@ function mergeSettings(localRaw,remoteRaw){
   const favoriteFolderTombstones=SettingsData.normalizeTombstones(remote.favoriteFolderTombstones,local.favoriteFolderTombstones);
   const mergedProfiles=dedupeApiProfiles([...(remote.apiProfiles||[]),...(local.apiProfiles||[])]);
   const profiles=SettingsData.reconcileItems(mergedProfiles,apiProfileTombstones);
-  const favoriteFolders=SettingsData.reconcileItems(mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]),favoriteFolderTombstones);
+  let favoriteFolders=SettingsData.reconcileItems(mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]),favoriteFolderTombstones);
   if(!profiles.length)profiles.push(normalizeApiProfile(DEFAULT_API_PROFILE));
   const localTime=new Date(local.updatedAt||0).getTime()||0;
   const remoteTime=new Date(remote.updatedAt||0).getTime()||0;
@@ -1345,6 +1361,20 @@ function mergeSettings(localRaw,remoteRaw){
   const apiProfileOrder=SettingsData.resolveOrderedIds(local.apiProfileOrder,localOrderClock,remote.apiProfileOrder,remoteOrderClock,deterministicProfileIds,legacyProfileOrder);
   const profileOrderIndex=new Map(apiProfileOrder.map((id,index)=>[id,index]));
   profiles.sort((a,b)=>(profileOrderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(profileOrderIndex.get(b.id)??Number.MAX_SAFE_INTEGER));
+  const hasExplicitFolderOrderClock=Boolean(new Date(local.favoriteFolderOrderUpdatedAt||0).getTime()||new Date(remote.favoriteFolderOrderUpdatedAt||0).getTime());
+  const localFolderOrderClock=hasExplicitFolderOrderClock?local.favoriteFolderOrderUpdatedAt:local.updatedAt;
+  const remoteFolderOrderClock=hasExplicitFolderOrderClock?remote.favoriteFolderOrderUpdatedAt:remote.updatedAt;
+  const deterministicFolderIds=favoriteFolders.map(folder=>folder.id).sort((a,b)=>a.localeCompare(b));
+  const legacyFolderOrder=localTime>remoteTime
+    ? local.favoriteFolderOrder
+    : remoteTime>localTime
+      ? remote.favoriteFolderOrder
+      : JSON.stringify(local.favoriteFolderOrder||[])>=JSON.stringify(remote.favoriteFolderOrder||[])?local.favoriteFolderOrder:remote.favoriteFolderOrder;
+  const favoriteFolderOrder=SettingsData.resolveOrderedIds(local.favoriteFolderOrder,localFolderOrderClock,remote.favoriteFolderOrder,remoteFolderOrderClock,deterministicFolderIds,legacyFolderOrder);
+  const folderOrderIndex=new Map(favoriteFolderOrder.map((id,index)=>[id,index]));
+  favoriteFolders=favoriteFolders
+    .sort((a,b)=>(folderOrderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(folderOrderIndex.get(b.id)??Number.MAX_SAFE_INTEGER))
+    .map((folder,index)=>({...folder,order:index}));
   const localHasPendingSettings=cloudDirtyState.has(CLOUD_KEYS.settings);
   const preferLocalSettings=localHasPendingSettings||localTime>remoteTime;
   const activeId=preferLocalSettings
@@ -1359,6 +1389,8 @@ function mergeSettings(localRaw,remoteRaw){
     modelPrompt:preferLocalSettings?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     favoriteFolders,
     favoriteFolderTombstones,
+    favoriteFolderOrder,
+    favoriteFolderOrderUpdatedAt:hasExplicitFolderOrderClock?(new Date(local.favoriteFolderOrderUpdatedAt||0)>=new Date(remote.favoriteFolderOrderUpdatedAt||0)?local.favoriteFolderOrderUpdatedAt:remote.favoriteFolderOrderUpdatedAt):'',
     apiProfiles:profiles,
     apiProfileTombstones,
     apiProfileOrder,
@@ -4094,7 +4126,7 @@ function createFavoriteFolderRecord(name){
   const settings=getSettings();
   const now=new Date().toISOString();
   const folder={id:`folder_${Date.now()}_${stableHash(name)}`,name,parentId:'',order:settings.favoriteFolders.length,createdAt:now,updatedAt:now};
-  setSettings({...settings,favoriteFolders:[...settings.favoriteFolders,folder],updatedAt:now});
+  setSettings({...settings,favoriteFolders:[...settings.favoriteFolders,folder],favoriteFolderOrder:[...settings.favoriteFolderOrder,folder.id],favoriteFolderOrderUpdatedAt:now,updatedAt:now});
   renderFolderManager();
   renderFoldersView();
   notify(`已创建收藏夹「${name}」。`,'good','收藏夹');
@@ -4685,7 +4717,7 @@ async function deleteFavoriteFolder(folderId){
       };
     });
   const settings=getSettings();
-  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),favoriteFolderTombstones:SettingsData.addTombstone(settings.favoriteFolderTombstones,folder.id,now),updatedAt:now});
+  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),favoriteFolderTombstones:SettingsData.addTombstone(settings.favoriteFolderTombstones,folder.id,now),favoriteFolderOrder:settings.favoriteFolderOrder.filter(id=>id!==folder.id),favoriteFolderOrderUpdatedAt:now,updatedAt:now});
   historyState.filters.folder=historyState.filters.folder.filter(id=>id!==folder.id);
   if(folderState.activeId===folder.id)folderState.activeId=FOLDER_LIKED_ID;
   setHistory(history);
@@ -4729,11 +4761,20 @@ function askFolderDeleteMode(folder,count=0){
 }
 function ensureFoldersPersistedForOrder(folders=[]){
   const settings=getSettings();
-  const normalized=folders
-    .filter(folder=>folder&&!folder.system)
-    .map((folder,index)=>normalizeFavoriteFolder({...folder,order:index,updatedAt:new Date().toISOString()},index))
+  const now=new Date().toISOString();
+  const ordered=folders.filter(folder=>folder&&!folder.system);
+  const existingIds=new Set(settings.favoriteFolders.map(folder=>folder.id));
+  const missing=ordered
+    .filter(folder=>!existingIds.has(folder.id))
+    .map((folder,index)=>normalizeFavoriteFolder({...folder,order:settings.favoriteFolders.length+index,updatedAt:now},settings.favoriteFolders.length+index))
     .filter(Boolean);
-  setSettings({...settings,favoriteFolders:normalized,updatedAt:new Date().toISOString()});
+  setSettings({
+    ...settings,
+    favoriteFolders:[...settings.favoriteFolders,...missing],
+    favoriteFolderOrder:ordered.map(folder=>folder.id),
+    favoriteFolderOrderUpdatedAt:now,
+    updatedAt:now,
+  });
 }
 function startFolderDrag(event,folderId){
   const folder=folderById(folderId);

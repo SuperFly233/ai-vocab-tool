@@ -94,6 +94,9 @@ expect(app.includes('favoriteFolderTombstones:SettingsData.addTombstone'), 'Favo
 expect(app.includes('SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now)'), 'API profile deletion must create a settings tombstone');
 expect(app.includes('SettingsData.resolveOrderedIds('), 'API profile merge must resolve an independently clocked order');
 expect(app.includes('apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now'), 'API profile drag must persist order without rewriting profile content');
+expect(app.includes('favoriteFolderOrder:ordered.map(folder=>folder.id)'), 'Favorite folder drag must persist an independent order');
+expect(app.includes('favoriteFolderOrderUpdatedAt:now'), 'Favorite folder order changes must record an order clock');
+expect(!/function ensureFoldersPersistedForOrder[\s\S]{0,500}normalizeFavoriteFolder\(\{\.\.\.folder,order:index,updatedAt:new Date/.test(app), 'Favorite folder drag must not rewrite every folder content clock');
 expect(app.includes('favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt'), 'Reasserting an existing favorite must refresh its field clock');
 expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt'), 'Reasserting an existing lookup folder must refresh its field clock');
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');
