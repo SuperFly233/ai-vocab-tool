@@ -140,17 +140,23 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[]};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[]};
 const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.22',
+  version:'0.11.23',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.23',
+    date:'2026-07-26',
+    title:'让 API 配置拖拽顺序真正跨设备同步',
+    items:['API 配置新增独立的顺序列表与顺序更新时间；拖拽排序不再只是本机数组变化，云合并后另一台设备也会采用较新的明确顺序。','配置内容与配置顺序分离合并：另一台设备较新的 URL、Key、Model 编辑可以保留，同时不会顺带打回拖拽顺序；并发新增但尚未进入所选顺序的配置会稳定追加，不会丢失。','隔离浏览器验证生产 mergeSettings 正反合并均得到 B→A→并发新增 C，远端较新 Model 同时保留；实际 reorderApiProfile 写入只推进顺序时钟，配置内容时间保持不变。纯数据测试增加新顺序、同时间冲突和旧数据迁移覆盖。'],
+  },
   {
     version:'0.11.22',
     date:'2026-07-26',
@@ -1203,6 +1209,12 @@ function normalizeSettings(raw={}){
   const apiProfileTombstones=SettingsData.normalizeTombstones(source.apiProfileTombstones);
   profiles=SettingsData.reconcileItems(dedupeApiProfiles(profiles.length?profiles:[DEFAULT_API_PROFILE]),apiProfileTombstones);
   if(!profiles.length)profiles=[normalizeApiProfile(DEFAULT_API_PROFILE)];
+  const profileIds=profiles.map(profile=>profile.id);
+  const requestedProfileOrder=Array.isArray(source.apiProfileOrder)&&source.apiProfileOrder.length?source.apiProfileOrder:profileIds;
+  const apiProfileOrderUpdatedAt=normalizeHistoryClock(source.apiProfileOrderUpdatedAt);
+  const apiProfileOrder=SettingsData.resolveOrderedIds(requestedProfileOrder,apiProfileOrderUpdatedAt,[], '',profileIds,requestedProfileOrder);
+  const profileOrderIndex=new Map(apiProfileOrder.map((id,index)=>[id,index]));
+  profiles.sort((a,b)=>(profileOrderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(profileOrderIndex.get(b.id)??Number.MAX_SAFE_INTEGER));
   const activeId=profiles.some(profile=>profile.id===source.activeApiProfileId)?source.activeApiProfileId:profiles[0].id;
   const active=profiles.find(profile=>profile.id===activeId)||profiles[0];
   const labelMode=normalizeLabelMode(source.labelMode);
@@ -1217,6 +1229,8 @@ function normalizeSettings(raw={}){
     ...source,
     apiProfiles:profiles,
     apiProfileTombstones,
+    apiProfileOrder,
+    apiProfileOrderUpdatedAt,
     activeApiProfileId:active.id,
     apiUrl:active.apiUrl,
     apiKey:active.apiKey,
@@ -1317,9 +1331,21 @@ function mergeSettings(localRaw,remoteRaw){
   const profiles=SettingsData.reconcileItems(mergedProfiles,apiProfileTombstones);
   const favoriteFolders=SettingsData.reconcileItems(mergeFavoriteFolders(remote.favoriteFolders||[],local.favoriteFolders||[]),favoriteFolderTombstones);
   if(!profiles.length)profiles.push(normalizeApiProfile(DEFAULT_API_PROFILE));
-  const localHasPendingSettings=cloudDirtyState.has(CLOUD_KEYS.settings);
   const localTime=new Date(local.updatedAt||0).getTime()||0;
   const remoteTime=new Date(remote.updatedAt||0).getTime()||0;
+  const hasExplicitOrderClock=Boolean(new Date(local.apiProfileOrderUpdatedAt||0).getTime()||new Date(remote.apiProfileOrderUpdatedAt||0).getTime());
+  const localOrderClock=hasExplicitOrderClock?local.apiProfileOrderUpdatedAt:local.updatedAt;
+  const remoteOrderClock=hasExplicitOrderClock?remote.apiProfileOrderUpdatedAt:remote.updatedAt;
+  const deterministicProfileIds=profiles.map(profile=>profile.id).sort((a,b)=>a.localeCompare(b));
+  const legacyProfileOrder=localTime>remoteTime
+    ? local.apiProfileOrder
+    : remoteTime>localTime
+      ? remote.apiProfileOrder
+      : JSON.stringify(local.apiProfileOrder||[])>=JSON.stringify(remote.apiProfileOrder||[])?local.apiProfileOrder:remote.apiProfileOrder;
+  const apiProfileOrder=SettingsData.resolveOrderedIds(local.apiProfileOrder,localOrderClock,remote.apiProfileOrder,remoteOrderClock,deterministicProfileIds,legacyProfileOrder);
+  const profileOrderIndex=new Map(apiProfileOrder.map((id,index)=>[id,index]));
+  profiles.sort((a,b)=>(profileOrderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(profileOrderIndex.get(b.id)??Number.MAX_SAFE_INTEGER));
+  const localHasPendingSettings=cloudDirtyState.has(CLOUD_KEYS.settings);
   const preferLocalSettings=localHasPendingSettings||localTime>remoteTime;
   const activeId=preferLocalSettings
     ? local.activeApiProfileId
@@ -1335,6 +1361,8 @@ function mergeSettings(localRaw,remoteRaw){
     favoriteFolderTombstones,
     apiProfiles:profiles,
     apiProfileTombstones,
+    apiProfileOrder,
+    apiProfileOrderUpdatedAt:hasExplicitOrderClock?(new Date(local.apiProfileOrderUpdatedAt||0)>=new Date(remote.apiProfileOrderUpdatedAt||0)?local.apiProfileOrderUpdatedAt:remote.apiProfileOrderUpdatedAt):'',
     activeApiProfileId:profiles.some(profile=>profile.id===activeId)?activeId:profiles[0]?.id,
     apiUrl:'',
     apiKey:'',
@@ -5977,7 +6005,10 @@ function saveApiProfileFromModal(){
     const profiles=exists
       ? settings.apiProfiles.map(profile=>profile.id===id?{...profile,...draft}:profile)
       : [draft,...settings.apiProfiles];
-    saveSettingsLocal({...settings,apiProfiles:profiles,activeApiProfileId:id,updatedAt:now});
+    const apiProfileOrder=exists
+      ? settings.apiProfileOrder
+      : [id,...settings.apiProfileOrder.filter(profileId=>profileId!==id)];
+    saveSettingsLocal({...settings,apiProfiles:profiles,apiProfileOrder,apiProfileOrderUpdatedAt:exists?settings.apiProfileOrderUpdatedAt:now,activeApiProfileId:id,updatedAt:now});
     hydrateSettings();
     closeApiProfileModal();
     notify(`已保存「${draft.name}」。`,'good','API 配置');
@@ -6044,7 +6075,7 @@ async function resetModelSettings(){
   const apiProfileTombstones=settings.apiProfiles
     .filter(profile=>profile.id!==DEFAULT_API_PROFILE.id)
     .reduce((items,profile)=>SettingsData.addTombstone(items,profile.id,now),settings.apiProfileTombstones);
-  setSettings({...settings,apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones,activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:now});
+  setSettings({...settings,apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones,apiProfileOrder:['default'],apiProfileOrderUpdatedAt:now,activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:now});
   hydrateSettings();
   closeApiProfileMenu();
   notify('接口配置已恢复默认。','good','设置');
@@ -6065,7 +6096,8 @@ function moveApiProfile(id,delta){
   const profiles=[...settings.apiProfiles];
   const [item]=profiles.splice(index,1);
   profiles.splice(nextIndex,0,item);
-  setSettings({...settings,apiProfiles:profiles,updatedAt:new Date().toISOString()});
+  const now=new Date().toISOString();
+  setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now});
   renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
   requestAnimationFrame(positionApiProfileMenu);
   notify('配置顺序已调整。','good','API 配置');
@@ -6116,7 +6148,8 @@ function reorderApiProfile(from,to){
   if(target===from)return;
   const [item]=profiles.splice(from,1);
   profiles.splice(target,0,item);
-  setSettings({...settings,apiProfiles:profiles,updatedAt:new Date().toISOString()});
+  const now=new Date().toISOString();
+  setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now});
   renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
   requestAnimationFrame(positionApiProfileMenu);
   notify('配置顺序已调整。','good','API 配置');
@@ -6134,7 +6167,7 @@ async function deleteApiProfile(id=null){
   const activeId=current.id===settings.activeApiProfileId?nextProfiles[0].id:settings.activeApiProfileId;
   const now=new Date().toISOString();
   const apiProfileTombstones=SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now);
-  setSettings({...settings,apiProfiles:nextProfiles,apiProfileTombstones,activeApiProfileId:activeId,updatedAt:now});
+  setSettings({...settings,apiProfiles:nextProfiles,apiProfileTombstones,apiProfileOrder:nextProfiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,activeApiProfileId:activeId,updatedAt:now});
   hydrateSettings();
   closeApiProfileMenu();
   notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置');

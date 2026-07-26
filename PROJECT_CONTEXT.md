@@ -42,6 +42,7 @@ Expected behavior:
 - History is merged by normalized query, preserving rolls and followups with deterministic conflict rules.
 - Favorite, folder membership, and legacy tags use independent field clocks. Explicit newer removals beat stale additions; records without clocks retain the legacy OR/union behavior for migration safety.
 - Favorite-folder definitions and API profiles use item tombstones inside settings. Older copies of deleted ids are filtered during merge, while unrelated concurrent additions and genuinely newer recreations survive.
+- API profile ordering is stored separately as `apiProfileOrder` plus `apiProfileOrderUpdatedAt`. Content and order conflicts resolve independently; profiles missing from the winning order because of concurrent creation are appended deterministically.
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.
@@ -49,6 +50,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.11.23 makes API profile drag ordering a first-class synced field instead of relying on array insertion order. Production merge probes preserved the newer explicit order, a concurrent new profile, and a newer remote model edit simultaneously in both merge directions. The real reorder handler advanced only the order clock and left profile content timestamps unchanged.
 - v0.11.22 adds item tombstones for favorite-folder definitions and API profiles, closing the remaining settings-list resurrection path. Pure data tests and isolated production `mergeSettings()` probes confirmed order-independent deletion, preservation of unrelated concurrent additions, and newer recreation. `settings-data.js` is included in both static asset version contracts and the Cloudflare build output.
 - v0.11.21 treats explicit user confirmation as a write even when the visible metadata value is unchanged. Lookup folder/favorite reassertions refresh their field clocks, while History editor saves authoritatively clock folder and legacy-tag state including empty arrays. Isolated browser probes called the production write paths and confirmed all relevant clocks advance.
 - v0.11.20 adds field-level clocks for favorite state, folder membership, and legacy tags so explicit removals converge instead of being resurrected by stale devices. Legacy records without clocks still use OR/union compatibility. Mobile Home also removes the obsolete 44px query-row reserve, widens the primary input, and equalizes compact secondary control heights; isolated Edge checks at 390x844 confirmed `top:0` and zero horizontal overflow.

@@ -31,5 +31,20 @@
     });
   }
 
-  root.SettingsData=Object.freeze({normalizeTombstones,addTombstone,reconcileItems});
+  function resolveOrderedIds(leftIds,leftUpdatedAt,rightIds,rightUpdatedAt,allIds,legacyIds=[]){
+    const allowed=[...new Set((Array.isArray(allIds)?allIds:[]).map(id=>String(id||'').trim()).filter(Boolean))];
+    const allowedSet=new Set(allowed);
+    const normalize=value=>[...new Set((Array.isArray(value)?value:[]).map(id=>String(id||'').trim()).filter(id=>allowedSet.has(id)))];
+    const left=normalize(leftIds);
+    const right=normalize(rightIds);
+    const leftTime=timestamp(leftUpdatedAt);
+    const rightTime=timestamp(rightUpdatedAt);
+    let selected;
+    if(!leftTime&&!rightTime)selected=normalize(legacyIds);
+    else if(leftTime!==rightTime)selected=leftTime>rightTime?left:right;
+    else selected=JSON.stringify(left)>=JSON.stringify(right)?left:right;
+    return [...selected,...allowed.filter(id=>!selected.includes(id))];
+  }
+
+  root.SettingsData=Object.freeze({normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds});
 })(typeof globalThis==='object'?globalThis:this);
