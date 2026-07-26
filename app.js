@@ -145,12 +145,18 @@ const LOOKUP_MAX_ATTEMPTS=2;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.18',
+  version:'0.11.19',
   releaseDate:'2026-07-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.11.19',
+    date:'2026-07-26',
+    title:'重新组织历史详情页头部控件',
+    items:['历史详情头部拆分为标题、显示模式、文件操作和独立关闭键四个区域，不再把所有按钮塞进同一个会换行的容器。','关闭键在桌面和手机端都固定于弹窗右上角；手机端模式切换可单独横滑，复制和导出始终保持可见，不再被长标签挤出。','隔离 Edge 实测 1440×900 与 390×844：桌面端控件同排对齐，手机端关闭键右上独立，页面横向溢出均为 0；首页等待面板仍与桌面侧栏、手机底栏对齐并居中。'],
+  },
   {
     version:'0.11.18',
     date:'2026-07-26',

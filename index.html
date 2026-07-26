@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/styles.css?v=0.11.18">
+<link rel="stylesheet" href="/styles.css?v=0.11.19">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -363,12 +363,16 @@
         <div class="section-title" id="modal-title">历史记录</div>
         <div class="section-sub" id="modal-subtitle"></div>
       </div>
-      <div class="result-icons">
-        <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">预览</button>
-        <button class="tab-btn" id="modal-visual-tab" onclick="setModalTab('visual',this)">可视化编辑</button>
-        <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
-        <button class="icon-btn" data-tip="复制 JSON" onclick="copyModalJSON()">📋</button>
-        <button class="icon-btn" data-tip="导出 JSON" onclick="exportModalJSON()">💾</button>
+      <div class="modal-head-actions">
+        <div class="modal-view-tabs" role="tablist" aria-label="详情显示模式">
+          <button class="tab-btn active" id="modal-card-tab" onclick="setModalTab('card',this)">预览</button>
+          <button class="tab-btn" id="modal-visual-tab" onclick="setModalTab('visual',this)">可视化编辑</button>
+          <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
+        </div>
+        <div class="modal-file-actions" aria-label="详情文件操作">
+          <button class="icon-btn" data-tip="复制 JSON" aria-label="复制 JSON" onclick="copyModalJSON()">📋</button>
+          <button class="icon-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()">💾</button>
+        </div>
       </div>
       <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
     </div>
@@ -497,9 +501,9 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/history-data.js?v=0.11.18"></script>
-<script src="/lookup-tasks.js?v=0.11.18"></script>
-<script src="/sync-state.js?v=0.11.18"></script>
-<script src="/app.js?v=0.11.18"></script>
+<script src="/history-data.js?v=0.11.19"></script>
+<script src="/lookup-tasks.js?v=0.11.19"></script>
+<script src="/sync-state.js?v=0.11.19"></script>
+<script src="/app.js?v=0.11.19"></script>
 </body>
 </html>
