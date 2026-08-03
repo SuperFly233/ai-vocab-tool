@@ -6,6 +6,31 @@
     return Number.isFinite(time)?time:0;
   }
 
+  function stableValue(value){
+    if(Array.isArray(value))return value.map(stableValue);
+    if(value&&typeof value==='object'){
+      return Object.keys(value).sort().reduce((result,key)=>{
+        const next=value[key];
+        if(next!==undefined)result[key]=stableValue(next);
+        return result;
+      },{});
+    }
+    return value;
+  }
+
+  function stableSignature(value){
+    return JSON.stringify(stableValue(value));
+  }
+
+  function preferNewerItem(left,right){
+    if(!left)return right;
+    if(!right)return left;
+    const leftTime=timestamp(left.updatedAt);
+    const rightTime=timestamp(right.updatedAt);
+    if(leftTime!==rightTime)return leftTime>rightTime?left:right;
+    return stableSignature(left)>=stableSignature(right)?left:right;
+  }
+
   function normalizeTombstones(...groups){
     const map=new Map();
     groups.flatMap(group=>Array.isArray(group)?group:[]).forEach(item=>{
@@ -46,5 +71,5 @@
     return [...selected,...allowed.filter(id=>!selected.includes(id))];
   }
 
-  root.SettingsData=Object.freeze({normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds});
+  root.SettingsData=Object.freeze({normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds,preferNewerItem});
 })(typeof globalThis==='object'?globalThis:this);

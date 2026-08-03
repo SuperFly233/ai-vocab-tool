@@ -97,6 +97,12 @@ expect(app.includes('apiProfileOrder:profiles.map(profile=>profile.id),apiProfil
 expect(app.includes('favoriteFolderOrder:ordered.map(folder=>folder.id)'), 'Favorite folder drag must persist an independent order');
 expect(app.includes('favoriteFolderOrderUpdatedAt:now'), 'Favorite folder order changes must record an order clock');
 expect(!/function ensureFoldersPersistedForOrder[\s\S]{0,500}normalizeFavoriteFolder\(\{\.\.\.folder,order:index,updatedAt:new Date/.test(app), 'Favorite folder drag must not rewrite every folder content clock');
+expect((app.match(/SettingsData\.preferNewerItem\(/g)||[]).length>=4, 'API profiles and favorite folders must share deterministic equal-time conflict resolution');
+expect(app.includes('localTime===remoteTime&&SettingsData.preferNewerItem(local,remote)===local'), 'Equal-time scalar settings must resolve independently of device argument order');
+expect(app.includes("homeStickyMode:'compact'"), 'Home sticky controls must default to compact mode');
+expect(app.includes("homeStickyMode:preferLocalSettings?local.homeStickyMode"), 'Home sticky preference must participate in settings merge');
+expect(html.includes('id="lookup-options-toggle"')&&html.includes('id="sticky-mode-compact"'), 'Home sticky controls and preference UI must exist');
+expect(html.includes('onclick="openFoldersRoot(this)"')&&app.includes('folderIdFromPath'), 'Folders must expose a mobile root/detail navigation path');
 expect(app.includes('favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt'), 'Reasserting an existing favorite must refresh its field clock');
 expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt'), 'Reasserting an existing lookup folder must refresh its field clock');
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');

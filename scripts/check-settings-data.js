@@ -1,6 +1,6 @@
 await import('../settings-data.js');
 
-const {normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds}=globalThis.SettingsData||{};
+const {normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds,preferNewerItem}=globalThis.SettingsData||{};
 const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 const old='2026-01-01T00:00:00.000Z';
@@ -26,10 +26,15 @@ expect(JSON.stringify(tiedForward)===JSON.stringify(tiedReverse),'Equal-time ord
 const legacyOrder=resolveOrderedIds([], '', [], '', ['api_a','api_b'], ['api_b','api_a']);
 expect(JSON.stringify(legacyOrder)===JSON.stringify(['api_b','api_a']),'Legacy settings must retain their existing profile order');
 
+const tiedItemA={id:'folder_a',name:'Alpha',updatedAt:revived};
+const tiedItemB={id:'folder_a',name:'Beta',updatedAt:revived};
+expect(preferNewerItem(tiedItemA,tiedItemB)===preferNewerItem(tiedItemB,tiedItemA),'Equal-time item conflicts must choose the same content in either merge direction');
+expect(preferNewerItem({...tiedItemA,updatedAt:old},tiedItemB)===tiedItemB,'A newer item timestamp must still outrank the deterministic tie-break');
+
 if(failures.length){
   console.error(`Settings data check failed (${failures.length}):`);
   failures.forEach(message=>console.error(`- ${message}`));
   process.exitCode=1;
 }else{
-  console.log('Settings data check passed: deletions, recreations, unrelated additions, and merge order converge.');
+  console.log('Settings data check passed: deletions, recreations, content ties, additions, and order converge.');
 }

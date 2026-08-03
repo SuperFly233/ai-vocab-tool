@@ -75,6 +75,8 @@ let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
 let homeEmptyLayoutTimer=null;
+let lookupOptionsExpanded=true;
+let lookupQueueExpanded=true;
 let historyReadCache=null;
 let tombstoneReadCache=null;
 let settingsReadCache=null;
@@ -101,6 +103,7 @@ const historyState={
 const folderState={
   activeId:FOLDER_LIKED_ID,
   visibleCount:0,
+  detailOpen:false,
 };
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
   numeric:true,
@@ -140,18 +143,24 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
 const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.11.25',
-  releaseDate:'2026-07-26',
+  version:'0.12.0',
+  releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.12.0',
+    date:'2026-08-03',
+    title:'重构首页固定工具栏、收藏夹层级与主题控件',
+    items:['首页滚动工具栏改为分层收纳：默认滚动后只固定主搜索、展开入口和搜索按钮；方向、侧重点、收藏夹及查询队列按需展开，队列条目另有第二层折叠。设置可选择“智能收起”或“保持展开”。','收藏夹手机端改为“竖向收藏夹列表 → 收藏夹详情”两级页面，桌面端改为无横向滚动的主从列表；列表减少卡片边框，记录以分隔行呈现。具体收藏夹使用 /favorites/<id> 路径，浏览器返回可先回到列表。','顶部和设置内统一使用三态胶囊主题控件，修正手机账户与主题区的靠右对齐；收藏夹和首页均完成桌面、手机及滚动态测量。','设置数据层同时消除 updatedAt 完全相同时的设备顺序依赖：API 配置、收藏夹定义、列表顺序及设置标量会确定性收敛，避免两台设备来回覆盖。'],
+  },
   {
     version:'0.11.25',
     date:'2026-07-26',
@@ -730,6 +739,7 @@ const els={
   resultCard:document.getElementById('result-card'),
   resultJson:document.getElementById('result-json'),
   lookupQueue:document.getElementById('lookup-queue'),
+  lookupOptionsToggle:document.getElementById('lookup-options-toggle'),
   lookupFolderStrip:document.getElementById('lookup-folder-strip'),
   folderSelectModal:document.getElementById('folder-select-modal'),
   folderSelectTitle:document.getElementById('folder-select-title'),
@@ -764,6 +774,8 @@ const els={
   timeModeCreatedBtn:document.getElementById('time-mode-created'),
   timeModeUpdatedBtn:document.getElementById('time-mode-updated'),
   timeModeBothBtn:document.getElementById('time-mode-both'),
+  stickyModeCompactBtn:document.getElementById('sticky-mode-compact'),
+  stickyModeExpandedBtn:document.getElementById('sticky-mode-expanded'),
   visualHintsPinnedInput:document.getElementById('visual-hints-pinned'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
@@ -783,6 +795,7 @@ const els={
   historyFilterbar:document.getElementById('history-filterbar'),
   historySortbar:document.getElementById('history-sortbar'),
   folderCount:document.getElementById('folder-count'),
+  folderPanel:document.getElementById('folder-panel'),
   folderSidebar:document.getElementById('folder-sidebar'),
   folderContentHead:document.getElementById('folder-content-head'),
   folderHistoryList:document.getElementById('folder-history-list'),
@@ -1233,6 +1246,7 @@ function normalizeSettings(raw={}){
   const labelMode=normalizeLabelMode(source.labelMode);
   const fontMode=normalizeFontMode(source.fontMode);
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
+  const homeStickyMode=normalizeHomeStickyMode(source.homeStickyMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
   const favoriteFolderTombstones=SettingsData.normalizeTombstones(source.favoriteFolderTombstones);
@@ -1259,6 +1273,7 @@ function normalizeSettings(raw={}){
     labelMode,
     fontMode,
     historyTimeMode,
+    homeStickyMode,
     visualHintsPinned,
     modelPrompt,
     favoriteFolders,
@@ -1275,6 +1290,9 @@ function normalizeFontMode(value){
 }
 function normalizeHistoryTimeMode(value){
   return ['created','updated','both'].includes(value)?value:'created';
+}
+function normalizeHomeStickyMode(value){
+  return value==='expanded'?'expanded':'compact';
 }
 function normalizeBooleanSetting(value,fallback=false){
   if(value===true||value==='true'||value===1||value==='1')return true;
@@ -1301,7 +1319,7 @@ function normalizeFavoriteFolders(value=[]){
     const normalized=normalizeFavoriteFolder(folder,index);
     if(!normalized||normalized.id===FOLDER_LIKED_ID||normalized.id===FOLDER_UNFILED_ID)return;
     const existing=map.get(normalized.id);
-    if(!existing||new Date(normalized.updatedAt||0)>=new Date(existing.updatedAt||0))map.set(normalized.id,normalized);
+    map.set(normalized.id,SettingsData.preferNewerItem(existing,normalized));
   });
   return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
 }
@@ -1332,13 +1350,13 @@ function dedupeApiProfiles(profiles){
   const map=new Map();
   profiles.map(normalizeApiProfile).forEach(profile=>{
     const existing=map.get(profile.id);
-    if(!existing||new Date(profile.updatedAt||0)>new Date(existing.updatedAt||0))map.set(profile.id,profile);
+    map.set(profile.id,SettingsData.preferNewerItem(existing,profile));
   });
   const unique=new Map();
   [...map.values()].forEach(profile=>{
     const signature=[profile.name,profile.apiUrl,profile.apiKey,profile.model].join('\u0001');
     const existing=unique.get(signature);
-    if(!existing||new Date(profile.updatedAt||0)>new Date(existing.updatedAt||0))unique.set(signature,profile);
+    unique.set(signature,SettingsData.preferNewerItem(existing,profile));
   });
   return [...unique.values()];
 }
@@ -1383,7 +1401,7 @@ function mergeSettings(localRaw,remoteRaw){
     .sort((a,b)=>(folderOrderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(folderOrderIndex.get(b.id)??Number.MAX_SAFE_INTEGER))
     .map((folder,index)=>({...folder,order:index}));
   const localHasPendingSettings=cloudDirtyState.has(CLOUD_KEYS.settings);
-  const preferLocalSettings=localHasPendingSettings||localTime>remoteTime;
+  const preferLocalSettings=localHasPendingSettings||localTime>remoteTime||(localTime===remoteTime&&SettingsData.preferNewerItem(local,remote)===local);
   const activeId=preferLocalSettings
     ? local.activeApiProfileId
     : remote.activeApiProfileId||local.activeApiProfileId;
@@ -1392,6 +1410,7 @@ function mergeSettings(localRaw,remoteRaw){
     labelMode:preferLocalSettings?local.labelMode:remote.labelMode||local.labelMode,
     fontMode:preferLocalSettings?local.fontMode:remote.fontMode||local.fontMode,
     historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
+    homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
     modelPrompt:preferLocalSettings?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
     favoriteFolders,
@@ -1412,7 +1431,7 @@ function mergeFavoriteFolders(...groups){
   const map=new Map();
   groups.flatMap(group=>normalizeFavoriteFolders(group)).forEach(folder=>{
     const existing=map.get(folder.id);
-    if(!existing||new Date(folder.updatedAt||0)>=new Date(existing.updatedAt||0))map.set(folder.id,folder);
+    map.set(folder.id,SettingsData.preferNewerItem(existing,folder));
   });
   return [...map.values()].sort((a,b)=>(a.order||0)-(b.order||0)||historyCollator.compare(a.name,b.name));
 }
@@ -1658,7 +1677,8 @@ function syncValuePreview(key,value){
     const labelMode=settings.labelMode==='zh'?'中文':settings.labelMode==='code'?'缩写':'双语';
     const fontMode={system:'系统',sans:'无衬线',serif:'衬线',mono:'等宽'}[settings.fontMode]||'系统';
     const timeMode={created:'创建时间',updated:'修改时间',both:'全部时间'}[settings.historyTimeMode]||'创建时间';
-    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}，时间 ${timeMode}，Prompt ${settings.modelPrompt?'自定义':'默认'}`;
+    const stickyMode=settings.homeStickyMode==='expanded'?'工具栏保持展开':'工具栏智能收起';
+    return `${settings.apiProfiles.length} 组 API，当前 ${active.apiProfileName}，URL ${active.apiUrl?'已填':'空'}，Key ${active.apiKey?'已填':'空'}，Model ${active.model||'空'}，标签 ${labelMode}，字体 ${fontMode}，时间 ${timeMode}，${stickyMode}，Prompt ${settings.modelPrompt?'自定义':'默认'}`;
   }
   if(key===CLOUD_KEYS.logs)return `${safeLogsFromRaw(value).length} 条日志`;
   return String(value).replace(/\s+/g,' ').trim().slice(0,120);
@@ -2143,8 +2163,13 @@ async function loadConfigInfo(){
 
 function viewFromPath(pathname=location.pathname){
   const path=`/${String(pathname||'').split('/').filter(Boolean).join('/')}`.replace(/\/$/,'')||'/';
-  if(path==='/folders')return 'folders';
+  if(path==='/folders'||path.startsWith(`${VIEW_ROUTES.folders}/`))return 'folders';
   return Object.entries(VIEW_ROUTES).find(([,route])=>route===path)?.[0]||'home';
+}
+function folderIdFromPath(pathname=location.pathname){
+  const prefix=`${VIEW_ROUTES.folders}/`;
+  if(!String(pathname||'').startsWith(prefix))return '';
+  try{return decodeURIComponent(String(pathname).slice(prefix.length).split('/')[0]||'')}catch{return ''}
 }
 function updateViewRoute(id,mode='push'){
   if(mode==='none')return;
@@ -2174,7 +2199,13 @@ function showView(id,button,options={}){
 }
 function restoreViewFromLocation({replace=false,focus=true}={}){
   const view=viewFromPath();
-  const canonical=VIEW_ROUTES[view];
+  if(view==='folders'){
+    const folderId=folderIdFromPath();
+    const exists=folderId&&folderStats().some(folder=>folder.id===folderId);
+    folderState.detailOpen=Boolean(exists);
+    if(exists)folderState.activeId=folderId;
+  }
+  const canonical=view==='folders'&&folderState.detailOpen?`${VIEW_ROUTES.folders}/${encodeURIComponent(folderState.activeId)}`:VIEW_ROUTES[view];
   showView(view,document.getElementById(`nav-${view}`),{route:'none',scroll:false,focus});
   if(replace&&location.pathname!==canonical){
     window.history.replaceState({view},'',`${canonical}${location.search}${location.hash}`);
@@ -2194,7 +2225,49 @@ function focusQueryInput(){
 }
 function updateHomeStickyState(){
   const compact=activeView==='home'&&window.scrollY>56;
+  const wasCompact=document.body.classList.contains('home-scrolled');
   document.body.classList.toggle('home-scrolled',compact);
+  if(compact!==wasCompact){
+    if(compact&&getSettings().homeStickyMode==='compact'){
+      lookupOptionsExpanded=false;
+      lookupQueueExpanded=false;
+    }else if(!compact){
+      lookupOptionsExpanded=true;
+      lookupQueueExpanded=true;
+    }else if(compact){
+      lookupOptionsExpanded=true;
+    }
+    applyLookupOptionsState();
+    renderLookupQueue();
+  }
+}
+function applyLookupOptionsState(){
+  const editor=document.querySelector('#view-home .editor-pane');
+  editor?.classList.toggle('lookup-options-open',lookupOptionsExpanded);
+  if(els.lookupOptionsToggle){
+    els.lookupOptionsToggle.textContent=lookupOptionsExpanded?'⌃':'⌄';
+    els.lookupOptionsToggle.setAttribute('aria-expanded',String(lookupOptionsExpanded));
+    els.lookupOptionsToggle.setAttribute('aria-label',lookupOptionsExpanded?'收起查询选项':'展开查询选项');
+  }
+  syncHomeStickySpacer();
+}
+function syncHomeStickySpacer(){
+  requestAnimationFrame(()=>{
+    if(!document.body.classList.contains('home-scrolled')){
+      els.workspace?.style.removeProperty('--home-sticky-height');
+      return;
+    }
+    const height=document.querySelector('#view-home .editor-pane')?.getBoundingClientRect().height||0;
+    if(height)els.workspace?.style.setProperty('--home-sticky-height',`${Math.ceil(height+14)}px`);
+  });
+}
+function toggleLookupOptions(){
+  lookupOptionsExpanded=!lookupOptionsExpanded;
+  applyLookupOptionsState();
+}
+function toggleLookupQueueDetails(){
+  lookupQueueExpanded=!lookupQueueExpanded;
+  renderLookupQueue();
 }
 function focusHomeQueryFromSticky(event){
   if(activeView!=='home'||document.body.classList.contains('modal-open'))return;
@@ -3285,12 +3358,16 @@ function renderLookupQueue(){
   if(!els.lookupQueue)return;
   if(!lookupQueue.length){
     els.lookupQueue.innerHTML='';
-    els.lookupQueue.classList.remove('open');
+    els.lookupQueue.classList.remove('open','queue-expanded');
+    syncHomeStickySpacer();
     return;
   }
   els.lookupQueue.classList.add('open');
+  els.lookupQueue.classList.toggle('queue-expanded',lookupQueueExpanded);
   els.lookupQueue.innerHTML=`
-    <div class="queue-head"><b>查询队列</b><span>${lookupQueue.length} 条等待</span></div>
+    <button class="queue-head" type="button" onclick="toggleLookupQueueDetails()" aria-expanded="${lookupQueueExpanded}">
+      <b>查询队列</b><span>${lookupQueue.length} 条等待 <i aria-hidden="true">${lookupQueueExpanded?'⌃':'⌄'}</i></span>
+    </button>
     <div class="queue-list">
       ${lookupQueue.map((item,index)=>`
         <article class="queue-item">
@@ -3309,6 +3386,7 @@ function renderLookupQueue(){
       `).join('')}
     </div>
   `;
+  syncHomeStickySpacer();
 }
 function moveLookupQueueItem(id,delta){
   const index=lookupQueue.findIndex(item=>Number(item.id)===Number(id));
@@ -4199,6 +4277,7 @@ function renderFoldersView(){
   const visible=items.slice(0,Math.min(folderState.visibleCount,items.length));
   const more=visible.length<items.length;
   const settings=getSettings();
+  els.folderPanel?.classList.toggle('detail-open',folderState.detailOpen);
   if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${items.length} 条`;
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
@@ -4220,6 +4299,7 @@ function renderFoldersView(){
   `;
   if(els.folderContentHead){
     els.folderContentHead.innerHTML=`
+      <button class="folder-mobile-back" type="button" onclick="closeFolderDetail()" aria-label="返回收藏夹列表">‹</button>
       <div>
         <h2>${escapeHTML(active.name)}</h2>
         <p>${active.system?'星标记录会自动进入这里。':'自定义收藏夹，可从历史详情里把记录加入多个收藏夹。'}${active.parentId?' 已预留上级目录。':''}</p>
@@ -4238,6 +4318,15 @@ function renderFoldersView(){
       </button>
     `:'')
     : '<div class="empty">这个收藏夹还没有记录。</div>';
+}
+function openFoldersRoot(button=document.getElementById('nav-folders')){
+  folderState.detailOpen=false;
+  showView('folders',button);
+}
+function closeFolderDetail(){
+  if(folderIdFromPath())return window.history.back();
+  folderState.detailOpen=false;
+  renderFoldersView();
 }
 function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getSettings().historyTimeMode){
   const normalized=normalizeHistoryItem(item);
@@ -4678,7 +4767,10 @@ function openFolderView(folderId){
   if(!value)return;
   if(folderState.activeId!==value)folderState.visibleCount=0;
   folderState.activeId=value;
+  folderState.detailOpen=true;
   showView('folders',document.getElementById('nav-folders'));
+  const route=`${VIEW_ROUTES.folders}/${encodeURIComponent(value)}`;
+  if(location.pathname!==route)window.history.pushState({view:'folders',folderId:value},'',`${route}${location.search}${location.hash}`);
 }
 async function createFavoriteFolder(){
   const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
@@ -5755,6 +5847,7 @@ function hydrateSettings(){
   applyLabelMode(settings.labelMode);
   applyFontMode(settings.fontMode);
   applyHistoryTimeMode(settings.historyTimeMode);
+  applyHomeStickyMode(settings.homeStickyMode);
   applyVisualHintsPinned(settings.visualHintsPinned);
   renderModelPromptSettings(settings);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
@@ -5966,6 +6059,24 @@ function setHistoryTimeMode(mode){
     if(item)els.modalSubtitle.textContent=historyModalMeta(item);
   }
   notify(`历史时间默认显示已切换为${historyTimeModeLabel(next)}。`,'good','显示设置');
+}
+function applyHomeStickyMode(mode){
+  const next=normalizeHomeStickyMode(mode);
+  els.stickyModeCompactBtn?.classList.toggle('active',next==='compact');
+  els.stickyModeExpandedBtn?.classList.toggle('active',next==='expanded');
+}
+function setHomeStickyMode(mode){
+  const next=normalizeHomeStickyMode(mode);
+  const settings=getSettings();
+  setSettings({...settings,homeStickyMode:next,updatedAt:new Date().toISOString()});
+  applyHomeStickyMode(next);
+  if(document.body.classList.contains('home-scrolled')){
+    lookupOptionsExpanded=next==='expanded';
+    if(next==='compact')lookupQueueExpanded=false;
+    applyLookupOptionsState();
+    renderLookupQueue();
+  }
+  notify(next==='compact'?'滚动后会自动收起查询选项。':'滚动后会保持完整查询选项。','good','首页工具栏');
 }
 function applyVisualHintsPinned(value){
   const enabled=normalizeBooleanSetting(value,false);
@@ -6318,10 +6429,9 @@ function renderAbout(){
 function applyTheme(theme){
   document.documentElement.dataset.theme=theme==='auto'?'':theme;
   document.body.dataset.themeMode=theme;
-  document.querySelectorAll('.seg button').forEach(btn=>btn.classList.remove('active'));
+  document.querySelectorAll('.theme-switch button').forEach(btn=>btn.classList.remove('active'));
   document.getElementById(`th-${theme}`)?.classList.add('active');
-  const themeToggle=document.getElementById('theme-toggle-btn');
-  if(themeToggle)themeToggle.textContent=theme==='light'?'☀️':theme==='dark'?'🌙':'◐';
+  document.getElementById(`top-theme-${theme}`)?.classList.add('active');
 }
 function setTheme(theme){
   localStorage.setItem(STORAGE_KEYS.theme,theme);
@@ -6520,6 +6630,7 @@ document.addEventListener('click',event=>{
 window.addEventListener('resize',()=>{
   if(els.apiProfilePicker?.classList.contains('open'))positionApiProfileMenu();
   updateHomeEmptyLayout();
+  syncHomeStickySpacer();
 });
 window.addEventListener('scroll',()=>{
   updateHomeStickyState();

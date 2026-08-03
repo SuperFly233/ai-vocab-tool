@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/styles.css?v=0.11.25">
+<link rel="stylesheet" href="/styles.css?v=0.12.0">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -42,7 +42,7 @@
   <nav class="nav">
     <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()">首页</button>
     <button class="nav-item" id="nav-history" onclick="showView('history',this)">历史记录</button>
-    <button class="nav-item" id="nav-folders" onclick="showView('folders',this)">收藏夹</button>
+    <button class="nav-item" id="nav-folders" onclick="openFoldersRoot(this)">收藏夹</button>
     <button class="nav-item" id="nav-settings" onclick="showView('settings',this)">设置</button>
     <button class="nav-item" id="nav-about" onclick="showView('about',this)">关于</button>
   </nav>
@@ -56,8 +56,12 @@
       <div class="app-sub" id="app-sub">词汇结构化查询</div>
     </div>
     <div class="topbar-actions">
+      <div class="theme-switch topbar-theme-switch" aria-label="主题模式">
+        <button id="top-theme-dark" data-tip="深色" onclick="setTheme('dark')" aria-label="深色主题">☾</button>
+        <button id="top-theme-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统">▭</button>
+        <button id="top-theme-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题">☼</button>
+      </div>
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()">账号</button>
-      <button class="theme-btn" id="theme-toggle-btn" data-tip="切换主题" onclick="cycleTheme()" aria-label="切换主题">◐</button>
     </div>
   </div>
 
@@ -103,6 +107,7 @@
           </div>
           <div class="lookup-folder-strip" id="lookup-folder-strip"></div>
           <div class="query-actions">
+            <button class="icon-btn lookup-options-toggle" id="lookup-options-toggle" data-tip="查询选项" onclick="toggleLookupOptions()" type="button" aria-label="展开查询选项" aria-expanded="true">⌃</button>
             <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
           </div>
         </div>
@@ -177,7 +182,7 @@
   </section>
 
   <section class="view" id="view-folders">
-    <div class="panel folder-panel">
+    <div class="panel folder-panel" id="folder-panel">
       <div class="section-head">
         <div>
           <div class="section-title">收藏夹</div>
@@ -256,10 +261,10 @@
         <div class="setting-title">外观</div>
         <div class="setting-row">
           <div><div class="setting-label">主题</div><div class="setting-sub">自动跟随系统，也可以固定浅色或深色。</div></div>
-          <div class="seg">
-            <button id="th-auto" data-tip="自动" onclick="setTheme('auto')">◐</button>
-            <button id="th-light" data-tip="浅色" onclick="setTheme('light')">☀️</button>
-            <button id="th-dark" data-tip="深色" onclick="setTheme('dark')">🌙</button>
+          <div class="theme-switch settings-theme-switch" aria-label="主题模式">
+            <button id="th-dark" data-tip="深色" onclick="setTheme('dark')" aria-label="深色主题">☾</button>
+            <button id="th-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统">▭</button>
+            <button id="th-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题">☼</button>
           </div>
         </div>
         <div class="setting-row">
@@ -267,6 +272,13 @@
           <div class="seg layout-seg">
             <button id="layout-top-btn" onclick="setLayout('top')">顶部</button>
             <button id="layout-split-btn" onclick="setLayout('split')">左右</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">首页滚动工具栏</div><div class="setting-sub">智能收起会在滚动后只保留主搜索，并把方向、收藏夹和队列分层收纳。</div></div>
+          <div class="seg sticky-mode-seg">
+            <button id="sticky-mode-compact" onclick="setHomeStickyMode('compact')">智能收起</button>
+            <button id="sticky-mode-expanded" onclick="setHomeStickyMode('expanded')">保持展开</button>
           </div>
         </div>
         <div class="setting-row">
@@ -501,10 +513,10 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/history-data.js?v=0.11.25"></script>
-<script src="/settings-data.js?v=0.11.25"></script>
-<script src="/lookup-tasks.js?v=0.11.25"></script>
-<script src="/sync-state.js?v=0.11.25"></script>
-<script src="/app.js?v=0.11.25"></script>
+<script src="/history-data.js?v=0.12.0"></script>
+<script src="/settings-data.js?v=0.12.0"></script>
+<script src="/lookup-tasks.js?v=0.12.0"></script>
+<script src="/sync-state.js?v=0.12.0"></script>
+<script src="/app.js?v=0.12.0"></script>
 </body>
 </html>
