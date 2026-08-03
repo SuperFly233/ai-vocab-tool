@@ -39,6 +39,8 @@ let currentFollowups=[];
 let modalResult=null;
 let modalHistoryId=null;
 let modalRollId=null;
+let activeModalTab='card';
+let modalEditBaseline='';
 let editingApiProfileId=null;
 let openHistoryFilterKey=null;
 let configInfo=null;
@@ -67,11 +69,12 @@ let editingFollowup=null;
 let pendingFollowup=null;
 let lookupFolderIds=[];
 let folderSelectContext=null;
-let folderDragState=null;
+let folderPointerDragState=null;
 let modalSwipeState=null;
 let visualPointerDragState=null;
 let apiProfilePointerDragState=null;
 let rollPointerDragState=null;
+let lookupQueuePointerDragState=null;
 let suppressRollClick=false;
 let historyDerivedCache=null;
 let resultTypewriterTimers=[];
@@ -154,12 +157,24 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.14.1',
+  version:'0.14.3',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.14.3',
+    date:'2026-08-03',
+    title:'收紧查询队列，并贯通移动端品牌入口',
+    items:['查询队列移除上移、下移和插队按钮，改为统一的长按拖拽把手；拖动时复用浮层、相邻条目交换动画和页面边缘自动滚动，只保留必要的移除操作。','收藏夹目录同步移除原生 HTML 拖拽，改用独立长按把手、动画交换和边缘自动滚动；修复保存顺序后又被记录数量重新排序的问题，手机端内容、拖拽与删除保持同一行。','历史归一化会先合并同一查询的重复记录，再去除内容完全相同的版本；启动时自动把修复结果写回本地并进入云端同步，收藏夹关系、追问和字段时钟继续按新旧规则合并，不再出现两个相同版本同时外显。','队列与收藏夹重排结束后会按 DOM 中的最终顺序回写并持久化；移动端队列任务保持单行紧凑布局，不再被旧操作按钮撑高。','移动端顶部标题补上与桌面、favicon 和主屏幕入口相同的双对话框圆形放大镜图标，品牌在不同断点不再缺失。','契约检查禁止旧排序控件回归，并锁定长按拖拽、顺序持久化、收藏夹目录顺序、历史自动修复和移动端品牌资产；同时比较所有应用浮层的实际层级，保证 Toast 与 Snackbar 永远高于历史详情、API 配置、确认框、提示气泡和拖拽浮层。'],
+  },
+  {
+    version:'0.14.2',
+    date:'2026-08-03',
+    title:'定稿品牌图标，并修复横向版本拖拽',
+    items:['品牌图标定稿为双对话框与圆形放大镜：站内入口、浏览器 favicon 和移动端 manifest 共用同一份透明矢量资产，小尺寸下不再出现文字或旧书页符号。','Toast 与 Snackbar 提升到统一的全局反馈顶层，历史详情、API 配置、确认遮罩、字段提示和拖拽浮层都不会再把通知盖住。','历史详情的版本列表按横向排列，因此拖拽交换改为比较指针与目标按钮的横向中点；左右移动不再错误复用纵向区块的上下判定。','契约检查锁定品牌资产、通知最高层级与版本列表横轴命中；API 配置和可视化编辑仍保留纵向判断。'],
+  },
   {
     version:'0.14.1',
     date:'2026-08-03',
@@ -1298,7 +1313,19 @@ function reviveHistoryItems(items){
   return setHistoryTombstones(getHistoryTombstones().filter(item=>!keys.has(item.key)));
 }
 function reconcileHistoryData(items,tombstones=getHistoryTombstones()){
-  return HistoryData.reconcileHistory(normalizeHistoryItems(items),tombstones,historyIdentityKey);
+  return HistoryData.reconcileHistory(mergeHistoryItems(normalizeHistoryItems(items),[]),tombstones,historyIdentityKey);
+}
+function repairStoredHistory(){
+  const raw=readStorageValue(STORAGE_KEYS.history,'[]');
+  const tombstoneRaw=readStorageValue(STORAGE_KEYS.historyTombstones,'[]');
+  let parsed=[];
+  try{parsed=JSON.parse(raw)}catch{}
+  const repaired=reconcileHistoryData(parsed,getHistoryTombstones()).history;
+  if(raw===JSON.stringify(repaired)){
+    historyReadCache={historyRaw:raw,tombstoneRaw,value:repaired};
+    return false;
+  }
+  return setHistory(repaired,{revive:true});
 }
 function getHistory(){
   const historyRaw=readStorageValue(STORAGE_KEYS.history,'[]');
@@ -1334,11 +1361,11 @@ function setHistory(items,{revive=false,deletedItems=[]}={}){
     return false;
   }
   invalidateHistoryDerivedCache();
-  historyReadCache=null;
+  historyReadCache={historyRaw,tombstoneRaw,value:reconciled.history};
   tombstoneReadCache={raw:tombstoneRaw,value:reconciled.tombstones};
   markCloudDirty(CLOUD_KEYS.history);
   markCloudDirty(CLOUD_KEYS.historyTombstones);
-  renderHistory();
+  if(activeView==='history')renderHistory();
   renderLookupFolderPicker();
   if(activeView==='folders')renderFoldersView();
   scheduleCloudSync();
@@ -1371,13 +1398,13 @@ function setHistoryAndSettings(items,settings,{revive=false,deletedItems=[]}={})
     return false;
   }
   invalidateHistoryDerivedCache();
-  historyReadCache=null;
+  historyReadCache={historyRaw,tombstoneRaw,value:reconciled.history};
   tombstoneReadCache={raw:tombstoneRaw,value:reconciled.tombstones};
   settingsReadCache={raw:settingsRaw,value:normalizedSettings};
   markCloudDirty(CLOUD_KEYS.history);
   markCloudDirty(CLOUD_KEYS.historyTombstones);
   markCloudDirty(CLOUD_KEYS.settings);
-  renderHistory();
+  if(activeView==='history')renderHistory();
   renderLookupFolderPicker();
   if(activeView==='folders')renderFoldersView();
   scheduleCloudSync();
@@ -2504,12 +2531,58 @@ function setResultTab(id,button){
   button.classList.add('active');
   updateHomeEmptyLayout();
 }
+function modalVisualFieldValues(){
+  return [...(els.modalVisualEditor?.querySelectorAll('input,textarea')||[])].map(field=>field.value);
+}
+function modalEditSignature(){
+  return JSON.stringify({
+    query:els.modalQueryEdit?.value||'',
+    folders:els.modalTagsEdit?.value||'',
+    note:els.modalNoteEdit?.value||'',
+    json:els.modalJsonEdit?.value||'',
+    visual:modalVisualFieldValues(),
+  });
+}
+function captureModalEditBaseline(){
+  modalEditBaseline=modalEditSignature();
+}
+function historyModalHasDraft(){
+  return Boolean(els.historyModal?.classList.contains('open')&&modalEditBaseline&&modalEditSignature()!==modalEditBaseline);
+}
+function syncModalDraftFromActiveTab(nextTab){
+  if(activeModalTab==='visual'){
+    modalResult=collectVisualResult();
+    if(els.modalQueryEdit)els.modalQueryEdit.value=modalResult.headword?.title||modalResult.meta?.query||els.modalQueryEdit.value;
+    if(els.modalJsonEdit)els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
+  }
+  if(activeModalTab==='json'&&nextTab!=='json'){
+    let parsed;
+    try{parsed=JSON.parse(els.modalJsonEdit?.value||'')}
+    catch(error){
+      updateModalJSONStatus(false,error.message);
+      notify('请先修正 JSON 错误，再切换视图。','bad','无法切换');
+      return false;
+    }
+    const query=els.modalQueryEdit?.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'';
+    modalResult=normalizeResultEntryType(parsed,query);
+    renderVisualEditor(modalResult);
+  }
+  return true;
+}
 function setModalTab(id,button){
+  if(!syncModalDraftFromActiveTab(id))return false;
+  activeModalTab=id;
   document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id===`modal-${id}-page`));
   document.querySelectorAll('.modal-head .tab-btn').forEach(btn=>btn.classList.remove('active'));
   button.classList.add('active');
   els.historyModal?.querySelector('.modal-card')?.classList.toggle('editing-mode',id!=='card');
+  if(id==='card'&&modalResult){
+    const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
+    els.modalCardPage.innerHTML=renderResultHTML(modalResult,item?.followups||[],'modal',item);
+    renderModalStickySummary(modalResult,item);
+  }
   if(id==='json')validateModalJSON(false);
+  return true;
 }
 function updateHomeEmptyLayout(){
   const resultPane=document.querySelector('#view-home .result-pane');
@@ -3595,39 +3668,24 @@ function renderLookupQueue(){
     </button>
     <div class="queue-list">
       ${lookupQueue.map((item,index)=>`
-        <article class="queue-item">
+        <article class="queue-item" data-queue-id="${Number(item.id)}">
+          <button class="queue-drag" type="button" aria-label="长按拖拽调整队列顺序">${icon('grip-vertical')}</button>
           <div class="queue-index">${index+1}</div>
           <div class="queue-copy">
             <strong>${escapeHTML(item.query)}</strong>
             <span>${item.recovered?'恢复任务 · ':''}${escapeHTML([item.direction,item.note,foldersFromIds(item.folderIds||[]).map(folder=>folder.name).join('、')].filter(Boolean).join(' · ')||'默认规则')}</span>
           </div>
-          <div class="queue-actions">
-            <button class="icon-btn" data-tip="上移" aria-label="上移" onclick="moveLookupQueueItem(${Number(item.id)},-1)">${icon('arrow-up')}</button>
-            <button class="icon-btn" data-tip="下移" aria-label="下移" onclick="moveLookupQueueItem(${Number(item.id)},1)">${icon('arrow-down')}</button>
-            <button class="icon-btn" data-tip="插队到最前" aria-label="插队到最前" onclick="promoteLookupQueueItem(${Number(item.id)})">${icon('chevrons-up')}</button>
-            <button class="icon-btn danger-icon" data-tip="移除" aria-label="移除" onclick="removeLookupQueueItem(${Number(item.id)})">${icon('x')}</button>
-          </div>
+          <button class="icon-btn danger-icon queue-remove" data-tip="移除" aria-label="移除" onclick="removeLookupQueueItem(${Number(item.id)})">${icon('x')}</button>
         </article>
       `).join('')}
     </div>
   `;
   syncHomeStickySpacer();
 }
-function moveLookupQueueItem(id,delta){
-  const index=lookupQueue.findIndex(item=>Number(item.id)===Number(id));
-  if(index<0)return;
-  const nextIndex=Math.max(0,Math.min(lookupQueue.length-1,index+delta));
-  if(nextIndex===index)return;
-  const [item]=lookupQueue.splice(index,1);
-  lookupQueue.splice(nextIndex,0,item);
-  persistLookupTasks();
-  renderLookupQueue();
-}
-function promoteLookupQueueItem(id){
-  const index=lookupQueue.findIndex(item=>Number(item.id)===Number(id));
-  if(index<=0)return;
-  const [item]=lookupQueue.splice(index,1);
-  lookupQueue.unshift(item);
+function persistLookupQueueOrder(ids=[]){
+  const byId=new Map(lookupQueue.map(item=>[String(item.id),item]));
+  const ordered=ids.map(id=>byId.get(String(id))).filter(Boolean);
+  lookupQueue=[...ordered,...lookupQueue.filter(item=>!ids.includes(String(item.id)))];
   persistLookupTasks();
   renderLookupQueue();
 }
@@ -4314,10 +4372,7 @@ function getHistoryDerived(){
   itemsByFolder.forEach((items,id)=>{
     itemsByFolder.set(id,filterAndSortRawHistory(items));
   });
-  const stats=[...statsMap.values()].sort((a,b)=>{
-    if(a.system!==b.system)return a.system?-1:1;
-    return b.count-a.count||historyCollator.compare(a.name,b.name);
-  });
+  const stats=catalog.map(folder=>statsMap.get(folder.id)||{...folder,count:0});
   historyDerivedCache={history,settings,catalog,folderMap,itemFolderMap,stats,itemsByFolder};
   return historyDerivedCache;
 }
@@ -4517,14 +4572,14 @@ function renderFoldersView(){
     </div>
     <div class="folder-tab-list">
       ${folders.map(folder=>`
-        <article class="folder-tab ${folder.id===active.id?'active':''}" draggable="${folder.system?'false':'true'}" data-folder-id="${escapeHTML(folder.id)}" ondragstart="startFolderDrag(event,'${escapeAttr(folder.id)}')" ondragover="overFolderDrag(event,'${escapeAttr(folder.id)}')" ondragleave="clearFolderDropMarks()" ondragend="endFolderDrag()" ondrop="dropFolderDrag(event,'${escapeAttr(folder.id)}')">
+        <article class="folder-tab ${folder.id===active.id?'active':''}" data-folder-id="${escapeHTML(folder.id)}" data-folder-custom="${folder.system?'false':'true'}">
           <button class="folder-tab-main" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
             <span>${icon(folder.system?'star':'folder')}</span>
             <b>${escapeHTML(folder.name)}</b>
             <em>${Number(folder.count||0)}</em>
             <i class="folder-enter-icon" aria-hidden="true">${icon('chevron-right')}</i>
           </button>
-          ${folder.system?'':`<button class="folder-tab-delete" type="button" data-tip="删除收藏夹" aria-label="删除收藏夹" onclick="deleteFavoriteFolder('${escapeAttr(folder.id)}')">${icon('x')}</button>`}
+          ${folder.system?'':`<button class="folder-tab-drag" type="button" data-tip="长按排序" aria-label="长按拖拽调整收藏夹顺序">${icon('grip-vertical')}</button><button class="folder-tab-delete" type="button" data-tip="删除收藏夹" aria-label="删除收藏夹" onclick="deleteFavoriteFolder('${escapeAttr(folder.id)}')">${icon('x')}</button>`}
         </article>
       `).join('')}
     </div>
@@ -5123,48 +5178,65 @@ function ensureFoldersPersistedForOrder(folders=[]){
     updatedAt:now,
   });
 }
-function startFolderDrag(event,folderId){
-  const folder=folderById(folderId);
-  if(!folder||folder.system){event.preventDefault();return}
-  folderDragState={id:folder.id};
-  event.currentTarget?.classList.add('dragging');
-  event.dataTransfer?.setData('text/plain',folder.id);
-}
-function overFolderDrag(event,folderId){
-  if(!folderDragState||folderDragState.id===folderId)return;
-  event.preventDefault();
-  clearFolderDropMarks();
-  const target=event.currentTarget;
-  const rect=target.getBoundingClientRect();
-  target.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
-}
 function clearFolderDropMarks(){
   els.folderSidebar?.querySelectorAll('.folder-tab.drop-before,.folder-tab.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));
 }
-function endFolderDrag(){
-  els.folderSidebar?.querySelectorAll('.folder-tab.dragging').forEach(node=>node.classList.remove('dragging'));
-  clearFolderDropMarks();
-  folderDragState=null;
-}
-function dropFolderDrag(event,targetId){
-  event.preventDefault();
-  const state=folderDragState;
-  const rect=event.currentTarget.getBoundingClientRect();
-  const after=event.clientY>rect.top+rect.height/2;
-  endFolderDrag();
-  if(!state||state.id===targetId)return;
-  const list=folderCatalog().filter(folder=>!folder.system);
-  const from=list.findIndex(folder=>folder.id===state.id);
-  const target=list.findIndex(folder=>folder.id===targetId);
-  if(from<0||target<0)return;
-  const [item]=list.splice(from,1);
-  let to=target+(after?1:0);
-  if(from<to)to-=1;
-  list.splice(Math.max(0,Math.min(list.length,to)),0,item);
-  ensureFoldersPersistedForOrder(list);
+function persistFavoriteFolderOrder(ids=[]){
+  const folders=folderCatalog().filter(folder=>!folder.system);
+  const byId=new Map(folders.map(folder=>[folder.id,folder]));
+  const ordered=uniq(ids).map(id=>byId.get(String(id))).filter(Boolean);
+  folders.forEach(folder=>{if(!ordered.some(item=>item.id===folder.id))ordered.push(folder)});
+  if(!ensureFoldersPersistedForOrder(ordered))return false;
   renderFoldersView();
   renderFolderManager();
   notify('收藏夹顺序已调整。','good','收藏夹');
+  return true;
+}
+function startFolderPointerDrag(event){
+  const handle=event.target.closest('.folder-tab-drag');
+  const item=event.target.closest('.folder-tab[data-folder-custom="true"]');
+  if(!handle||!item||event.button>0)return;
+  folderPointerDragState={
+    pointerId:event.pointerId,
+    item,
+    startX:event.clientX,
+    startY:event.clientY,
+    active:false,
+    ghost:null,
+    timer:setTimeout(()=>{
+      if(!folderPointerDragState)return;
+      folderPointerDragState.active=true;
+      item.classList.add('dragging');
+      document.body.classList.add('reorder-active');
+      folderPointerDragState.ghost=createReorderGhost(item,event,'收藏夹');
+      item.setPointerCapture?.(event.pointerId);
+    },240),
+  };
+}
+function moveFolderPointerDrag(event){
+  const state=folderPointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  if(shouldCancelPendingDrag(state,event)){
+    cancelPendingPointerDrag(state);
+    folderPointerDragState=null;
+    return;
+  }
+  if(!state.active)return;
+  event.preventDefault();
+  positionReorderGhost(state.ghost,event);
+  autoScrollDuringDrag(event.clientY,els.folderSidebar);
+  clearFolderDropMarks();
+  const meta=reorderDropMeta(event.clientX,event.clientY,'.folder-tab[data-folder-custom="true"]',els.folderSidebar);
+  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
+}
+function endFolderPointerDrag(event){
+  const state=folderPointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  cancelPendingPointerDrag(state);
+  clearFolderDropMarks();
+  folderPointerDragState=null;
+  if(!state.active)return;
+  persistFavoriteFolderOrder([...state.item.parentElement.querySelectorAll('.folder-tab[data-folder-custom="true"]')].map(node=>node.dataset.folderId));
 }
 function clearHistoryFilter(key){
   if(!key)return;
@@ -5443,12 +5515,15 @@ function autoScrollDuringDrag(clientY,scroller=els.historyModalBody||document.sc
   }
   if(scroll.top||scroll.left)scroller.scrollBy(scroll);
 }
-function reorderDropMeta(clientX,clientY,itemSelector,scope=null){
+function reorderDropMeta(clientX,clientY,itemSelector,scope=null,axis='y'){
   const element=document.elementFromPoint(clientX,clientY);
   const item=element?.closest?.(itemSelector);
   if(!item||scope&&!scope.contains(item))return null;
   const rect=item.getBoundingClientRect();
-  return {item,after:clientY>rect.top+rect.height/2};
+  const after=axis==='x'
+    ? clientX>rect.left+rect.width/2
+    : clientY>rect.top+rect.height/2;
+  return {item,after};
 }
 function clearDropMarks(selector){
   document.querySelectorAll(`${selector}.drop-before,${selector}.drop-after`).forEach(node=>node.classList.remove('drop-before','drop-after'));
@@ -5628,7 +5703,7 @@ function moveRollPointerDrag(event){
   const tabs=els.modalRollbar?.querySelector('.roll-tabs');
   autoScrollDuringDrag(event.clientY,tabs,event.clientX,'x');
   clearDropMarks('.roll-btn');
-  const meta=reorderDropMeta(event.clientX,event.clientY,'.roll-btn',els.modalRollbar);
+  const meta=reorderDropMeta(event.clientX,event.clientY,'.roll-btn',els.modalRollbar,'x');
   if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
 }
 function endRollPointerDrag(event){
@@ -5643,6 +5718,52 @@ function endRollPointerDrag(event){
   }
   persistModalRollOrder([...state.item.parentElement.querySelectorAll('.roll-btn')].map(node=>node.dataset.rollKey));
   setTimeout(()=>{suppressRollClick=false},180);
+}
+function startLookupQueuePointerDrag(event){
+  const handle=event.target.closest('.queue-drag');
+  const item=event.target.closest('.queue-item');
+  if(!handle||!item||event.button>0)return;
+  lookupQueuePointerDragState={
+    pointerId:event.pointerId,
+    item,
+    startX:event.clientX,
+    startY:event.clientY,
+    active:false,
+    ghost:null,
+    timer:setTimeout(()=>{
+      if(!lookupQueuePointerDragState)return;
+      lookupQueuePointerDragState.active=true;
+      item.classList.add('dragging');
+      document.body.classList.add('reorder-active');
+      lookupQueuePointerDragState.ghost=createReorderGhost(item,event,'查询任务');
+      item.setPointerCapture?.(event.pointerId);
+    },220),
+  };
+}
+function moveLookupQueuePointerDrag(event){
+  const state=lookupQueuePointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  if(shouldCancelPendingDrag(state,event)){
+    cancelPendingPointerDrag(state);
+    lookupQueuePointerDragState=null;
+    return;
+  }
+  if(!state.active)return;
+  event.preventDefault();
+  positionReorderGhost(state.ghost,event);
+  autoScrollDuringDrag(event.clientY,document.scrollingElement);
+  clearDropMarks('.queue-item');
+  const meta=reorderDropMeta(event.clientX,event.clientY,'.queue-item',els.lookupQueue);
+  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
+}
+function endLookupQueuePointerDrag(event){
+  const state=lookupQueuePointerDragState;
+  if(!state||state.pointerId!==event.pointerId)return;
+  cancelPendingPointerDrag(state);
+  clearDropMarks('.queue-item');
+  lookupQueuePointerDragState=null;
+  if(!state.active)return;
+  persistLookupQueueOrder([...state.item.parentElement.querySelectorAll('.queue-item')].map(node=>node.dataset.queueId));
 }
 function startHistoryModalEdgeSwipe(event){
   if(!els.historyModal?.classList.contains('open'))return;
@@ -5665,7 +5786,7 @@ function endHistoryModalEdgeSwipe(event){
   const dy=Math.abs((touch?.clientY||0)-modalSwipeState.startY);
   els.historyModal?.querySelector('.modal-card')?.classList.remove('swipe-peek');
   modalSwipeState=null;
-  if(dx>96&&dy<80)closeHistoryModal();
+  if(dx>96&&dy<80)requestCloseHistoryModal();
 }
 function saveVisualHistoryEdit(){
   const data=collectVisualResult();
@@ -5693,17 +5814,28 @@ function openHistoryModal(id){
   if(els.modalNoteEdit)els.modalNoteEdit.value=normalized.note;
   els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
   validateModalJSON(false);
+  activeModalTab='card';
   setModalTab('card',document.getElementById('modal-card-tab'));
   els.historyModal.classList.add('open');
   document.body.classList.add('modal-open');
   els.historyModalBody?.scrollTo({top:0});
   updateHistoryModalScrollState();
+  captureModalEditBaseline();
 }
 function closeHistoryModal(event){
   if(event&&event.target!==els.historyModal)return;
+  if(event&&event.target===els.historyModal&&historyModalHasDraft()){
+    notify('当前修改尚未保存；请使用右上角关闭按钮决定是否退出。','info','已保留编辑内容');
+    return;
+  }
   els.historyModal.classList.remove('open');
   document.body.classList.remove('modal-open');
   els.historyModal.querySelector('.modal-card')?.classList.remove('modal-scrolled');
+  modalEditBaseline='';
+}
+async function requestCloseHistoryModal(){
+  if(historyModalHasDraft()&&!await askConfirm('当前修改尚未保存，确认放弃并关闭吗？','放弃修改'))return;
+  closeHistoryModal();
 }
 function saveHistoryEdit(){
   if(!modalHistoryId)return;
@@ -5749,6 +5881,7 @@ function saveHistoryEdit(){
   els.modalJsonEdit.value=JSON.stringify(parsed,null,2);
   updateModalJSONStatus(true,'语法正确，已保存');
   setModalTab('card',document.getElementById('modal-card-tab'));
+  captureModalEditBaseline();
   notify('历史记录已保存。','good','编辑完成');
 }
 function historyModalMeta(item){
@@ -5807,7 +5940,8 @@ function renderModalRollbar(item){
     <button class="icon-btn primary-icon reroll-btn" data-tip="重新生成" aria-label="重新生成" onclick="regenerateModalHistory()">${icon('refresh-cw')}</button>
   `;
 }
-function setModalRoll(rollId){
+async function setModalRoll(rollId){
+  if(historyModalHasDraft()&&!await askConfirm('切换版本会放弃当前未保存的修改，确认继续吗？','切换版本'))return;
   const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
   if(!item)return;
   const rolls=getHistoryRolls(item);
@@ -5822,6 +5956,9 @@ function setModalRoll(rollId){
   renderModalRollbar(item);
   renderModalStickySummary(roll.result,item);
   validateModalJSON(false);
+  activeModalTab='card';
+  setModalTab('card',document.getElementById('modal-card-tab'));
+  captureModalEditBaseline();
 }
 function persistModalRollOrder(keys=[]){
   const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
@@ -6773,7 +6910,7 @@ function handleQueryInput(){
 }
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open'))closeConfirm(false);
-  if(event.key==='Escape'&&els.historyModal.classList.contains('open'))closeHistoryModal();
+  if(event.key==='Escape'&&els.historyModal.classList.contains('open'))requestCloseHistoryModal();
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
     event.preventDefault();
     showView('history',document.getElementById('nav-history'));
@@ -6819,6 +6956,14 @@ els.modalRollbar?.addEventListener('pointerdown',startRollPointerDrag);
 els.modalRollbar?.addEventListener('pointermove',moveRollPointerDrag);
 els.modalRollbar?.addEventListener('pointerup',endRollPointerDrag);
 els.modalRollbar?.addEventListener('pointercancel',endRollPointerDrag);
+els.lookupQueue?.addEventListener('pointerdown',startLookupQueuePointerDrag);
+els.lookupQueue?.addEventListener('pointermove',moveLookupQueuePointerDrag);
+els.lookupQueue?.addEventListener('pointerup',endLookupQueuePointerDrag);
+els.lookupQueue?.addEventListener('pointercancel',endLookupQueuePointerDrag);
+els.folderSidebar?.addEventListener('pointerdown',startFolderPointerDrag);
+els.folderSidebar?.addEventListener('pointermove',moveFolderPointerDrag);
+els.folderSidebar?.addEventListener('pointerup',endFolderPointerDrag);
+els.folderSidebar?.addEventListener('pointercancel',endFolderPointerDrag);
 els.modalRollbar?.addEventListener('click',event=>{
   if(!suppressRollClick)return;
   event.preventDefault();
@@ -6932,7 +7077,7 @@ els.confirmLayer?.addEventListener('click',event=>{
 renderEmpty();
 hydrateSettings();
 setupHistoryImportDrop();
-renderHistory();
+if(!repairStoredHistory())renderHistory();
 hydrateLookupDraft();
 renderLookupFolderPicker();
 hydrateLookupTasks();

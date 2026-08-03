@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lexi酱">
-  <rect width="64" height="64" rx="18" fill="#eef3ef"/>
-  <rect x="5" y="5" width="54" height="54" rx="14" fill="none" stroke="#547469" stroke-opacity=".22"/>
-  <path d="M16 18.5c7.2-2.3 12.6-.8 16 3.4v27.6c-3.4-4.2-8.8-5.7-16-3.4V18.5Zm32 0c-7.2-2.3-12.6-.8-16 3.4v27.6c3.4-4.2 8.8-5.7 16-3.4V18.5Z" fill="#fff" stroke="#35659a" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M23 28h5m-5 7h5m8-7h5m-5 7h5" fill="none" stroke="#648c77" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="49" cy="14" r="3" fill="#35659a"/>
+  <path d="M34 7h8c11 0 20 9 20 20v8c0 8.5-5.3 15.8-12.8 18.7L50 61l-11.8-7H34c-11 0-20-9-20-20v-7C14 16 23 7 34 7Z" fill="#2878ed"/>
+  <path d="M22 7h8c11 0 20 9 20 20v7c0 11-9 20-20 20h-4.2L14 61l.8-7.3C7.3 50.8 2 43.5 2 35v-8C2 16 11 7 22 7Z" fill="#343b45"/>
+  <circle cx="31" cy="29" r="14.5" fill="#fff"/>
+  <path d="m41.2 39.2 9.4 9.4" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="31" cy="29" r="4" fill="#58c9ac"/>
 </svg>

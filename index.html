@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/styles.css?v=0.14.1">
+<link rel="icon" href="/favicon.svg?v=0.14.3" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.14.3" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.14.3">
+<link rel="stylesheet" href="/styles.css?v=0.14.3">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><i data-lucide="book-open-text"></i></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.14.3" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -52,8 +52,11 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <div class="app-title">Lexi酱</div>
-      <div class="app-sub" id="app-sub">词汇结构化查询</div>
+      <img class="topbar-brand-mark" src="/favicon.svg?v=0.14.3" alt="">
+      <div class="title-copy">
+        <div class="app-title">Lexi酱</div>
+        <div class="app-sub" id="app-sub">词汇结构化查询</div>
+      </div>
     </div>
     <div class="topbar-actions">
       <div class="theme-switch topbar-theme-switch" aria-label="主题模式">
@@ -386,7 +389,7 @@
           <button class="icon-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()"><i data-lucide="download"></i></button>
         </div>
       </div>
-      <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="closeHistoryModal()"><i data-lucide="x"></i></button>
+      <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="requestCloseHistoryModal()"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body" id="history-modal-body">
       <div class="modal-rollbar" id="modal-rollbar"></div>
@@ -439,9 +442,7 @@
         <div class="section-title" id="api-profile-modal-title">API 配置</div>
         <div class="section-sub" id="api-profile-modal-subtitle">保存后会作为当前配置使用。</div>
       </div>
-      <div class="result-icons">
-        <button class="icon-btn danger-icon" id="api-profile-modal-close" data-tip="关闭" aria-label="关闭" type="button"><i data-lucide="x"></i></button>
-      </div>
+      <button class="icon-btn danger-icon modal-close-btn" id="api-profile-modal-close" data-tip="关闭" aria-label="关闭" type="button"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body">
       <div class="api-profile-form">
@@ -515,12 +516,12 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/icons.js?v=0.14.1"></script>
-<script src="/history-data.js?v=0.14.1"></script>
-<script src="/settings-data.js?v=0.14.1"></script>
-<script src="/storage-state.js?v=0.14.1"></script>
-<script src="/lookup-tasks.js?v=0.14.1"></script>
-<script src="/sync-state.js?v=0.14.1"></script>
-<script src="/app.js?v=0.14.1"></script>
+<script src="/icons.js?v=0.14.3"></script>
+<script src="/history-data.js?v=0.14.3"></script>
+<script src="/settings-data.js?v=0.14.3"></script>
+<script src="/storage-state.js?v=0.14.3"></script>
+<script src="/lookup-tasks.js?v=0.14.3"></script>
+<script src="/sync-state.js?v=0.14.3"></script>
+<script src="/app.js?v=0.14.3"></script>
 </body>
 </html>

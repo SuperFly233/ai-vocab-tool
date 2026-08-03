@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi, manifestText] = await Promise.all([
+const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi, manifestText, faviconText, css] = await Promise.all([
   read('app.js'),
   read('index.html'),
   read('CHANGELOG.md'),
@@ -11,11 +11,17 @@ const [app, html, changelog, readme, projectContext, packageText, vercelText, sy
   read('vercel.json'),
   read('api/sync.js'),
   read('site.webmanifest'),
+  read('favicon.svg'),
+  read('styles.css'),
 ]);
 
 const failures = [];
 const expect = (condition, message) => {
   if (!condition) failures.push(message);
+};
+const cssZIndex = selector => {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return Number(firstMatch(css, new RegExp(`${escaped}\\{[^}]*z-index:(\\d+)`))) || 0;
 };
 const firstMatch = (text, pattern) => text.match(pattern)?.[1] || '';
 
@@ -94,6 +100,10 @@ expect(app.includes("{probe:true}"), 'Automatic cloud refreshes must use the met
 expect(syncApi.includes("payload.metadata ? 'key,updated_at' : 'key,value,updated_at'"), 'Sync proxy must expose metadata-only selects');
 expect(syncApi.includes('return=representation'), 'Sync proxy upserts must return updated row versions');
 expect(app.includes('HistoryData.preferNewer(existing,normalized)'), 'History merge must prefer the newer device record deterministically');
+expect(app.includes('HistoryData.reconcileHistory(mergeHistoryItems(normalizeHistoryItems(items),[])'), 'History normalization must coalesce duplicate query records before tombstone reconciliation');
+expect(app.includes('function repairStoredHistory()')&&app.includes('if(!repairStoredHistory())renderHistory()'), 'Startup must persist repaired history so duplicate records and rolls do not return from local or cloud state');
+expect((app.match(/historyReadCache=\{historyRaw,tombstoneRaw,value:reconciled\.history\}/g)||[]).length===2, 'History writes must reuse the normalized in-memory result instead of reparsing storage');
+expect((app.match(/if\(activeView==='history'\)renderHistory\(\)/g)||[]).length>=2, 'History writes must not rerender the hidden history page');
 expect(app.includes('id:stableHistoryId(existing,normalized)'), 'History merge must choose a stable cross-device record id');
 expect(app.includes('HistoryData.resolveMutableField('), 'History merge must resolve removable metadata with field-level clocks');
 expect(app.includes('favoriteUpdatedAt:now'), 'Explicit favorite selection must record a favorite field clock');
@@ -117,6 +127,9 @@ expect(app.includes('SettingsData.resolveOrderedIds('), 'API profile merge must 
 expect(app.includes('apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now'), 'API profile drag must persist order without rewriting profile content');
 expect(app.includes('favoriteFolderOrder:ordered.map(folder=>folder.id)'), 'Favorite folder drag must persist an independent order');
 expect(app.includes('favoriteFolderOrderUpdatedAt:now'), 'Favorite folder order changes must record an order clock');
+expect(app.includes("els.folderSidebar?.addEventListener('pointerdown',startFolderPointerDrag)")&&app.includes('persistFavoriteFolderOrder('), 'Favorite folders must use the shared long-press pointer reorder path');
+expect(!app.includes('ondragstart="startFolderDrag')&&!app.includes('dropFolderDrag('), 'Favorite folders must not regress to native HTML drag-and-drop');
+expect(app.includes('const stats=catalog.map(folder=>statsMap.get(folder.id)||{...folder,count:0})'), 'Favorite folder rendering must preserve the persisted catalog order instead of re-sorting by item count');
 expect(!/function ensureFoldersPersistedForOrder[\s\S]{0,500}normalizeFavoriteFolder\(\{\.\.\.folder,order:index,updatedAt:new Date/.test(app), 'Favorite folder drag must not rewrite every folder content clock');
 expect((app.match(/SettingsData\.preferNewerItem\(/g)||[]).length>=4, 'API profiles and favorite folders must share deterministic equal-time conflict resolution');
 expect(app.includes('localTime===remoteTime&&SettingsData.preferNewerItem(local,remote)===local'), 'Equal-time scalar settings must resolve independently of device argument order');
@@ -132,6 +145,9 @@ expect(!html.includes('id="top-settings-btn"'), 'Top navigation must not duplica
 expect(app.includes("lookupOptionsExpanded=!narrow||getSettings().homeStickyMode==='expanded'"), 'Desktop sticky lookup must preserve direction and folder controls');
 expect(app.includes('createReorderGhost')&&app.includes('animateDomReorder'), 'Long-press reorder must use a ghost and animated sibling movement');
 expect(app.includes('persistModalRollOrder')&&app.includes('persistApiProfileOrder'), 'Pointer reorder must persist version and API profile order');
+expect(app.includes("reorderDropMeta(event.clientX,event.clientY,'.roll-btn',els.modalRollbar,'x')"), 'Horizontal version reorder must compare pointer position on the x axis');
+expect(app.includes("els.lookupQueue?.addEventListener('pointerdown',startLookupQueuePointerDrag)")&&app.includes('persistLookupQueueOrder'), 'Lookup queue must use persistent long-press reorder');
+expect(!app.includes('function moveLookupQueueItem(')&&!app.includes('function promoteLookupQueueItem('), 'Lookup queue must not restore legacy move or promote controls');
 expect(html.includes('onclick="openFoldersRoot(this)"')&&app.includes('folderIdFromPath'), 'Folders must expose a mobile root/detail navigation path');
 expect(app.includes("fromFolderRoot:true")&&app.includes("window.history.state?.fromFolderRoot"), 'Folder detail back must distinguish in-app navigation from direct deep links');
 expect(app.includes('lookupSignature:activeLookupSignature'), 'Successful lookups must persist an exact recovery completion signature');
@@ -141,11 +157,28 @@ expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.fo
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');
 expect(/class="modal-head-actions"[\s\S]*class="modal-view-tabs"[\s\S]*class="modal-file-actions"/.test(html), 'History modal header must separate view tabs from file actions');
 expect(/<\/div>\s*<button class="icon-btn danger-icon modal-close-btn"/.test(html), 'History modal close control must remain outside the scrolling action group');
+expect(/id="api-profile-modal-title"[\s\S]{0,420}<button class="icon-btn danger-icon modal-close-btn" id="api-profile-modal-close"/.test(html), 'API profile close control must remain a direct top-right modal header action');
+expect(/\.api-profile-modal-card \.modal-edit-footer \.action-row\.compact\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), 'Mobile API profile actions must stay in one equal-width row');
+expect(/@media\(max-width:560px\)\{[\s\S]*?\.modal-head-actions\{gap:4px;overflow:visible\}[\s\S]*?\.modal-head \.tab-btn\{padding:5px 7px;font-size:12px\}/.test(css), 'Mobile history modal controls must fit without clipping the first view tab');
+expect(app.includes("let activeModalTab='card'")&&app.includes('function syncModalDraftFromActiveTab(nextTab)'), 'History preview, visual editor, and JSON editor must share one synchronized draft');
+expect(app.includes("if(activeModalTab==='json'&&nextTab!=='json')")&&app.includes("notify('请先修正 JSON 错误，再切换视图。'"), 'Invalid JSON must block switching to a view that would silently discard it');
+expect(app.includes('event.target===els.historyModal&&historyModalHasDraft()')&&html.includes('onclick="requestCloseHistoryModal()"'), 'History backdrop must preserve drafts and explicit close must use the guarded close path');
+expect(/async function setModalRoll\(rollId\)\{[\s\S]{0,220}historyModalHasDraft\(\)/.test(app), 'Version switching must confirm before discarding a history draft');
+expect(app.includes("visualHintsPinned:false")&&app.includes("normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned)"), 'Visual field hints must default to focus-only and preserve an explicit false setting');
 expect(app.includes('const ABOUT_RELEASE_LIMIT=3'), 'About page must cap the initial release archive');
 expect(app.includes('CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT)'), 'About page must render only recent releases by default');
 expect(app.includes("index===0?'open':''"), 'About page must expand only the latest release by default');
 expect(html.includes('<title>Lexi酱</title>')&&manifestInfo.name==='Lexi酱', 'Brand name must match across page title and manifest');
+expect(html.includes('class="brand-mark" src="/favicon.svg?v=0.14.3"')&&html.includes('class="topbar-brand-mark" src="/favicon.svg?v=0.14.3"')&&manifestText.includes('/favicon.svg?v=0.14.3')&&faviconText.includes('r="14.5"'), 'Selected round-lens brand mark must be shared and cache-versioned across desktop, mobile, favicon, and manifest');
 expect(app.includes("toastMode:'snackbar'")&&html.includes('id="toast-mode-snackbar"'), 'Snackbar must be the configurable default notification mode');
+expect(/\.toast-stack\{[^}]*z-index:2147483647/.test(css), 'Global toast feedback must use the application top-layer ceiling');
+expect(/<div class="toast-stack" id="toast-stack"><\/div>\s*<script/.test(html), 'Toast host must remain a direct body child after every application overlay');
+expect(/\.history-panel>\.section-head,\.folder-panel>\.section-head\{display:flex/.test(css), 'Mobile list page headers must keep actions on the title row');
+const toastZIndex=cssZIndex('.toast-stack');
+expect(
+  toastZIndex>Math.max(cssZIndex('.modal-layer'),cssZIndex('.confirm-layer'),cssZIndex('.visual-hint-bubble'),cssZIndex('.reorder-ghost')),
+  'Global toast feedback must remain the highest application layer',
+);
 expect(app.includes("renderHistoryFilterGroup('time','时间'")&&app.includes('historyMatchesTimeFilter'), 'History must provide explicit time-range filtering');
 expect(!app.includes('data-tip="查看" aria-label="查看"'), 'History rows must not duplicate the row-level open action');
 
