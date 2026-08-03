@@ -48,6 +48,18 @@ expect(JSON.stringify(quotaStorage.dump())===JSON.stringify({history:'old-histor
 expect(StorageState.isQuotaError(quota.error),'quota failures should be recognized');
 expect(!StorageState.isQuotaError(new Error('network failed')),'unrelated failures must not be classified as quota errors');
 
+const readableStorage=memoryStorage({theme:'dark'});
+const readable=StorageState.readValue(readableStorage,'theme','auto');
+const missing=StorageState.readValue(readableStorage,'layout','top');
+expect(readable.ok&&readable.value==='dark','safe reads should return the stored value');
+expect(missing.ok&&missing.value==='top','safe reads should return the supplied fallback for a missing key');
+
+const blockedReadError=new Error('Access is denied');
+blockedReadError.name='SecurityError';
+const blockedStorage={getItem(){throw blockedReadError}};
+const blockedRead=StorageState.readValue(blockedStorage,'history','[]');
+expect(!blockedRead.ok&&blockedRead.value==='[]'&&blockedRead.error===blockedReadError,'blocked storage reads should return the fallback and preserve the error');
+
 const removeRollbackStorage=memoryStorage({history:'keep-history',settings:'old-settings'},'settings');
 const removeRollback=StorageState.writeBatch(removeRollbackStorage,[
   {key:'history',value:null},
@@ -62,5 +74,5 @@ if(failures.length){
   failures.forEach(message=>console.error(`- ${message}`));
   process.exitCode=1;
 }else{
-  console.log('Storage state check passed: atomic commit, rollback, removal, and quota classification.');
+  console.log('Storage state check passed: safe reads, blocked-read fallback, atomic commit, rollback, removal, and quota classification.');
 }

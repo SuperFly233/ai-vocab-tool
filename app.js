@@ -51,6 +51,7 @@ let activeLookupSignature='';
 let activeLookupRequest=null;
 let lookupRecoveryPending=false;
 let lookupTaskStorageWarningShown=false;
+let storageReadWarningShown=false;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -76,6 +77,7 @@ let resultTypewriterTimers=[];
 let jsonTypewriterTimers=[];
 let lookupLoadingTimers=[];
 let homeEmptyLayoutTimer=null;
+let historySearchRenderTimer=null;
 let lookupOptionsExpanded=true;
 let lookupQueueExpanded=true;
 let historyReadCache=null;
@@ -150,12 +152,18 @@ const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.13.1',
+  version:'0.13.2',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.13.2',
+    date:'2026-08-03',
+    title:'保护受限存储与认证网络异常',
+    items:['所有本地存储读取统一经过容错入口；Safari 隐私限制、站点存储被禁用或 SecurityError 不再让页面启动和同步中断，应用会使用原有默认值继续临时运行，并只提示一次及时导出。','Supabase 登录、注册、会话、重置密码和退出操作统一捕获网络层直接抛出的异常；云端初始化失败也会恢复未登录界面并明确提示，不再留下未处理 Promise 或永久“正在登录”。','历史搜索把 90ms 内的连续输入合并为一次筛选与渲染；输入状态仍立即更新，清空、切换范围、筛选和排序继续即时生效，减少大历史库快速打字时的重复全量扫描。'],
+  },
   {
     version:'0.13.1',
     date:'2026-08-03',
@@ -862,9 +870,19 @@ const els={
   confirmOk:document.getElementById('confirm-ok'),
 };
 
+function readStorageValue(key,fallback=''){
+  const result=StorageState.readValue(localStorage,key,fallback);
+  if(result.ok)return result.value;
+  console.warn('浏览器本地存储暂时无法读取。',result.error);
+  if(!storageReadWarningShown){
+    storageReadWarningShown=true;
+    queueMicrotask(()=>notify('浏览器阻止了本地存储读取；当前页面会以临时会话继续运行，刷新前请导出需要保留的内容。','warn','本地数据不可用',false));
+  }
+  return fallback;
+}
 function readJSON(key,fallback){
   try{
-    const raw=localStorage.getItem(key);
+    const raw=readStorageValue(key,'');
     return raw?JSON.parse(raw):fallback;
   }catch{
     return fallback;
@@ -1017,7 +1035,7 @@ function clearLogs(){
   setLogs([]);
   notify('日志已清空。','good','日志',false);
 }
-function offlineMode(){return localStorage.getItem(STORAGE_KEYS.offline)==='1'}
+function offlineMode(){return readStorageValue(STORAGE_KEYS.offline,'')==='1'}
 function canEnterApp(){return Boolean(cloudUser)||offlineMode()}
 function renderAuthGate(){
   const couldEnter=!document.body.classList.contains('auth-required');
@@ -1054,6 +1072,10 @@ function credentials(source){
     password:document.getElementById(`${prefix}-password`)?.value||'',
   };
 }
+async function cloudAuthRequest(operation){
+  try{return await operation()}
+  catch(error){return {data:{},error:error instanceof Error?error:new Error(String(error||'云端认证请求失败'))}}
+}
 async function initCloud(){
   if(!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey||!window.supabase){
     setCloudStatus('Supabase 未配置，只使用本机数据。','bad');
@@ -1075,10 +1097,12 @@ async function initCloud(){
   const params=new URLSearchParams(location.search);
   const hasAuthCallback=params.has('code')||location.hash.includes('access_token')||location.hash.includes('type=');
   if(params.has('code')){
-    const {error}=await cloudClient.auth.exchangeCodeForSession(params.get('code'));
-    if(!error)history.replaceState({},document.title,location.pathname);
+    const {error}=await cloudAuthRequest(()=>cloudClient.auth.exchangeCodeForSession(params.get('code')));
+    if(error)throw error;
+    history.replaceState({},document.title,location.pathname);
   }
-  const {data}=await cloudClient.auth.getSession();
+  const {data,error:sessionError}=await cloudAuthRequest(()=>cloudClient.auth.getSession());
+  if(sessionError)throw sessionError;
   cloudUser=data.session?.user||null;
   renderAuthGate();
   if(cloudUser)await bootstrapCloudSync('merge',hasAuthCallback);
@@ -1088,7 +1112,7 @@ async function loginPassword(source='account'){
   const {email,password}=credentials(source);
   if(!email||!password)return notify('请输入邮箱和密码。','bad','登录失败');
   setCloudStatus('正在登录并准备同步...','info',true);
-  const {data,error}=await cloudClient.auth.signInWithPassword({email,password});
+  const {data,error}=await cloudAuthRequest(()=>cloudClient.auth.signInWithPassword({email,password}));
   if(error){setCloudStatus(`登录失败：${error.message}`,'bad');return notify(error.message,'bad','登录失败')}
   cloudUser=data.session?.user||null;
   passwordRecoveryMode=false;
@@ -1101,7 +1125,7 @@ async function signupPassword(source='account'){
   const {email,password}=credentials(source);
   if(!email||password.length<6)return notify('密码至少 6 位。','bad','注册失败');
   setCloudStatus('正在注册账号...','info',true);
-  const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:authRedirectTo()}});
+  const {data,error}=await cloudAuthRequest(()=>cloudClient.auth.signUp({email,password,options:{emailRedirectTo:authRedirectTo()}}));
   if(error){setCloudStatus(`注册失败：${error.message}`,'bad');return notify(error.message,'bad','注册失败')}
   cloudUser=data.session?.user||cloudUser;
   passwordRecoveryMode=false;
@@ -1114,7 +1138,7 @@ async function loginMagic(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法登录');
   const {email}=credentials(source);
   if(!email)return notify('请输入邮箱。','bad','登录失败');
-  const {error}=await cloudClient.auth.signInWithOtp({email,options:{emailRedirectTo:authRedirectTo()}});
+  const {error}=await cloudAuthRequest(()=>cloudClient.auth.signInWithOtp({email,options:{emailRedirectTo:authRedirectTo()}}));
   if(error)return notify(error.message,'bad','登录失败');
   notify('邮箱链接已发送。','good','检查邮箱');
 }
@@ -1122,7 +1146,7 @@ async function resetCloudPassword(source='account'){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法重置');
   const {email}=source==='current'&&cloudUser?{email:cloudUser.email}:credentials(source);
   if(!email)return notify('请输入邮箱。','bad','重置失败');
-  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:authRedirectTo()});
+  const {error}=await cloudAuthRequest(()=>cloudClient.auth.resetPasswordForEmail(email,{redirectTo:authRedirectTo()}));
   if(error)return notify(error.message,'bad','重置失败');
   notify('重置邮件已发送，打开邮件后回到这里输入新密码。','good','检查邮箱');
 }
@@ -1138,11 +1162,11 @@ async function setCloudPassword(){
   const {password}=credentials('account');
   if(!password||password.length<6)return notify('请输入至少 6 位新密码。','bad','重设失败');
   const email=cloudUser.email;
-  const {error}=await cloudClient.auth.updateUser({password});
+  const {error}=await cloudAuthRequest(()=>cloudClient.auth.updateUser({password}));
   if(error)return notify(error.message,'bad','重设失败');
-  const {error:logoutError}=await cloudClient.auth.signOut();
+  const {error:logoutError}=await cloudAuthRequest(()=>cloudClient.auth.signOut());
   if(logoutError)return notify(logoutError.message,'bad','验证失败');
-  const {data,error:loginError}=await cloudClient.auth.signInWithPassword({email,password});
+  const {data,error:loginError}=await cloudAuthRequest(()=>cloudClient.auth.signInWithPassword({email,password}));
   if(loginError){
     cloudUser=null;
     passwordRecoveryMode=false;
@@ -1156,7 +1180,10 @@ async function setCloudPassword(){
   notify('以后可以直接用新密码登录。','good','密码已重设');
 }
 async function logoutCloud(){
-  if(cloudClient)await cloudClient.auth.signOut();
+  if(cloudClient){
+    const {error}=await cloudAuthRequest(()=>cloudClient.auth.signOut());
+    if(error)return notify(error.message||String(error),'bad','退出失败');
+  }
   cloudUser=null;
   cloudBootstrapped=false;
   passwordRecoveryMode=false;
@@ -1187,7 +1214,7 @@ function historyIdentityKey(item={}){
   return normalizeSearch(item.query||item.result?.meta?.query||item.result?.headword?.title||item.id);
 }
 function getHistoryTombstones(){
-  const raw=localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]';
+  const raw=readStorageValue(STORAGE_KEYS.historyTombstones,'[]');
   if(tombstoneReadCache?.raw===raw)return tombstoneReadCache.value;
   let parsed=[];
   try{parsed=JSON.parse(raw)}catch{}
@@ -1198,7 +1225,7 @@ function getHistoryTombstones(){
 function setHistoryTombstones(items,{dirty=true}={}){
   const next=HistoryData.normalizeTombstones(items);
   const raw=JSON.stringify(next);
-  if((localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]')===raw)return next;
+  if(readStorageValue(STORAGE_KEYS.historyTombstones,'[]')===raw)return next;
   commitStorageChanges([{key:STORAGE_KEYS.historyTombstones,value:raw}]);
   tombstoneReadCache={raw,value:next};
   historyReadCache=null;
@@ -1218,8 +1245,8 @@ function reconcileHistoryData(items,tombstones=getHistoryTombstones()){
   return HistoryData.reconcileHistory(normalizeHistoryItems(items),tombstones,historyIdentityKey);
 }
 function getHistory(){
-  const historyRaw=localStorage.getItem(STORAGE_KEYS.history)||'[]';
-  const tombstoneRaw=localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]';
+  const historyRaw=readStorageValue(STORAGE_KEYS.history,'[]');
+  const tombstoneRaw=readStorageValue(STORAGE_KEYS.historyTombstones,'[]');
   if(historyReadCache?.historyRaw===historyRaw&&historyReadCache?.tombstoneRaw===tombstoneRaw)return historyReadCache.value;
   let parsed=[];
   try{parsed=JSON.parse(historyRaw)}catch{}
@@ -1301,7 +1328,7 @@ function setHistoryAndSettings(items,settings,{revive=false,deletedItems=[]}={})
   return true;
 }
 function getSettings(){
-  const raw=localStorage.getItem(STORAGE_KEYS.settings)||'';
+  const raw=readStorageValue(STORAGE_KEYS.settings,'');
   if(settingsReadCache?.raw===raw)return settingsReadCache.value;
   let parsed=DEFAULT_SETTINGS;
   try{parsed=raw?JSON.parse(raw):DEFAULT_SETTINGS}catch{}
@@ -1621,7 +1648,7 @@ function isCloudNetworkError(error){
 async function cloudAccessToken(){
   const cached=localCloudAccessToken();
   if(cached)return cached;
-  const {data,error}=await cloudClient.auth.getSession();
+  const {data,error}=await cloudAuthRequest(()=>cloudClient.auth.getSession());
   if(error)throw error;
   const token=data.session?.access_token||localCloudAccessToken();
   if(!token)throw new Error('登录会话已失效，请重新登录。');
@@ -1632,7 +1659,7 @@ function localCloudAccessToken(){
     const ref=new URL(SUPABASE_CONFIG.url).hostname.split('.')[0];
     const keys=[`sb-${ref}-auth-token`,...Object.keys(localStorage).filter(key=>key.startsWith('sb-')&&key.endsWith('-auth-token'))];
     for(const key of [...new Set(keys)]){
-      const parsed=JSON.parse(localStorage.getItem(key)||'null');
+      const parsed=JSON.parse(readStorageValue(key,'null'));
       const token=parsed?.access_token||parsed?.currentSession?.access_token||parsed?.session?.access_token;
       if(token)return token;
     }
@@ -1701,8 +1728,8 @@ function syncableValue(key){
   if(key===CLOUD_KEYS.history)return JSON.stringify(getHistory());
   if(key===CLOUD_KEYS.historyTombstones)return JSON.stringify(getHistoryTombstones());
   if(key===CLOUD_KEYS.settings)return JSON.stringify(getSettings());
-  if(key===CLOUD_KEYS.theme)return localStorage.getItem(STORAGE_KEYS.theme)||'auto';
-  if(key===CLOUD_KEYS.layout)return localStorage.getItem(STORAGE_KEYS.layout)||'top';
+  if(key===CLOUD_KEYS.theme)return readStorageValue(STORAGE_KEYS.theme,'auto');
+  if(key===CLOUD_KEYS.layout)return readStorageValue(STORAGE_KEYS.layout,'top');
   if(key===CLOUD_KEYS.logs)return JSON.stringify(getLogs());
   return null;
 }
@@ -1715,12 +1742,12 @@ function syncableItems(keys=Object.values(CLOUD_KEYS)){
 }
 function rawSyncableItems(){
   return {
-    [CLOUD_KEYS.history]:localStorage.getItem(STORAGE_KEYS.history)||'[]',
-    [CLOUD_KEYS.historyTombstones]:localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]',
-    [CLOUD_KEYS.settings]:localStorage.getItem(STORAGE_KEYS.settings)||JSON.stringify(getSettings()),
-    [CLOUD_KEYS.theme]:localStorage.getItem(STORAGE_KEYS.theme)||'auto',
-    [CLOUD_KEYS.layout]:localStorage.getItem(STORAGE_KEYS.layout)||'top',
-    [CLOUD_KEYS.logs]:localStorage.getItem(STORAGE_KEYS.logs)||'[]',
+    [CLOUD_KEYS.history]:readStorageValue(STORAGE_KEYS.history,'[]'),
+    [CLOUD_KEYS.historyTombstones]:readStorageValue(STORAGE_KEYS.historyTombstones,'[]'),
+    [CLOUD_KEYS.settings]:readStorageValue(STORAGE_KEYS.settings,JSON.stringify(getSettings())),
+    [CLOUD_KEYS.theme]:readStorageValue(STORAGE_KEYS.theme,'auto'),
+    [CLOUD_KEYS.layout]:readStorageValue(STORAGE_KEYS.layout,'top'),
+    [CLOUD_KEYS.logs]:readStorageValue(STORAGE_KEYS.logs,'[]'),
   };
 }
 function cloudRawMap(rows){
@@ -1756,7 +1783,7 @@ function replaceLocalWithItems(items){
   hydrateSettings();
   rerenderHistoryFromStart();
   renderLogs();
-  applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
+  applyTheme(readStorageValue(STORAGE_KEYS.theme,'auto'));
   ensureLayoutPreference();
   renderAuthGate();
 }
@@ -3919,7 +3946,7 @@ function lookupModelInfo(settings,hasLocalEndpoint){
 async function analyzeHeaders(hasLocalEndpoint){
   const headers={'Content-Type':'application/json'};
   if(!hasLocalEndpoint&&cloudClient){
-    const {data}=await cloudClient.auth.getSession();
+    const {data}=await cloudAuthRequest(()=>cloudClient.auth.getSession());
     const token=data.session?.access_token;
     if(token)headers.Authorization=`Bearer ${token}`;
   }
@@ -3992,6 +4019,8 @@ function loadMoreFolders(){
   renderFoldersView();
 }
 function rerenderHistoryFromStart(){
+  clearTimeout(historySearchRenderTimer);
+  historySearchRenderTimer=null;
   resetHistoryVisible();
   renderHistory();
 }
@@ -5125,10 +5154,19 @@ function flattenText(value){
   return '';
 }
 function clearHistorySearch(){
+  clearTimeout(historySearchRenderTimer);
+  historySearchRenderTimer=null;
   historyState.query='';
   if(els.historySearch)els.historySearch.value='';
   updateHistorySearchState();
   rerenderHistoryFromStart();
+}
+function scheduleHistorySearchRender(delay=90){
+  clearTimeout(historySearchRenderTimer);
+  historySearchRenderTimer=setTimeout(()=>{
+    historySearchRenderTimer=null;
+    if(activeView==='history')rerenderHistoryFromStart();
+  },delay);
 }
 function updateHistorySearchState(){
   const hasText=Boolean(els.historySearch?.value.trim());
@@ -6595,14 +6633,14 @@ function setTheme(theme){
 }
 function cycleTheme(){
   const order=['auto','light','dark'];
-  const current=localStorage.getItem(STORAGE_KEYS.theme)||'auto';
+  const current=readStorageValue(STORAGE_KEYS.theme,'auto');
   setTheme(order[(order.indexOf(current)+1)%order.length]);
 }
 function normalizeLayout(layout){
   return layout==='split'?'split':'top';
 }
 function ensureLayoutPreference(syncDefault=false){
-  const raw=localStorage.getItem(STORAGE_KEYS.layout);
+  const raw=readStorageValue(STORAGE_KEYS.layout,null);
   const next=normalizeLayout(raw);
   if(raw!==next){
     try{
@@ -6692,7 +6730,7 @@ window.addEventListener('popstate',()=>restoreViewFromLocation({focus:false}));
 els.historySearch?.addEventListener('input',event=>{
   historyState.query=event.target.value;
   updateHistorySearchState();
-  rerenderHistoryFromStart();
+  scheduleHistorySearchRender();
 });
 els.historySearchScopeToggle?.addEventListener('click',event=>{
   event.preventDefault();
@@ -6831,10 +6869,18 @@ renderHistory();
 hydrateLookupDraft();
 renderLookupFolderPicker();
 hydrateLookupTasks();
-applyTheme(localStorage.getItem(STORAGE_KEYS.theme)||'auto');
+applyTheme(readStorageValue(STORAGE_KEYS.theme,'auto'));
 ensureLayoutPreference(true);
 updateEditorState();
 updateHistorySearchState();
 loadConfigInfo();
-initCloud();
+initCloud().catch(error=>{
+  cloudUser=null;
+  cloudBootstrapped=false;
+  stopCloudAutoSync();
+  renderAuthGate();
+  const message=cloudErrorMessage(error,'登录初始化');
+  setCloudStatus(message,'bad');
+  notify(message,'bad','云端连接失败');
+});
 restoreViewFromLocation({replace:true});

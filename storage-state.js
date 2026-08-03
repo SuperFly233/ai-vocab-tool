@@ -33,6 +33,15 @@
     }
   }
 
+  function readValue(storage,key,fallback=null){
+    try{
+      const value=storage.getItem(String(key));
+      return {ok:true,value:value===null?fallback:value,error:null};
+    }catch(error){
+      return {ok:false,value:fallback,error};
+    }
+  }
+
   function isQuotaError(error){
     const name=String(error?.name||'').toLowerCase();
     const code=Number(error?.code||0);
@@ -40,5 +49,5 @@
     return name==='quotaexceedederror'||code===22||code===1014||/quota|storage.*full|disk.*full/.test(message);
   }
 
-  root.StorageState=Object.freeze({writeBatch,isQuotaError});
+  root.StorageState=Object.freeze({readValue,writeBatch,isQuotaError});
 })(typeof globalThis==='object'?globalThis:this);

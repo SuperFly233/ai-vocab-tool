@@ -105,6 +105,11 @@ expect(/function factoryReset\([\s\S]{0,700}commitStorageChanges\(\[[\s\S]{0,350
 expect(/function setTheme\([\s\S]{0,350}commitStorageChanges\(\[\{key:STORAGE_KEYS\.theme/.test(app), 'Theme changes must persist before updating the visible theme');
 expect(/function setLayout\([\s\S]{0,400}commitStorageChanges\(\[\{key:STORAGE_KEYS\.layout/.test(app), 'Layout changes must persist before updating the visible layout');
 expect(!/localStorage\.(?:setItem|removeItem)\(/.test(app), 'App storage writes must use the rollback-capable transaction helper');
+expect(app.includes('StorageState.readValue(localStorage,key,fallback)'), 'App storage reads must use the failure-tolerant storage helper');
+expect(!/localStorage\.getItem\(/.test(app), 'App modules must not bypass the failure-tolerant storage reader');
+expect(app.includes('async function cloudAuthRequest(operation)')&&!/await cloudClient\.auth\./.test(app), 'Cloud auth calls must convert network throws into handled errors');
+expect(/initCloud\(\)\.catch\(error=>\{/.test(app), 'Cloud initialization must not create an unhandled startup rejection');
+expect(/els\.historySearch\?\.addEventListener\('input',[\s\S]{0,220}scheduleHistorySearchRender\(\)/.test(app), 'History search input must coalesce rapid rerenders');
 expect(app.includes('SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now)'), 'API profile deletion must create a settings tombstone');
 expect(app.includes('SettingsData.resolveOrderedIds('), 'API profile merge must resolve an independently clocked order');
 expect(app.includes('apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now'), 'API profile drag must persist order without rewriting profile content');
