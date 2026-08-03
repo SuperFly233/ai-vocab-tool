@@ -43,6 +43,10 @@ Expected behavior:
 - Favorite, folder membership, and legacy tags use independent field clocks. Explicit newer removals beat stale additions; records without clocks retain the legacy OR/union behavior for migration safety.
 - Favorite-folder definitions and API profiles use item tombstones inside settings. Older copies of deleted ids are filtered during merge, while unrelated concurrent additions and genuinely newer recreations survive.
 - API profile ordering is stored separately as `apiProfileOrder` plus `apiProfileOrderUpdatedAt`. Content and order conflicts resolve independently; profiles missing from the winning order because of concurrent creation are appended deterministically.
+
+## Latest Release
+
+- v0.14.0 establishes the Lexi酱 product identity and removes the borrowed colored top stripe. Brand icon, favicon, theme slider, rounded controls, compact settings, favorite-folder picker, neutral folder rows, history time presets, and bottom Snackbar notifications now share one visual language. The notification mode is synced in settings and defaults to `snackbar`; `detail` preserves the earlier card notifications.
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
 - The app polls for cloud updates every 15 seconds while logged in, and also syncs when the window regains focus or becomes visible.

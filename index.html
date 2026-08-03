@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
-<title>ai-vocab-tool</title>
+<title>Lexi酱</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/styles.css?v=0.13.2">
+<link rel="stylesheet" href="/styles.css?v=0.14.0">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
   <div class="auth-card">
-    <div class="auth-kicker">ai-vocab-tool</div>
+    <div class="auth-kicker">Lexi酱</div>
     <h1>先登录，再查词</h1>
     <p>登录后同步历史记录和设置；也可以只在这台设备离线使用。</p>
     <div class="auth-form">
@@ -36,8 +36,8 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><i data-lucide="scan-search"></i></span>
-    <span class="brand-text">ai-vocab-tool</span>
+    <span class="brand-icon" aria-hidden="true"><i data-lucide="book-open-text"></i></span>
+    <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
     <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()"><i data-lucide="house"></i><span>首页</span></button>
@@ -52,7 +52,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <div class="app-title">ai-vocab-tool</div>
+      <div class="app-title">Lexi酱</div>
       <div class="app-sub" id="app-sub">词汇结构化查询</div>
     </div>
     <div class="topbar-actions">
@@ -61,6 +61,7 @@
         <button id="top-theme-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统"><i data-lucide="monitor"></i></button>
         <button id="top-theme-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题"><i data-lucide="sun"></i></button>
       </div>
+      <button class="topbar-utility-btn" id="top-settings-btn" data-tip="设置" onclick="showView('settings')" aria-label="打开设置"><i data-lucide="settings"></i></button>
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()"><span class="account-avatar"><i data-lucide="user-round"></i></span><span id="account-toggle-label">账号</span></button>
     </div>
   </div>
@@ -167,6 +168,7 @@
           <div class="history-filter" data-filter-key="pos"></div>
           <div class="history-filter" data-filter-key="style"></div>
           <div class="history-filter" data-filter-key="folder"></div>
+          <div class="history-filter" data-filter-key="time"></div>
         </div>
         <div class="history-sortbar" id="history-sortbar">
           <button class="sort-btn active" data-sort="updated" onclick="setHistorySort('updated')">修改 <span>↓</span></button>
@@ -230,20 +232,12 @@
             </div>
             <div class="prompt-mode-chip" id="model-prompt-source">默认 Prompt</div>
           </div>
-          <div class="prompt-panel">
-            <div class="prompt-flow" aria-label="查询实现路径">
-              <div class="prompt-flow-title">实现路径</div>
-              <div class="prompt-step"><b>1</b><span>输入</span><em>词条、方向、侧重点</em></div>
-              <div class="prompt-step"><b>2</b><span>前端请求</span><em>队列、重试、流式接收</em></div>
-              <div class="prompt-step active"><b>3</b><span>System Prompt</span><em>规则、JSON schema、高亮字段</em></div>
-              <div class="prompt-step"><b>4</b><span>模型 JSON</span><em>结构化义项、搭配、追问</em></div>
-              <div class="prompt-step"><b>5</b><span>校验渲染</span><em>修复、打字机、保存同步</em></div>
-            </div>
+          <div class="prompt-panel prompt-panel-compact">
             <div class="prompt-workbench">
-              <div class="prompt-meta">
-                <div><span>当前来源</span><strong id="model-prompt-meta-source">默认 Prompt</strong></div>
-                <div><span>默认长度</span><strong id="model-prompt-default-size">读取中</strong></div>
-                <div><span>编辑状态</span><strong id="model-prompt-edit-size">未覆盖</strong></div>
+              <div class="prompt-meta compact-prompt-meta">
+                <div><span>来源</span><strong id="model-prompt-meta-source">默认 Prompt</strong></div>
+                <div><span>默认</span><strong id="model-prompt-default-size">读取中</strong></div>
+                <div><span>状态</span><strong id="model-prompt-edit-size">未覆盖</strong></div>
               </div>
               <textarea class="prompt-editor" id="model-prompt-editor" spellcheck="false" placeholder="留空则使用默认 Prompt"></textarea>
               <div class="prompt-actions">
@@ -312,6 +306,13 @@
             <input id="visual-hints-pinned" type="checkbox" onchange="setVisualHintsPinned(this.checked)">
             <span>常驻显示</span>
           </label>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">通知样式</div><div class="setting-sub">简洁模式显示在屏幕下方；详细模式保留标题、状态和进度。</div></div>
+          <div class="seg toast-mode-seg">
+            <button id="toast-mode-snackbar" onclick="setToastMode('snackbar')">简洁</button>
+            <button id="toast-mode-detail" onclick="setToastMode('detail')">详细</button>
+          </div>
         </div>
       </div>
 
@@ -412,10 +413,10 @@
           <span>备注</span>
           <div class="note-toolbar" aria-label="备注 Markdown 快捷工具">
             <button type="button" data-tip="加粗" onclick="insertNoteMarkdown('bold')">B</button>
-            <button type="button" data-tip="列表" onclick="insertNoteMarkdown('list')">•</button>
-            <button type="button" data-tip="引用" onclick="insertNoteMarkdown('quote')">”</button>
-            <button type="button" data-tip="代码" onclick="insertNoteMarkdown('code')">{ }</button>
-            <button type="button" data-tip="表格" onclick="insertNoteMarkdown('table')">▦</button>
+            <button type="button" data-tip="列表" aria-label="列表" onclick="insertNoteMarkdown('list')"><i data-lucide="list"></i></button>
+            <button type="button" data-tip="引用" aria-label="引用" onclick="insertNoteMarkdown('quote')"><i data-lucide="quote"></i></button>
+            <button type="button" data-tip="代码" aria-label="代码" onclick="insertNoteMarkdown('code')"><i data-lucide="code-2"></i></button>
+            <button type="button" data-tip="表格" aria-label="表格" onclick="insertNoteMarkdown('table')"><i data-lucide="table-2"></i></button>
           </div>
           <textarea class="note-editor" id="modal-note-edit" placeholder="给自己看的补充说明，支持直接写 Markdown。"></textarea>
         </label>
@@ -485,16 +486,18 @@
         <div class="section-title" id="folder-select-title">添加到收藏夹</div>
         <div class="section-sub" id="folder-select-subtitle">可同时选择多个收藏夹</div>
       </div>
-      <button class="icon-btn danger-icon" data-tip="关闭" aria-label="关闭" onclick="closeFolderSelectModal()"><i data-lucide="x"></i></button>
+      <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="closeFolderSelectModal()"><i data-lucide="x"></i></button>
     </div>
     <div class="folder-select-body">
       <div class="folder-select-list" id="folder-select-list"></div>
-      <button class="plain-btn ghost-btn" type="button" onclick="createFavoriteFolderFromSelector()">＋ 新建收藏夹</button>
+      <button class="plain-btn ghost-btn folder-create-btn" type="button" onclick="createFavoriteFolderFromSelector()"><i data-lucide="folder-plus"></i><span>新建收藏夹</span></button>
     </div>
     <div class="modal-edit-footer">
       <div class="json-status" id="folder-select-status">选择后会同步到历史和云端。</div>
-      <button class="plain-btn" type="button" onclick="closeFolderSelectModal()">取消</button>
-      <button class="plain-btn primary-btn" type="button" onclick="saveFolderSelection()">确定</button>
+      <div class="folder-select-actions">
+        <button class="plain-btn" type="button" onclick="closeFolderSelectModal()">取消</button>
+        <button class="plain-btn primary-btn" type="button" onclick="saveFolderSelection()">确定</button>
+      </div>
     </div>
   </div>
 </div>
@@ -513,12 +516,12 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/icons.js?v=0.13.2"></script>
-<script src="/history-data.js?v=0.13.2"></script>
-<script src="/settings-data.js?v=0.13.2"></script>
-<script src="/storage-state.js?v=0.13.2"></script>
-<script src="/lookup-tasks.js?v=0.13.2"></script>
-<script src="/sync-state.js?v=0.13.2"></script>
-<script src="/app.js?v=0.13.2"></script>
+<script src="/icons.js?v=0.14.0"></script>
+<script src="/history-data.js?v=0.14.0"></script>
+<script src="/settings-data.js?v=0.14.0"></script>
+<script src="/storage-state.js?v=0.14.0"></script>
+<script src="/lookup-tasks.js?v=0.14.0"></script>
+<script src="/sync-state.js?v=0.14.0"></script>
+<script src="/app.js?v=0.14.0"></script>
 </body>
 </html>

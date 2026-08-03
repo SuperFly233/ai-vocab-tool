@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi] = await Promise.all([
+const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi, manifestText] = await Promise.all([
   read('app.js'),
   read('index.html'),
   read('CHANGELOG.md'),
@@ -10,6 +10,7 @@ const [app, html, changelog, readme, projectContext, packageText, vercelText, sy
   read('package.json'),
   read('vercel.json'),
   read('api/sync.js'),
+  read('site.webmanifest'),
 ]);
 
 const failures = [];
@@ -20,6 +21,7 @@ const firstMatch = (text, pattern) => text.match(pattern)?.[1] || '';
 
 const packageInfo = JSON.parse(packageText);
 const vercelInfo = JSON.parse(vercelText);
+const manifestInfo = JSON.parse(manifestText);
 const versions = {
   package: packageInfo.version,
   app: firstMatch(app, /const APP_INFO=\{[\s\S]*?version:'([\d.]+)'/),
@@ -135,9 +137,13 @@ expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.fo
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');
 expect(/class="modal-head-actions"[\s\S]*class="modal-view-tabs"[\s\S]*class="modal-file-actions"/.test(html), 'History modal header must separate view tabs from file actions');
 expect(/<\/div>\s*<button class="icon-btn danger-icon modal-close-btn"/.test(html), 'History modal close control must remain outside the scrolling action group');
-expect(app.includes('const ABOUT_RELEASE_LIMIT=6'), 'About page must cap the initial release archive');
+expect(app.includes('const ABOUT_RELEASE_LIMIT=3'), 'About page must cap the initial release archive');
 expect(app.includes('CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT)'), 'About page must render only recent releases by default');
 expect(app.includes("index===0?'open':''"), 'About page must expand only the latest release by default');
+expect(html.includes('<title>Lexi酱</title>')&&manifestInfo.name==='Lexi酱', 'Brand name must match across page title and manifest');
+expect(app.includes("toastMode:'snackbar'")&&html.includes('id="toast-mode-snackbar"'), 'Snackbar must be the configurable default notification mode');
+expect(app.includes("renderHistoryFilterGroup('time','时间'")&&app.includes('historyMatchesTimeFilter'), 'History must provide explicit time-range filtering');
+expect(!app.includes('data-tip="查看" aria-label="查看"'), 'History rows must not duplicate the row-level open action');
 
 const requiredRoutes = ['/history', '/favorites', '/settings', '/about'];
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));

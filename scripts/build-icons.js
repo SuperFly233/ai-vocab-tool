@@ -2,10 +2,10 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 const iconNames=[
-  'arrow-down','arrow-up','arrow-up-right','chevron-down','chevrons-up',
-  'circle-help','copy','download','folder-heart','folder-plus','grip-vertical',
-  'history','house','monitor','moon','plus','refresh-cw','scan-search','search',
-  'settings-2','sliders-horizontal','sun','trash-2','user-round','x',
+  'arrow-down','arrow-up','arrow-up-right','book-open-text','chevron-down','chevron-right','chevrons-up',
+  'circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical',
+  'history','house','list','monitor','moon','plus','quote','refresh-cw','scan-search','search',
+  'settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','user-round','x',
 ];
 
 const toExportName=name=>name.split('-').map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join('');

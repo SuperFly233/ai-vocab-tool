@@ -52,6 +52,7 @@ let activeLookupRequest=null;
 let lookupRecoveryPending=false;
 let lookupTaskStorageWarningShown=false;
 let storageReadWarningShown=false;
+let temporaryOfflineMode=false;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -101,6 +102,7 @@ const historyState={
     pos:[],
     style:[],
     folder:[],
+    time:[],
   },
 };
 const folderState={
@@ -146,18 +148,24 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,toastMode:'snackbar',modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
-const ABOUT_RELEASE_LIMIT=6;
+const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
-  name:'ai-vocab-tool',
-  version:'0.13.2',
+  name:'Lexi酱',
+  version:'0.14.0',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.14.0',
+    date:'2026-08-03',
+    title:'建立 Lexi酱 的统一产品语言',
+    items:['品牌更新为 Lexi酱，移除顶部彩色装饰条；站内品牌图标、favicon 和应用名称统一使用书页词汇符号，主题控件取消偏黄底色并改为平滑滑块。','设置页默认折叠为四个清晰模块，Prompt 工作区移除冗余流程图，只保留来源、编辑器和必要操作；关于页默认只展示最近 3 个版本。','“加入收藏夹”改为内容驱动的紧凑多选器；收藏夹列表使用正式图标并移除金色记录装饰，历史条目去掉重复查看按钮并新增时间范围筛选。','默认通知改为页面下方的简洁 Snackbar，可横向滑动关闭；设置中可切回详细通知。所有提示层提升到应用最顶层，并修正上下方向气泡箭头。'],
+  },
   {
     version:'0.13.2',
     date:'2026-08-03',
@@ -811,6 +819,8 @@ const els={
   stickyModeCompactBtn:document.getElementById('sticky-mode-compact'),
   stickyModeExpandedBtn:document.getElementById('sticky-mode-expanded'),
   visualHintsPinnedInput:document.getElementById('visual-hints-pinned'),
+  toastModeSnackbarBtn:document.getElementById('toast-mode-snackbar'),
+  toastModeDetailBtn:document.getElementById('toast-mode-detail'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historyTools:document.getElementById('history-tools'),
@@ -914,7 +924,7 @@ function jsArg(value){
   return JSON.stringify(String(value??'')).replace(/</g,'\\u003c');
 }
 function icon(name){return `<i data-lucide="${escapeAttr(name)}"></i>`}
-function notify(message,type='info',title='ai-vocab-tool',record=true){
+function notify(message,type='info',title='Lexi酱',record=true,action=null){
   if(record){
     try{pushLog(message,type,title)}catch(error){console.warn('日志写入失败，通知仍会继续显示。',error)}
   }
@@ -937,22 +947,56 @@ function notify(message,type='info',title='ai-vocab-tool',record=true){
     }
   }
   const toast=document.createElement('div');
-  toast.className=`toast ${type}`;
+  const toastMode=normalizeToastMode(getSettings()?.toastMode);
+  toast.className=`toast ${type} ${toastMode==='snackbar'?'snackbar':''}`;
   toast.innerHTML=`
       <div class="toast-row">
         <div class="toast-mark" aria-hidden="true">${toastIcon(type)}</div>
         <div class="toast-title">${escapeHTML(title)}</div>
         <div class="toast-count" aria-live="polite"></div>
-        <button class="toast-close" type="button" aria-label="关闭通知">×</button>
+        ${action?.label?`<button class="toast-action" type="button">${escapeHTML(action.label)}</button>`:''}
+        <button class="toast-close" type="button" aria-label="关闭通知">${icon('x')}</button>
     </div>
     <div class="toast-msg">${escapeHTML(message)}</div>
     <div class="toast-progress" aria-hidden="true"></div>
   `;
   document.getElementById('toast-stack').appendChild(toast);
   toast.querySelector('.toast-close')?.addEventListener('click',()=>dismissToast(key));
+  toast.querySelector('.toast-action')?.addEventListener('click',()=>{
+    try{action?.run?.()}finally{dismissToast(key)}
+  });
+  bindToastSwipe(toast,key);
   const state={element:toast,count:1,timer:null};
   activeToasts.set(key,state);
   armToastTimer(key,state);
+}
+function bindToastSwipe(toast,key){
+  let startX=0;
+  let active=false;
+  toast.addEventListener('pointerdown',event=>{
+    startX=event.clientX;
+    active=true;
+    toast.setPointerCapture?.(event.pointerId);
+  });
+  toast.addEventListener('pointermove',event=>{
+    if(!active)return;
+    const dx=event.clientX-startX;
+    toast.style.setProperty('--swipe-x',`${dx}px`);
+    toast.classList.toggle('swiping',Math.abs(dx)>4);
+  });
+  toast.addEventListener('pointerup',event=>{
+    if(!active)return;
+    active=false;
+    const dx=event.clientX-startX;
+    toast.classList.remove('swiping');
+    toast.style.removeProperty('--swipe-x');
+    if(Math.abs(dx)>56)dismissToast(key);
+  });
+  toast.addEventListener('pointercancel',()=>{
+    active=false;
+    toast.classList.remove('swiping');
+    toast.style.removeProperty('--swipe-x');
+  });
 }
 function restartToastProgress(toast){
   const progress=toast?.querySelector('.toast-progress');
@@ -1024,7 +1068,7 @@ function setLogs(items){
   scheduleCloudSync();
   return true;
 }
-function pushLog(message,type='info',title='ai-vocab-tool'){
+function pushLog(message,type='info',title='Lexi酱'){
   const logs=getLogs();
   logs.unshift({id:Date.now(),time:new Date().toISOString(),type,title,message});
   writeJSON(STORAGE_KEYS.logs,logs.slice(0,80));
@@ -1035,7 +1079,7 @@ function clearLogs(){
   setLogs([]);
   notify('日志已清空。','good','日志',false);
 }
-function offlineMode(){return readStorageValue(STORAGE_KEYS.offline,'')==='1'}
+function offlineMode(){return temporaryOfflineMode||readStorageValue(STORAGE_KEYS.offline,'')==='1'}
 function canEnterApp(){return Boolean(cloudUser)||offlineMode()}
 function renderAuthGate(){
   const couldEnter=!document.body.classList.contains('auth-required');
@@ -1194,8 +1238,14 @@ async function logoutCloud(){
 function setOfflinePreference(enabled){
   try{
     commitStorageChanges([{key:STORAGE_KEYS.offline,value:enabled?'1':null}]);
+    temporaryOfflineMode=Boolean(enabled);
     return true;
   }catch(error){
+    temporaryOfflineMode=Boolean(enabled);
+    if(enabled){
+      notify('浏览器阻止了本地存储；已进入临时离线会话，刷新后需要重新选择。','info','临时离线模式');
+      return true;
+    }
     notify(storageFailureMessage(error,'离线模式'),'bad','模式未切换',false);
     return false;
   }
@@ -1399,6 +1449,7 @@ function normalizeSettings(raw={}){
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
   const homeStickyMode=normalizeHomeStickyMode(source.homeStickyMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
+  const toastMode=normalizeToastMode(source.toastMode);
   const modelPrompt=String(source.modelPrompt||'');
   const favoriteFolderTombstones=SettingsData.normalizeTombstones(source.favoriteFolderTombstones);
   let favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders,sourceClock),favoriteFolderTombstones);
@@ -1427,6 +1478,7 @@ function normalizeSettings(raw={}){
     historyTimeMode,
     homeStickyMode,
     visualHintsPinned,
+    toastMode,
     modelPrompt,
     favoriteFolders,
     favoriteFolderTombstones,
@@ -1445,6 +1497,9 @@ function normalizeHistoryTimeMode(value){
 }
 function normalizeHomeStickyMode(value){
   return value==='expanded'?'expanded':'compact';
+}
+function normalizeToastMode(value){
+  return value==='detail'?'detail':'snackbar';
 }
 function normalizeBooleanSetting(value,fallback=false){
   if(value===true||value==='true'||value===1||value==='1')return true;
@@ -1570,6 +1625,7 @@ function mergeSettings(localRaw,remoteRaw){
     historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
     homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
+    toastMode:preferLocalSettings?local.toastMode:remote.toastMode||local.toastMode,
     modelPrompt:SettingsData.selectPreferredValue(local.modelPrompt,remote.modelPrompt,preferLocalSettings),
     favoriteFolders,
     favoriteFolderTombstones,
@@ -2337,6 +2393,7 @@ function showView(id,button,options={}){
   document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${next}`));
   document.querySelectorAll('.nav-item').forEach(item=>item.classList.remove('active'));
   (button||document.getElementById(`nav-${next}`))?.classList.add('active');
+  document.getElementById('top-settings-btn')?.classList.toggle('active',next==='settings');
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
   if(next==='settings')renderSettings();
@@ -4163,7 +4220,6 @@ function renderHistory(){
       <div class="history-actions">
         <button class="icon-btn" data-tip="添加到收藏夹" aria-label="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">${icon('folder-plus')}</button>
         <button class="icon-btn" data-tip="重新生成" aria-label="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">${icon('refresh-cw')}</button>
-        <button class="icon-btn" data-tip="查看" aria-label="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">${icon('arrow-up-right')}</button>
         <button class="icon-btn danger-icon" data-tip="删除" aria-label="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">${icon('trash-2')}</button>
       </div>
     </div>
@@ -4357,7 +4413,7 @@ function renderFolderSelectModal(){
   els.folderSelectList.innerHTML=catalog.map(folder=>`
     <label class="folder-select-option ${selected.has(folder.id)?'active':''}">
       <input type="checkbox" value="${escapeHTML(folder.id)}" ${selected.has(folder.id)?'checked':''} onchange="updateFolderSelectDraft()">
-      <span>${folder.system?'★':'▣'}</span>
+      <span>${icon(folder.system?'star':'folder')}</span>
       <b>${escapeHTML(folder.name)}</b>
       <em>${Number(statsMap.get(folder.id)||0)} 条</em>
     </label>
@@ -4459,9 +4515,10 @@ function renderFoldersView(){
       ${folders.map(folder=>`
         <article class="folder-tab ${folder.id===active.id?'active':''}" draggable="${folder.system?'false':'true'}" data-folder-id="${escapeHTML(folder.id)}" ondragstart="startFolderDrag(event,'${escapeAttr(folder.id)}')" ondragover="overFolderDrag(event,'${escapeAttr(folder.id)}')" ondragleave="clearFolderDropMarks()" ondragend="endFolderDrag()" ondrop="dropFolderDrag(event,'${escapeAttr(folder.id)}')">
           <button class="folder-tab-main" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
-            <span>${folder.system?'★':'▣'}</span>
+            <span>${icon(folder.system?'star':'folder')}</span>
             <b>${escapeHTML(folder.name)}</b>
             <em>${Number(folder.count||0)}</em>
+            <i class="folder-enter-icon" aria-hidden="true">${icon('chevron-right')}</i>
           </button>
           ${folder.system?'':`<button class="folder-tab-delete" type="button" data-tip="删除收藏夹" aria-label="删除收藏夹" onclick="deleteFavoriteFolder('${escapeAttr(folder.id)}')">${icon('x')}</button>`}
         </article>
@@ -4521,7 +4578,6 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
       <div class="history-actions">
         <button class="icon-btn" data-tip="添加到收藏夹" aria-label="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">${icon('folder-plus')}</button>
         <button class="icon-btn" data-tip="重新生成" aria-label="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">${icon('refresh-cw')}</button>
-        <button class="icon-btn" data-tip="查看" aria-label="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">${icon('arrow-up-right')}</button>
         <button class="icon-btn danger-icon" data-tip="删除" aria-label="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">${icon('trash-2')}</button>
       </div>
     </div>
@@ -4639,7 +4695,15 @@ function historyMatchesFilters(item){
     && filterMatches(historyCanonicalValues(item,'direction'),filters.direction)
     && filterMatches(historyCanonicalValues(item,'pos'),filters.pos)
     && filterMatches(historyCanonicalValues(item,'style'),filters.style)
-    && filterMatches(historyCanonicalValues(item,'folder'),filters.folder);
+    && filterMatches(historyCanonicalValues(item,'folder'),filters.folder)
+    && historyMatchesTimeFilter(item,filters.time);
+}
+function historyMatchesTimeFilter(item,selected=[]){
+  const picks=Array.isArray(selected)?selected:[];
+  if(!picks.length)return true;
+  const timestamp=Math.max(historyPrimaryTime(item),historyCreatedTime(item));
+  const windows={'24h':86400000,'7d':604800000,'30d':2592000000,'90d':7776000000,'1y':31536000000};
+  return picks.some(pick=>pick==='edited'?historyEdited(item):Boolean(windows[pick]&&timestamp>=Date.now()-windows[pick]));
 }
 function filterMatches(values,selected){
   const picks=Array.isArray(selected)?selected:[selected].filter(Boolean);
@@ -4850,6 +4914,14 @@ function renderHistoryFilterOptions(history){
   renderHistoryFilterGroup('pos','词性',options.pos);
   renderHistoryFilterGroup('style','语体',options.style);
   renderHistoryFilterGroup('folder','收藏夹',options.folder);
+  renderHistoryFilterGroup('time','时间',[
+    {value:'24h',label:'24 小时内'},
+    {value:'7d',label:'7 天内'},
+    {value:'30d',label:'30 天内'},
+    {value:'90d',label:'90 天内'},
+    {value:'1y',label:'1 年内'},
+    {value:'edited',label:'编辑过'},
+  ]);
 }
 function renderHistoryFilterGroup(key,label,values=[]){
   const root=els.historyFilterbar?.querySelector(`[data-filter-key="${key}"]`);
@@ -6032,6 +6104,7 @@ function hydrateSettings(){
   applyHistoryTimeMode(settings.historyTimeMode);
   applyHomeStickyMode(settings.homeStickyMode);
   applyVisualHintsPinned(settings.visualHintsPinned);
+  applyToastMode(settings.toastMode);
   renderModelPromptSettings(settings);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
@@ -6171,6 +6244,7 @@ function setupSettingGroupToggles(){
   document.querySelectorAll('.setting-group').forEach((group,index)=>{
     const title=group.querySelector('.setting-title');
     if(!title||title.querySelector('.setting-collapse-btn'))return;
+    group.classList.add('collapsed');
     const text=title.textContent.trim()||`模块 ${index+1}`;
     title.innerHTML=`<span>${escapeHTML(text)}</span><button class="setting-collapse-btn" type="button" aria-label="折叠 ${escapeAttr(text)}">${icon('chevron-down')}</button>`;
     title.querySelector('.setting-collapse-btn')?.addEventListener('click',event=>{
@@ -6273,6 +6347,19 @@ function setVisualHintsPinned(value){
   applyVisualHintsPinned(enabled);
   renderVisualEditor(modalResult);
   notify(enabled?'可视化填写提示已设为常驻。':'可视化填写提示改为聚焦时显示。','good','显示设置');
+}
+function applyToastMode(mode){
+  const next=normalizeToastMode(mode);
+  els.toastModeSnackbarBtn?.classList.toggle('active',next==='snackbar');
+  els.toastModeDetailBtn?.classList.toggle('active',next==='detail');
+  document.body.dataset.toastMode=next;
+}
+function setToastMode(mode){
+  const next=normalizeToastMode(mode);
+  const settings=getSettings();
+  if(!setSettings({...settings,toastMode:next,updatedAt:new Date().toISOString()}))return;
+  applyToastMode(next);
+  notify(next==='snackbar'?'通知已切换为简洁 Snackbar。':'通知已切换为详细卡片。','good','通知样式');
 }
 function saveSettings(){
   openApiProfileModal('edit');
@@ -6759,8 +6846,15 @@ els.modalRollbar?.addEventListener('click',event=>{
   suppressRollClick=false;
 },true);
 els.modalVisualEditor?.addEventListener('focusin',event=>{
-  event.target.closest?.('.visual-field-hinted')?.classList.remove('hint-dismissed');
+  const field=event.target.closest?.('.visual-field-hinted');
+  field?.classList.remove('hint-dismissed');
+  positionVisualHint(field);
 });
+function positionVisualHint(field){
+  if(!field)return;
+  const rect=field.getBoundingClientRect();
+  field.classList.toggle('hint-below',rect.top<190);
+}
 els.modalVisualEditor?.addEventListener('pointerdown',startVisualPointerDrag);
 els.modalVisualEditor?.addEventListener('pointermove',moveVisualPointerDrag);
 els.modalVisualEditor?.addEventListener('pointerup',endVisualPointerDrag);
