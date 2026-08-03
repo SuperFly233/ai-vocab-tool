@@ -25,6 +25,7 @@ const CLOUD_KEYS={
 
 let cloudClient=null;
 let cloudUser=null;
+let cloudInitIssue='loading';
 let activeView='home';
 const VIEW_ROUTES={
   home:'/',
@@ -158,12 +159,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.16.0',
+  version:'0.16.1',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.16.1',
+    date:'2026-08-03',
+    title:'移除登录 CDN 单点依赖，修复手机端云端误判',
+    items:['Supabase 浏览器 SDK 改为随站点自托管，手机直连 Cloudflare 时不再依赖 jsDelivr；全新设备和无缓存环境也能初始化登录。','云端初始化状态区分“正在连接”“项目未配置”和“登录组件加载失败”，不会再把外部脚本加载异常误报成 Supabase 未配置。','新增资源契约检查，禁止登录入口重新依赖外部 Supabase CDN，并锁定站内 SDK 必须早于应用脚本加载。'],
+  },
   {
     version:'0.16.0',
     date:'2026-08-03',
@@ -1133,7 +1140,7 @@ function renderAuthGate(){
     if(cloudUser&&passwordRecoveryMode)els.accountStatus.textContent=`重设密码：${cloudUser.email}`;
     else if(cloudUser)els.accountStatus.textContent=`已登录：${cloudUser.email}`;
     else if(offlineMode())els.accountStatus.textContent='当前为离线模式';
-    else els.accountStatus.textContent=cloudClient?'未登录':'Supabase 未配置';
+    else els.accountStatus.textContent=cloudClient?'未登录':cloudUnavailableMessage(true);
   }
   if(els.accountPageTitle)els.accountPageTitle.textContent=cloudUser?(cloudUser.email||'已登录账号'):offlineMode()?'离线使用':'登录 Lexi酱';
   if(els.accountPageSummary){
@@ -1144,7 +1151,7 @@ function renderAuthGate(){
     els.accountSyncStatus.className=`sync-status ${cloudUser?'good':'info'}`;
   }
   if(els.authStatus){
-    els.authStatus.textContent=cloudClient?'未登录。可以登录或离线使用。':'Supabase 未配置。可以离线使用。';
+    els.authStatus.textContent=cloudClient?'未登录。可以登录或离线使用。':`${cloudUnavailableMessage()} 可以离线使用。`;
   }
   if(els.storageStatus){
     els.storageStatus.textContent=cloudUser?'localStorage + Supabase 自动同步':'localStorage，本机本浏览器记录。';
@@ -1162,19 +1169,33 @@ function credentials(source){
     password:document.getElementById(`${prefix}-password`)?.value||'',
   };
 }
+function cloudUnavailableMessage(short=false){
+  if(cloudInitIssue==='loading')return short?'正在连接云端':'云端正在初始化，请稍后重试。';
+  if(cloudInitIssue==='sdk')return short?'登录组件加载失败':'登录组件加载失败，请刷新后重试。';
+  if(cloudInitIssue==='config')return short?'Supabase 未配置':'Supabase 未配置，只使用本机数据。';
+  return short?'云端连接失败':'云端连接失败，请检查网络后重试。';
+}
 async function cloudAuthRequest(operation){
   try{return await operation()}
   catch(error){return {data:{},error:error instanceof Error?error:new Error(String(error||'云端认证请求失败'))}}
 }
 async function initCloud(){
-  if(!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey||!window.supabase){
-    setCloudStatus('Supabase 未配置，只使用本机数据。','bad');
+  if(!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey){
+    cloudInitIssue='config';
+    setCloudStatus(cloudUnavailableMessage(),'bad');
+    renderAuthGate();
+    return;
+  }
+  if(typeof window.supabase?.createClient!=='function'){
+    cloudInitIssue='sdk';
+    setCloudStatus(cloudUnavailableMessage(),'bad');
     renderAuthGate();
     return;
   }
   cloudClient=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey,{
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
   });
+  cloudInitIssue='';
   cloudClient.auth.onAuthStateChange((_event,session)=>{
     cloudUser=session?.user||null;
     if(!cloudUser)stopCloudAutoSync();
@@ -1198,7 +1219,7 @@ async function initCloud(){
   if(cloudUser)await bootstrapCloudSync('merge',hasAuthCallback);
 }
 async function loginPassword(source='account'){
-  if(!cloudClient)return notify('Supabase 未配置。','bad','无法登录');
+  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法登录');
   const {email,password}=credentials(source);
   if(!email||!password)return notify('请输入邮箱和密码。','bad','登录失败');
   setCloudStatus('正在登录并准备同步...','info',true);
@@ -1211,7 +1232,7 @@ async function loginPassword(source='account'){
   if(cloudUser)await bootstrapCloudSync('merge',true);
 }
 async function signupPassword(source='account'){
-  if(!cloudClient)return notify('Supabase 未配置。','bad','无法注册');
+  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法注册');
   const {email,password}=credentials(source);
   if(!email||password.length<6)return notify('密码至少 6 位。','bad','注册失败');
   setCloudStatus('正在注册账号...','info',true);
@@ -1225,7 +1246,7 @@ async function signupPassword(source='account'){
   notify(cloudUser?'注册并登录成功。':'注册邮件已发送。','good','注册');
 }
 async function loginMagic(source='account'){
-  if(!cloudClient)return notify('Supabase 未配置。','bad','无法登录');
+  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法登录');
   const {email}=credentials(source);
   if(!email)return notify('请输入邮箱。','bad','登录失败');
   const {error}=await cloudAuthRequest(()=>cloudClient.auth.signInWithOtp({email,options:{emailRedirectTo:authRedirectTo()}}));
@@ -1233,7 +1254,7 @@ async function loginMagic(source='account'){
   notify('邮箱链接已发送。','good','检查邮箱');
 }
 async function resetCloudPassword(source='account'){
-  if(!cloudClient)return notify('Supabase 未配置。','bad','无法重置');
+  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法重置');
   const {email}=source==='current'&&cloudUser?{email:cloudUser.email}:credentials(source);
   if(!email)return notify('请输入邮箱。','bad','重置失败');
   const {error}=await cloudAuthRequest(()=>cloudClient.auth.resetPasswordForEmail(email,{redirectTo:authRedirectTo()}));
@@ -1241,7 +1262,7 @@ async function resetCloudPassword(source='account'){
   notify('重置邮件已发送，打开邮件后回到这里输入新密码。','good','检查邮箱');
 }
 async function setCloudPassword(){
-  if(!cloudClient)return notify('Supabase 未配置。','bad','无法重设');
+  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法重设');
   if(!cloudUser)return notify('请先登录。','bad','还没登录');
   if(!passwordRecoveryMode)return notify('请先通过重置邮件打开安全验证链接。','bad','尚未验证');
   const password=document.getElementById('account-recovery-password')?.value||'';
@@ -1723,7 +1744,7 @@ function currentApiSettings(settings=getSettings()){
   };
 }
 function cloudReady(){
-  if(!cloudClient){notify('Supabase 未配置。','bad','云端不可用');return false}
+  if(!cloudClient){notify(cloudUnavailableMessage(),'bad','云端不可用');return false}
   if(!cloudUser){notify('请先登录云端账号。','bad','还没登录');return false}
   return true;
 }
@@ -6860,7 +6881,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.16.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.16.1" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>

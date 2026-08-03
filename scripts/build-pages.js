@@ -15,6 +15,8 @@ const files = [
   'styles.css',
   'favicon.svg',
   'site.webmanifest',
+  'vendor/supabase.js',
+  'vendor/supabase.LICENSE',
 ];
 
 await rm(dist, { recursive: true, force: true });

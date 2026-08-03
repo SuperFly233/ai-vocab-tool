@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi, manifestText, faviconText, css] = await Promise.all([
+const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi, manifestText, faviconText, css, supabaseSdk] = await Promise.all([
   read('app.js'),
   read('index.html'),
   read('CHANGELOG.md'),
@@ -13,6 +13,7 @@ const [app, html, changelog, readme, projectContext, packageText, vercelText, sy
   read('site.webmanifest'),
   read('favicon.svg'),
   read('styles.css'),
+  read('vendor/supabase.js'),
 ]);
 
 const failures = [];
@@ -74,6 +75,10 @@ expect(!missingHandlers.length, `内联交互引用了不存在的函数：${mis
 
 expect(/href="\/styles\.css\?v=/.test(html), 'styles.css 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/app\.js\?v=/.test(html), 'app.js 必须使用根绝对路径，避免二级 URL 加载失败');
+expect(/src="\/vendor\/supabase\.js\?v=/.test(html), 'Supabase SDK must use a versioned same-origin asset path');
+expect(!/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/.test(html), 'Login must not depend on an external Supabase CDN');
+expect(html.indexOf('/vendor/supabase.js?v=')<html.indexOf('/app.js?v='), 'Supabase SDK must load before app.js');
+expect(supabaseSdk.includes('supabase')&&supabaseSdk.length>100000, 'Self-hosted Supabase SDK is missing or incomplete');
 expect(/src="\/history-data\.js\?v=/.test(html), 'history-data.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(/src="\/settings-data\.js\?v=/.test(html), 'settings-data.js must use a root-absolute versioned asset path');
 expect(html.indexOf('/settings-data.js?v=')<html.indexOf('/app.js?v='), 'settings-data.js must load before app.js');
