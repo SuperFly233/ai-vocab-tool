@@ -174,6 +174,13 @@ expect(html.includes('class="utility-nav"')&&/\.mobile-utility-nav\{display:none
 expect(html.includes('id="view-account"')&&app.includes("account:'/account'"), 'Account center must have an independent route and view');
 expect(/\.toast\.snackbar\{background:var\(--snackbar-bg\)/.test(css)&&css.includes('[data-theme="dark"]{--snackbar-bg:'), 'Snackbar must keep explicit readable colors in dark mode');
 expect(app.includes("toastMode:'snackbar'")&&html.includes('id="toast-mode-snackbar"'), 'Snackbar must be the configurable default notification mode');
+expect(app.includes("toastPosition:'top'")&&html.includes('id="toast-position-top"')&&html.includes('id="toast-position-bottom"'), 'Snackbar position must default to top and expose top/bottom controls');
+expect(app.includes('toastPosition:preferLocalSettings?local.toastPosition'), 'Snackbar position must participate in settings merge');
+expect(!app.includes("group.classList.add('collapsed')"), 'Settings groups must render expanded by default');
+expect(html.includes('class="settings-nav"')&&app.includes('function scrollToSettingsSection('), 'Settings must expose task-oriented navigation with working section targeting');
+expect(/html\{[^}]*overflow-x:clip/.test(css)&&/body\{[^}]*overflow-x:clip/.test(css), 'Global horizontal clipping must not create a scroll container that breaks sticky controls');
+expect(app.includes("return icon('circle-check')")&&app.includes("return icon('circle-alert')"), 'Toast status marks must use real SVG icons instead of font glyphs');
+expect(app.includes("${icon('arrow-left')}</button>")&&app.includes('class="release-chevron"'), 'Back and release disclosure controls must use real SVG icons');
 expect(/\.toast-stack\{[^}]*z-index:2147483647/.test(css), 'Global toast feedback must use the application top-layer ceiling');
 expect(/<div class="toast-stack" id="toast-stack"><\/div>\s*<script/.test(html), 'Toast host must remain a direct body child after every application overlay');
 expect(/\.history-panel>\.section-head,\.folder-panel>\.section-head\{display:flex/.test(css), 'Mobile list page headers must keep actions on the title row');

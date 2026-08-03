@@ -152,18 +152,24 @@ const VISUAL_FIELD_HINTS={
   'visual-register-environment':['使用环境','说明常出现在哪些场景、文本类型或对话关系中。'],
 };
 const DEFAULT_API_PROFILE={id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''};
-const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,toastMode:'snackbar',modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
+const DEFAULT_SETTINGS={apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,toastMode:'snackbar',toastPosition:'top',modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''};
 const LOOKUP_MAX_ATTEMPTS=2;
 const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.15.0',
+  version:'0.16.0',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.16.0',
+    date:'2026-08-03',
+    title:'重组设置导航，统一图标与通知位置',
+    items:['设置页改为任务目录与全宽内容区：桌面使用吸顶侧栏，手机使用横向分类条；模型、体验、数据和维护不再混在同一条长页面里。','所有设置分组默认展开，仍可按需折叠；目录点击会自动展开并定位目标，滚动时同步高亮当前位置。','简洁 Snackbar 新增顶部或底部位置选择，默认改为更醒目的顶部，并参与本地保存与云端合并。','通知状态、返回、展开和版本箭头统一使用 Lucide SVG；旋转只作用于图标并锁定中心，不再依赖浏览器字体中的字符符号。'],
+  },
   {
     version:'0.15.0',
     date:'2026-08-03',
@@ -852,6 +858,8 @@ const els={
   visualHintsPinnedInput:document.getElementById('visual-hints-pinned'),
   toastModeSnackbarBtn:document.getElementById('toast-mode-snackbar'),
   toastModeDetailBtn:document.getElementById('toast-mode-detail'),
+  toastPositionTopBtn:document.getElementById('toast-position-top'),
+  toastPositionBottomBtn:document.getElementById('toast-position-bottom'),
   historyList:document.getElementById('history-list'),
   historyCount:document.getElementById('history-count'),
   historyTools:document.getElementById('history-tools'),
@@ -1042,10 +1050,9 @@ function armToastTimer(key,state,duration=3200){
   state.timer=setTimeout(()=>dismissToast(key),duration);
 }
 function toastIcon(type){
-  if(type==='good')return '✓';
-  if(type==='bad')return '!';
-  if(type==='warn')return '!';
-  return 'i';
+  if(type==='good')return icon('circle-check');
+  if(type==='bad'||type==='warn')return icon('circle-alert');
+  return icon('info');
 }
 function dismissToast(key){
   const toastState=activeToasts.get(key);
@@ -1500,6 +1507,7 @@ function normalizeSettings(raw={}){
   const homeStickyMode=normalizeHomeStickyMode(source.homeStickyMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const toastMode=normalizeToastMode(source.toastMode);
+  const toastPosition=normalizeToastPosition(source.toastPosition);
   const modelPrompt=String(source.modelPrompt||'');
   const favoriteFolderTombstones=SettingsData.normalizeTombstones(source.favoriteFolderTombstones);
   let favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders,sourceClock),favoriteFolderTombstones);
@@ -1529,6 +1537,7 @@ function normalizeSettings(raw={}){
     homeStickyMode,
     visualHintsPinned,
     toastMode,
+    toastPosition,
     modelPrompt,
     favoriteFolders,
     favoriteFolderTombstones,
@@ -1550,6 +1559,9 @@ function normalizeHomeStickyMode(value){
 }
 function normalizeToastMode(value){
   return value==='detail'?'detail':'snackbar';
+}
+function normalizeToastPosition(value){
+  return value==='bottom'?'bottom':'top';
 }
 function normalizeBooleanSetting(value,fallback=false){
   if(value===true||value==='true'||value===1||value==='1')return true;
@@ -1676,6 +1688,7 @@ function mergeSettings(localRaw,remoteRaw){
     homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
     toastMode:preferLocalSettings?local.toastMode:remote.toastMode||local.toastMode,
+    toastPosition:preferLocalSettings?local.toastPosition:remote.toastPosition||local.toastPosition,
     modelPrompt:SettingsData.selectPreferredValue(local.modelPrompt,remote.modelPrompt,preferLocalSettings),
     favoriteFolders,
     favoriteFolderTombstones,
@@ -4604,7 +4617,7 @@ function renderFoldersView(){
   `;
   if(els.folderContentHead){
     els.folderContentHead.innerHTML=`
-      <button class="folder-mobile-back" type="button" onclick="closeFolderDetail()" aria-label="返回收藏夹列表">‹</button>
+      <button class="folder-mobile-back" type="button" onclick="closeFolderDetail()" aria-label="返回收藏夹列表">${icon('arrow-left')}</button>
       <div>
         <h2>${escapeHTML(active.name)}</h2>
         <p>${active.system?'星标记录会自动进入这里。':'自定义收藏夹，可从历史详情里把记录加入多个收藏夹。'}${active.parentId?' 已预留上级目录。':''}</p>
@@ -6279,6 +6292,7 @@ function hydrateSettings(){
   applyHomeStickyMode(settings.homeStickyMode);
   applyVisualHintsPinned(settings.visualHintsPinned);
   applyToastMode(settings.toastMode);
+  applyToastPosition(settings.toastPosition);
   renderModelPromptSettings(settings);
   if(els.apiModalModel)els.apiModalModel.placeholder=configInfo?.model||'gpt-4o-mini';
 }
@@ -6409,6 +6423,7 @@ function toggleApiProfileMenu(){
 }
 function renderSettings(){
   setupSettingGroupToggles();
+  setupSettingsNavigation();
   hydrateSettings();
   renderLookupFolderPicker();
   renderFolderManager();
@@ -6418,9 +6433,8 @@ function setupSettingGroupToggles(){
   document.querySelectorAll('.setting-group').forEach((group,index)=>{
     const title=group.querySelector('.setting-title');
     if(!title||title.querySelector('.setting-collapse-btn'))return;
-    group.classList.add('collapsed');
     const text=title.textContent.trim()||`模块 ${index+1}`;
-    title.innerHTML=`<span>${escapeHTML(text)}</span><button class="setting-collapse-btn" type="button" aria-label="折叠 ${escapeAttr(text)}">${icon('chevron-down')}</button>`;
+    title.innerHTML=`<span>${escapeHTML(text)}</span><button class="setting-collapse-btn" type="button" aria-expanded="true" aria-label="折叠 ${escapeAttr(text)}">${icon('chevron-down')}</button>`;
     title.querySelector('.setting-collapse-btn')?.addEventListener('click',event=>{
       event.stopPropagation();
       group.classList.toggle('collapsed');
@@ -6432,6 +6446,37 @@ function setupSettingGroupToggles(){
       button?.click();
     });
   });
+}
+let settingsNavigationReady=false;
+function setupSettingsNavigation(){
+  if(settingsNavigationReady)return updateSettingsNavActive();
+  settingsNavigationReady=true;
+  window.addEventListener('scroll',()=>{
+    if(activeView==='settings')updateSettingsNavActive();
+  },{passive:true});
+  updateSettingsNavActive();
+}
+function updateSettingsNavActive(){
+  const sections=[...document.querySelectorAll('.settings-content .setting-group[id]')];
+  if(!sections.length)return;
+  const guideTop=window.matchMedia('(max-width:900px)').matches?132:118;
+  let current=sections[0];
+  sections.forEach(section=>{if(section.getBoundingClientRect().top<=guideTop)current=section});
+  document.querySelectorAll('.settings-nav-item').forEach(button=>{
+    const active=button.dataset.settingsTarget===current.id;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-current',active?'true':'false');
+  });
+}
+function scrollToSettingsSection(id,button){
+  const section=document.getElementById(id);
+  if(!section)return;
+  if(section.classList.contains('collapsed'))section.querySelector('.setting-collapse-btn')?.click();
+  document.querySelectorAll('.settings-nav-item').forEach(item=>item.classList.toggle('active',item===button));
+  section.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function scrollSettingsToTop(){
+  document.querySelector('.settings-page-head')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function applyLabelMode(mode){
   const next=normalizeLabelMode(mode);
@@ -6534,6 +6579,19 @@ function setToastMode(mode){
   if(!setSettings({...settings,toastMode:next,updatedAt:new Date().toISOString()}))return;
   applyToastMode(next);
   notify(next==='snackbar'?'通知已切换为简洁 Snackbar。':'通知已切换为详细卡片。','good','通知样式');
+}
+function applyToastPosition(position){
+  const next=normalizeToastPosition(position);
+  els.toastPositionTopBtn?.classList.toggle('active',next==='top');
+  els.toastPositionBottomBtn?.classList.toggle('active',next==='bottom');
+  document.body.dataset.toastPosition=next;
+}
+function setToastPosition(position){
+  const next=normalizeToastPosition(position);
+  const settings=getSettings();
+  if(!setSettings({...settings,toastPosition:next,updatedAt:new Date().toISOString()}))return;
+  applyToastPosition(next);
+  notify(`简洁通知会显示在屏幕${next==='top'?'上方':'下方'}。`,'good','通知位置');
 }
 function saveSettings(){
   openApiProfileModal('edit');
@@ -6802,7 +6860,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.15.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.16.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -6820,6 +6878,7 @@ function renderAbout(){
             <summary>
               <span class="release-head"><b>v${escapeHTML(entry.version)}</b><em>${escapeHTML(entry.date)}</em></span>
               <strong>${escapeHTML(entry.title)}</strong>
+              <span class="release-chevron" aria-hidden="true">${icon('chevron-down')}</span>
             </summary>
             <ul>${entry.items.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul>
           </details>

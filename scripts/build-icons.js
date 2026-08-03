@@ -2,8 +2,8 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 const iconNames=[
-  'arrow-down','arrow-up','arrow-up-right','chevron-down','chevron-right','chevrons-up',
-  'circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical',
+  'arrow-down','arrow-left','arrow-up','arrow-up-right','chevron-down','chevron-right','chevrons-up',
+  'circle-alert','circle-check','circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical','info',
   'history','house','list','monitor','moon','plus','quote','refresh-cw','scan-search','search',
   'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','user-round','x',
 ];

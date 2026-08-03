@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.15.0" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.15.0" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.15.0">
-<link rel="stylesheet" href="/styles.css?v=0.15.0">
+<link rel="icon" href="/favicon.svg?v=0.16.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.16.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.16.0">
+<link rel="stylesheet" href="/styles.css?v=0.16.0">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.15.0" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.16.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -52,7 +52,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.15.0" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.16.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -200,8 +200,20 @@
 
   <section class="view" id="view-settings">
     <div class="settings-wrap">
-      <div class="setting-group">
-        <div class="setting-title">模型接口</div>
+      <header class="settings-page-head">
+        <div><span>首选项</span><h1>设置</h1><p>按使用目的组织模型、界面、同步和维护选项。</p></div>
+        <button class="icon-btn" type="button" data-tip="回到顶部" aria-label="回到设置顶部" onclick="scrollSettingsToTop()"><i data-lucide="arrow-up"></i></button>
+      </header>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="设置分类">
+          <button class="settings-nav-item active" data-settings-target="settings-model" onclick="scrollToSettingsSection('settings-model',this)"><i data-lucide="scan-search"></i><span><b>模型与生成</b><small>接口与 Prompt</small></span></button>
+          <button class="settings-nav-item" data-settings-target="settings-experience" onclick="scrollToSettingsSection('settings-experience',this)"><i data-lucide="monitor"></i><span><b>体验与显示</b><small>主题、布局与通知</small></span></button>
+          <button class="settings-nav-item" data-settings-target="settings-data" onclick="scrollToSettingsSection('settings-data',this)"><i data-lucide="cloud"></i><span><b>数据与同步</b><small>云端、导入与收藏夹</small></span></button>
+          <button class="settings-nav-item" data-settings-target="settings-maintenance" onclick="scrollToSettingsSection('settings-maintenance',this)"><i data-lucide="settings-2"></i><span><b>维护与诊断</b><small>日志与危险操作</small></span></button>
+        </nav>
+        <div class="settings-content">
+      <div class="setting-group" id="settings-model">
+        <div class="setting-title">模型与生成</div>
         <div class="setting-row stack-row">
           <div><div class="setting-label">自定义配置组</div><div class="setting-sub">可保存多组 API URL、Key 和 Model；当前选中的配置会用于查询和追问，并随云端同步。</div></div>
           <div class="api-profile-bar">
@@ -244,8 +256,8 @@
         </div>
       </div>
 
-      <div class="setting-group">
-        <div class="setting-title">外观</div>
+      <div class="setting-group" id="settings-experience">
+        <div class="setting-title">体验与显示</div>
         <div class="setting-row">
           <div><div class="setting-label">主题</div><div class="setting-sub">自动跟随系统，也可以固定浅色或深色。</div></div>
           <div class="theme-switch settings-theme-switch" aria-label="主题模式">
@@ -301,16 +313,23 @@
           </label>
         </div>
         <div class="setting-row">
-          <div><div class="setting-label">通知样式</div><div class="setting-sub">简洁模式显示在屏幕下方；详细模式保留标题、状态和进度。</div></div>
+          <div><div class="setting-label">通知样式</div><div class="setting-sub">简洁模式使用轻量胶囊；详细模式保留标题、状态和进度。</div></div>
           <div class="seg toast-mode-seg">
             <button id="toast-mode-snackbar" onclick="setToastMode('snackbar')">简洁</button>
             <button id="toast-mode-detail" onclick="setToastMode('detail')">详细</button>
           </div>
         </div>
+        <div class="setting-row snackbar-position-row">
+          <div><div class="setting-label">简洁通知位置</div><div class="setting-sub">顶部更醒目，底部更克制；只影响简洁 Snackbar。</div></div>
+          <div class="seg toast-position-seg">
+            <button id="toast-position-top" onclick="setToastPosition('top')"><i data-lucide="arrow-up"></i><span>顶部</span></button>
+            <button id="toast-position-bottom" onclick="setToastPosition('bottom')"><i data-lucide="arrow-down"></i><span>底部</span></button>
+          </div>
+        </div>
       </div>
 
-      <div class="setting-group">
-        <div class="setting-title">数据</div>
+      <div class="setting-group" id="settings-data">
+        <div class="setting-title">数据与同步</div>
         <div class="setting-row"><div><div class="setting-label">当前存储</div><div class="setting-sub" id="storage-status">localStorage，本机本浏览器记录。</div></div></div>
         <div class="setting-row cloud-row">
           <div><div class="setting-label">云端同步</div><div class="setting-sub" id="settings-sync-status">登录后会显示同步状态和冲突处理结果。</div></div>
@@ -343,15 +362,20 @@
           <div><div class="setting-label">收藏夹管理</div><div class="setting-sub">旧 Tag 会自动转为收藏夹；同一条历史记录可以加入多个收藏夹，后续可继续扩展嵌套。</div></div>
           <div class="tag-manager folder-manager" id="folder-manager"></div>
         </div>
-        <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
-        <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
       </div>
 
-      <div class="setting-group">
-        <div class="setting-title">日志</div>
+      <div class="setting-group" id="settings-maintenance">
+        <div class="setting-title">维护与诊断</div>
+        <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
+        <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
+        <div class="setting-row stack-row log-setting-row">
+          <div><div class="setting-label">运行日志</div><div class="setting-sub">只保留近期同步与操作状态，用于定位异常。</div></div>
         <div class="log-list" id="log-list"></div>
         <div class="setting-actions">
           <button class="plain-btn ghost-btn" onclick="clearLogs()">清空日志</button>
+        </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
@@ -540,12 +564,12 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/icons.js?v=0.15.0"></script>
-<script src="/history-data.js?v=0.15.0"></script>
-<script src="/settings-data.js?v=0.15.0"></script>
-<script src="/storage-state.js?v=0.15.0"></script>
-<script src="/lookup-tasks.js?v=0.15.0"></script>
-<script src="/sync-state.js?v=0.15.0"></script>
-<script src="/app.js?v=0.15.0"></script>
+<script src="/icons.js?v=0.16.0"></script>
+<script src="/history-data.js?v=0.16.0"></script>
+<script src="/settings-data.js?v=0.16.0"></script>
+<script src="/storage-state.js?v=0.16.0"></script>
+<script src="/lookup-tasks.js?v=0.16.0"></script>
+<script src="/sync-state.js?v=0.16.0"></script>
+<script src="/app.js?v=0.16.0"></script>
 </body>
 </html>
