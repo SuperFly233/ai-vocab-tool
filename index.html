@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#245c9f">
+<meta name="theme-color" content="#f7f7f3">
 <title>ai-vocab-tool</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/styles.css?v=0.12.2">
+<link rel="stylesheet" href="/styles.css?v=0.13.0">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,15 +36,15 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><i>词</i></span>
+    <span class="brand-icon" aria-hidden="true"><i data-lucide="scan-search"></i></span>
     <span class="brand-text">ai-vocab-tool</span>
   </button>
   <nav class="nav">
-    <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()">首页</button>
-    <button class="nav-item" id="nav-history" onclick="showView('history',this)">历史记录</button>
-    <button class="nav-item" id="nav-folders" onclick="openFoldersRoot(this)">收藏夹</button>
-    <button class="nav-item" id="nav-settings" onclick="showView('settings',this)">设置</button>
-    <button class="nav-item" id="nav-about" onclick="showView('about',this)">关于</button>
+    <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()"><i data-lucide="house"></i><span>首页</span></button>
+    <button class="nav-item" id="nav-history" onclick="showView('history',this)"><i data-lucide="history"></i><span>历史记录</span></button>
+    <button class="nav-item" id="nav-folders" onclick="openFoldersRoot(this)"><i data-lucide="folder-heart"></i><span>收藏夹</span></button>
+    <button class="nav-item" id="nav-settings" onclick="showView('settings',this)"><i data-lucide="settings-2"></i><span>设置</span></button>
+    <button class="nav-item" id="nav-about" onclick="showView('about',this)"><i data-lucide="circle-help"></i><span>关于</span></button>
   </nav>
   <div class="side-note">本地保存。登录后云端同步。</div>
 </aside>
@@ -57,11 +57,11 @@
     </div>
     <div class="topbar-actions">
       <div class="theme-switch topbar-theme-switch" aria-label="主题模式">
-        <button id="top-theme-dark" data-tip="深色" onclick="setTheme('dark')" aria-label="深色主题">☾</button>
-        <button id="top-theme-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统">▭</button>
-        <button id="top-theme-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题">☼</button>
+        <button id="top-theme-dark" data-tip="深色" onclick="setTheme('dark')" aria-label="深色主题"><i data-lucide="moon"></i></button>
+        <button id="top-theme-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统"><i data-lucide="monitor"></i></button>
+        <button id="top-theme-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题"><i data-lucide="sun"></i></button>
       </div>
-      <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()">账号</button>
+      <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()"><span class="account-avatar"><i data-lucide="user-round"></i></span><span id="account-toggle-label">账号</span></button>
     </div>
   </div>
 
@@ -71,7 +71,7 @@
         <div class="account-title">云端账号</div>
         <div class="account-sub" id="account-status">Supabase 未配置</div>
       </div>
-      <button class="account-close" onclick="closeAccountPanel()" aria-label="关闭账号面板">×</button>
+      <button class="account-close" onclick="closeAccountPanel()" aria-label="关闭账号面板"><i data-lucide="x"></i></button>
     </div>
     <div class="account-form">
       <input class="cloud-input" id="account-email" type="email" autocomplete="username" placeholder="邮箱">
@@ -99,7 +99,7 @@
         <div class="query-row">
           <div class="query-shell">
             <textarea id="query-input" rows="1" placeholder="输入单词、短语或句子"></textarea>
-            <button class="clear-query-btn hidden" id="clear-query-btn" data-tip="清空" onclick="clearEditor()" type="button" aria-label="清空输入">✕</button>
+            <button class="clear-query-btn hidden" id="clear-query-btn" data-tip="清空" onclick="clearEditor()" type="button" aria-label="清空输入"><i data-lucide="x"></i></button>
           </div>
           <div class="assist-fields">
             <input id="direction-input" type="text" placeholder="语言方向，侧重点">
@@ -107,8 +107,8 @@
           </div>
           <div class="lookup-folder-strip" id="lookup-folder-strip"></div>
           <div class="query-actions">
-            <button class="icon-btn lookup-options-toggle" id="lookup-options-toggle" data-tip="查询选项" onclick="toggleLookupOptions()" type="button" aria-label="展开查询选项" aria-expanded="true">⌃</button>
-            <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()">🔎</button>
+            <button class="icon-btn lookup-options-toggle" id="lookup-options-toggle" data-tip="查询选项" onclick="toggleLookupOptions()" type="button" aria-label="收起查询选项" aria-expanded="true"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()" aria-label="查询"><i data-lucide="search"></i></button>
           </div>
         </div>
         <div class="lookup-queue" id="lookup-queue"></div>
@@ -121,8 +121,8 @@
             <button class="tab-btn" onclick="setResultTab('json',this)">JSON</button>
           </div>
           <div class="result-icons">
-            <button class="icon-btn" data-tip="复制 JSON" onclick="copyJSON()">📋</button>
-            <button class="icon-btn" data-tip="导出 JSON" onclick="exportCurrent()">💾</button>
+            <button class="icon-btn" data-tip="复制 JSON" onclick="copyJSON()" aria-label="复制 JSON"><i data-lucide="copy"></i></button>
+            <button class="icon-btn" data-tip="导出 JSON" onclick="exportCurrent()" aria-label="导出 JSON"><i data-lucide="download"></i></button>
           </div>
         </div>
         <section class="result-page active" id="result-card"></section>
@@ -139,18 +139,18 @@
           <div class="section-sub" id="history-count">0 条</div>
         </div>
         <div class="action-row compact">
-          <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()">💾</button>
+          <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()" aria-label="导出历史"><i data-lucide="download"></i></button>
         </div>
       </div>
       <div class="history-tools" id="history-tools">
         <label class="history-search">
-          <span>🔎</span>
+          <span><i data-lucide="search"></i></span>
           <input id="history-search" type="text" placeholder="搜索历史、释义、例句、搭配、辨析" autocomplete="off">
-          <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索">✕</button>
+          <button class="history-clear-btn hidden" id="history-clear-btn" data-tip="清空" onclick="clearHistorySearch()" type="button" aria-label="清空历史搜索"><i data-lucide="x"></i></button>
           <div class="history-search-scope" id="history-search-scope">
             <button class="history-search-scope-toggle" id="history-search-scope-toggle" type="button" aria-expanded="false">
               <span id="history-search-scope-summary">全部</span>
-              <i aria-hidden="true">⌄</i>
+              <i data-lucide="chevron-down"></i>
             </button>
             <div class="history-search-scope-menu" id="history-search-scope-menu"></div>
           </div>
@@ -158,7 +158,7 @@
         <button class="history-filter-toggle" id="history-filter-toggle" type="button" onclick="toggleHistoryFilters()">
           <span>筛选</span>
           <b id="history-filter-summary">—</b>
-          <i aria-hidden="true">⌄</i>
+          <i data-lucide="chevron-down"></i>
         </button>
         <div class="history-filterbar" id="history-filterbar">
           <div class="history-filter" data-filter-key="entryType"></div>
@@ -189,8 +189,8 @@
           <div class="section-sub" id="folder-count">个人收藏与自定义收藏夹</div>
         </div>
         <div class="action-row compact">
-          <button class="icon-btn" data-tip="新建收藏夹" onclick="createFavoriteFolder()">＋</button>
-          <button class="icon-btn" data-tip="导出当前收藏夹" onclick="exportFolderJSON()">💾</button>
+          <button class="icon-btn" data-tip="新建收藏夹" onclick="createFavoriteFolder()" aria-label="新建收藏夹"><i data-lucide="folder-plus"></i></button>
+          <button class="icon-btn" data-tip="导出当前收藏夹" onclick="exportFolderJSON()" aria-label="导出当前收藏夹"><i data-lucide="download"></i></button>
         </div>
       </div>
       <div class="folder-layout">
@@ -216,7 +216,7 @@
                   <span>当前配置</span>
                   <strong id="api-profile-current-name">默认配置</strong>
                 </div>
-                <button class="plain-btn profile-menu-btn" id="api-profile-menu-toggle" type="button" onclick="toggleApiProfileMenu()" aria-label="展开配置菜单"><span aria-hidden="true">⌄</span></button>
+                <button class="plain-btn profile-menu-btn" id="api-profile-menu-toggle" type="button" onclick="toggleApiProfileMenu()" aria-label="展开配置菜单"><span aria-hidden="true"><i data-lucide="chevron-down"></i></span></button>
               </div>
               <div class="api-profile-menu" id="api-profile-menu" aria-label="API 配置组列表"></div>
             </div>
@@ -262,9 +262,9 @@
         <div class="setting-row">
           <div><div class="setting-label">主题</div><div class="setting-sub">自动跟随系统，也可以固定浅色或深色。</div></div>
           <div class="theme-switch settings-theme-switch" aria-label="主题模式">
-            <button id="th-dark" data-tip="深色" onclick="setTheme('dark')" aria-label="深色主题">☾</button>
-            <button id="th-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统">▭</button>
-            <button id="th-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题">☼</button>
+            <button id="th-dark" data-tip="深色" onclick="setTheme('dark')" aria-label="深色主题"><i data-lucide="moon"></i></button>
+            <button id="th-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统"><i data-lucide="monitor"></i></button>
+            <button id="th-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题"><i data-lucide="sun"></i></button>
           </div>
         </div>
         <div class="setting-row">
@@ -382,11 +382,11 @@
           <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
         </div>
         <div class="modal-file-actions" aria-label="详情文件操作">
-          <button class="icon-btn" data-tip="复制 JSON" aria-label="复制 JSON" onclick="copyModalJSON()">📋</button>
-          <button class="icon-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()">💾</button>
+          <button class="icon-btn" data-tip="复制 JSON" aria-label="复制 JSON" onclick="copyModalJSON()"><i data-lucide="copy"></i></button>
+          <button class="icon-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()"><i data-lucide="download"></i></button>
         </div>
       </div>
-      <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" onclick="closeHistoryModal()">✕</button>
+      <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="closeHistoryModal()"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-body" id="history-modal-body">
       <div class="modal-rollbar" id="modal-rollbar"></div>
@@ -440,7 +440,7 @@
         <div class="section-sub" id="api-profile-modal-subtitle">保存后会作为当前配置使用。</div>
       </div>
       <div class="result-icons">
-        <button class="icon-btn danger-icon" id="api-profile-modal-close" data-tip="关闭" type="button">×</button>
+        <button class="icon-btn danger-icon" id="api-profile-modal-close" data-tip="关闭" aria-label="关闭" type="button"><i data-lucide="x"></i></button>
       </div>
     </div>
     <div class="modal-body">
@@ -485,7 +485,7 @@
         <div class="section-title" id="folder-select-title">添加到收藏夹</div>
         <div class="section-sub" id="folder-select-subtitle">可同时选择多个收藏夹</div>
       </div>
-      <button class="icon-btn danger-icon" data-tip="关闭" onclick="closeFolderSelectModal()">✕</button>
+      <button class="icon-btn danger-icon" data-tip="关闭" aria-label="关闭" onclick="closeFolderSelectModal()"><i data-lucide="x"></i></button>
     </div>
     <div class="folder-select-body">
       <div class="folder-select-list" id="folder-select-list"></div>
@@ -513,10 +513,13 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/history-data.js?v=0.12.2"></script>
-<script src="/settings-data.js?v=0.12.2"></script>
-<script src="/lookup-tasks.js?v=0.12.2"></script>
-<script src="/sync-state.js?v=0.12.2"></script>
-<script src="/app.js?v=0.12.2"></script>
+<script src="/vendor/lucide.min.js?v=0.13.0"></script>
+<script src="/icons.js?v=0.13.0"></script>
+<script src="/history-data.js?v=0.13.0"></script>
+<script src="/settings-data.js?v=0.13.0"></script>
+<script src="/storage-state.js?v=0.13.0"></script>
+<script src="/lookup-tasks.js?v=0.13.0"></script>
+<script src="/sync-state.js?v=0.13.0"></script>
+<script src="/app.js?v=0.13.0"></script>
 </body>
 </html>

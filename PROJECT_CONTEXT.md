@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-07-26
+Last updated: 2026-08-03
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -50,6 +50,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.13.0 replaces the desktop vertical rail with a horizontal application bar while retaining mobile bottom navigation. Theme/account controls follow one rounded grouped-control language, and Lucide is bundled locally for real icons instead of character glyphs. Home preserves a dominant query field, two compact mobile rows, and a viewport-aligned empty result. Repeated list surfaces use dividers rather than card stacks. The same release introduces atomic localStorage batches: history plus tombstones, folder deletion across history plus settings, and full cloud replacements roll back together on any failure. Generated model output remains visible and exportable if persistence fails.
 - v0.12.2 makes legacy settings normalization deterministic. A newer empty `modelPrompt` is an authoritative restore-default operation and must not fall back to an older custom value; merged scalar content also carries the winning side's overall `updatedAt`. API profiles without ids use a stable content-derived id; profiles and folders without item clocks inherit the stable parent settings clock or remain unclocked, never `Date.now()` during reads. Pure data tests cover stable ids, clocks, distinct credentials, and empty scalar selection.
 - v0.12.1 makes lookup recovery proof-based. Successful history entries store `lookupSignature` and `lookupCompletedAt`; an interrupted request is suppressed only by the exact query/direction/note/folder/existing-id signature. Legacy query-time fallback is limited to plain unqualified requests, preferring a harmless rerun over silently dropping a distinct intent. Direct `/favorites/<id>` links now return to `/favorites`, while details entered from the in-app folder root still use browser back.
 - v0.12.0 establishes a quieter list-first UI rule: repeated navigation/list content should use dividers and selected rows instead of stacks of bordered cards, while cards remain for self-contained vocabulary/result modules. Home sticky controls now collapse in two layers (secondary query fields, then queue rows), with a synced compact/expanded preference. Folders use a desktop master-detail list and a mobile list-to-detail flow with `/favorites/<id>` routes. Theme controls use one three-state capsule pattern in the topbar and settings. This release also removes equal-time settings merge conflicts through `SettingsData.preferNewerItem`; profiles, folders, order, active selection, and scalar settings converge regardless of merge argument order.

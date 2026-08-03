@@ -8,6 +8,8 @@ const files = [
   'app.js',
   'history-data.js',
   'settings-data.js',
+  'storage-state.js',
+  'icons.js',
   'lookup-tasks.js',
   'sync-state.js',
   'styles.css',
@@ -23,5 +25,9 @@ for (const file of files) {
   await mkdir(dirname(target), { recursive: true });
   await copyFile(join(root, file), target);
 }
+
+const lucideTarget=join(dist,'vendor','lucide.min.js');
+await mkdir(dirname(lucideTarget),{recursive:true});
+await copyFile(join(root,'node_modules','lucide','dist','umd','lucide.min.js'),lucideTarget);
 
 console.log(`Cloudflare Pages static output written to ${dist}`);

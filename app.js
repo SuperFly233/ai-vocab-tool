@@ -50,6 +50,7 @@ let lookupQueue=[];
 let activeLookupSignature='';
 let activeLookupRequest=null;
 let lookupRecoveryPending=false;
+let lookupTaskStorageWarningShown=false;
 let followupBusy=false;
 let cloudBusy=false;
 let cloudSyncBusy=false;
@@ -149,12 +150,18 @@ const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.12.2',
+  version:'0.13.0',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.13.0',
+    date:'2026-08-03',
+    title:'重构应用外壳，并保护本地写入事务',
+    items:['桌面端从厚重的纵向侧栏改为横向应用栏，移动端保留底部导航；主题、账号和常用操作统一使用圆润的分组控件与本地 Lucide 图标，桌面隐藏多余的查询选项入口。','首页重新校准主次比例：主搜索明显更宽，手机保持“搜索与操作 / 方向与收藏夹”两行，空结果区铺到首屏底部；历史、收藏夹和设置减少重复卡片边框，列表改用分隔行组织。','历史、墓碑和收藏夹设置现在通过本地存储事务成组提交；任一写入失败会回滚旧值，云端整组覆盖也不再先删除本地数据。存储满时已生成结果仍留在页面并提示立即导出。'],
+  },
   {
     version:'0.12.2',
     date:'2026-08-03',
@@ -743,6 +750,7 @@ const els={
   authStatus:document.getElementById('auth-status'),
   accountPanel:document.getElementById('account-panel'),
   accountToggle:document.getElementById('account-toggle'),
+  accountToggleLabel:document.getElementById('account-toggle-label'),
   accountStatus:document.getElementById('account-status'),
   accountSyncStatus:document.getElementById('account-sync-status'),
   query:document.getElementById('query-input'),
@@ -856,7 +864,22 @@ function readJSON(key,fallback){
     return fallback;
   }
 }
-function writeJSON(key,value){localStorage.setItem(key,JSON.stringify(value))}
+function commitStorageChanges(changes){
+  const result=StorageState.writeBatch(localStorage,changes);
+  if(result.ok)return result;
+  const error=result.error instanceof Error?result.error:new Error('浏览器本地存储写入失败');
+  error.storageCommit=result;
+  throw error;
+}
+function writeJSON(key,value){
+  commitStorageChanges([{key,value:JSON.stringify(value)}]);
+  return value;
+}
+function storageFailureMessage(error,subject='数据'){
+  if(error?.storageCommit&&!error.storageCommit.rollbackOk)return `${subject}写入失败，而且浏览器未能完整恢复旧值。请不要刷新，立即导出 JSON 备份。`;
+  if(StorageState.isQuotaError(error))return `${subject}没有保存：浏览器本地空间已满。当前页面内容仍可查看，请先导出 JSON，再清理不用的历史或站点数据。`;
+  return `${subject}没有保存：${error?.message||'浏览器拒绝了本地存储写入'}。`;
+}
 function escapeHTML(value){
   return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
@@ -866,8 +889,11 @@ function escapeAttr(value){
 function jsArg(value){
   return JSON.stringify(String(value??'')).replace(/</g,'\\u003c');
 }
+function icon(name){return `<i data-lucide="${escapeAttr(name)}"></i>`}
 function notify(message,type='info',title='ai-vocab-tool',record=true){
-  if(record)pushLog(message,type,title);
+  if(record){
+    try{pushLog(message,type,title)}catch(error){console.warn('日志写入失败，通知仍会继续显示。',error)}
+  }
   const key=`${type}|${title}|${message}`;
   const existing=activeToasts.get(key);
   if(existing?.element?.isConnected){
@@ -965,10 +991,14 @@ function resetConfirmUI(){
 }
 function getLogs(){return readJSON(STORAGE_KEYS.logs,[])}
 function setLogs(items){
-  writeJSON(STORAGE_KEYS.logs,items.slice(0,80));
+  try{writeJSON(STORAGE_KEYS.logs,items.slice(0,80))}catch(error){
+    notify(storageFailureMessage(error,'日志'),'bad','日志未保存',false);
+    return false;
+  }
   markCloudDirty(CLOUD_KEYS.logs);
   renderLogs();
   scheduleCloudSync();
+  return true;
 }
 function pushLog(message,type='info',title='ai-vocab-tool'){
   const logs=getLogs();
@@ -991,7 +1021,7 @@ function renderAuthGate(){
   document.body.classList.toggle('password-recovery',passwordRecoveryMode);
   if(els.accountToggle){
     els.accountToggle.classList.toggle('signed-in',Boolean(cloudUser));
-    els.accountToggle.textContent=cloudUser?'已登录':offlineMode()?'离线':'账号';
+    if(els.accountToggleLabel)els.accountToggleLabel.textContent=cloudUser?'已登录':offlineMode()?'离线':'账号';
   }
   if(els.accountStatus){
     if(cloudUser&&passwordRecoveryMode)els.accountStatus.textContent=`重设密码：${cloudUser.email}`;
@@ -1156,7 +1186,7 @@ function setHistoryTombstones(items,{dirty=true}={}){
   const next=HistoryData.normalizeTombstones(items);
   const raw=JSON.stringify(next);
   if((localStorage.getItem(STORAGE_KEYS.historyTombstones)||'[]')===raw)return next;
-  localStorage.setItem(STORAGE_KEYS.historyTombstones,raw);
+  commitStorageChanges([{key:STORAGE_KEYS.historyTombstones,value:raw}]);
   tombstoneReadCache={raw,value:next};
   historyReadCache=null;
   if(dirty)markCloudDirty(CLOUD_KEYS.historyTombstones);
@@ -1184,18 +1214,78 @@ function getHistory(){
   historyReadCache={historyRaw,tombstoneRaw,value};
   return value;
 }
-function setHistory(items,{revive=false}={}){
+function setHistory(items,{revive=false,deletedItems=[]}={}){
+  const normalizedItems=normalizeHistoryItems(items);
+  let tombstones=getHistoryTombstones();
+  const deletionEntries=normalizeHistoryItems(deletedItems)
+    .map(item=>({key:historyIdentityKey(item),deletedAt:new Date().toISOString()}))
+    .filter(item=>item.key);
+  if(deletionEntries.length)tombstones=HistoryData.normalizeTombstones(tombstones,deletionEntries);
+  if(revive){
+    const revivedKeys=new Set(normalizedItems.map(historyIdentityKey).filter(Boolean));
+    tombstones=tombstones.filter(item=>!revivedKeys.has(item.key));
+  }
+  const reconciled=reconcileHistoryData(normalizedItems,tombstones);
+  const historyRaw=JSON.stringify(reconciled.history);
+  const tombstoneRaw=JSON.stringify(reconciled.tombstones);
+  try{
+    commitStorageChanges([
+      {key:STORAGE_KEYS.history,value:historyRaw},
+      {key:STORAGE_KEYS.historyTombstones,value:tombstoneRaw},
+    ]);
+  }catch(error){
+    notify(storageFailureMessage(error,'历史记录'),'bad','历史未保存',false);
+    return false;
+  }
   invalidateHistoryDerivedCache();
   historyReadCache=null;
-  if(revive)reviveHistoryItems(items);
-  const reconciled=reconcileHistoryData(items);
-  writeJSON(STORAGE_KEYS.history,reconciled.history);
-  setHistoryTombstones(reconciled.tombstones);
+  tombstoneReadCache={raw:tombstoneRaw,value:reconciled.tombstones};
   markCloudDirty(CLOUD_KEYS.history);
+  markCloudDirty(CLOUD_KEYS.historyTombstones);
   renderHistory();
   renderLookupFolderPicker();
   if(activeView==='folders')renderFoldersView();
   scheduleCloudSync();
+  return true;
+}
+function setHistoryAndSettings(items,settings,{revive=false,deletedItems=[]}={}){
+  const normalizedItems=normalizeHistoryItems(items);
+  let tombstones=getHistoryTombstones();
+  const deletionEntries=normalizeHistoryItems(deletedItems)
+    .map(item=>({key:historyIdentityKey(item),deletedAt:new Date().toISOString()}))
+    .filter(item=>item.key);
+  if(deletionEntries.length)tombstones=HistoryData.normalizeTombstones(tombstones,deletionEntries);
+  if(revive){
+    const revivedKeys=new Set(normalizedItems.map(historyIdentityKey).filter(Boolean));
+    tombstones=tombstones.filter(item=>!revivedKeys.has(item.key));
+  }
+  const reconciled=reconcileHistoryData(normalizedItems,tombstones);
+  const normalizedSettings=normalizeSettings(settings);
+  const historyRaw=JSON.stringify(reconciled.history);
+  const tombstoneRaw=JSON.stringify(reconciled.tombstones);
+  const settingsRaw=JSON.stringify(normalizedSettings);
+  try{
+    commitStorageChanges([
+      {key:STORAGE_KEYS.history,value:historyRaw},
+      {key:STORAGE_KEYS.historyTombstones,value:tombstoneRaw},
+      {key:STORAGE_KEYS.settings,value:settingsRaw},
+    ]);
+  }catch(error){
+    notify(storageFailureMessage(error,'收藏夹变更'),'bad','变更未保存',false);
+    return false;
+  }
+  invalidateHistoryDerivedCache();
+  historyReadCache=null;
+  tombstoneReadCache={raw:tombstoneRaw,value:reconciled.tombstones};
+  settingsReadCache={raw:settingsRaw,value:normalizedSettings};
+  markCloudDirty(CLOUD_KEYS.history);
+  markCloudDirty(CLOUD_KEYS.historyTombstones);
+  markCloudDirty(CLOUD_KEYS.settings);
+  renderHistory();
+  renderLookupFolderPicker();
+  if(activeView==='folders')renderFoldersView();
+  scheduleCloudSync();
+  return true;
 }
 function getSettings(){
   const raw=localStorage.getItem(STORAGE_KEYS.settings)||'';
@@ -1209,22 +1299,30 @@ function getSettings(){
 function writeSettings(settings){
   const value=normalizeSettings(settings);
   const raw=JSON.stringify(value);
-  localStorage.setItem(STORAGE_KEYS.settings,raw);
+  commitStorageChanges([{key:STORAGE_KEYS.settings,value:raw}]);
   settingsReadCache={raw,value};
   return value;
 }
 function setSettings(settings){
+  try{writeSettings(settings)}catch(error){
+    notify(storageFailureMessage(error,'设置'),'bad','设置未保存',false);
+    return false;
+  }
   invalidateHistoryDerivedCache();
-  writeSettings(settings);
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
   scheduleCloudSync();
+  return true;
 }
 function saveSettingsLocal(settings){
+  try{writeSettings(settings)}catch(error){
+    notify(storageFailureMessage(error,'设置'),'bad','设置未保存',false);
+    return false;
+  }
   invalidateHistoryDerivedCache();
-  writeSettings(settings);
   markCloudDirty(CLOUD_KEYS.settings);
   renderLookupFolderPicker();
+  return true;
 }
 function normalizeSettings(raw={}){
   const source={...raw};
@@ -1625,33 +1723,23 @@ function mapsEqual(a,b){
 }
 function replaceLocalWithItems(items){
   invalidateHistoryDerivedCache();
-  localStorage.removeItem(STORAGE_KEYS.history);
-  localStorage.removeItem(STORAGE_KEYS.historyTombstones);
-  localStorage.removeItem(STORAGE_KEYS.settings);
-  localStorage.removeItem(STORAGE_KEYS.theme);
-  localStorage.removeItem(STORAGE_KEYS.layout);
-  localStorage.removeItem(STORAGE_KEYS.logs);
-  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.history)){
-    writeJSON(STORAGE_KEYS.history,safeHistoryFromRaw(items[CLOUD_KEYS.history]));
-  }
-  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.historyTombstones)){
-    writeJSON(STORAGE_KEYS.historyTombstones,safeHistoryTombstonesFromRaw(items[CLOUD_KEYS.historyTombstones]));
-  }
-  const reconciledHistory=reconcileHistoryData(readJSON(STORAGE_KEYS.history,[]),getHistoryTombstones());
-  writeJSON(STORAGE_KEYS.history,reconciledHistory.history);
-  setHistoryTombstones(reconciledHistory.tombstones,{dirty:false});
-  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.settings)){
-    writeJSON(STORAGE_KEYS.settings,safeObjectFromRaw(items[CLOUD_KEYS.settings],DEFAULT_SETTINGS));
-  }
-  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.theme)){
-    localStorage.setItem(STORAGE_KEYS.theme,items[CLOUD_KEYS.theme]||'auto');
-  }
-  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.layout)){
-    localStorage.setItem(STORAGE_KEYS.layout,items[CLOUD_KEYS.layout]||'top');
-  }
-  if(Object.prototype.hasOwnProperty.call(items,CLOUD_KEYS.logs)){
-    writeJSON(STORAGE_KEYS.logs,safeLogsFromRaw(items[CLOUD_KEYS.logs]));
-  }
+  const has=key=>Object.prototype.hasOwnProperty.call(items,key);
+  const history=has(CLOUD_KEYS.history)?safeHistoryFromRaw(items[CLOUD_KEYS.history]):[];
+  const tombstones=has(CLOUD_KEYS.historyTombstones)?safeHistoryTombstonesFromRaw(items[CLOUD_KEYS.historyTombstones]):[];
+  const reconciledHistory=reconcileHistoryData(history,tombstones);
+  const historyRaw=JSON.stringify(reconciledHistory.history);
+  const tombstoneRaw=JSON.stringify(reconciledHistory.tombstones);
+  commitStorageChanges([
+    {key:STORAGE_KEYS.history,value:historyRaw},
+    {key:STORAGE_KEYS.historyTombstones,value:tombstoneRaw},
+    {key:STORAGE_KEYS.settings,value:has(CLOUD_KEYS.settings)?JSON.stringify(safeObjectFromRaw(items[CLOUD_KEYS.settings],DEFAULT_SETTINGS)):null},
+    {key:STORAGE_KEYS.theme,value:has(CLOUD_KEYS.theme)?items[CLOUD_KEYS.theme]||'auto':null},
+    {key:STORAGE_KEYS.layout,value:has(CLOUD_KEYS.layout)?items[CLOUD_KEYS.layout]||'top':null},
+    {key:STORAGE_KEYS.logs,value:has(CLOUD_KEYS.logs)?JSON.stringify(safeLogsFromRaw(items[CLOUD_KEYS.logs])):null},
+  ]);
+  historyReadCache=null;
+  tombstoneReadCache={raw:tombstoneRaw,value:reconciledHistory.tombstones};
+  settingsReadCache=null;
   hydrateSettings();
   rerenderHistoryFromStart();
   renderLogs();
@@ -2273,7 +2361,7 @@ function applyLookupOptionsState(){
   const editor=document.querySelector('#view-home .editor-pane');
   editor?.classList.toggle('lookup-options-open',lookupOptionsExpanded);
   if(els.lookupOptionsToggle){
-    els.lookupOptionsToggle.textContent=lookupOptionsExpanded?'⌃':'⌄';
+    els.lookupOptionsToggle.classList.toggle('expanded',lookupOptionsExpanded);
     els.lookupOptionsToggle.setAttribute('aria-expanded',String(lookupOptionsExpanded));
     els.lookupOptionsToggle.setAttribute('aria-label',lookupOptionsExpanded?'收起查询选项':'展开查询选项');
   }
@@ -2337,7 +2425,7 @@ function updateHomeEmptyLayout(){
     const mobile=window.matchMedia('(max-width:900px)').matches;
     const viewportBottom=mobile&&mobileNav
       ? mobileNav.getBoundingClientRect().top-12
-      : Math.min(window.innerHeight-22,mobileNav?.getBoundingClientRect().bottom||window.innerHeight-22);
+      : window.innerHeight-22;
     const available=Math.max(320,Math.floor(viewportBottom-paneTop));
     resultPane.style.setProperty('--home-empty-height',`${available}px`);
   };
@@ -3099,20 +3187,22 @@ function getCurrentHistoryItem(){
   return getHistory().find(item=>Number(item.id)===Number(currentHistoryId));
 }
 function saveFollowupsForCurrent(followups){
-  currentFollowups=followups;
   const history=getHistory().map(item=>Number(item.id)===Number(currentHistoryId)?{...item,followups,updatedAt:new Date().toISOString()}:item);
-  setHistory(history);
+  if(!setHistory(history))return false;
+  currentFollowups=followups;
   renderResult(currentResult);
+  return true;
 }
 function saveFollowupsForModal(followups){
   const history=getHistory().map(item=>Number(item.id)===Number(modalHistoryId)?{...item,followups,updatedAt:new Date().toISOString()}:item);
-  setHistory(history);
+  if(!setHistory(history))return false;
   const updated=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   if(updated){
     els.modalCardPage.innerHTML=renderResultHTML(modalResult||updated.result,updated.followups||[],'modal',updated);
     renderModalRollbar(updated);
   }
-  if(Number(modalHistoryId)===Number(currentHistoryId))saveFollowupsForCurrent(followups);
+  if(Number(modalHistoryId)===Number(currentHistoryId))currentFollowups=followups;
+  return true;
 }
 function setPendingFollowup(scope,question){
   pendingFollowup={
@@ -3217,8 +3307,7 @@ async function askCurrentFollowup(){
     });
     const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
     clearPendingFollowup('current');
-    saveFollowupsForCurrent(followups);
-    notify('追问已保存。','good','追问完成');
+    if(saveFollowupsForCurrent(followups))notify('追问已保存。','good','追问完成');
   }catch(error){
     clearPendingFollowup('current');
     rerenderFollowupScope('current');
@@ -3247,8 +3336,7 @@ async function askModalFollowup(){
     });
     const followups=[...(baseItem.followups||[]),{id:Date.now(),question,answer,createdAt:new Date().toISOString()}];
     clearPendingFollowup('modal');
-    saveFollowupsForModal(followups);
-    notify('追问已保存。','good','追问完成');
+    if(saveFollowupsForModal(followups))notify('追问已保存。','good','追问完成');
   }catch(error){
     clearPendingFollowup('modal');
     rerenderFollowupScope('modal');
@@ -3351,7 +3439,18 @@ function persistLookupTasks(){
     localStorage.removeItem(STORAGE_KEYS.lookupTasks);
     return;
   }
-  writeJSON(STORAGE_KEYS.lookupTasks,{active,queue,savedAt:new Date().toISOString()});
+  try{
+    writeJSON(STORAGE_KEYS.lookupTasks,{active,queue,savedAt:new Date().toISOString()});
+    lookupTaskStorageWarningShown=false;
+    return true;
+  }catch(error){
+    console.warn('查询队列暂时无法写入本地存储。',error);
+    if(!lookupTaskStorageWarningShown){
+      lookupTaskStorageWarningShown=true;
+      notify('查询仍会继续，但刷新后的任务恢复暂不可用；请先导出历史并清理浏览器存储。','warn','队列未持久化',false);
+    }
+    return false;
+  }
 }
 function hydrateLookupTasks(){
   const recovered=LookupTasks.recoverRequests(readJSON(STORAGE_KEYS.lookupTasks,{}),getHistory());
@@ -3394,7 +3493,7 @@ function renderLookupQueue(){
   els.lookupQueue.classList.toggle('queue-expanded',lookupQueueExpanded);
   els.lookupQueue.innerHTML=`
     <button class="queue-head" type="button" onclick="toggleLookupQueueDetails()" aria-expanded="${lookupQueueExpanded}">
-      <b>查询队列</b><span>${lookupQueue.length} 条等待 <i aria-hidden="true">${lookupQueueExpanded?'⌃':'⌄'}</i></span>
+      <b>查询队列</b><span>${lookupQueue.length} 条等待 ${icon(lookupQueueExpanded?'chevron-up':'chevron-down')}</span>
     </button>
     <div class="queue-list">
       ${lookupQueue.map((item,index)=>`
@@ -3405,10 +3504,10 @@ function renderLookupQueue(){
             <span>${item.recovered?'恢复任务 · ':''}${escapeHTML([item.direction,item.note,foldersFromIds(item.folderIds||[]).map(folder=>folder.name).join('、')].filter(Boolean).join(' · ')||'默认规则')}</span>
           </div>
           <div class="queue-actions">
-            <button class="icon-btn" data-tip="上移" onclick="moveLookupQueueItem(${Number(item.id)},-1)">↑</button>
-            <button class="icon-btn" data-tip="下移" onclick="moveLookupQueueItem(${Number(item.id)},1)">↓</button>
-            <button class="icon-btn" data-tip="插队到最前" onclick="promoteLookupQueueItem(${Number(item.id)})">↟</button>
-            <button class="icon-btn danger-icon" data-tip="移除" onclick="removeLookupQueueItem(${Number(item.id)})">×</button>
+            <button class="icon-btn" data-tip="上移" aria-label="上移" onclick="moveLookupQueueItem(${Number(item.id)},-1)">${icon('arrow-up')}</button>
+            <button class="icon-btn" data-tip="下移" aria-label="下移" onclick="moveLookupQueueItem(${Number(item.id)},1)">${icon('arrow-down')}</button>
+            <button class="icon-btn" data-tip="插队到最前" aria-label="插队到最前" onclick="promoteLookupQueueItem(${Number(item.id)})">${icon('chevrons-up')}</button>
+            <button class="icon-btn danger-icon" data-tip="移除" aria-label="移除" onclick="removeLookupQueueItem(${Number(item.id)})">${icon('x')}</button>
           </div>
         </article>
       `).join('')}
@@ -3486,11 +3585,12 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   try{
     const data=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
-    const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
-    currentHistoryId=saved.id;
-    currentFollowups=saved.followups||[];
+    const {item:saved,persisted}=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
+    currentHistoryId=persisted?saved.id:null;
+    currentFollowups=persisted?saved.followups||[]:[];
     renderResult(data,{animate:false});
-    notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
+    if(persisted)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
+    else notify('模型结果已生成并保留在当前页面，但没有写入历史。请先用结果区的保存按钮导出 JSON。','warn','结果尚未保存',false);
   }catch(error){
     if(isStaleLookup(runId,query))return;
     renderLookupError(query,error);
@@ -3818,7 +3918,7 @@ async function analyzeHeaders(hasLocalEndpoint){
 function addHistory(item){
   const history=getHistory().filter(existing=>normalizeSearch(existing.query)!==normalizeSearch(item.query));
   history.unshift(normalizeHistoryItem(item));
-  setHistory(history,{revive:true});
+  return setHistory(history,{revive:true});
 }
 function findHistoryByQuery(query){
   const normalized=normalizeSearch(query);
@@ -3855,14 +3955,15 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
       updatedAt:now,
       rolls:nextRolls,
     };
-    setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item),{revive:true});
+    const persisted=setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item),{revive:true});
+    return {item:saved,persisted};
   }else{
     saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',favoriteUpdatedAt:favorite?now:'',tags:[],tagsUpdatedAt:'',folderIds:selectedFolderIds,foldersUpdatedAt:selectedFolderIds.length?now:'',lookupSignature:String(lookupSignature||''),lookupCompletedAt:now,createdAt:now,updatedAt:now,rolls:[roll]};
     const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
     next.unshift(saved);
-    setHistory(next,{revive:true});
+    const persisted=setHistory(next,{revive:true});
+    return {item:saved,persisted};
   }
-  return saved;
 }
 function historyBatchSize(){
   return window.matchMedia?.('(max-width: 900px)').matches?18:42;
@@ -4021,10 +4122,10 @@ function renderHistory(){
         </div>
       </div>
       <div class="history-actions">
-        <button class="icon-btn" data-tip="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">＋</button>
-        <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
-        <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
-        <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
+        <button class="icon-btn" data-tip="添加到收藏夹" aria-label="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">${icon('folder-plus')}</button>
+        <button class="icon-btn" data-tip="重新生成" aria-label="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">${icon('refresh-cw')}</button>
+        <button class="icon-btn" data-tip="查看" aria-label="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">${icon('arrow-up-right')}</button>
+        <button class="icon-btn danger-icon" data-tip="删除" aria-label="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">${icon('trash-2')}</button>
       </div>
     </div>
   `;
@@ -4234,6 +4335,7 @@ function createFavoriteFolderFromSelector(){
   const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
   if(!name)return;
   const folder=createFavoriteFolderRecord(name);
+  if(!folder)return;
   if(folderSelectContext)folderSelectContext.selectedIds=normalizeSelectableFolderIds([...(folderSelectContext.selectedIds||[]),folder.id]);
   renderFolderSelectModal();
 }
@@ -4241,7 +4343,7 @@ function createFavoriteFolderRecord(name){
   const settings=getSettings();
   const now=new Date().toISOString();
   const folder={id:`folder_${Date.now()}_${stableHash(name)}`,name,parentId:'',order:settings.favoriteFolders.length,createdAt:now,updatedAt:now};
-  setSettings({...settings,favoriteFolders:[...settings.favoriteFolders,folder],favoriteFolderOrder:[...settings.favoriteFolderOrder,folder.id],favoriteFolderOrderUpdatedAt:now,updatedAt:now});
+  if(!setSettings({...settings,favoriteFolders:[...settings.favoriteFolders,folder],favoriteFolderOrder:[...settings.favoriteFolderOrder,folder.id],favoriteFolderOrderUpdatedAt:now,updatedAt:now}))return null;
   renderFolderManager();
   renderFoldersView();
   notify(`已创建收藏夹「${name}」。`,'good','收藏夹');
@@ -4259,8 +4361,7 @@ function saveFolderSelection(){
     closeFolderSelectModal();
     return;
   }
-  applyFolderSelectionToHistory(folderSelectContext.historyId,ids);
-  closeFolderSelectModal();
+  if(applyFolderSelectionToHistory(folderSelectContext.historyId,ids))closeFolderSelectModal();
 }
 function applyFolderSelectionToHistory(historyId,ids=[]){
   const now=new Date().toISOString();
@@ -4282,9 +4383,10 @@ function applyFolderSelectionToHistory(historyId,ids=[]){
       updatedAt:now,
     };
   });
-  setHistory(history);
+  if(!setHistory(history))return false;
   renderFolderManager();
   notify('收藏夹已更新。','good','收藏夹');
+  return true;
 }
 function openHistoryFolderSelector(id,event){
   event?.stopPropagation();
@@ -4312,7 +4414,7 @@ function renderFoldersView(){
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
       <b>我的收藏夹</b>
-      <button class="icon-btn" type="button" data-tip="新建收藏夹" onclick="createFavoriteFolder()">＋</button>
+      <button class="icon-btn" type="button" data-tip="新建收藏夹" aria-label="新建收藏夹" onclick="createFavoriteFolder()">${icon('folder-plus')}</button>
     </div>
     <div class="folder-tab-list">
       ${folders.map(folder=>`
@@ -4322,7 +4424,7 @@ function renderFoldersView(){
             <b>${escapeHTML(folder.name)}</b>
             <em>${Number(folder.count||0)}</em>
           </button>
-          ${folder.system?'':`<button class="folder-tab-delete" type="button" data-tip="删除收藏夹" onclick="deleteFavoriteFolder('${escapeAttr(folder.id)}')">×</button>`}
+          ${folder.system?'':`<button class="folder-tab-delete" type="button" data-tip="删除收藏夹" aria-label="删除收藏夹" onclick="deleteFavoriteFolder('${escapeAttr(folder.id)}')">${icon('x')}</button>`}
         </article>
       `).join('')}
     </div>
@@ -4378,10 +4480,10 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
         </div>
       </div>
       <div class="history-actions">
-        <button class="icon-btn" data-tip="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">＋</button>
-        <button class="icon-btn" data-tip="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">↻</button>
-        <button class="icon-btn" data-tip="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">↗️</button>
-        <button class="icon-btn danger-icon" data-tip="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">×</button>
+        <button class="icon-btn" data-tip="添加到收藏夹" aria-label="添加到收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">${icon('folder-plus')}</button>
+        <button class="icon-btn" data-tip="重新生成" aria-label="重新生成" onclick="event.stopPropagation();regenerateHistory(${Number(item.id)})">${icon('refresh-cw')}</button>
+        <button class="icon-btn" data-tip="查看" aria-label="查看" onclick="event.stopPropagation();openHistoryModal(${Number(item.id)})">${icon('arrow-up-right')}</button>
+        <button class="icon-btn danger-icon" data-tip="删除" aria-label="删除" onclick="event.stopPropagation();deleteHistory(${Number(item.id)})">${icon('trash-2')}</button>
       </div>
     </div>
   `;
@@ -4724,7 +4826,7 @@ function renderHistoryFilterGroup(key,label,values=[]){
     <button class="history-filter-trigger ${next.length?'active':''}" type="button">
       <span>${escapeHTML(label)}</span>
       <b>${escapeHTML(summary)}</b>
-      <i aria-hidden="true">⌄</i>
+      ${icon('chevron-down')}
     </button>
     <div class="history-filter-menu">
       <button class="history-filter-clear" type="button" ${next.length?'':'disabled'}>—</button>
@@ -4818,7 +4920,7 @@ async function renameFavoriteFolder(folderId){
   const settings=getSettings();
   const now=new Date().toISOString();
   const folders=upsertFavoriteFolder({...folder,name,updatedAt:now},settings.favoriteFolders);
-  setSettings({...settings,favoriteFolders:folders,updatedAt:now});
+  if(!setSettings({...settings,favoriteFolders:folders,updatedAt:now}))return;
   renderFolderManager();
   renderFoldersView();
   notify(`已重命名为「${name}」。`,'good','收藏夹');
@@ -4831,7 +4933,7 @@ async function deleteFavoriteFolder(folderId){
   if(!mode)return;
   const now=new Date().toISOString();
   const currentHistory=getHistory();
-  if(mode==='records')recordHistoryDeletions(currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)));
+  const deletedItems=mode==='records'?currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)):[];
   const history=mode==='records'
     ? currentHistory.filter(item=>!itemFolderIds(item).includes(folder.id))
     : currentHistory.map(item=>{
@@ -4847,10 +4949,10 @@ async function deleteFavoriteFolder(folderId){
       };
     });
   const settings=getSettings();
-  setSettings({...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),favoriteFolderTombstones:SettingsData.addTombstone(settings.favoriteFolderTombstones,folder.id,now),favoriteFolderOrder:settings.favoriteFolderOrder.filter(id=>id!==folder.id),favoriteFolderOrderUpdatedAt:now,updatedAt:now});
+  const nextSettings={...settings,favoriteFolders:settings.favoriteFolders.filter(item=>item.id!==folder.id),favoriteFolderTombstones:SettingsData.addTombstone(settings.favoriteFolderTombstones,folder.id,now),favoriteFolderOrder:settings.favoriteFolderOrder.filter(id=>id!==folder.id),favoriteFolderOrderUpdatedAt:now,updatedAt:now};
+  if(!setHistoryAndSettings(history,nextSettings,{deletedItems}))return;
   historyState.filters.folder=historyState.filters.folder.filter(id=>id!==folder.id);
   if(folderState.activeId===folder.id)folderState.activeId=FOLDER_LIKED_ID;
-  setHistory(history);
   renderFolderManager();
   renderFoldersView();
   notify(mode==='records'?`已删除「${folder.name}」及其中 ${count} 条记录。`:`已移除收藏夹「${folder.name}」，记录已保留。`,'good','收藏夹');
@@ -4898,7 +5000,7 @@ function ensureFoldersPersistedForOrder(folders=[]){
     .filter(folder=>!existingIds.has(folder.id))
     .map((folder,index)=>normalizeFavoriteFolder({...folder,order:settings.favoriteFolders.length+index,updatedAt:now},settings.favoriteFolders.length+index))
     .filter(Boolean);
-  setSettings({
+  return setSettings({
     ...settings,
     favoriteFolders:[...settings.favoriteFolders,...missing],
     favoriteFolderOrder:ordered.map(folder=>folder.id),
@@ -5090,7 +5192,7 @@ function visualTextarea(id,label,value){
 }
 function visualList(kind,title,items,renderer){
   return `<section class="visual-section">
-    <div class="visual-head"><b>${escapeHTML(title)}</b><button class="plain-btn icon-add-btn" type="button" data-tip="新增" onclick="addVisualItem('${kind}')">+</button></div>
+    <div class="visual-head"><b>${escapeHTML(title)}</b><button class="plain-btn icon-add-btn" type="button" data-tip="新增" aria-label="新增" onclick="addVisualItem('${kind}')">${icon('plus')}</button></div>
     <div class="visual-list ${items.length?'':'empty'}">
       ${items.length?items.map((item,index)=>renderer(item,index)).join(''):'<div class="empty small-empty">暂无，可点击新增。</div>'}
     </div>
@@ -5098,7 +5200,7 @@ function visualList(kind,title,items,renderer){
 }
 function renderVisualSense(item={},index=0){
   return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'senses',${index})" ondragover="overVisualDrag(event,'senses',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'senses',${index})" data-visual-kind="senses" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
+    <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
     <div class="visual-grid compact visual-sense-grid">
       ${visualInlineField('partOfSpeech','词性',item.partOfSpeech||'')}
       ${visualInlineField('shortestLabel','义标',item.shortestLabel||'')}
@@ -5112,7 +5214,7 @@ function renderVisualSense(item={},index=0){
 }
 function renderVisualCollocation(item={},index=0){
   return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'collocations',${index})" ondragover="overVisualDrag(event,'collocations',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'collocations',${index})" data-visual-kind="collocations" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
+    <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('phrase','短语',item.phrase||'')}
       ${visualInlineField('note','标注',item.note||'')}
@@ -5126,7 +5228,7 @@ function renderVisualCollocation(item={},index=0){
 }
 function renderVisualConfusion(item={},index=0){
   return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'confusions',${index})" ondragover="overVisualDrag(event,'confusions',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'confusions',${index})" data-visual-kind="confusions" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">⋮⋮</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
+    <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('term','词',item.term||'')}
       ${visualInlineTextarea('difference','核心区别',item.difference||'')}
@@ -5142,7 +5244,7 @@ function visualInlineTextarea(key,label,value){
 }
 function visualHintHTML(key){
   const hint=VISUAL_FIELD_HINTS[key]||['填写提示','按当前字段含义填写，保持简洁、准确，并能同步回 JSON。'];
-  return `<div class="visual-hint-pinned"><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div><div class="visual-hint-bubble" role="note"><button type="button" class="visual-hint-close" aria-label="关闭提示">×</button><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div>`;
+  return `<div class="visual-hint-pinned"><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div><div class="visual-hint-bubble" role="note"><button type="button" class="visual-hint-close" aria-label="关闭提示">${icon('x')}</button><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div>`;
 }
 function collectVisualResult(){
   const data=cloneResult(modalResult||{});
@@ -5494,8 +5596,8 @@ function saveHistoryEdit(){
     modalRollId=updatedRolls[selectedIndex]?historyRollViewKey(updatedRolls[selectedIndex],selectedIndex):modalRollId;
     return {...normalized,query,tags:[],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
-  if(originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query))recordHistoryDeletions([originalItem]);
-  setHistory(history,{revive:true});
+  const renamedItems=originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query)?[originalItem]:[];
+  if(!setHistory(history,{revive:true,deletedItems:renamedItems}))return;
   modalResult=parsed;
   els.modalTitle.textContent=query;
   const updatedItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
@@ -5565,7 +5667,7 @@ function renderModalRollbar(item){
         </button>
       `).join('')}
     </div>
-    <button class="icon-btn primary-icon reroll-btn" data-tip="重新生成" aria-label="重新生成" onclick="regenerateModalHistory()">↻</button>
+    <button class="icon-btn primary-icon reroll-btn" data-tip="重新生成" aria-label="重新生成" onclick="regenerateModalHistory()">${icon('refresh-cw')}</button>
   `;
 }
 function setModalRoll(rollId){
@@ -5596,7 +5698,7 @@ function moveModalRoll(from,to){
   rolls.splice(target,0,roll);
   modalRollId=historyRollViewKey(roll,target);
   const updated={...normalized,rolls,result:roll.result,updatedAt:new Date().toISOString()};
-  setHistory(getHistory().map(row=>Number(row.id)===Number(modalHistoryId)?updated:row));
+  if(!setHistory(getHistory().map(row=>Number(row.id)===Number(modalHistoryId)?updated:row)))return;
   modalResult=roll.result;
   els.modalCardPage.innerHTML=renderResultHTML(roll.result,updated.followups||[],'modal',updated);
   els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
@@ -5650,16 +5752,15 @@ function exportModalJSON(){
 async function deleteHistory(id){
   if(!await askConfirm('确认删除这条历史记录？','删除记录'))return;
   const history=getHistory();
-  recordHistoryDeletions(history.filter(item=>Number(item.id)===Number(id)));
-  setHistory(history.filter(item=>Number(item.id)!==Number(id)));
+  const deletedItems=history.filter(item=>Number(item.id)===Number(id));
+  if(!setHistory(history.filter(item=>Number(item.id)!==Number(id)),{deletedItems}))return;
   notify('记录已删除。','good','历史记录');
 }
 async function clearHistory(){
   const history=getHistory();
   const count=history.length;
   if(!await askConfirm(`确认清空全部 ${count} 条历史记录？这会同步到云端，所有设备都会清空。`,'危险操作：清空历史'))return;
-  recordHistoryDeletions(history);
-  setHistory([]);
+  if(!setHistory([],{deletedItems:history}))return;
   notify('历史记录已清空。','good','历史记录');
 }
 function exportHistory(){downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2))}
@@ -5791,7 +5892,7 @@ async function importHistoryFromText(){
     if(!stats.newCount&&!stats.changedCount)return notify('导入内容和当前历史完全重叠，不需要合并。','warn','历史导入');
     const ok=await askConfirm(`将合并导入 ${stats.rawCount} 条历史：新增 ${stats.newCount} 条，更新 ${stats.changedCount} 条重叠记录。当前 ${stats.currentCount} 条，合并后 ${stats.mergedCount} 条。继续？`,'合并导入历史');
     if(!ok)return;
-    setHistory(stats.merged,{revive:true});
+    if(!setHistory(stats.merged,{revive:true}))return;
     renderHistoryImportStatus(stats,'good');
     notify(`已合并导入：新增 ${stats.newCount}，更新 ${stats.changedCount}。`,'good','历史导入');
   }catch(error){
@@ -5926,7 +6027,7 @@ function copyModelPrompt(){
 function saveModelPrompt(){
   const text=els.modelPromptEditor?.value.trim()||'';
   const settings=getSettings();
-  setSettings({...settings,modelPrompt:text,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,modelPrompt:text,updatedAt:new Date().toISOString()}))return;
   renderModelPromptSettings(getSettings());
   notify(text?'自定义 Prompt 已保存。':'已切回默认 Prompt。','good','Prompt');
 }
@@ -5936,7 +6037,7 @@ async function resetModelPrompt(){
     const ok=await askConfirm('确认恢复默认 Prompt？当前自定义 Prompt 会被清空，并随云端同步。','恢复默认 Prompt');
     if(!ok)return;
   }
-  setSettings({...settings,modelPrompt:'',updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,modelPrompt:'',updatedAt:new Date().toISOString()}))return;
   renderModelPromptSettings(getSettings());
   notify('已恢复默认 Prompt。','good','Prompt');
 }
@@ -5948,13 +6049,13 @@ function renderApiProfilePicker(settings,profile){
     <div class="api-profile-menu-list">
       ${settings.apiProfiles.map((item,index)=>`
         <div class="api-profile-option ${item.id===profile.id?'active':''}" draggable="true" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
-          <span class="api-profile-drag" aria-hidden="true">⋮⋮</span>
+          <span class="api-profile-drag" aria-hidden="true">${icon('grip-vertical')}</span>
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
             <em>${escapeHTML(apiProfileSummary(item))}</em>
           </button>
           <button class="api-profile-edit" type="button" data-profile-action="edit">编辑</button>
-          <button class="api-profile-delete" type="button" data-profile-action="delete" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">×</button>
+          <button class="api-profile-delete" type="button" data-profile-action="delete" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">${icon('x')}</button>
         </div>
       `).join('')}
     </div>
@@ -6020,7 +6121,7 @@ function setupSettingGroupToggles(){
     const title=group.querySelector('.setting-title');
     if(!title||title.querySelector('.setting-collapse-btn'))return;
     const text=title.textContent.trim()||`模块 ${index+1}`;
-    title.innerHTML=`<span>${escapeHTML(text)}</span><button class="setting-collapse-btn" type="button" aria-label="折叠 ${escapeAttr(text)}">⌄</button>`;
+    title.innerHTML=`<span>${escapeHTML(text)}</span><button class="setting-collapse-btn" type="button" aria-label="折叠 ${escapeAttr(text)}">${icon('chevron-down')}</button>`;
     title.querySelector('.setting-collapse-btn')?.addEventListener('click',event=>{
       event.stopPropagation();
       group.classList.toggle('collapsed');
@@ -6042,7 +6143,7 @@ function applyLabelMode(mode){
 function setLabelMode(mode){
   const next=normalizeLabelMode(mode);
   const settings=getSettings();
-  setSettings({...settings,labelMode:next,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,labelMode:next,updatedAt:new Date().toISOString()}))return;
   applyLabelMode(next);
   renderHistory();
   if(currentResult)renderResult(currentResult);
@@ -6066,7 +6167,7 @@ function fontModeLabel(mode){
 function setFontMode(mode){
   const next=normalizeFontMode(mode);
   const settings=getSettings();
-  setSettings({...settings,fontMode:next,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,fontMode:next,updatedAt:new Date().toISOString()}))return;
   applyFontMode(next);
   notify(`字体风格已切换为${fontModeLabel(next)}。`,'good','显示设置');
 }
@@ -6082,7 +6183,7 @@ function applyHistoryTimeMode(mode){
 function setHistoryTimeMode(mode){
   const next=normalizeHistoryTimeMode(mode);
   const settings=getSettings();
-  setSettings({...settings,historyTimeMode:next,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,historyTimeMode:next,updatedAt:new Date().toISOString()}))return;
   applyHistoryTimeMode(next);
   renderHistory();
   if(modalHistoryId){
@@ -6099,7 +6200,7 @@ function applyHomeStickyMode(mode){
 function setHomeStickyMode(mode){
   const next=normalizeHomeStickyMode(mode);
   const settings=getSettings();
-  setSettings({...settings,homeStickyMode:next,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,homeStickyMode:next,updatedAt:new Date().toISOString()}))return;
   applyHomeStickyMode(next);
   if(document.body.classList.contains('home-scrolled')){
     lookupOptionsExpanded=next==='expanded';
@@ -6117,7 +6218,7 @@ function applyVisualHintsPinned(value){
 function setVisualHintsPinned(value){
   const enabled=normalizeBooleanSetting(value,false);
   const settings=getSettings();
-  setSettings({...settings,visualHintsPinned:enabled,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,visualHintsPinned:enabled,updatedAt:new Date().toISOString()}))return;
   applyVisualHintsPinned(enabled);
   renderVisualEditor(modalResult);
   notify(enabled?'可视化填写提示已设为常驻。':'可视化填写提示改为聚焦时显示。','good','显示设置');
@@ -6198,7 +6299,10 @@ function saveApiProfileFromModal(){
     const apiProfileOrder=exists
       ? settings.apiProfileOrder
       : [id,...settings.apiProfileOrder.filter(profileId=>profileId!==id)];
-    saveSettingsLocal({...settings,apiProfiles:profiles,apiProfileOrder,apiProfileOrderUpdatedAt:exists?settings.apiProfileOrderUpdatedAt:now,activeApiProfileId:id,updatedAt:now});
+    if(!saveSettingsLocal({...settings,apiProfiles:profiles,apiProfileOrder,apiProfileOrderUpdatedAt:exists?settings.apiProfileOrderUpdatedAt:now,activeApiProfileId:id,updatedAt:now})){
+      setApiProfileModalStatus('浏览器本地空间不足，配置没有保存。','bad');
+      return;
+    }
     hydrateSettings();
     closeApiProfileModal();
     notify(`已保存「${draft.name}」。`,'good','API 配置');
@@ -6265,7 +6369,7 @@ async function resetModelSettings(){
   const apiProfileTombstones=settings.apiProfiles
     .filter(profile=>profile.id!==DEFAULT_API_PROFILE.id)
     .reduce((items,profile)=>SettingsData.addTombstone(items,profile.id,now),settings.apiProfileTombstones);
-  setSettings({...settings,apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones,apiProfileOrder:['default'],apiProfileOrderUpdatedAt:now,activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:now});
+  if(!setSettings({...settings,apiProfiles:[DEFAULT_API_PROFILE],apiProfileTombstones,apiProfileOrder:['default'],apiProfileOrderUpdatedAt:now,activeApiProfileId:'default',apiUrl:'',apiKey:'',model:'',updatedAt:now}))return;
   hydrateSettings();
   closeApiProfileMenu();
   notify('接口配置已恢复默认。','good','设置');
@@ -6273,7 +6377,7 @@ async function resetModelSettings(){
 function selectApiProfile(id){
   const settings=getSettings();
   if(!settings.apiProfiles.some(profile=>profile.id===id))return;
-  setSettings({...settings,activeApiProfileId:id,updatedAt:new Date().toISOString()});
+  if(!setSettings({...settings,activeApiProfileId:id,updatedAt:new Date().toISOString()}))return;
   hydrateSettings();
   closeApiProfileMenu();
 }
@@ -6287,7 +6391,7 @@ function moveApiProfile(id,delta){
   const [item]=profiles.splice(index,1);
   profiles.splice(nextIndex,0,item);
   const now=new Date().toISOString();
-  setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now});
+  if(!setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now}))return;
   renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
   requestAnimationFrame(positionApiProfileMenu);
   notify('配置顺序已调整。','good','API 配置');
@@ -6339,7 +6443,7 @@ function reorderApiProfile(from,to){
   const [item]=profiles.splice(from,1);
   profiles.splice(target,0,item);
   const now=new Date().toISOString();
-  setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now});
+  if(!setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now}))return;
   renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
   requestAnimationFrame(positionApiProfileMenu);
   notify('配置顺序已调整。','good','API 配置');
@@ -6357,7 +6461,7 @@ async function deleteApiProfile(id=null){
   const activeId=current.id===settings.activeApiProfileId?nextProfiles[0].id:settings.activeApiProfileId;
   const now=new Date().toISOString();
   const apiProfileTombstones=SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now);
-  setSettings({...settings,apiProfiles:nextProfiles,apiProfileTombstones,apiProfileOrder:nextProfiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,activeApiProfileId:activeId,updatedAt:now});
+  if(!setSettings({...settings,apiProfiles:nextProfiles,apiProfileTombstones,apiProfileOrder:nextProfiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,activeApiProfileId:activeId,updatedAt:now}))return;
   hydrateSettings();
   closeApiProfileMenu();
   notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置');
@@ -6452,7 +6556,7 @@ function renderAbout(){
             <ul>${entry.items.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul>
           </details>
         `).join('')}
-        ${archivedCount?`<button class="release-more-btn ${aboutShowAllReleases?'active':''}" type="button" aria-expanded="${aboutShowAllReleases}" onclick="toggleAboutReleases()"><span>${aboutShowAllReleases?'收起较早版本':`查看更早的 ${archivedCount} 个版本`}</span><i aria-hidden="true">⌄</i></button>`:''}
+        ${archivedCount?`<button class="release-more-btn ${aboutShowAllReleases?'active':''}" type="button" aria-expanded="${aboutShowAllReleases}" onclick="toggleAboutReleases()"><span>${aboutShowAllReleases?'收起较早版本':`查看更早的 ${archivedCount} 个版本`}</span>${icon('chevron-down')}</button>`:''}
       </div>
     </div>
   `;
@@ -6515,7 +6619,7 @@ function saveLookupDraft(){
     updatedAt:new Date().toISOString(),
   };
   if(draft.query.trim()||draft.direction.trim()||draft.note.trim()||draft.folderIds.length){
-    writeJSON(STORAGE_KEYS.lookupDraft,draft);
+    try{writeJSON(STORAGE_KEYS.lookupDraft,draft)}catch(error){console.warn('查询草稿暂时无法写入本地存储。',error)}
   }else{
     localStorage.removeItem(STORAGE_KEYS.lookupDraft);
   }
