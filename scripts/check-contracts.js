@@ -128,6 +128,10 @@ expect(!/function normalizeApiProfile[\s\S]{0,700}Date\.now\(\)/.test(app), 'API
 expect(app.includes("homeStickyMode:'compact'"), 'Home sticky controls must default to compact mode');
 expect(app.includes("homeStickyMode:preferLocalSettings?local.homeStickyMode"), 'Home sticky preference must participate in settings merge');
 expect(html.includes('id="lookup-options-toggle"')&&html.includes('id="sticky-mode-compact"'), 'Home sticky controls and preference UI must exist');
+expect(!html.includes('id="top-settings-btn"'), 'Top navigation must not duplicate the settings destination');
+expect(app.includes("lookupOptionsExpanded=!narrow||getSettings().homeStickyMode==='expanded'"), 'Desktop sticky lookup must preserve direction and folder controls');
+expect(app.includes('createReorderGhost')&&app.includes('animateDomReorder'), 'Long-press reorder must use a ghost and animated sibling movement');
+expect(app.includes('persistModalRollOrder')&&app.includes('persistApiProfileOrder'), 'Pointer reorder must persist version and API profile order');
 expect(html.includes('onclick="openFoldersRoot(this)"')&&app.includes('folderIdFromPath'), 'Folders must expose a mobile root/detail navigation path');
 expect(app.includes("fromFolderRoot:true")&&app.includes("window.history.state?.fromFolderRoot"), 'Folder detail back must distinguish in-app navigation from direct deep links');
 expect(app.includes('lookupSignature:activeLookupSignature'), 'Successful lookups must persist an exact recovery completion signature');

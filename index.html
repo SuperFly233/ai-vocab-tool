@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/styles.css?v=0.14.0">
+<link rel="stylesheet" href="/styles.css?v=0.14.1">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -61,7 +61,6 @@
         <button id="top-theme-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统"><i data-lucide="monitor"></i></button>
         <button id="top-theme-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题"><i data-lucide="sun"></i></button>
       </div>
-      <button class="topbar-utility-btn" id="top-settings-btn" data-tip="设置" onclick="showView('settings')" aria-label="打开设置"><i data-lucide="settings"></i></button>
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()"><span class="account-avatar"><i data-lucide="user-round"></i></span><span id="account-toggle-label">账号</span></button>
     </div>
   </div>
@@ -269,7 +268,7 @@
           </div>
         </div>
         <div class="setting-row">
-          <div><div class="setting-label">首页滚动工具栏</div><div class="setting-sub">智能收起会在滚动后只保留主搜索，并把方向、收藏夹和队列分层收纳。</div></div>
+          <div><div class="setting-label">手机端滚动工具栏</div><div class="setting-sub">智能收起只作用于窄屏；电脑端固定条始终保留方向和收藏夹。</div></div>
           <div class="seg sticky-mode-seg">
             <button id="sticky-mode-compact" onclick="setHomeStickyMode('compact')">智能收起</button>
             <button id="sticky-mode-expanded" onclick="setHomeStickyMode('expanded')">保持展开</button>
@@ -516,12 +515,12 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/icons.js?v=0.14.0"></script>
-<script src="/history-data.js?v=0.14.0"></script>
-<script src="/settings-data.js?v=0.14.0"></script>
-<script src="/storage-state.js?v=0.14.0"></script>
-<script src="/lookup-tasks.js?v=0.14.0"></script>
-<script src="/sync-state.js?v=0.14.0"></script>
-<script src="/app.js?v=0.14.0"></script>
+<script src="/icons.js?v=0.14.1"></script>
+<script src="/history-data.js?v=0.14.1"></script>
+<script src="/settings-data.js?v=0.14.1"></script>
+<script src="/storage-state.js?v=0.14.1"></script>
+<script src="/lookup-tasks.js?v=0.14.1"></script>
+<script src="/sync-state.js?v=0.14.1"></script>
+<script src="/app.js?v=0.14.1"></script>
 </body>
 </html>

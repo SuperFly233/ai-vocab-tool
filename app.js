@@ -154,12 +154,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.14.0',
+  version:'0.14.1',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.14.1',
+    date:'2026-08-03',
+    title:'修正吸顶上下文，并统一长按排序',
+    items:['移除顶部重复的设置齿轮，只保留导航中的设置入口；桌面首页吸顶后继续显示语言方向、侧重点与收藏夹，手机仍使用两层折叠以控制占用高度。','API 配置、历史版本和可视化编辑区块统一改为长按拖拽：拖动时显示轻量浮层，经过条目时平滑交换，并在靠近容器边缘时适速自动滚动。','删除旧的原生拖拽与上下移动实现，补充界面契约检查，防止重复入口、桌面吸顶信息丢失或排序交互退回旧逻辑。'],
+  },
   {
     version:'0.14.0',
     date:'2026-08-03',
@@ -2071,7 +2077,7 @@ function historyRollContentKey(roll={}){
   return JSON.stringify(comparableResultValue(roll.result||{}));
 }
 function historyRollViewKey(roll={},index=0){
-  return `${String(roll.id||'roll')}|${index}|${stableHash(historyRollContentKey(roll))}`;
+  return `${String(roll.id||'roll')}|${stableHash(historyRollContentKey(roll))}`;
 }
 function normalizeHistoryItems(items){
   return Array.isArray(items)?items.map(normalizeHistoryItem).filter(item=>item.query||item.result):[];
@@ -2393,7 +2399,6 @@ function showView(id,button,options={}){
   document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${next}`));
   document.querySelectorAll('.nav-item').forEach(item=>item.classList.remove('active'));
   (button||document.getElementById(`nav-${next}`))?.classList.add('active');
-  document.getElementById('top-settings-btn')?.classList.toggle('active',next==='settings');
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
   if(next==='settings')renderSettings();
@@ -2438,17 +2443,16 @@ function focusQueryInput(){
 }
 function updateHomeStickyState(){
   const compact=activeView==='home'&&window.scrollY>56;
+  const narrow=window.matchMedia('(max-width:900px)').matches;
   const wasCompact=document.body.classList.contains('home-scrolled');
   document.body.classList.toggle('home-scrolled',compact);
   if(compact!==wasCompact){
-    if(compact&&getSettings().homeStickyMode==='compact'){
-      lookupOptionsExpanded=false;
+    if(compact){
+      lookupOptionsExpanded=!narrow||getSettings().homeStickyMode==='expanded';
       lookupQueueExpanded=false;
-    }else if(!compact){
+    }else{
       lookupOptionsExpanded=true;
       lookupQueueExpanded=true;
-    }else if(compact){
-      lookupOptionsExpanded=true;
     }
     applyLookupOptionsState();
     renderLookupQueue();
@@ -5319,7 +5323,7 @@ function visualList(kind,title,items,renderer){
   </section>`;
 }
 function renderVisualSense(item={},index=0){
-  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'senses',${index})" ondragover="overVisualDrag(event,'senses',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'senses',${index})" data-visual-kind="senses" data-index="${index}">
+  return `<article class="visual-card" data-visual-kind="senses" data-index="${index}">
     <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
     <div class="visual-grid compact visual-sense-grid">
       ${visualInlineField('partOfSpeech','词性',item.partOfSpeech||'')}
@@ -5333,7 +5337,7 @@ function renderVisualSense(item={},index=0){
   </article>`;
 }
 function renderVisualCollocation(item={},index=0){
-  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'collocations',${index})" ondragover="overVisualDrag(event,'collocations',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'collocations',${index})" data-visual-kind="collocations" data-index="${index}">
+  return `<article class="visual-card" data-visual-kind="collocations" data-index="${index}">
     <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('phrase','短语',item.phrase||'')}
@@ -5347,7 +5351,7 @@ function renderVisualCollocation(item={},index=0){
   </article>`;
 }
 function renderVisualConfusion(item={},index=0){
-  return `<article class="visual-card" draggable="true" ondragstart="startVisualDrag(event,'confusions',${index})" ondragover="overVisualDrag(event,'confusions',${index})" ondragleave="clearVisualDropMarks()" ondragend="endVisualDrag()" ondrop="dropVisualItem(event,'confusions',${index})" data-visual-kind="confusions" data-index="${index}">
+  return `<article class="visual-card" data-visual-kind="confusions" data-index="${index}">
     <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
     <div class="visual-grid compact">
       ${visualInlineField('term','词',item.term||'')}
@@ -5421,70 +5425,23 @@ function removeVisualItem(kind,index){
   modalResult=data;
   renderVisualEditor(data);
 }
-function moveVisualItem(kind,index,delta){
-  const data=collectVisualResult();
-  const list=Array.isArray(data[kind])?data[kind]:[];
-  const nextIndex=Math.max(0,Math.min(list.length-1,index+delta));
-  if(index<0||index>=list.length||nextIndex===index)return;
-  const [item]=list.splice(index,1);
-  list.splice(nextIndex,0,item);
-  data[kind]=list;
-  modalResult=data;
-  renderVisualEditor(data);
-}
-let visualDragState=null;
-function startVisualDrag(event,kind,index){
-  visualDragState={kind,index};
-  event.dataTransfer?.setData('text/plain',`${kind}:${index}`);
-  event.currentTarget?.classList.add('dragging');
-}
-function overVisualDrag(event,kind,index){
-  event.preventDefault();
-  if(!visualDragState||visualDragState.kind!==kind)return;
-  autoScrollDuringDrag(event.clientY);
-  clearVisualDropMarks();
-  const target=event.currentTarget;
-  const rect=target.getBoundingClientRect();
-  target.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
-}
-function clearVisualDropMarks(){
-  document.querySelectorAll('.visual-card.drop-before,.visual-card.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));
-}
-function endVisualDrag(){
-  document.querySelectorAll('.visual-card.dragging').forEach(node=>node.classList.remove('dragging'));
-  clearVisualDropMarks();
-  visualDragState=null;
-}
-function dropVisualItem(event,kind,index){
-  event.preventDefault();
-  event.stopPropagation();
-  const state=visualDragState;
-  const rect=event.currentTarget.getBoundingClientRect();
-  const after=event.clientY>rect.top+rect.height/2;
-  endVisualDrag();
-  if(!state||state.kind!==kind||state.index===index)return;
-  const data=collectVisualResult();
-  const list=Array.isArray(data[kind])?data[kind]:[];
-  const [item]=list.splice(state.index,1);
-  let targetIndex=index+(after?1:0);
-  if(state.index<targetIndex)targetIndex-=1;
-  list.splice(Math.max(0,Math.min(list.length,targetIndex)),0,item);
-  data[kind]=list;
-  modalResult=data;
-  renderVisualEditor(data);
-}
-function autoScrollDuringDrag(clientY){
-  const scroller=els.historyModalBody||document.scrollingElement;
-  if(!scroller||typeof clientY!=='number')return;
+function autoScrollDuringDrag(clientY,scroller=els.historyModalBody||document.scrollingElement,clientX=null,axis='y'){
+  if(!scroller)return;
   const rect=scroller===document.scrollingElement
-    ? {top:0,bottom:window.innerHeight}
+    ? {top:0,bottom:window.innerHeight,left:0,right:window.innerWidth}
     : scroller.getBoundingClientRect();
   const edge=72;
   const maxSpeed=18;
-  let delta=0;
-  if(clientY<rect.top+edge)delta=-Math.round(maxSpeed*(1-(clientY-rect.top)/edge));
-  else if(clientY>rect.bottom-edge)delta=Math.round(maxSpeed*(1-(rect.bottom-clientY)/edge));
-  if(delta)scroller.scrollBy({top:delta,behavior:'auto'});
+  const scroll={top:0,left:0,behavior:'auto'};
+  if(axis.includes('y')&&typeof clientY==='number'){
+    if(clientY<rect.top+edge)scroll.top=-Math.round(maxSpeed*(1-(clientY-rect.top)/edge));
+    else if(clientY>rect.bottom-edge)scroll.top=Math.round(maxSpeed*(1-(rect.bottom-clientY)/edge));
+  }
+  if(axis.includes('x')&&typeof clientX==='number'){
+    if(clientX<rect.left+edge)scroll.left=-Math.round(maxSpeed*(1-(clientX-rect.left)/edge));
+    else if(clientX>rect.right-edge)scroll.left=Math.round(maxSpeed*(1-(rect.right-clientX)/edge));
+  }
+  if(scroll.top||scroll.left)scroller.scrollBy(scroll);
 }
 function reorderDropMeta(clientX,clientY,itemSelector,scope=null){
   const element=document.elementFromPoint(clientX,clientY);
@@ -5500,131 +5457,191 @@ function markDropTarget(meta){
   if(!meta)return;
   meta.item.classList.add(meta.after?'drop-after':'drop-before');
 }
+function createReorderGhost(item,event,label='正在移动'){
+  const ghost=document.createElement('div');
+  ghost.className='reorder-ghost';
+  const title=item.querySelector('b,strong,.api-profile-select span,.roll-btn span')?.textContent?.trim()||label;
+  ghost.innerHTML=`${icon('grip-vertical')}<span>${escapeHTML(title)}</span>`;
+  document.body.appendChild(ghost);
+  positionReorderGhost(ghost,event);
+  return ghost;
+}
+function positionReorderGhost(ghost,event){
+  if(!ghost)return;
+  ghost.style.transform=`translate3d(${Math.round(event.clientX+14)}px,${Math.round(event.clientY+14)}px,0)`;
+}
+function animateDomReorder(container,dragged,target,after){
+  if(!container||!dragged||!target||dragged===target)return false;
+  if(after&&target.nextElementSibling===dragged)return false;
+  if(!after&&target.previousElementSibling===dragged)return false;
+  const children=[...container.children];
+  const before=new Map(children.map(node=>[node,node.getBoundingClientRect()]));
+  container.insertBefore(dragged,after?target.nextSibling:target);
+  [...container.children].forEach(node=>{
+    if(node===dragged)return;
+    const previous=before.get(node);
+    const next=node.getBoundingClientRect();
+    if(!previous)return;
+    const x=previous.left-next.left;
+    const y=previous.top-next.top;
+    if(Math.abs(x)<1&&Math.abs(y)<1)return;
+    node.animate([{transform:`translate(${x}px,${y}px)`},{transform:'translate(0,0)'}],{duration:180,easing:'cubic-bezier(.2,.8,.2,1)'});
+  });
+  return true;
+}
+function cancelPendingPointerDrag(state){
+  if(!state)return;
+  clearTimeout(state.timer);
+  state.ghost?.remove();
+  state.item?.classList.remove('dragging');
+  document.body.classList.remove('reorder-active');
+}
+function shouldCancelPendingDrag(state,event){
+  return !state.active&&Math.hypot(event.clientX-state.startX,event.clientY-state.startY)>9;
+}
 function startVisualPointerDrag(event){
   const handle=event.target.closest('.drag-handle');
   const card=event.target.closest('.visual-card');
-  if(!handle||!card)return;
+  if(!handle||!card||event.button>0)return;
   visualPointerDragState={
     pointerId:event.pointerId,
     kind:card.dataset.visualKind,
-    from:Number(card.dataset.index),
+    item:card,
+    startX:event.clientX,
+    startY:event.clientY,
     active:false,
-    target:null,
+    ghost:null,
     timer:setTimeout(()=>{
       if(!visualPointerDragState)return;
       visualPointerDragState.active=true;
       card.classList.add('dragging');
+      document.body.classList.add('reorder-active');
+      visualPointerDragState.ghost=createReorderGhost(card,event,'编辑区块');
       card.setPointerCapture?.(event.pointerId);
-    },260),
+    },220),
   };
 }
 function moveVisualPointerDrag(event){
   const state=visualPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(shouldCancelPendingDrag(state,event)){
+    cancelPendingPointerDrag(state);
+    visualPointerDragState=null;
+    return;
+  }
   if(!state.active)return;
   event.preventDefault();
-  autoScrollDuringDrag(event.clientY);
+  positionReorderGhost(state.ghost,event);
+  autoScrollDuringDrag(event.clientY,els.historyModalBody);
   clearDropMarks('.visual-card');
   const meta=reorderDropMeta(event.clientX,event.clientY,`.visual-card[data-visual-kind="${state.kind}"]`,els.modalVisualEditor);
-  state.target=meta;
-  markDropTarget(meta);
+  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
 }
 function endVisualPointerDrag(event){
   const state=visualPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
-  clearTimeout(state.timer);
-  document.querySelectorAll('.visual-card.dragging').forEach(node=>node.classList.remove('dragging'));
+  cancelPendingPointerDrag(state);
   clearDropMarks('.visual-card');
   visualPointerDragState=null;
-  if(!state.active||!state.target)return;
-  const toBase=Number(state.target.item.dataset.index);
-  let to=toBase+(state.target.after?1:0);
-  if(state.from<to)to-=1;
-  moveVisualItem(state.kind,state.from,to-state.from);
+  if(!state.active)return;
+  modalResult=collectVisualResult();
+  renderVisualEditor(modalResult);
 }
 function startApiProfilePointerDrag(event){
   const handle=event.target.closest('.api-profile-drag');
   const option=event.target.closest('.api-profile-option');
-  if(!handle||!option)return;
+  if(!handle||!option||event.button>0)return;
   apiProfilePointerDragState={
     pointerId:event.pointerId,
-    from:Number(option.dataset.profileIndex),
+    item:option,
+    startX:event.clientX,
+    startY:event.clientY,
     active:false,
-    target:null,
+    ghost:null,
     timer:setTimeout(()=>{
       if(!apiProfilePointerDragState)return;
       apiProfilePointerDragState.active=true;
       option.classList.add('dragging');
+      document.body.classList.add('reorder-active');
+      apiProfilePointerDragState.ghost=createReorderGhost(option,event,'API 配置');
       option.setPointerCapture?.(event.pointerId);
-    },260),
+    },220),
   };
 }
 function moveApiProfilePointerDrag(event){
   const state=apiProfilePointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(shouldCancelPendingDrag(state,event)){
+    cancelPendingPointerDrag(state);
+    apiProfilePointerDragState=null;
+    return;
+  }
   if(!state.active)return;
   event.preventDefault();
-  autoScrollDuringDrag(event.clientY);
+  positionReorderGhost(state.ghost,event);
+  autoScrollDuringDrag(event.clientY,els.apiProfileMenu);
   clearApiProfileDropMarks();
   const meta=reorderDropMeta(event.clientX,event.clientY,'.api-profile-option',els.apiProfileMenu);
-  state.target=meta;
-  markDropTarget(meta);
+  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
 }
 function endApiProfilePointerDrag(event){
   const state=apiProfilePointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
-  clearTimeout(state.timer);
-  endApiProfileDrag();
+  cancelPendingPointerDrag(state);
+  clearApiProfileDropMarks();
   apiProfilePointerDragState=null;
-  if(!state.active||!state.target)return;
-  const toBase=Number(state.target.item.dataset.profileIndex);
-  let to=toBase+(state.target.after?1:0);
-  if(state.from<to)to-=1;
-  reorderApiProfile(state.from,to);
+  if(!state.active)return;
+  persistApiProfileOrder([...state.item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
 }
 function startRollPointerDrag(event){
   const roll=event.target.closest('.roll-btn');
-  if(!roll)return;
+  if(!roll||event.button>0)return;
   rollPointerDragState={
     pointerId:event.pointerId,
-    from:Number(roll.dataset.rollIndex),
+    item:roll,
+    startX:event.clientX,
+    startY:event.clientY,
     active:false,
-    target:null,
+    ghost:null,
     timer:setTimeout(()=>{
       if(!rollPointerDragState)return;
       rollPointerDragState.active=true;
       suppressRollClick=true;
       roll.classList.add('dragging');
+      document.body.classList.add('reorder-active');
+      rollPointerDragState.ghost=createReorderGhost(roll,event,'版本');
       roll.setPointerCapture?.(event.pointerId);
-    },320),
+    },260),
   };
 }
 function moveRollPointerDrag(event){
   const state=rollPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(shouldCancelPendingDrag(state,event)){
+    cancelPendingPointerDrag(state);
+    rollPointerDragState=null;
+    return;
+  }
   if(!state.active)return;
   event.preventDefault();
-  autoScrollDuringDrag(event.clientY);
+  positionReorderGhost(state.ghost,event);
+  const tabs=els.modalRollbar?.querySelector('.roll-tabs');
+  autoScrollDuringDrag(event.clientY,tabs,event.clientX,'x');
   clearDropMarks('.roll-btn');
   const meta=reorderDropMeta(event.clientX,event.clientY,'.roll-btn',els.modalRollbar);
-  state.target=meta;
-  markDropTarget(meta);
+  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
 }
 function endRollPointerDrag(event){
   const state=rollPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
-  clearTimeout(state.timer);
-  document.querySelectorAll('.roll-btn.dragging').forEach(node=>node.classList.remove('dragging'));
+  cancelPendingPointerDrag(state);
   clearDropMarks('.roll-btn');
   rollPointerDragState=null;
-  if(!state.active||!state.target){
+  if(!state.active){
     setTimeout(()=>{suppressRollClick=false},180);
     return;
   }
-  const toBase=Number(state.target.item.dataset.rollIndex);
-  let to=toBase+(state.target.after?1:0);
-  if(state.from<to)to-=1;
-  moveModalRoll(state.from,to);
+  persistModalRollOrder([...state.item.parentElement.querySelectorAll('.roll-btn')].map(node=>node.dataset.rollKey));
   setTimeout(()=>{suppressRollClick=false},180);
 }
 function startHistoryModalEdgeSwipe(event){
@@ -5806,25 +5823,27 @@ function setModalRoll(rollId){
   renderModalStickySummary(roll.result,item);
   validateModalJSON(false);
 }
-function moveModalRoll(from,to){
+function persistModalRollOrder(keys=[]){
   const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
   if(!item)return;
   const normalized=normalizeHistoryItem(item);
-  const rolls=[...getHistoryRolls(normalized)];
-  if(from<0||from>=rolls.length)return;
-  const target=Math.max(0,Math.min(rolls.length-1,to));
-  if(target===from)return;
-  const [roll]=rolls.splice(from,1);
-  rolls.splice(target,0,roll);
-  modalRollId=historyRollViewKey(roll,target);
-  const updated={...normalized,rolls,result:roll.result,updatedAt:new Date().toISOString()};
+  const current=getHistoryRolls(normalized);
+  const byKey=new Map(current.map((roll,index)=>[historyRollViewKey(roll,index),roll]));
+  const rolls=keys.map(key=>byKey.get(String(key))).filter(Boolean);
+  current.forEach((roll,index)=>{
+    if(!rolls.includes(roll))rolls.push(roll);
+  });
+  if(rolls.length!==current.length||rolls.every((roll,index)=>roll===current[index]))return;
+  const selected=rolls.find((roll,index)=>historyRollViewKey(roll,index)===String(modalRollId))||rolls[0];
+  const updated={...normalized,rolls,result:rolls[0]?.result||normalized.result,updatedAt:new Date().toISOString()};
   if(!setHistory(getHistory().map(row=>Number(row.id)===Number(modalHistoryId)?updated:row)))return;
-  modalResult=roll.result;
-  els.modalCardPage.innerHTML=renderResultHTML(roll.result,updated.followups||[],'modal',updated);
-  els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
-  renderVisualEditor(roll.result);
+  modalRollId=historyRollViewKey(selected,rolls.indexOf(selected));
+  modalResult=selected.result;
+  els.modalCardPage.innerHTML=renderResultHTML(selected.result,updated.followups||[],'modal',updated);
+  els.modalJsonEdit.value=JSON.stringify(selected.result,null,2);
+  renderVisualEditor(selected.result);
   renderModalRollbar(updated);
-  renderModalStickySummary(roll.result,updated);
+  renderModalStickySummary(selected.result,updated);
   notify('版本顺序已调整。','good','版本');
 }
 function validateModalJSON(showSuccess=true){
@@ -6172,7 +6191,7 @@ function renderApiProfilePicker(settings,profile){
     <button class="api-profile-create" type="button" data-profile-action="new">新增配置</button>
     <div class="api-profile-menu-list">
       ${settings.apiProfiles.map((item,index)=>`
-        <div class="api-profile-option ${item.id===profile.id?'active':''}" draggable="true" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
+        <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
           <span class="api-profile-drag" aria-hidden="true">${icon('grip-vertical')}</span>
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
@@ -6328,12 +6347,12 @@ function setHomeStickyMode(mode){
   if(!setSettings({...settings,homeStickyMode:next,updatedAt:new Date().toISOString()}))return;
   applyHomeStickyMode(next);
   if(document.body.classList.contains('home-scrolled')){
-    lookupOptionsExpanded=next==='expanded';
+    lookupOptionsExpanded=!window.matchMedia('(max-width:900px)').matches||next==='expanded';
     if(next==='compact')lookupQueueExpanded=false;
     applyLookupOptionsState();
     renderLookupQueue();
   }
-  notify(next==='compact'?'滚动后会自动收起查询选项。':'滚动后会保持完整查询选项。','good','首页工具栏');
+  notify(next==='compact'?'手机滚动后会自动收起查询选项。':'手机滚动后会保持完整查询选项。','good','首页工具栏');
 }
 function applyVisualHintsPinned(value){
   const enabled=normalizeBooleanSetting(value,false);
@@ -6519,59 +6538,6 @@ function selectApiProfile(id){
   hydrateSettings();
   closeApiProfileMenu();
 }
-function moveApiProfile(id,delta){
-  const settings=getSettings();
-  const index=settings.apiProfiles.findIndex(profile=>profile.id===id);
-  if(index<0)return;
-  const nextIndex=Math.max(0,Math.min(settings.apiProfiles.length-1,index+delta));
-  if(nextIndex===index)return;
-  const profiles=[...settings.apiProfiles];
-  const [item]=profiles.splice(index,1);
-  profiles.splice(nextIndex,0,item);
-  const now=new Date().toISOString();
-  if(!setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now}))return;
-  renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
-  requestAnimationFrame(positionApiProfileMenu);
-  notify('配置顺序已调整。','good','API 配置');
-}
-let apiProfileDragState=null;
-function startApiProfileDrag(event){
-  const option=event.target.closest('.api-profile-option');
-  if(!option)return;
-  apiProfileDragState={index:Number(option.dataset.profileIndex),id:option.dataset.profileId};
-  option.classList.add('dragging');
-  event.dataTransfer?.setData('text/plain',apiProfileDragState.id);
-}
-function overApiProfileDrag(event){
-  const option=event.target.closest('.api-profile-option');
-  if(!option||!apiProfileDragState)return;
-  event.preventDefault();
-  autoScrollDuringDrag(event.clientY);
-  clearApiProfileDropMarks();
-  const rect=option.getBoundingClientRect();
-  option.classList.add(event.clientY>rect.top+rect.height/2?'drop-after':'drop-before');
-}
-function clearApiProfileDropMarks(){
-  els.apiProfileMenu?.querySelectorAll('.api-profile-option.drop-before,.api-profile-option.drop-after').forEach(node=>node.classList.remove('drop-before','drop-after'));
-}
-function endApiProfileDrag(){
-  els.apiProfileMenu?.querySelectorAll('.api-profile-option.dragging').forEach(node=>node.classList.remove('dragging'));
-  clearApiProfileDropMarks();
-  apiProfileDragState=null;
-}
-function dropApiProfile(event){
-  const option=event.target.closest('.api-profile-option');
-  if(!option||!apiProfileDragState)return;
-  event.preventDefault();
-  event.stopPropagation();
-  const from=apiProfileDragState.index;
-  const rect=option.getBoundingClientRect();
-  const after=event.clientY>rect.top+rect.height/2;
-  let to=Number(option.dataset.profileIndex)+(after?1:0);
-  if(from<to)to-=1;
-  endApiProfileDrag();
-  reorderApiProfile(from,to);
-}
 function reorderApiProfile(from,to){
   const settings=getSettings();
   const profiles=[...settings.apiProfiles];
@@ -6580,6 +6546,20 @@ function reorderApiProfile(from,to){
   if(target===from)return;
   const [item]=profiles.splice(from,1);
   profiles.splice(target,0,item);
+  const now=new Date().toISOString();
+  if(!setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now}))return;
+  renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
+  requestAnimationFrame(positionApiProfileMenu);
+  notify('配置顺序已调整。','good','API 配置');
+}
+function persistApiProfileOrder(ids=[]){
+  const settings=getSettings();
+  const byId=new Map(settings.apiProfiles.map(profile=>[profile.id,profile]));
+  const profiles=ids.map(id=>byId.get(id)).filter(Boolean);
+  settings.apiProfiles.forEach(profile=>{
+    if(!profiles.includes(profile))profiles.push(profile);
+  });
+  if(profiles.length!==settings.apiProfiles.length||profiles.every((profile,index)=>profile===settings.apiProfiles[index]))return;
   const now=new Date().toISOString();
   if(!setSettings({...settings,apiProfiles:profiles,apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,updatedAt:now}))return;
   renderApiProfilePicker(getSettings(),activeApiProfile(getSettings()));
@@ -6895,13 +6875,6 @@ els.apiProfileMenu?.addEventListener('click',event=>{
   }
   if(action==='delete')return deleteApiProfile(id);
 });
-els.apiProfileMenu?.addEventListener('dragstart',startApiProfileDrag);
-els.apiProfileMenu?.addEventListener('dragover',overApiProfileDrag);
-els.apiProfileMenu?.addEventListener('dragleave',event=>{
-  if(!els.apiProfileMenu?.contains(event.relatedTarget))clearApiProfileDropMarks();
-});
-els.apiProfileMenu?.addEventListener('dragend',endApiProfileDrag);
-els.apiProfileMenu?.addEventListener('drop',dropApiProfile);
 els.apiProfileMenu?.addEventListener('pointerdown',startApiProfilePointerDrag);
 els.apiProfileMenu?.addEventListener('pointermove',moveApiProfilePointerDrag);
 els.apiProfileMenu?.addEventListener('pointerup',endApiProfilePointerDrag);

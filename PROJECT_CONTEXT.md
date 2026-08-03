@@ -46,6 +46,7 @@ Expected behavior:
 
 ## Latest Release
 
+- v0.14.1 removes the duplicate topbar settings shortcut and keeps direction, focus, and folder controls visible in the desktop sticky lookup bar. Mobile retains the compact two-layer toolbar. API profiles, history versions, and visual-editor blocks now share one long-press reorder interaction with a drag ghost, animated sibling swaps, edge autoscroll, and order-only persistence.
 - v0.14.0 establishes the Lexi酱 product identity and removes the borrowed colored top stripe. Brand icon, favicon, theme slider, rounded controls, compact settings, favorite-folder picker, neutral folder rows, history time presets, and bottom Snackbar notifications now share one visual language. The notification mode is synced in settings and defaults to `snackbar`; `detail` preserves the earlier card notifications.
 - API settings, theme, and layout are synced as single-value preferences.
 - Local unsynced edits are protected with dirty-key tracking before remote values are applied.
@@ -54,6 +55,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.14.1 keeps the full desktop lookup context visible after the toolbar becomes sticky while the narrow-screen smart mode collapses secondary fields. Reorderable API profiles, result versions, and visual-editor sections use one pointer-driven long-press system instead of mixed native drag and arrow controls.
 - v0.13.2 makes all local storage reads failure-tolerant: blocked storage returns the same per-key defaults, emits one export warning, and lets the page continue as a temporary session. Supabase auth operations convert direct network throws into handled errors, including startup session initialization. History search coalesces rapid input into one render after 90ms while explicit clear/filter/sort actions stay immediate.
 - v0.13.1 replaces the browser's full 414 KB Lucide payload with a generated 25-icon subset of about 6 KB and scopes dynamic hydration to added DOM roots; build checks fail if a literal icon use is missing, and a tiny compatibility asset overwrites Cloudflare's retained legacy bundle path. Factory reset, theme, layout, offline mode, lookup queue, and lookup draft writes now use the rollback-capable local storage transaction path, and visible preferences change only after persistence succeeds.
 - v0.13.0 replaces the desktop vertical rail with a horizontal application bar while retaining mobile bottom navigation. Theme/account controls follow one rounded grouped-control language, and Lucide is bundled locally for real icons instead of character glyphs. Home preserves a dominant query field, two compact mobile rows, and a viewport-aligned empty result. Repeated list surfaces use dividers rather than card stacks. The same release introduces atomic localStorage batches: history plus tombstones, folder deletion across history plus settings, and full cloud replacements roll back together on any failure. Generated model output remains visible and exportable if persistence fails.
