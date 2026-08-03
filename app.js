@@ -32,6 +32,7 @@ const VIEW_ROUTES={
   folders:'/favorites',
   settings:'/settings',
   about:'/about',
+  account:'/account',
 };
 let currentResult=null;
 let currentHistoryId=null;
@@ -157,12 +158,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.14.3',
+  version:'0.15.0',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.15.0',
+    date:'2026-08-03',
+    title:'重构账号中心、导航与产品信息层级',
+    items:['账号快捷菜单只保留身份摘要、账号中心和退出入口；登录、注册、同步与密码安全迁移到独立 /account 页面，密码修改改为邮箱验证后的明确流程。','桌面导航中央只保留首页、历史记录和收藏夹；设置与关于以图标形式移到主题控件和账号之间，移动端继续保留完整底部导航。','Snackbar 使用独立的深浅色变量，修复深色模式白底白字；账号关闭按钮统一图标尺寸、对比度和中心定位。','品牌 SVG 与页面入口增加自适应圆形底板，深色模式和浏览器图标中都能保持清晰边界。','关于页改为全宽、扁平的信息流与版本时间线，移除重复卡片和无意义留白。'],
+  },
   {
     version:'0.14.3',
     date:'2026-08-03',
@@ -796,6 +803,9 @@ const els={
   accountToggleLabel:document.getElementById('account-toggle-label'),
   accountStatus:document.getElementById('account-status'),
   accountSyncStatus:document.getElementById('account-sync-status'),
+  accountPageTitle:document.getElementById('account-page-title'),
+  accountPageSummary:document.getElementById('account-page-summary'),
+  accountPageSyncStatus:document.getElementById('account-page-sync-status'),
   query:document.getElementById('query-input'),
   direction:document.getElementById('direction-input'),
   note:document.getElementById('note-input'),
@@ -1118,6 +1128,14 @@ function renderAuthGate(){
     else if(offlineMode())els.accountStatus.textContent='当前为离线模式';
     else els.accountStatus.textContent=cloudClient?'未登录':'Supabase 未配置';
   }
+  if(els.accountPageTitle)els.accountPageTitle.textContent=cloudUser?(cloudUser.email||'已登录账号'):offlineMode()?'离线使用':'登录 Lexi酱';
+  if(els.accountPageSummary){
+    els.accountPageSummary.textContent=cloudUser?'历史记录、收藏夹和偏好设置会在你的设备间同步。':offlineMode()?'当前数据只保存在这台设备的浏览器中。':'登录后可在不同设备同步历史记录、设置和接口配置。';
+  }
+  if(!cloudBusy&&els.accountSyncStatus){
+    els.accountSyncStatus.textContent=cloudUser?'云端连接已就绪':offlineMode()?'仅保存在当前设备':'登录后启用云端同步';
+    els.accountSyncStatus.className=`sync-status ${cloudUser?'good':'info'}`;
+  }
   if(els.authStatus){
     els.authStatus.textContent=cloudClient?'未登录。可以登录或离线使用。':'Supabase 未配置。可以离线使用。';
   }
@@ -1155,7 +1173,7 @@ async function initCloud(){
     if(!cloudUser)stopCloudAutoSync();
     if(_event==='PASSWORD_RECOVERY'){
       passwordRecoveryMode=true;
-      els.accountPanel?.classList.add('open');
+      requestAnimationFrame(()=>showView('account',null,{route:'replace'}));
     }
     renderAuthGate();
   });
@@ -1218,13 +1236,8 @@ async function resetCloudPassword(source='account'){
 async function setCloudPassword(){
   if(!cloudClient)return notify('Supabase 未配置。','bad','无法重设');
   if(!cloudUser)return notify('请先登录。','bad','还没登录');
-  if(!passwordRecoveryMode){
-    passwordRecoveryMode=true;
-    renderAuthGate();
-    notify('输入新密码后，再点一次“重设密码”。','good','准备重设密码');
-    return;
-  }
-  const {password}=credentials('account');
+  if(!passwordRecoveryMode)return notify('请先通过重置邮件打开安全验证链接。','bad','尚未验证');
+  const password=document.getElementById('account-recovery-password')?.value||'';
   if(!password||password.length<6)return notify('请输入至少 6 位新密码。','bad','重设失败');
   const email=cloudUser.email;
   const {error}=await cloudAuthRequest(()=>cloudClient.auth.updateUser({password}));
@@ -1279,6 +1292,10 @@ function exitOfflineMode(){
 }
 function toggleAccountPanel(){els.accountPanel.classList.toggle('open')}
 function closeAccountPanel(){els.accountPanel.classList.remove('open')}
+function openAccountCenter(){
+  closeAccountPanel();
+  showView('account');
+}
 
 function invalidateHistoryDerivedCache(){historyDerivedCache=null}
 function historyIdentityKey(item={}){
@@ -1701,7 +1718,7 @@ function setCloudStatus(message,type='info',busy=false){
   cloudBusy=Boolean(busy);
   document.body.classList.toggle('cloud-syncing',cloudBusy);
   const text=message||'同步状态会显示在这里';
-  [els.accountSyncStatus,els.settingsSyncStatus].forEach(node=>{
+  [els.accountSyncStatus,els.settingsSyncStatus,els.accountPageSyncStatus].forEach(node=>{
     if(!node)return;
     node.textContent=text;
     node.classList.remove('good','bad','info');
@@ -2424,12 +2441,13 @@ function showView(id,button,options={}){
   activeView=next;
   updateViewRoute(next,options.route||'push');
   document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${next}`));
-  document.querySelectorAll('.nav-item').forEach(item=>item.classList.remove('active'));
-  (button||document.getElementById(`nav-${next}`))?.classList.add('active');
+  document.querySelectorAll('[data-view]').forEach(item=>item.classList.toggle('active',item.dataset.view===next));
+  els.accountToggle?.classList.toggle('view-active',next==='account');
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
   if(next==='settings')renderSettings();
   if(next==='about')renderAbout();
+  if(next==='account')renderAuthGate();
   if(changed&&options.scroll!==false)window.scrollTo({top:0,behavior:'auto'});
   updateHomeStickyState();
   if(next==='home'){
@@ -6783,26 +6801,19 @@ function renderAbout(){
   const visibleReleases=aboutShowAllReleases?CHANGELOG:CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT);
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
-    <div class="about-hero">
-      <div>
-        <div class="setting-title">关于</div>
-        <h2>${escapeHTML(APP_INFO.name)}</h2>
-        <p>一个面向写作、考试和日常阅读的词汇结构化查询工具。它把释义、搭配、例句、语体和易混辨析整理成可以回看、导出和同步的记录。</p>
-      </div>
-      <div class="about-version">
-        <span>当前版本</span>
-        <strong>v${escapeHTML(APP_INFO.version)}</strong>
-        <em>${escapeHTML(APP_INFO.releaseDate)}</em>
-      </div>
-    </div>
-    <div class="about-grid">
-      <a class="about-link" href="${APP_INFO.site}" target="_blank" rel="noopener noreferrer"><b>线上地址</b><span>${escapeHTML(APP_INFO.site)}</span></a>
-      <a class="about-link" href="${APP_INFO.repo}" target="_blank" rel="noopener noreferrer"><b>GitHub 仓库</b><span>${escapeHTML(APP_INFO.repo)}</span></a>
-      <div class="about-link"><b>数据存储</b><span>localStorage + Supabase Auth / Postgres</span></div>
-      <div class="about-link"><b>最近更新</b><span>v${escapeHTML(latest.version)} · ${escapeHTML(latest.title)}</span></div>
-    </div>
-    <div class="about-card">
-      <div class="setting-title">更新记录</div>
+    <header class="about-hero">
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.15.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
+      <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
+    </header>
+    <section class="about-facts" aria-label="产品信息">
+      <a href="${APP_INFO.site}" target="_blank" rel="noopener noreferrer"><span>线上版本</span><b>${escapeHTML(APP_INFO.site.replace('https://',''))}</b><i data-lucide="arrow-up-right"></i></a>
+      <a href="${APP_INFO.repo}" target="_blank" rel="noopener noreferrer"><span>源代码</span><b>SuperFly233 / ai-vocab-tool</b><i data-lucide="arrow-up-right"></i></a>
+      <div><span>数据</span><b>本地优先 · Supabase 同步</b></div>
+      <div><span>最近更新</span><b>${escapeHTML(latest.title)}</b></div>
+    </section>
+    <section class="about-releases">
+      <div class="about-section-head"><span>更新记录</span><b>${CHANGELOG.length} 个版本</b></div>
       <div class="release-list">
         ${visibleReleases.map((entry,index)=>`
           <details class="release-item" ${index===0?'open':''}>
@@ -6815,7 +6826,7 @@ function renderAbout(){
         `).join('')}
         ${archivedCount?`<button class="release-more-btn ${aboutShowAllReleases?'active':''}" type="button" aria-expanded="${aboutShowAllReleases}" onclick="toggleAboutReleases()"><span>${aboutShowAllReleases?'收起较早版本':`查看更早的 ${archivedCount} 个版本`}</span>${icon('chevron-down')}</button>`:''}
       </div>
-    </div>
+    </section>
   `;
 }
 function applyTheme(theme){

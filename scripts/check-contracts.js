@@ -169,7 +169,10 @@ expect(app.includes('const ABOUT_RELEASE_LIMIT=3'), 'About page must cap the ini
 expect(app.includes('CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT)'), 'About page must render only recent releases by default');
 expect(app.includes("index===0?'open':''"), 'About page must expand only the latest release by default');
 expect(html.includes('<title>Lexi酱</title>')&&manifestInfo.name==='Lexi酱', 'Brand name must match across page title and manifest');
-expect(html.includes('class="brand-mark" src="/favicon.svg?v=0.14.3"')&&html.includes('class="topbar-brand-mark" src="/favicon.svg?v=0.14.3"')&&manifestText.includes('/favicon.svg?v=0.14.3')&&faviconText.includes('r="14.5"'), 'Selected round-lens brand mark must be shared and cache-versioned across desktop, mobile, favicon, and manifest');
+expect(html.includes(`class="brand-mark" src="/favicon.svg?v=${packageInfo.version}"`)&&html.includes(`class="topbar-brand-mark" src="/favicon.svg?v=${packageInfo.version}"`)&&manifestText.includes(`/favicon.svg?v=${packageInfo.version}`)&&faviconText.includes('class="plate"')&&faviconText.includes('r="14.5"'), 'Selected round-lens brand mark and adaptive plate must be shared and cache-versioned across desktop, mobile, favicon, and manifest');
+expect(html.includes('class="utility-nav"')&&/\.mobile-utility-nav\{display:none\}/.test(css), 'Desktop utility navigation must separate Settings and About from the three core destinations');
+expect(html.includes('id="view-account"')&&app.includes("account:'/account'"), 'Account center must have an independent route and view');
+expect(/\.toast\.snackbar\{background:var\(--snackbar-bg\)/.test(css)&&css.includes('[data-theme="dark"]{--snackbar-bg:'), 'Snackbar must keep explicit readable colors in dark mode');
 expect(app.includes("toastMode:'snackbar'")&&html.includes('id="toast-mode-snackbar"'), 'Snackbar must be the configurable default notification mode');
 expect(/\.toast-stack\{[^}]*z-index:2147483647/.test(css), 'Global toast feedback must use the application top-layer ceiling');
 expect(/<div class="toast-stack" id="toast-stack"><\/div>\s*<script/.test(html), 'Toast host must remain a direct body child after every application overlay');

@@ -1,7 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lexi酱">
-  <path d="M34 7h8c11 0 20 9 20 20v8c0 8.5-5.3 15.8-12.8 18.7L50 61l-11.8-7H34c-11 0-20-9-20-20v-7C14 16 23 7 34 7Z" fill="#2878ed"/>
-  <path d="M22 7h8c11 0 20 9 20 20v7c0 11-9 20-20 20h-4.2L14 61l.8-7.3C7.3 50.8 2 43.5 2 35v-8C2 16 11 7 22 7Z" fill="#343b45"/>
-  <circle cx="31" cy="29" r="14.5" fill="#fff"/>
-  <path d="m41.2 39.2 9.4 9.4" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
-  <circle cx="31" cy="29" r="4" fill="#58c9ac"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="Lexi酱">
+  <style>.plate{fill:#fffefa;stroke:#dfe2dc}@media(prefers-color-scheme:dark){.plate{fill:#292d25;stroke:#454b40}}</style>
+  <circle class="plate" cx="36" cy="36" r="34" stroke-width="2"/>
+  <g transform="translate(4 4) scale(.92) translate(2.8 2.8)">
+    <path d="M34 7h8c11 0 20 9 20 20v8c0 8.5-5.3 15.8-12.8 18.7L50 61l-11.8-7H34c-11 0-20-9-20-20v-7C14 16 23 7 34 7Z" fill="#2878ed"/>
+    <path d="M22 7h8c11 0 20 9 20 20v7c0 11-9 20-20 20h-4.2L14 61l.8-7.3C7.3 50.8 2 43.5 2 35v-8C2 16 11 7 22 7Z" fill="#343b45"/>
+    <circle cx="31" cy="29" r="14.5" fill="#fff"/>
+    <path d="m41.2 39.2 9.4 9.4" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="31" cy="29" r="4" fill="#58c9ac"/>
+  </g>
 </svg>

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.14.3" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.14.3" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.14.3">
-<link rel="stylesheet" href="/styles.css?v=0.14.3">
+<link rel="icon" href="/favicon.svg?v=0.15.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.15.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.15.0">
+<link rel="stylesheet" href="/styles.css?v=0.15.0">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,15 +36,15 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.14.3" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.15.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
-    <button class="nav-item active" id="nav-home" onclick="goHomeAndFocus()"><i data-lucide="house"></i><span>首页</span></button>
-    <button class="nav-item" id="nav-history" onclick="showView('history',this)"><i data-lucide="history"></i><span>历史记录</span></button>
-    <button class="nav-item" id="nav-folders" onclick="openFoldersRoot(this)"><i data-lucide="folder-heart"></i><span>收藏夹</span></button>
-    <button class="nav-item" id="nav-settings" onclick="showView('settings',this)"><i data-lucide="settings-2"></i><span>设置</span></button>
-    <button class="nav-item" id="nav-about" onclick="showView('about',this)"><i data-lucide="circle-help"></i><span>关于</span></button>
+    <button class="nav-item active" data-view="home" id="nav-home" onclick="goHomeAndFocus()"><i data-lucide="house"></i><span>首页</span></button>
+    <button class="nav-item" data-view="history" id="nav-history" onclick="showView('history',this)"><i data-lucide="history"></i><span>历史记录</span></button>
+    <button class="nav-item" data-view="folders" id="nav-folders" onclick="openFoldersRoot(this)"><i data-lucide="folder-heart"></i><span>收藏夹</span></button>
+    <button class="nav-item mobile-utility-nav" data-view="settings" id="nav-settings" onclick="showView('settings',this)"><i data-lucide="settings-2"></i><span>设置</span></button>
+    <button class="nav-item mobile-utility-nav" data-view="about" id="nav-about" onclick="showView('about',this)"><i data-lucide="circle-help"></i><span>关于</span></button>
   </nav>
   <div class="side-note">本地保存。登录后云端同步。</div>
 </aside>
@@ -52,7 +52,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <img class="topbar-brand-mark" src="/favicon.svg?v=0.14.3" alt="">
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.15.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -64,35 +64,26 @@
         <button id="top-theme-auto" data-tip="跟随系统" onclick="setTheme('auto')" aria-label="跟随系统"><i data-lucide="monitor"></i></button>
         <button id="top-theme-light" data-tip="浅色" onclick="setTheme('light')" aria-label="浅色主题"><i data-lucide="sun"></i></button>
       </div>
+      <nav class="utility-nav" aria-label="辅助功能">
+        <button data-view="settings" data-tip="设置" onclick="showView('settings',this)" aria-label="设置"><i data-lucide="settings-2"></i></button>
+        <button data-view="about" data-tip="关于" onclick="showView('about',this)" aria-label="关于"><i data-lucide="circle-help"></i></button>
+      </nav>
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()"><span class="account-avatar"><i data-lucide="user-round"></i></span><span id="account-toggle-label">账号</span></button>
     </div>
   </div>
 
   <div class="account-panel" id="account-panel">
     <div class="account-head">
-      <div>
-        <div class="account-title">云端账号</div>
-        <div class="account-sub" id="account-status">Supabase 未配置</div>
+      <div class="account-identity">
+        <span class="account-menu-avatar"><i data-lucide="user-round"></i></span>
+        <div><div class="account-title">云端账号</div><div class="account-sub" id="account-status">Supabase 未配置</div></div>
       </div>
       <button class="account-close" onclick="closeAccountPanel()" aria-label="关闭账号面板"><i data-lucide="x"></i></button>
     </div>
-    <div class="account-form">
-      <input class="cloud-input" id="account-email" type="email" autocomplete="username" placeholder="邮箱">
-      <input class="cloud-input" id="account-password" type="password" autocomplete="current-password" placeholder="密码，至少 6 位">
-    </div>
-    <div class="account-actions logged-out-only">
-      <button class="plain-btn primary-btn" onclick="loginPassword('account')">密码登录</button>
-      <button class="plain-btn" onclick="signupPassword('account')">注册</button>
-      <button class="plain-btn" onclick="loginMagic('account')">邮箱链接</button>
-      <button class="plain-btn ghost-btn" onclick="resetCloudPassword('account')">忘记密码</button>
-    </div>
-    <div class="account-actions cloud-only">
-      <button class="plain-btn" onclick="setCloudPassword()">重设密码</button>
-      <button class="plain-btn ghost-btn" onclick="logoutCloud()">退出</button>
-    </div>
-    <div class="account-actions offline-only">
-      <button class="plain-btn primary-btn" onclick="exitOfflineMode()">退出离线模式</button>
-    </div>
+    <button class="account-menu-row" onclick="openAccountCenter()"><span><i data-lucide="user-round"></i>账号中心</span><i data-lucide="chevron-right"></i></button>
+    <button class="account-menu-row cloud-only" onclick="showView('settings');closeAccountPanel()"><span><i data-lucide="cloud"></i>同步与数据</span><i data-lucide="chevron-right"></i></button>
+    <button class="account-menu-row cloud-only danger-row" onclick="logoutCloud();closeAccountPanel()"><span><i data-lucide="log-out"></i>退出登录</span></button>
+    <button class="account-menu-row offline-only" onclick="exitOfflineMode();closeAccountPanel()"><span><i data-lucide="log-out"></i>退出离线模式</span></button>
     <div class="sync-status" id="account-sync-status">同步状态会显示在这里</div>
   </div>
 
@@ -369,6 +360,39 @@
   <section class="view" id="view-about">
     <div class="about-wrap" id="about-container"></div>
   </section>
+
+  <section class="view" id="view-account">
+    <div class="account-page">
+      <header class="account-page-head">
+        <div class="account-page-avatar"><i data-lucide="user-round"></i></div>
+        <div><span>账号中心</span><h1 id="account-page-title">云端账号</h1><p id="account-page-summary">登录后可在不同设备同步历史记录、设置和接口配置。</p></div>
+      </header>
+      <div class="account-page-layout">
+        <section class="account-page-section logged-out-only">
+          <div class="account-section-heading"><h2>登录或注册</h2><p>使用同一邮箱即可接续你的词汇库。</p></div>
+          <div class="account-login-form">
+            <label><span>邮箱</span><input class="cloud-input" id="account-email" type="email" autocomplete="username" placeholder="name@example.com"></label>
+            <label><span>密码</span><input class="cloud-input" id="account-password" type="password" autocomplete="current-password" placeholder="至少 6 位"></label>
+          </div>
+          <div class="account-page-actions"><button class="plain-btn primary-btn" onclick="loginPassword('account')">登录</button><button class="plain-btn" onclick="signupPassword('account')">注册</button><button class="text-btn" onclick="loginMagic('account')">发送邮箱登录链接</button><button class="text-btn" onclick="resetCloudPassword('account')">忘记密码</button></div>
+        </section>
+        <section class="account-page-section cloud-only">
+          <div class="account-section-heading"><h2>云端同步</h2><p id="account-page-sync-status">正在读取同步状态。</p></div>
+          <div class="account-data-list"><div><i data-lucide="history"></i><span><b>历史记录</b><small>查询、版本、追问与收藏关系</small></span></div><div><i data-lucide="settings-2"></i><span><b>偏好设置</b><small>界面、Prompt 与模型接口配置</small></span></div></div>
+          <div class="account-page-actions"><button class="plain-btn primary-btn" onclick="bootstrapCloudSync('ask',true)">立即同步</button><button class="plain-btn" onclick="uploadCloud()">上传本机</button><button class="plain-btn" onclick="downloadCloud()">恢复云端</button></div>
+        </section>
+        <section class="account-page-section cloud-only">
+          <div class="account-section-heading"><h2>安全</h2><p>密码修改通过邮箱验证，不在快捷菜单里临时输入。</p></div>
+          <div class="password-recovery-entry"><button class="plain-btn" onclick="resetCloudPassword('current')">发送密码重置邮件</button></div>
+          <div class="password-recovery-form">
+            <label><span>新密码</span><input class="cloud-input" id="account-recovery-password" type="password" autocomplete="new-password" placeholder="至少 6 位"></label>
+            <button class="plain-btn primary-btn" onclick="setCloudPassword()">更新密码</button>
+          </div>
+        </section>
+        <section class="account-page-section offline-only"><div class="account-section-heading"><h2>离线模式</h2><p>数据只保存在当前浏览器。退出后可登录云端账号。</p></div><button class="plain-btn primary-btn" onclick="exitOfflineMode()">退出离线模式</button></section>
+      </div>
+    </div>
+  </section>
 </main>
 
 <div class="modal-layer" id="history-modal" onclick="closeHistoryModal(event)">
@@ -516,12 +540,12 @@
 <div class="toast-stack" id="toast-stack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/icons.js?v=0.14.3"></script>
-<script src="/history-data.js?v=0.14.3"></script>
-<script src="/settings-data.js?v=0.14.3"></script>
-<script src="/storage-state.js?v=0.14.3"></script>
-<script src="/lookup-tasks.js?v=0.14.3"></script>
-<script src="/sync-state.js?v=0.14.3"></script>
-<script src="/app.js?v=0.14.3"></script>
+<script src="/icons.js?v=0.15.0"></script>
+<script src="/history-data.js?v=0.15.0"></script>
+<script src="/settings-data.js?v=0.15.0"></script>
+<script src="/storage-state.js?v=0.15.0"></script>
+<script src="/lookup-tasks.js?v=0.15.0"></script>
+<script src="/sync-state.js?v=0.15.0"></script>
+<script src="/app.js?v=0.15.0"></script>
 </body>
 </html>
