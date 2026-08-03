@@ -48,15 +48,36 @@
   }
 
   function historyTime(item={}){
-    return Math.max(timestamp(item.updatedAt),timestamp(item.createdAt));
+    return Math.max(timestamp(item.lookupCompletedAt),timestamp(item.updatedAt),timestamp(item.createdAt));
+  }
+
+  function isPlainLegacyRequest(request={}){
+    return !text(request.existingId)
+      && !text(request.direction)
+      && !text(request.note)
+      && !(Array.isArray(request.folderIds)&&request.folderIds.length);
+  }
+
+  function resolveCompletion(left={},right={}){
+    const leftTime=timestamp(left.lookupCompletedAt);
+    const rightTime=timestamp(right.lookupCompletedAt);
+    if(leftTime!==rightTime)return leftTime>rightTime
+      ? {lookupSignature:text(left.lookupSignature),lookupCompletedAt:text(left.lookupCompletedAt)}
+      : {lookupSignature:text(right.lookupSignature),lookupCompletedAt:text(right.lookupCompletedAt)};
+    const winner=text(left.lookupSignature)>=text(right.lookupSignature)?left:right;
+    return {lookupSignature:text(winner.lookupSignature),lookupCompletedAt:text(winner.lookupCompletedAt)};
   }
 
   function requestAlreadyCompleted(request,history){
     if(!timestamp(request?.startedAt))return false;
+    const signature=text(request.signature)||requestSignature(request);
     const query=normalizedText(request.query);
-    return (Array.isArray(history)?history:[]).some(item=>
-      normalizedText(item?.query)===query&&historyTime(item)>=timestamp(request.startedAt)
-    );
+    return (Array.isArray(history)?history:[]).some(item=>{
+      const completedSignature=text(item?.lookupSignature);
+      if(completedSignature)return completedSignature===signature&&timestamp(item?.lookupCompletedAt)>=timestamp(request.startedAt);
+      if(historyTime(item)<timestamp(request.startedAt))return false;
+      return isPlainLegacyRequest(request)&&normalizedText(item?.query)===query;
+    });
   }
 
   function recoverRequests(snapshot,history=[]){
@@ -72,5 +93,5 @@
     });
   }
 
-  root.LookupTasks=Object.freeze({requestSignature,normalizeRequest,normalizeSnapshot,recoverRequests});
+  root.LookupTasks=Object.freeze({requestSignature,normalizeRequest,normalizeSnapshot,recoverRequests,requestAlreadyCompleted,resolveCompletion});
 })(typeof globalThis==='object'?globalThis:this);

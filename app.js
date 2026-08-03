@@ -149,12 +149,18 @@ const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.12.0',
+  version:'0.12.1',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.12.1',
+    date:'2026-08-03',
+    title:'保护崩溃恢复任务，并修正收藏夹深层返回',
+    items:['查询成功后会把完整请求签名和完成时间写入历史记录；崩溃恢复必须精确匹配查询词、方向、侧重点、收藏夹和重新生成目标，同词但不同意图的任务不会再被误删。','旧历史仅对没有方向、侧重点、收藏夹和重新生成目标的普通查询保留兼容判断；无法证明已完成时宁可恢复任务，也不会静默丢失。','收藏夹详情区分站内进入与直接深链：站内返回沿用浏览器历史，直接打开 /favorites/<id> 后返回会留在本站收藏夹目录；手机目录的进入箭头与名称、数量稳定同排。'],
+  },
   {
     version:'0.12.0',
     date:'2026-08-03',
@@ -1762,6 +1768,7 @@ function mergeHistoryItems(localHistory,remoteHistory){
       normalized.folderIds,normalized.foldersUpdatedAt,
       mergeFolderIds(existing.folderIds,normalized.folderIds,existing.tags,normalized.tags),
     );
+    const lookupCompletion=LookupTasks.resolveCompletion(existing,normalized);
     const favoriteAt=favoriteField.value
       ? favoriteField.side==='left'
         ? existing.favoriteAt||favoriteField.updatedAt
@@ -1781,6 +1788,8 @@ function mergeHistoryItems(localHistory,remoteHistory){
       tagsUpdatedAt:tagsField.updatedAt||'',
       folderIds:normalizeFolderIds(foldersField.value),
       foldersUpdatedAt:foldersField.updatedAt||'',
+      lookupSignature:lookupCompletion.lookupSignature,
+      lookupCompletedAt:lookupCompletion.lookupCompletedAt,
       note:latestHistoryNote(existing,normalized),
       noteUpdatedAt:Math.max(historyNoteTime(existing),historyNoteTime(normalized))?new Date(Math.max(historyNoteTime(existing),historyNoteTime(normalized))).toISOString():'',
       createdAt:new Date(Math.min(new Date(existing.createdAt||Date.now()),new Date(normalized.createdAt||Date.now()))).toISOString(),
@@ -1889,7 +1898,7 @@ function normalizeHistoryItem(item){
   const tags=normalizeTags(base.tags);
   const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
   const legacyFolderIds=tags.map(legacyTagFolderId);
-  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
+  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',lookupSignature:String(base.lookupSignature||''),lookupCompletedAt:normalizeHistoryClock(base.lookupCompletedAt),createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
   Object.defineProperty(normalized,HISTORY_NORMALIZED,{value:true});
   return normalized;
 }
@@ -2207,8 +2216,13 @@ function restoreViewFromLocation({replace=false,focus=true}={}){
   }
   const canonical=view==='folders'&&folderState.detailOpen?`${VIEW_ROUTES.folders}/${encodeURIComponent(folderState.activeId)}`:VIEW_ROUTES[view];
   showView(view,document.getElementById(`nav-${view}`),{route:'none',scroll:false,focus});
-  if(replace&&location.pathname!==canonical){
-    window.history.replaceState({view},'',`${canonical}${location.search}${location.hash}`);
+  if(replace){
+    const state={view};
+    if(view==='folders'&&folderState.detailOpen){
+      state.folderId=folderState.activeId;
+      if(window.history.state?.fromFolderRoot)state.fromFolderRoot=true;
+    }
+    window.history.replaceState(state,'',`${canonical}${location.search}${location.hash}`);
   }
 }
 function goHomeAndFocus(){
@@ -3458,7 +3472,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   try{
     const data=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
-    const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds});
+    const saved=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
     currentHistoryId=saved.id;
     currentFollowups=saved.followups||[];
     renderResult(data,{animate:false});
@@ -3796,7 +3810,7 @@ function findHistoryByQuery(query){
   const normalized=normalizeSearch(query);
   return getHistory().find(item=>normalizeSearch(item.query)===normalized);
 }
-function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={},folderIds=[]}){
+function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={},folderIds=[],lookupSignature=''}){
   const now=new Date().toISOString();
   result=normalizeResultEntryType(result,query);
   const history=getHistory();
@@ -3822,12 +3836,14 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
       favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt,
       folderIds:nextFolderIds,
       foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt,
+      lookupSignature:String(lookupSignature||''),
+      lookupCompletedAt:now,
       updatedAt:now,
       rolls:nextRolls,
     };
     setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item),{revive:true});
   }else{
-    saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',favoriteUpdatedAt:favorite?now:'',tags:[],tagsUpdatedAt:'',folderIds:selectedFolderIds,foldersUpdatedAt:selectedFolderIds.length?now:'',createdAt:now,updatedAt:now,rolls:[roll]};
+    saved={id:Date.now(),query,result,followups:[],favorite,favoriteAt:favorite?now:'',favoriteUpdatedAt:favorite?now:'',tags:[],tagsUpdatedAt:'',folderIds:selectedFolderIds,foldersUpdatedAt:selectedFolderIds.length?now:'',lookupSignature:String(lookupSignature||''),lookupCompletedAt:now,createdAt:now,updatedAt:now,rolls:[roll]};
     const next=history.filter(item=>normalizeSearch(item.query)!==normalizeSearch(query));
     next.unshift(saved);
     setHistory(next,{revive:true});
@@ -4324,9 +4340,10 @@ function openFoldersRoot(button=document.getElementById('nav-folders')){
   showView('folders',button);
 }
 function closeFolderDetail(){
-  if(folderIdFromPath())return window.history.back();
+  if(folderIdFromPath()&&window.history.state?.fromFolderRoot)return window.history.back();
   folderState.detailOpen=false;
   renderFoldersView();
+  if(folderIdFromPath())window.history.replaceState({view:'folders'},'',`${VIEW_ROUTES.folders}${location.search}${location.hash}`);
 }
 function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getSettings().historyTimeMode){
   const normalized=normalizeHistoryItem(item);
@@ -4770,7 +4787,7 @@ function openFolderView(folderId){
   folderState.detailOpen=true;
   showView('folders',document.getElementById('nav-folders'));
   const route=`${VIEW_ROUTES.folders}/${encodeURIComponent(value)}`;
-  if(location.pathname!==route)window.history.pushState({view:'folders',folderId:value},'',`${route}${location.search}${location.hash}`);
+  if(location.pathname!==route)window.history.pushState({view:'folders',folderId:value,fromFolderRoot:true},'',`${route}${location.search}${location.hash}`);
 }
 async function createFavoriteFolder(){
   const name=String(window.prompt('新建收藏夹名称：','')||'').trim();

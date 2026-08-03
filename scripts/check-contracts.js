@@ -103,6 +103,9 @@ expect(app.includes("homeStickyMode:'compact'"), 'Home sticky controls must defa
 expect(app.includes("homeStickyMode:preferLocalSettings?local.homeStickyMode"), 'Home sticky preference must participate in settings merge');
 expect(html.includes('id="lookup-options-toggle"')&&html.includes('id="sticky-mode-compact"'), 'Home sticky controls and preference UI must exist');
 expect(html.includes('onclick="openFoldersRoot(this)"')&&app.includes('folderIdFromPath'), 'Folders must expose a mobile root/detail navigation path');
+expect(app.includes("fromFolderRoot:true")&&app.includes("window.history.state?.fromFolderRoot"), 'Folder detail back must distinguish in-app navigation from direct deep links');
+expect(app.includes('lookupSignature:activeLookupSignature'), 'Successful lookups must persist an exact recovery completion signature');
+expect(app.includes('LookupTasks.resolveCompletion(existing,normalized)'), 'History merge must preserve the newest lookup completion independently of unrelated edits');
 expect(app.includes('favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt'), 'Reasserting an existing favorite must refresh its field clock');
 expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt'), 'Reasserting an existing lookup folder must refresh its field clock');
 expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');

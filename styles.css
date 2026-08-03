@@ -904,7 +904,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .folder-sidebar-head{padding:4px 2px 10px;border:0}
   .folder-tab-list{display:grid;gap:0}
   .folder-tab{grid-template-columns:minmax(0,1fr) 36px;background:transparent}
-  .folder-tab-main{padding:13px 8px;grid-template-columns:22px minmax(0,1fr) auto}
+  .folder-tab-main{padding:13px 8px;grid-template-columns:22px minmax(0,1fr) auto 18px}
   .folder-tab-main:after{content:'›';color:var(--soft);font-size:22px;margin-left:3px}
   .folder-tab.active{box-shadow:none;background:transparent;color:var(--text)}
   .folder-panel:not(.detail-open) .folder-content{display:none}
