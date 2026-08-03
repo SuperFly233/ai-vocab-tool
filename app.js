@@ -26,6 +26,7 @@ const CLOUD_KEYS={
 let cloudClient=null;
 let cloudUser=null;
 let cloudInitIssue='loading';
+let cloudInitPromise=null;
 let activeView='home';
 const VIEW_ROUTES={
   home:'/',
@@ -159,12 +160,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.16.1',
+  version:'0.16.2',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.16.2',
+    date:'2026-08-03',
+    title:'认证先于本地恢复启动，解除手机端初始化停滞',
+    items:['云端认证改为应用第一启动任务，不再等待历史修复、设置恢复和页面渲染完成；手机本地数据异常也不会阻断登录初始化。','登录、注册、邮箱链接和密码重置入口都会主动确认认证已启动，初始化调用统一复用同一个 Promise，避免重复创建 Supabase 客户端。','新增启动顺序契约，锁定 startCloudInitialization 必须早于 renderEmpty 等本地恢复任务执行。'],
+  },
   {
     version:'0.16.1',
     date:'2026-08-03',
@@ -1218,8 +1225,26 @@ async function initCloud(){
   renderAuthGate();
   if(cloudUser)await bootstrapCloudSync('merge',hasAuthCallback);
 }
+function startCloudInitialization(){
+  if(cloudInitPromise)return cloudInitPromise;
+  cloudInitPromise=initCloud().catch(error=>{
+    cloudUser=null;
+    cloudBootstrapped=false;
+    if(!cloudClient)cloudInitIssue='network';
+    stopCloudAutoSync();
+    renderAuthGate();
+    const message=cloudErrorMessage(error,'登录初始化');
+    setCloudStatus(message,'bad');
+    notify(message,'bad','云端连接失败');
+  });
+  return cloudInitPromise;
+}
+function ensureCloudClientStarted(){
+  if(!cloudClient&&cloudInitIssue==='loading')startCloudInitialization();
+  return Boolean(cloudClient);
+}
 async function loginPassword(source='account'){
-  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法登录');
+  if(!ensureCloudClientStarted())return notify(cloudUnavailableMessage(),'bad','无法登录');
   const {email,password}=credentials(source);
   if(!email||!password)return notify('请输入邮箱和密码。','bad','登录失败');
   setCloudStatus('正在登录并准备同步...','info',true);
@@ -1232,7 +1257,7 @@ async function loginPassword(source='account'){
   if(cloudUser)await bootstrapCloudSync('merge',true);
 }
 async function signupPassword(source='account'){
-  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法注册');
+  if(!ensureCloudClientStarted())return notify(cloudUnavailableMessage(),'bad','无法注册');
   const {email,password}=credentials(source);
   if(!email||password.length<6)return notify('密码至少 6 位。','bad','注册失败');
   setCloudStatus('正在注册账号...','info',true);
@@ -1246,7 +1271,7 @@ async function signupPassword(source='account'){
   notify(cloudUser?'注册并登录成功。':'注册邮件已发送。','good','注册');
 }
 async function loginMagic(source='account'){
-  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法登录');
+  if(!ensureCloudClientStarted())return notify(cloudUnavailableMessage(),'bad','无法登录');
   const {email}=credentials(source);
   if(!email)return notify('请输入邮箱。','bad','登录失败');
   const {error}=await cloudAuthRequest(()=>cloudClient.auth.signInWithOtp({email,options:{emailRedirectTo:authRedirectTo()}}));
@@ -1254,7 +1279,7 @@ async function loginMagic(source='account'){
   notify('邮箱链接已发送。','good','检查邮箱');
 }
 async function resetCloudPassword(source='account'){
-  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法重置');
+  if(!ensureCloudClientStarted())return notify(cloudUnavailableMessage(),'bad','无法重置');
   const {email}=source==='current'&&cloudUser?{email:cloudUser.email}:credentials(source);
   if(!email)return notify('请输入邮箱。','bad','重置失败');
   const {error}=await cloudAuthRequest(()=>cloudClient.auth.resetPasswordForEmail(email,{redirectTo:authRedirectTo()}));
@@ -1262,7 +1287,7 @@ async function resetCloudPassword(source='account'){
   notify('重置邮件已发送，打开邮件后回到这里输入新密码。','good','检查邮箱');
 }
 async function setCloudPassword(){
-  if(!cloudClient)return notify(cloudUnavailableMessage(),'bad','无法重设');
+  if(!ensureCloudClientStarted())return notify(cloudUnavailableMessage(),'bad','无法重设');
   if(!cloudUser)return notify('请先登录。','bad','还没登录');
   if(!passwordRecoveryMode)return notify('请先通过重置邮件打开安全验证链接。','bad','尚未验证');
   const password=document.getElementById('account-recovery-password')?.value||'';
@@ -6881,7 +6906,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.16.1" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.16.2" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -7165,6 +7190,7 @@ els.confirmLayer?.addEventListener('click',event=>{
   if(event.target===els.confirmLayer)closeConfirm(false);
 });
 
+startCloudInitialization();
 renderEmpty();
 hydrateSettings();
 setupHistoryImportDrop();
@@ -7177,13 +7203,4 @@ ensureLayoutPreference(true);
 updateEditorState();
 updateHistorySearchState();
 loadConfigInfo();
-initCloud().catch(error=>{
-  cloudUser=null;
-  cloudBootstrapped=false;
-  stopCloudAutoSync();
-  renderAuthGate();
-  const message=cloudErrorMessage(error,'登录初始化');
-  setCloudStatus(message,'bad');
-  notify(message,'bad','云端连接失败');
-});
 restoreViewFromLocation({replace:true});

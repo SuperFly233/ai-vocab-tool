@@ -125,7 +125,9 @@ expect(!/localStorage\.(?:setItem|removeItem)\(/.test(app), 'App storage writes 
 expect(app.includes('StorageState.readValue(localStorage,key,fallback)'), 'App storage reads must use the failure-tolerant storage helper');
 expect(!/localStorage\.getItem\(/.test(app), 'App modules must not bypass the failure-tolerant storage reader');
 expect(app.includes('async function cloudAuthRequest(operation)')&&!/await cloudClient\.auth\./.test(app), 'Cloud auth calls must convert network throws into handled errors');
-expect(/initCloud\(\)\.catch\(error=>\{/.test(app), 'Cloud initialization must not create an unhandled startup rejection');
+expect(/cloudInitPromise=initCloud\(\)\.catch\(error=>\{/.test(app), 'Cloud initialization must not create an unhandled startup rejection');
+expect(app.includes('function startCloudInitialization()')&&app.indexOf('startCloudInitialization();\nrenderEmpty();')>app.indexOf('function startCloudInitialization()'), 'Cloud authentication must start before local restoration and rendering');
+expect((app.match(/ensureCloudClientStarted\(\)/g)||[]).length>=6, 'Authentication actions must recover a cloud bootstrap that did not reach startup');
 expect(/els\.historySearch\?\.addEventListener\('input',[\s\S]{0,220}scheduleHistorySearchRender\(\)/.test(app), 'History search input must coalesce rapid rerenders');
 expect(app.includes('SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now)'), 'API profile deletion must create a settings tombstone');
 expect(app.includes('SettingsData.resolveOrderedIds('), 'API profile merge must resolve an independently clocked order');
