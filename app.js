@@ -150,12 +150,18 @@ const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.13.0',
+  version:'0.13.1',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.13.1',
+    date:'2026-08-03',
+    title:'缩减图标负担，并补齐本地写入边界',
+    items:['浏览器不再下载完整 Lucide 图标库；构建阶段只提取页面实际使用的 25 个图标，运行时体积从约 414 KB 降至约 6 KB，并只初始化新增节点。构建检查会阻止漏图标上线。','恢复出厂改为一次原子本地存储事务，任一键清除失败都会回滚全部旧值；主题、布局与离线模式也会先确认写入成功，再更新当前界面。','查询队列与草稿的新增、覆盖和清理统一经过可回滚存储层，浏览器拒绝写入时不会再留下半清空状态或冒出未捕获异常。'],
+  },
   {
     version:'0.13.0',
     date:'2026-08-03',
@@ -1086,7 +1092,7 @@ async function loginPassword(source='account'){
   if(error){setCloudStatus(`登录失败：${error.message}`,'bad');return notify(error.message,'bad','登录失败')}
   cloudUser=data.session?.user||null;
   passwordRecoveryMode=false;
-  localStorage.removeItem(STORAGE_KEYS.offline);
+  setOfflinePreference(false);
   renderAuthGate();
   if(cloudUser)await bootstrapCloudSync('merge',true);
 }
@@ -1099,7 +1105,7 @@ async function signupPassword(source='account'){
   if(error){setCloudStatus(`注册失败：${error.message}`,'bad');return notify(error.message,'bad','注册失败')}
   cloudUser=data.session?.user||cloudUser;
   passwordRecoveryMode=false;
-  localStorage.removeItem(STORAGE_KEYS.offline);
+  setOfflinePreference(false);
   renderAuthGate();
   if(cloudUser)await bootstrapCloudSync('merge',true);
   notify(cloudUser?'注册并登录成功。':'注册邮件已发送。','good','注册');
@@ -1158,13 +1164,20 @@ async function logoutCloud(){
   renderAuthGate();
   setCloudStatus('已退出云端账号，本机数据仍保留。','info');
 }
+function setOfflinePreference(enabled){
+  try{
+    commitStorageChanges([{key:STORAGE_KEYS.offline,value:enabled?'1':null}]);
+    return true;
+  }catch(error){
+    notify(storageFailureMessage(error,'离线模式'),'bad','模式未切换',false);
+    return false;
+  }
+}
 function useOfflineMode(){
-  localStorage.setItem(STORAGE_KEYS.offline,'1');
-  renderAuthGate();
+  if(setOfflinePreference(true))renderAuthGate();
 }
 function exitOfflineMode(){
-  localStorage.removeItem(STORAGE_KEYS.offline);
-  renderAuthGate();
+  if(setOfflinePreference(false))renderAuthGate();
 }
 function toggleAccountPanel(){els.accountPanel.classList.toggle('open')}
 function closeAccountPanel(){els.accountPanel.classList.remove('open')}
@@ -3435,12 +3448,9 @@ function storableLookupRequest(request,extra={}){
 function persistLookupTasks(){
   const active=lookupBusy&&activeLookupRequest?storableLookupRequest(activeLookupRequest):null;
   const queue=lookupQueue.map(item=>storableLookupRequest(item)).filter(Boolean);
-  if(!active&&!queue.length){
-    localStorage.removeItem(STORAGE_KEYS.lookupTasks);
-    return;
-  }
   try{
-    writeJSON(STORAGE_KEYS.lookupTasks,{active,queue,savedAt:new Date().toISOString()});
+    if(!active&&!queue.length)commitStorageChanges([{key:STORAGE_KEYS.lookupTasks,value:null}]);
+    else writeJSON(STORAGE_KEYS.lookupTasks,{active,queue,savedAt:new Date().toISOString()});
     lookupTaskStorageWarningShown=false;
     return true;
   }catch(error){
@@ -5968,7 +5978,10 @@ function clearEditor(){
   els.query.value='';
   els.direction.value='';
   els.note.value='';
-  localStorage.removeItem(STORAGE_KEYS.lookupDraft);
+  try{commitStorageChanges([{key:STORAGE_KEYS.lookupDraft,value:null}])}catch(error){
+    console.warn('查询草稿暂时无法从本地存储清除。',error);
+    notify(storageFailureMessage(error,'查询草稿'),'warn','草稿未清除',false);
+  }
   resetCurrentLookupState();
   updateEditorState();
 }
@@ -6468,14 +6481,16 @@ async function deleteApiProfile(id=null){
 }
 async function factoryReset(){
   if(!await askConfirm('这会清空本机历史、接口配置、主题、布局和日志。','恢复出厂设置'))return;
-  localStorage.removeItem(STORAGE_KEYS.history);
-  localStorage.removeItem(STORAGE_KEYS.historyTombstones);
-  localStorage.removeItem(STORAGE_KEYS.settings);
-  localStorage.removeItem(STORAGE_KEYS.theme);
-  localStorage.removeItem(STORAGE_KEYS.layout);
-  localStorage.removeItem(STORAGE_KEYS.logs);
-  localStorage.removeItem(STORAGE_KEYS.lookupDraft);
-  localStorage.removeItem(STORAGE_KEYS.lookupTasks);
+  try{
+    commitStorageChanges([
+      STORAGE_KEYS.history,STORAGE_KEYS.historyTombstones,STORAGE_KEYS.settings,
+      STORAGE_KEYS.theme,STORAGE_KEYS.layout,STORAGE_KEYS.logs,
+      STORAGE_KEYS.lookupDraft,STORAGE_KEYS.lookupTasks,
+    ].map(key=>({key,value:null})));
+  }catch(error){
+    notify(storageFailureMessage(error,'恢复出厂'),'bad','恢复失败',false);
+    return;
+  }
   lookupRunId+=1;
   lookupBusy=false;
   activeLookupSignature='';
@@ -6569,10 +6584,14 @@ function applyTheme(theme){
   document.getElementById(`top-theme-${theme}`)?.classList.add('active');
 }
 function setTheme(theme){
-  localStorage.setItem(STORAGE_KEYS.theme,theme);
+  try{commitStorageChanges([{key:STORAGE_KEYS.theme,value:theme}])}catch(error){
+    notify(storageFailureMessage(error,'主题'),'bad','主题未切换',false);
+    return false;
+  }
   markCloudDirty(CLOUD_KEYS.theme);
   applyTheme(theme);
   scheduleCloudSync();
+  return true;
 }
 function cycleTheme(){
   const order=['auto','light','dark'];
@@ -6586,8 +6605,12 @@ function ensureLayoutPreference(syncDefault=false){
   const raw=localStorage.getItem(STORAGE_KEYS.layout);
   const next=normalizeLayout(raw);
   if(raw!==next){
-    localStorage.setItem(STORAGE_KEYS.layout,next);
-    if(syncDefault)markCloudDirty(CLOUD_KEYS.layout);
+    try{
+      commitStorageChanges([{key:STORAGE_KEYS.layout,value:next}]);
+      if(syncDefault)markCloudDirty(CLOUD_KEYS.layout);
+    }catch(error){
+      console.warn('默认首页布局暂时无法写入本地存储。',error);
+    }
   }
   applyLayout(next);
   return next;
@@ -6601,10 +6624,14 @@ function applyLayout(layout){
 }
 function setLayout(layout){
   const next=normalizeLayout(layout);
-  localStorage.setItem(STORAGE_KEYS.layout,next);
+  try{commitStorageChanges([{key:STORAGE_KEYS.layout,value:next}])}catch(error){
+    notify(storageFailureMessage(error,'首页布局'),'bad','布局未切换',false);
+    return false;
+  }
   markCloudDirty(CLOUD_KEYS.layout);
   applyLayout(next);
   scheduleCloudSync();
+  return true;
 }
 function updateEditorState(){
   const hasText=Boolean(els.query.value.trim()||els.direction.value.trim()||els.note.value.trim());
@@ -6621,7 +6648,7 @@ function saveLookupDraft(){
   if(draft.query.trim()||draft.direction.trim()||draft.note.trim()||draft.folderIds.length){
     try{writeJSON(STORAGE_KEYS.lookupDraft,draft)}catch(error){console.warn('查询草稿暂时无法写入本地存储。',error)}
   }else{
-    localStorage.removeItem(STORAGE_KEYS.lookupDraft);
+    try{commitStorageChanges([{key:STORAGE_KEYS.lookupDraft,value:null}])}catch(error){console.warn('查询草稿暂时无法从本地存储清除。',error)}
   }
 }
 function hydrateLookupDraft(){

@@ -30,7 +30,6 @@ const versions = {
   settingsDataAsset: firstMatch(html, /\/settings-data\.js\?v=([\d.]+)/),
   storageAsset: firstMatch(html, /\/storage-state\.js\?v=([\d.]+)/),
   iconsAsset: firstMatch(html, /\/icons\.js\?v=([\d.]+)/),
-  lucideAsset: firstMatch(html, /\/vendor\/lucide\.min\.js\?v=([\d.]+)/),
   lookupTasksAsset: firstMatch(html, /\/lookup-tasks\.js\?v=([\d.]+)/),
   syncStateAsset: firstMatch(html, /\/sync-state\.js\?v=([\d.]+)/),
   changelog: firstMatch(changelog, /^## v([\d.]+)/m),
@@ -72,9 +71,9 @@ expect(/src="\/settings-data\.js\?v=/.test(html), 'settings-data.js must use a r
 expect(html.indexOf('/settings-data.js?v=')<html.indexOf('/app.js?v='), 'settings-data.js must load before app.js');
 expect(/src="\/storage-state\.js\?v=/.test(html), 'storage-state.js must use a root-absolute versioned asset path');
 expect(html.indexOf('/storage-state.js?v=')<html.indexOf('/app.js?v='), 'storage-state.js must load before app.js');
-expect(/src="\/vendor\/lucide\.min\.js\?v=/.test(html), 'the local Lucide bundle must use a versioned root-absolute path');
 expect(/src="\/icons\.js\?v=/.test(html), 'icons.js must use a versioned root-absolute path');
-expect(html.indexOf('/vendor/lucide.min.js?v=')<html.indexOf('/icons.js?v=')&&html.indexOf('/icons.js?v=')<html.indexOf('/app.js?v='), 'Lucide and icon hydration must load before app.js');
+expect(!html.includes('/vendor/lucide.min.js'), 'the browser must not download the complete Lucide library');
+expect(html.indexOf('/icons.js?v=')<html.indexOf('/app.js?v='), 'icon hydration must load before app.js');
 expect(/src="\/lookup-tasks\.js\?v=/.test(html), 'lookup-tasks.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(app.includes("historyTombstones:'ai_vocab_tool_history_tombstones'"), '前端同步键缺少历史删除墓碑');
 expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白名单缺少历史删除墓碑');
@@ -102,6 +101,10 @@ expect(app.includes('favoriteFolderTombstones:SettingsData.addTombstone'), 'Favo
 expect(app.includes('function setHistoryAndSettings(')&&app.includes("{key:STORAGE_KEYS.settings,value:settingsRaw}"), 'Folder deletion must atomically commit history, tombstones, and settings');
 expect(/function setHistory\([\s\S]{0,1500}commitStorageChanges\(\[[\s\S]{0,400}STORAGE_KEYS\.history[\s\S]{0,400}STORAGE_KEYS\.historyTombstones/.test(app), 'History and tombstones must share one local storage transaction');
 expect(/function replaceLocalWithItems\([\s\S]{0,1800}commitStorageChanges\(\[/.test(app), 'Full cloud replacement must use one local storage transaction');
+expect(/function factoryReset\([\s\S]{0,700}commitStorageChanges\(\[[\s\S]{0,350}STORAGE_KEYS\.lookupTasks/.test(app), 'Factory reset must remove all local keys in one storage transaction');
+expect(/function setTheme\([\s\S]{0,350}commitStorageChanges\(\[\{key:STORAGE_KEYS\.theme/.test(app), 'Theme changes must persist before updating the visible theme');
+expect(/function setLayout\([\s\S]{0,400}commitStorageChanges\(\[\{key:STORAGE_KEYS\.layout/.test(app), 'Layout changes must persist before updating the visible layout');
+expect(!/localStorage\.(?:setItem|removeItem)\(/.test(app), 'App storage writes must use the rollback-capable transaction helper');
 expect(app.includes('SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now)'), 'API profile deletion must create a settings tombstone');
 expect(app.includes('SettingsData.resolveOrderedIds('), 'API profile merge must resolve an independently clocked order');
 expect(app.includes('apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now'), 'API profile drag must persist order without rewriting profile content');

@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 const root = process.cwd();
@@ -26,8 +26,8 @@ for (const file of files) {
   await copyFile(join(root, file), target);
 }
 
-const lucideTarget=join(dist,'vendor','lucide.min.js');
-await mkdir(dirname(lucideTarget),{recursive:true});
-await copyFile(join(root,'node_modules','lucide','dist','umd','lucide.min.js'),lucideTarget);
+const retiredLucideTarget=join(dist,'vendor','lucide.min.js');
+await mkdir(dirname(retiredLucideTarget),{recursive:true});
+await writeFile(retiredLucideTarget,'/* Retired: project icons are generated in /icons.js. */\n','utf8');
 
 console.log(`Cloudflare Pages static output written to ${dist}`);

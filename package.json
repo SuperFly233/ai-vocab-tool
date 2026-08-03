@@ -1,19 +1,21 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "build:pages": "node scripts/build-pages.js",
+    "build:icons": "node scripts/build-icons.js",
+    "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",
     "check:contracts": "node scripts/check-contracts.js",
     "check:history": "node scripts/check-history-data.js",
     "check:settings": "node scripts/check-settings-data.js",
     "check:settings-app": "node scripts/check-settings-app.js",
     "check:storage": "node scripts/check-storage-state.js",
+    "check:icons": "node scripts/build-icons.js --check",
     "check:lookup": "node scripts/check-lookup-tasks.js",
     "check:sync": "node scripts/check-sync-state.js",
     "check:sync-api": "node scripts/check-sync-api.js",
-    "check": "node --check app.js && node --check history-data.js && node --check settings-data.js && node --check storage-state.js && node --check lookup-tasks.js && node --check sync-state.js && node --check api/analyze.js && node --check api/followup.js && node --check api/models.js && node --check api/sync.js && node --check api/test-profile.js && node --check functions/_utils/vercel-adapter.js && npm run check:contracts && npm run check:history && npm run check:settings && npm run check:settings-app && npm run check:storage && npm run check:lookup && npm run check:sync && npm run check:sync-api"
+    "check": "node --check app.js && node --check history-data.js && node --check settings-data.js && node --check storage-state.js && node --check lookup-tasks.js && node --check sync-state.js && node --check api/analyze.js && node --check api/followup.js && node --check api/models.js && node --check api/sync.js && node --check api/test-profile.js && node --check functions/_utils/vercel-adapter.js && npm run check:icons && npm run check:contracts && npm run check:history && npm run check:settings && npm run check:settings-app && npm run check:storage && npm run check:lookup && npm run check:sync && npm run check:sync-api"
   },
   "dependencies": {
     "lucide": "1.28.0"
