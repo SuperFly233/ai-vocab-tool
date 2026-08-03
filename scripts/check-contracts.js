@@ -99,6 +99,11 @@ expect(app.includes('favoriteFolderOrderUpdatedAt:now'), 'Favorite folder order 
 expect(!/function ensureFoldersPersistedForOrder[\s\S]{0,500}normalizeFavoriteFolder\(\{\.\.\.folder,order:index,updatedAt:new Date/.test(app), 'Favorite folder drag must not rewrite every folder content clock');
 expect((app.match(/SettingsData\.preferNewerItem\(/g)||[]).length>=4, 'API profiles and favorite folders must share deterministic equal-time conflict resolution');
 expect(app.includes('localTime===remoteTime&&SettingsData.preferNewerItem(local,remote)===local'), 'Equal-time scalar settings must resolve independently of device argument order');
+expect(app.includes("SettingsData.stableId('api',[name,apiUrl,apiKey,model])"), 'Legacy API profiles without ids must migrate deterministically');
+expect(app.includes('normalizeFavoriteFolders(source.favoriteFolders,sourceClock)'), 'Legacy favorite folders must inherit a stable settings clock');
+expect(app.includes('modelPrompt:SettingsData.selectPreferredValue(local.modelPrompt,remote.modelPrompt,preferLocalSettings)'), 'A newer empty Prompt must remain an authoritative clear operation');
+expect(app.includes('updatedAt:SettingsData.selectPreferredValue(local.updatedAt,remote.updatedAt,preferLocalSettings)'), 'Merged scalar settings must retain the winning side clock');
+expect(!/function normalizeApiProfile[\s\S]{0,700}Date\.now\(\)/.test(app), 'API profile normalization must never fabricate a current-time identity');
 expect(app.includes("homeStickyMode:'compact'"), 'Home sticky controls must default to compact mode');
 expect(app.includes("homeStickyMode:preferLocalSettings?local.homeStickyMode"), 'Home sticky preference must participate in settings merge');
 expect(html.includes('id="lookup-options-toggle"')&&html.includes('id="sticky-mode-compact"'), 'Home sticky controls and preference UI must exist');

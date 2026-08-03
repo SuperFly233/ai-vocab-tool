@@ -1,6 +1,6 @@
 await import('../settings-data.js');
 
-const {normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds,preferNewerItem}=globalThis.SettingsData||{};
+const {normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds,preferNewerItem,normalizeClock,stableId,selectPreferredValue}=globalThis.SettingsData||{};
 const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 const old='2026-01-01T00:00:00.000Z';
@@ -30,6 +30,12 @@ const tiedItemA={id:'folder_a',name:'Alpha',updatedAt:revived};
 const tiedItemB={id:'folder_a',name:'Beta',updatedAt:revived};
 expect(preferNewerItem(tiedItemA,tiedItemB)===preferNewerItem(tiedItemB,tiedItemA),'Equal-time item conflicts must choose the same content in either merge direction');
 expect(preferNewerItem({...tiedItemA,updatedAt:old},tiedItemB)===tiedItemB,'A newer item timestamp must still outrank the deterministic tie-break');
+
+expect(normalizeClock('',old)===old,'Legacy items must inherit a stable parent clock instead of the current time');
+expect(normalizeClock('not-a-date','')==='','Invalid legacy clocks must remain empty instead of becoming current');
+expect(stableId('api',['Legacy','https://example.com','secret','model'])===stableId('api',['Legacy','https://example.com','secret','model']),'Legacy profile ids must be deterministic');
+expect(stableId('api',['Legacy','https://example.com','key-a','model'])!==stableId('api',['Legacy','https://example.com','key-b','model']),'Distinct legacy profiles must not collapse to one deterministic id');
+expect(selectPreferredValue('custom','',false)==='','A newer explicit empty scalar must not resurrect an older non-empty value');
 
 if(failures.length){
   console.error(`Settings data check failed (${failures.length}):`);

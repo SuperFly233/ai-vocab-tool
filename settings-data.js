@@ -22,6 +22,25 @@
     return JSON.stringify(stableValue(value));
   }
 
+  function normalizeClock(value,fallback=''){
+    const time=timestamp(value)||timestamp(fallback);
+    return time?new Date(time).toISOString():'';
+  }
+
+  function stableId(prefix,parts=[]){
+    const input=stableSignature(Array.isArray(parts)?parts:[parts]);
+    let hash=2166136261;
+    for(let index=0;index<input.length;index+=1){
+      hash^=input.charCodeAt(index);
+      hash=Math.imul(hash,16777619);
+    }
+    return `${String(prefix||'item').replace(/[^a-z0-9_-]/gi,'_')}_${(hash>>>0).toString(36)}`;
+  }
+
+  function selectPreferredValue(leftValue,rightValue,preferLeft){
+    return preferLeft?leftValue:rightValue;
+  }
+
   function preferNewerItem(left,right){
     if(!left)return right;
     if(!right)return left;
@@ -71,5 +90,5 @@
     return [...selected,...allowed.filter(id=>!selected.includes(id))];
   }
 
-  root.SettingsData=Object.freeze({normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds,preferNewerItem});
+  root.SettingsData=Object.freeze({normalizeTombstones,addTombstone,reconcileItems,resolveOrderedIds,preferNewerItem,normalizeClock,stableId,selectPreferredValue});
 })(typeof globalThis==='object'?globalThis:this);

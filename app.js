@@ -149,12 +149,18 @@ const ABOUT_RELEASE_LIMIT=6;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'ai-vocab-tool',
-  version:'0.12.1',
+  version:'0.12.2',
   releaseDate:'2026-08-03',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.12.2',
+    date:'2026-08-03',
+    title:'阻止已清空 Prompt 复活，并稳定迁移旧设置',
+    items:['设置合并把空 Prompt 视为明确的“恢复默认”状态；较新的清空操作会正常覆盖另一台设备上的旧自定义 Prompt，不再因 || 回退而复活；合并结果同时保留胜出方总时钟。','旧 API 配置缺少 id 时改用配置内容生成稳定 id，缺少更新时间时继承设置记录的稳定时间；同一份旧数据在不同设备上不会再产生随机配置或伪装成刚刚编辑。','旧收藏夹缺少创建/更新时间时同样继承稳定的设置时间，没有可靠时间时保持为空并使用确定性内容规则，读取数据本身不再改变同步胜负。'],
+  },
   {
     version:'0.12.1',
     date:'2026-08-03',
@@ -1222,8 +1228,9 @@ function saveSettingsLocal(settings){
 }
 function normalizeSettings(raw={}){
   const source={...raw};
+  const sourceClock=SettingsData.normalizeClock(source.updatedAt);
   const hasProfileArray=Array.isArray(source.apiProfiles);
-  let profiles=hasProfileArray?source.apiProfiles.map(normalizeApiProfile).filter(Boolean):[];
+  let profiles=hasProfileArray?source.apiProfiles.map(profile=>normalizeApiProfile(profile,sourceClock)).filter(Boolean):[];
   const legacyHasValue=Boolean(source.apiUrl||source.apiKey||source.model);
   if(!profiles.length&&legacyHasValue){
     const legacyProfile=normalizeApiProfile({
@@ -1232,8 +1239,8 @@ function normalizeSettings(raw={}){
       apiUrl:source.apiUrl||'',
       apiKey:source.apiKey||'',
       model:source.model||'',
-      updatedAt:source.updatedAt||new Date().toISOString(),
-    });
+      updatedAt:sourceClock,
+    },sourceClock);
     const existingIndex=profiles.findIndex(profile=>profile.id===legacyProfile.id);
     if(existingIndex>=0)profiles[existingIndex]={...profiles[existingIndex],...legacyProfile};
     else profiles.unshift(legacyProfile);
@@ -1256,7 +1263,7 @@ function normalizeSettings(raw={}){
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const modelPrompt=String(source.modelPrompt||'');
   const favoriteFolderTombstones=SettingsData.normalizeTombstones(source.favoriteFolderTombstones);
-  let favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders),favoriteFolderTombstones);
+  let favoriteFolders=SettingsData.reconcileItems(normalizeFavoriteFolders(source.favoriteFolders,sourceClock),favoriteFolderTombstones);
   const folderIds=favoriteFolders.map(folder=>folder.id);
   const requestedFolderOrder=Array.isArray(source.favoriteFolderOrder)&&source.favoriteFolderOrder.length?source.favoriteFolderOrder:folderIds;
   const favoriteFolderOrderUpdatedAt=normalizeHistoryClock(source.favoriteFolderOrderUpdatedAt);
@@ -1268,6 +1275,7 @@ function normalizeSettings(raw={}){
   return {
     ...DEFAULT_SETTINGS,
     ...source,
+    updatedAt:sourceClock,
     apiProfiles:profiles,
     apiProfileTombstones,
     apiProfileOrder,
@@ -1305,24 +1313,25 @@ function normalizeBooleanSetting(value,fallback=false){
   if(value===false||value==='false'||value===0||value==='0')return false;
   return fallback;
 }
-function normalizeFavoriteFolder(folder={},index=0){
+function normalizeFavoriteFolder(folder={},index=0,fallbackUpdatedAt=''){
   const name=String(folder.name||folder.title||'').trim();
   if(!name)return null;
   const id=String(folder.id||folder.folderId||`folder_${stableHash(name)}`).trim();
+  const createdAt=SettingsData.normalizeClock(folder.createdAt,fallbackUpdatedAt);
   return {
     id,
     name,
     parentId:String(folder.parentId||'').trim(),
     order:Number.isFinite(Number(folder.order))?Number(folder.order):index,
-    createdAt:folder.createdAt||new Date().toISOString(),
-    updatedAt:folder.updatedAt||folder.createdAt||new Date().toISOString(),
+    createdAt,
+    updatedAt:SettingsData.normalizeClock(folder.updatedAt,createdAt||fallbackUpdatedAt),
   };
 }
-function normalizeFavoriteFolders(value=[]){
+function normalizeFavoriteFolders(value=[],fallbackUpdatedAt=''){
   const folders=Array.isArray(value)?value:[];
   const map=new Map();
   folders.forEach((folder,index)=>{
-    const normalized=normalizeFavoriteFolder(folder,index);
+    const normalized=normalizeFavoriteFolder(folder,index,fallbackUpdatedAt);
     if(!normalized||normalized.id===FOLDER_LIKED_ID||normalized.id===FOLDER_UNFILED_ID)return;
     const existing=map.get(normalized.id);
     map.set(normalized.id,SettingsData.preferNewerItem(existing,normalized));
@@ -1341,15 +1350,19 @@ function normalizeFolderIds(value){
   const list=Array.isArray(value)?value:String(value||'').split(/[,\s，、;；]+/);
   return uniq(list.map(id=>String(id||'').trim()).filter(id=>id&&id!==FOLDER_LIKED_ID&&id!==FOLDER_UNFILED_ID).slice(0,64));
 }
-function normalizeApiProfile(profile={}){
-  const id=String(profile.id||`api_${Date.now()}_${Math.floor(Math.random()*1000)}`);
+function normalizeApiProfile(profile={},fallbackUpdatedAt=''){
+  const name=String(profile.name||profile.label||'未命名配置').trim()||'未命名配置';
+  const apiUrl=String(profile.apiUrl||'').trim();
+  const apiKey=String(profile.apiKey||'').trim();
+  const model=String(profile.model||'').trim();
+  const id=String(profile.id||SettingsData.stableId('api',[name,apiUrl,apiKey,model]));
   return {
     id,
-    name:String(profile.name||profile.label||'未命名配置').trim()||'未命名配置',
-    apiUrl:String(profile.apiUrl||'').trim(),
-    apiKey:String(profile.apiKey||'').trim(),
-    model:String(profile.model||'').trim(),
-    updatedAt:profile.updatedAt||new Date().toISOString(),
+    name,
+    apiUrl,
+    apiKey,
+    model,
+    updatedAt:SettingsData.normalizeClock(profile.updatedAt,fallbackUpdatedAt),
   };
 }
 function dedupeApiProfiles(profiles){
@@ -1413,12 +1426,13 @@ function mergeSettings(localRaw,remoteRaw){
     : remote.activeApiProfileId||local.activeApiProfileId;
   return normalizeSettings({
     ...remote,
+    updatedAt:SettingsData.selectPreferredValue(local.updatedAt,remote.updatedAt,preferLocalSettings),
     labelMode:preferLocalSettings?local.labelMode:remote.labelMode||local.labelMode,
     fontMode:preferLocalSettings?local.fontMode:remote.fontMode||local.fontMode,
     historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
     homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
-    modelPrompt:preferLocalSettings?local.modelPrompt:remote.modelPrompt||local.modelPrompt||'',
+    modelPrompt:SettingsData.selectPreferredValue(local.modelPrompt,remote.modelPrompt,preferLocalSettings),
     favoriteFolders,
     favoriteFolderTombstones,
     favoriteFolderOrder,
