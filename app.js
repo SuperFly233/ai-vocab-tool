@@ -75,7 +75,9 @@ let folderSelectContext=null;
 let folderPointerDragState=null;
 let modalSwipeState=null;
 let visualPointerDragState=null;
+let visualOpenTarget='';
 let apiProfilePointerDragState=null;
+let apiProfileNativeDragState=null;
 let rollPointerDragState=null;
 let lookupQueuePointerDragState=null;
 let suppressRollClick=false;
@@ -160,12 +162,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.16.2',
-  releaseDate:'2026-08-03',
+  version:'0.17.0',
+  releaseDate:'2026-08-04',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.17.0',
+    date:'2026-08-04',
+    title:'分离原始输入与规范词条，重构可视化编辑排序',
+    items:['查询保存时新增 meta.origin 并由前端逐字保留原始输入；历史、收藏夹、关联记录和详情默认显示 AI 返回的规范 headword.title，大小写、缩写与 typo 不再覆盖词典标题。','可视化编辑的义项、搭配和辨析改为紧凑目录行，按需展开单项表单；拖拽始终作用于短标题行，新增项自动展开，长内容不再让排序失控。','API 配置和可视化列表在鼠标端直接抓取、触屏端短按抓取，并扩大触屏容错；桌面首页、历史和收藏夹导航锁定页面几何中心，不受右侧工具数量影响。'],
+  },
   {
     version:'0.16.2',
     date:'2026-08-03',
@@ -1353,6 +1361,15 @@ function openAccountCenter(){
 function invalidateHistoryDerivedCache(){historyDerivedCache=null}
 function historyIdentityKey(item={}){
   return normalizeSearch(item.query||item.result?.meta?.query||item.result?.headword?.title||item.id);
+}
+function resultOrigin(result={},fallback=''){
+  return String(result?.meta?.origin||result?.meta?.query||fallback||'').trim();
+}
+function resultDisplayTitle(result={},fallback=''){
+  return String(result?.headword?.title||result?.meta?.normalized||resultOrigin(result,fallback)||fallback||'').trim();
+}
+function historyDisplayTitle(item={}){
+  return resultDisplayTitle(latestHistoryResult(item),item.query||'');
 }
 function getHistoryTombstones(){
   const raw=readStorageValue(STORAGE_KEYS.historyTombstones,'[]');
@@ -2629,7 +2646,7 @@ function historyModalHasDraft(){
 function syncModalDraftFromActiveTab(nextTab){
   if(activeModalTab==='visual'){
     modalResult=collectVisualResult();
-    if(els.modalQueryEdit)els.modalQueryEdit.value=modalResult.headword?.title||modalResult.meta?.query||els.modalQueryEdit.value;
+    if(els.modalQueryEdit)els.modalQueryEdit.value=resultOrigin(modalResult,els.modalQueryEdit.value);
     if(els.modalJsonEdit)els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
   }
   if(activeModalTab==='json'&&nextTab!=='json'){
@@ -3208,7 +3225,7 @@ function renderRelatedHistory(items=[]){
         const summary=historyEntrySummary(item);
         const meta=historyEntryMeta(item);
         return `<button class="related-item" type="button" onclick="openRelatedHistory(${Number(item.id)},event)">
-          <span class="related-word">${escapeHTML(item.query)}</span>
+          <span class="related-word">${escapeHTML(historyDisplayTitle(item))}</span>
           ${summary?`<span class="related-summary">${escapeHTML(summary)}</span>`:''}
           <span class="related-meta">${meta.map(label=>`<em>${escapeHTML(label)}</em>`).join('')}</span>
         </button>`;
@@ -4160,6 +4177,10 @@ function findHistoryByQuery(query){
 function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInfo={},folderIds=[],lookupSignature=''}){
   const now=new Date().toISOString();
   result=normalizeResultEntryType(result,query);
+  result.meta=result.meta||{};
+  result.meta.origin=query;
+  result.meta.query=query;
+  result.meta.normalized=result.meta.normalized||result.headword?.title||query;
   const history=getHistory();
   const existing=sourceItem||history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query);
   const roll=makeHistoryRoll(result,now,null,modelInfo);
@@ -4347,7 +4368,7 @@ function renderHistory(){
     return `
     <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
-        <div class="history-word">${escapeHTML(item.query)}</div>
+        <div class="history-word">${escapeHTML(historyDisplayTitle(normalized))}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
         ${renderHistoryFolders(normalized)}
         <div class="history-meta">
@@ -4702,7 +4723,7 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
   return `
     <div class="history-item ${normalized.favorite?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
-        <div class="history-word">${escapeHTML(item.query)}</div>
+        <div class="history-word">${escapeHTML(historyDisplayTitle(normalized))}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
         ${renderHistoryFolders(normalized)}
         <div class="history-meta">
@@ -5438,6 +5459,7 @@ function renderVisualEditor(result=modalResult){
     <div class="visual-grid visual-headword-grid">
       ${visualField('visual-title','词条标题',head.title||meta.query||'')}
       ${visualField('visual-core','核心义',head.coreMeaning||'')}
+      ${visualReadonlyField('visual-origin','原始输入（Origin）',resultOrigin(data))}
       ${visualField('visual-entry-type','类型',entryTypeForResult(data,head.title||meta.query||''))}
       ${visualField('visual-pos','词性',head.basicPartOfSpeech||'')}
       ${visualField('visual-language','语言',head.languageTag||meta.language||'')}
@@ -5460,6 +5482,9 @@ function renderVisualEditor(result=modalResult){
 function visualField(id,label,value){
   return `<label class="setting-field visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}">${visualHintHTML(id)}</label>`;
 }
+function visualReadonlyField(id,label,value){
+  return `<label class="setting-field visual-readonly"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}" readonly></label>`;
+}
 function visualTextarea(id,label,value){
   return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" id="${id}">${escapeHTML(value)}</textarea>${visualHintHTML(id)}</label>`;
 }
@@ -5472,9 +5497,9 @@ function visualList(kind,title,items,renderer){
   </section>`;
 }
 function renderVisualSense(item={},index=0){
-  return `<article class="visual-card" data-visual-kind="senses" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>义项 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('senses',${index})">删除</button></div></div>
-    <div class="visual-grid compact visual-sense-grid">
+  return `<article class="visual-card ${visualOpenTarget===`senses:${index}`?'expanded':''}" data-visual-kind="senses" data-index="${index}">
+    ${visualCardHead('senses',index,item.shortestLabel||'未命名义项',item.partOfSpeech||'')}
+    <div class="visual-card-body"><div class="visual-grid compact visual-sense-grid">
       ${visualInlineField('partOfSpeech','词性',item.partOfSpeech||'')}
       ${visualInlineField('shortestLabel','义标',item.shortestLabel||'')}
       ${visualInlineTextarea('meaning','语意',item.meaning||'')}
@@ -5482,13 +5507,13 @@ function renderVisualSense(item={},index=0){
       ${visualInlineTextarea('translation','译文',item.translation||'')}
       ${visualInlineTextarea('exampleHighlights','例句高亮',rawList(item.exampleHighlights).join('\n'))}
       ${visualInlineTextarea('translationHighlights','译文高亮',rawList(item.translationHighlights).join('\n'))}
-    </div>
+    </div></div>
   </article>`;
 }
 function renderVisualCollocation(item={},index=0){
-  return `<article class="visual-card" data-visual-kind="collocations" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>搭配 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('collocations',${index})">删除</button></div></div>
-    <div class="visual-grid compact">
+  return `<article class="visual-card ${visualOpenTarget===`collocations:${index}`?'expanded':''}" data-visual-kind="collocations" data-index="${index}">
+    ${visualCardHead('collocations',index,item.phrase||'未命名搭配',item.note||'')}
+    <div class="visual-card-body"><div class="visual-grid compact">
       ${visualInlineField('phrase','短语',item.phrase||'')}
       ${visualInlineField('note','标注',item.note||'')}
       ${visualInlineTextarea('meaning','语意',item.meaning||'')}
@@ -5496,18 +5521,33 @@ function renderVisualCollocation(item={},index=0){
       ${visualInlineTextarea('translation','译文',item.translation||'')}
       ${visualInlineTextarea('exampleHighlights','例句高亮',rawList(item.exampleHighlights).join('\n'))}
       ${visualInlineTextarea('translationHighlights','译文高亮',rawList(item.translationHighlights).join('\n'))}
-    </div>
+    </div></div>
   </article>`;
 }
 function renderVisualConfusion(item={},index=0){
-  return `<article class="visual-card" data-visual-kind="confusions" data-index="${index}">
-    <div class="visual-card-head"><b><span class="drag-handle">${icon('grip-vertical')}</span>易混 ${index+1}</b><div class="visual-card-actions"><button class="danger-btn" type="button" onclick="removeVisualItem('confusions',${index})">删除</button></div></div>
-    <div class="visual-grid compact">
+  return `<article class="visual-card ${visualOpenTarget===`confusions:${index}`?'expanded':''}" data-visual-kind="confusions" data-index="${index}">
+    ${visualCardHead('confusions',index,item.term||'未命名词条',item.difference||'')}
+    <div class="visual-card-body"><div class="visual-grid compact">
       ${visualInlineField('term','词',item.term||'')}
       ${visualInlineTextarea('difference','核心区别',item.difference||'')}
       ${visualInlineTextarea('usage','语体/使用倾向',item.usage||'')}
-    </div>
+    </div></div>
   </article>`;
+}
+function visualCardHead(kind,index,title,meta=''){
+  return `<div class="visual-card-head">
+    <button class="drag-handle" type="button" aria-label="拖拽调整顺序">${icon('grip-vertical')}</button>
+    <button class="visual-card-toggle" type="button" onclick="toggleVisualCard(this)" aria-expanded="${visualOpenTarget===`${kind}:${index}`}">
+      <span class="visual-card-index">${index+1}</span><span class="visual-card-copy"><b>${escapeHTML(title)}</b>${meta?`<small>${escapeHTML(meta)}</small>`:''}</span>${icon('chevron-down')}
+    </button>
+    <button class="icon-btn danger-icon visual-card-delete" type="button" data-tip="删除" aria-label="删除" onclick="removeVisualItem('${kind}',${index})">${icon('trash-2')}</button>
+  </div>`;
+}
+function toggleVisualCard(button){
+  const card=button.closest('.visual-card');
+  if(!card)return;
+  const expanded=card.classList.toggle('expanded');
+  button.setAttribute('aria-expanded',String(expanded));
 }
 function visualInlineField(key,label,value){
   return `<label class="setting-field visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><input class="cloud-input" data-field="${key}" type="text" value="${escapeHTML(value)}">${visualHintHTML(key)}</label>`;
@@ -5529,7 +5569,9 @@ function collectVisualResult(){
   data.headword.basicPartOfSpeech=document.getElementById('visual-pos')?.value.trim()||'';
   data.headword.languageTag=document.getElementById('visual-language')?.value.trim()||'';
   data.headword.summary=document.getElementById('visual-summary')?.value.trim()||'';
-  data.meta.query=data.headword.title||data.meta.query||'';
+  const origin=document.getElementById('visual-origin')?.value.trim()||resultOrigin(data);
+  data.meta.origin=origin;
+  data.meta.query=origin;
   data.meta.normalized=data.headword.title||data.meta.normalized||'';
   data.meta.language=data.headword.languageTag||data.meta.language||'';
   data.meta.defaultDirection=document.getElementById('visual-direction')?.value.trim()||'';
@@ -5565,8 +5607,10 @@ function addVisualItem(kind){
   if(kind==='senses')data.senses=[...(data.senses||[]),{partOfSpeech:'',shortestLabel:'',meaning:'',example:'',translation:''}];
   if(kind==='collocations')data.collocations=[...(data.collocations||[]),{phrase:'',meaning:'',example:'',translation:'',note:''}];
   if(kind==='confusions')data.confusions=[...(data.confusions||[]),{term:'',difference:'',usage:''}];
+  visualOpenTarget=`${kind}:${Math.max(0,(data[kind]?.length||1)-1)}`;
   modalResult=data;
   renderVisualEditor(data);
+  visualOpenTarget='';
 }
 function removeVisualItem(kind,index){
   const data=collectVisualResult();
@@ -5649,13 +5693,13 @@ function cancelPendingPointerDrag(state){
   document.body.classList.remove('reorder-active');
 }
 function shouldCancelPendingDrag(state,event){
-  return !state.active&&Math.hypot(event.clientX-state.startX,event.clientY-state.startY)>9;
+  return !state.active&&Math.hypot(event.clientX-state.startX,event.clientY-state.startY)>(state.cancelDistance||9);
 }
 function startVisualPointerDrag(event){
   const handle=event.target.closest('.drag-handle');
   const card=event.target.closest('.visual-card');
   if(!handle||!card||event.button>0)return;
-  visualPointerDragState={
+  const state=visualPointerDragState={
     pointerId:event.pointerId,
     kind:card.dataset.visualKind,
     item:card,
@@ -5663,15 +5707,20 @@ function startVisualPointerDrag(event){
     startY:event.clientY,
     active:false,
     ghost:null,
-    timer:setTimeout(()=>{
-      if(!visualPointerDragState)return;
-      visualPointerDragState.active=true;
+    cancelDistance:event.pointerType==='mouse'?9:18,
+    timer:null,
+  };
+  const activate=()=>{
+      if(visualPointerDragState!==state)return;
+      state.active=true;
+      card.classList.remove('expanded');
       card.classList.add('dragging');
       document.body.classList.add('reorder-active');
-      visualPointerDragState.ghost=createReorderGhost(card,event,'编辑区块');
+      state.ghost=createReorderGhost(card,event,'编辑区块');
       card.setPointerCapture?.(event.pointerId);
-    },220),
   };
+  if(event.pointerType==='mouse')activate();
+  else state.timer=setTimeout(activate,180);
 }
 function moveVisualPointerDrag(event){
   const state=visualPointerDragState;
@@ -5703,22 +5752,37 @@ function startApiProfilePointerDrag(event){
   const handle=event.target.closest('.api-profile-drag');
   const option=event.target.closest('.api-profile-option');
   if(!handle||!option||event.button>0)return;
-  apiProfilePointerDragState={
+  const state=apiProfilePointerDragState={
     pointerId:event.pointerId,
     item:option,
     startX:event.clientX,
     startY:event.clientY,
     active:false,
     ghost:null,
-    timer:setTimeout(()=>{
-      if(!apiProfilePointerDragState)return;
-      apiProfilePointerDragState.active=true;
+    capture:handle,
+    cancelDistance:event.pointerType==='mouse'?9:18,
+    timer:null,
+  };
+  const activate=()=>{
+      if(apiProfilePointerDragState!==state)return;
+      state.active=true;
       option.classList.add('dragging');
       document.body.classList.add('reorder-active');
-      apiProfilePointerDragState.ghost=createReorderGhost(option,event,'API 配置');
-      option.setPointerCapture?.(event.pointerId);
-    },220),
+      state.ghost=createReorderGhost(option,event,'API 配置');
+      handle.setPointerCapture?.(event.pointerId);
   };
+  if(event.pointerType==='mouse')activate();
+  else state.timer=setTimeout(activate,180);
+}
+function apiProfileDropMeta(clientY,item){
+  const candidates=[...item.parentElement.querySelectorAll('.api-profile-option')]
+    .filter(candidate=>candidate!==item);
+  const target=candidates.reduce((closest,candidate)=>{
+    const rect=candidate.getBoundingClientRect();
+    const distance=Math.abs(clientY-(rect.top+rect.height/2));
+    return !closest||distance<closest.distance?{item:candidate,rect,distance}:closest;
+  },null);
+  return target?{item:target.item,after:clientY>target.rect.top+target.rect.height/2}:null;
 }
 function moveApiProfilePointerDrag(event){
   const state=apiProfilePointerDragState;
@@ -5733,7 +5797,7 @@ function moveApiProfilePointerDrag(event){
   positionReorderGhost(state.ghost,event);
   autoScrollDuringDrag(event.clientY,els.apiProfileMenu);
   clearApiProfileDropMarks();
-  const meta=reorderDropMeta(event.clientX,event.clientY,'.api-profile-option',els.apiProfileMenu);
+  const meta=apiProfileDropMeta(event.clientY,state.item);
   if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
 }
 function endApiProfilePointerDrag(event){
@@ -5743,6 +5807,38 @@ function endApiProfilePointerDrag(event){
   clearApiProfileDropMarks();
   apiProfilePointerDragState=null;
   if(!state.active)return;
+  persistApiProfileOrder([...state.item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
+}
+function startApiProfileNativeDrag(event){
+  const handle=event.target.closest('.api-profile-drag');
+  const item=event.target.closest('.api-profile-option');
+  if(!handle||!item)return;
+  if(apiProfilePointerDragState){
+    cancelPendingPointerDrag(apiProfilePointerDragState);
+    apiProfilePointerDragState=null;
+  }
+  apiProfileNativeDragState={item};
+  item.classList.add('dragging');
+  document.body.classList.add('reorder-active');
+  event.dataTransfer.effectAllowed='move';
+  event.dataTransfer.setData('text/plain',item.dataset.profileId||'');
+}
+function moveApiProfileNativeDrag(event){
+  const state=apiProfileNativeDragState;
+  if(!state)return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect='move';
+  autoScrollDuringDrag(event.clientY,els.apiProfileMenu);
+  const meta=apiProfileDropMeta(event.clientY,state.item);
+  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
+}
+function endApiProfileNativeDrag(event){
+  const state=apiProfileNativeDragState;
+  if(!state)return;
+  event?.preventDefault?.();
+  apiProfileNativeDragState=null;
+  state.item.classList.remove('dragging');
+  document.body.classList.remove('reorder-active');
   persistApiProfileOrder([...state.item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
 }
 function startRollPointerDrag(event){
@@ -5868,7 +5964,7 @@ function endHistoryModalEdgeSwipe(event){
 function saveVisualHistoryEdit(){
   const data=collectVisualResult();
   modalResult=data;
-  if(els.modalQueryEdit)els.modalQueryEdit.value=data.headword?.title||data.meta?.query||els.modalQueryEdit.value;
+  if(els.modalQueryEdit)els.modalQueryEdit.value=resultOrigin(data,els.modalQueryEdit.value);
   els.modalJsonEdit.value=JSON.stringify(data,null,2);
   saveHistoryEdit();
 }
@@ -5880,13 +5976,13 @@ function openHistoryModal(id){
   modalResult=latest?.result||normalized.result;
   modalHistoryId=Number(item.id);
   modalRollId=latest?historyRollViewKey(latest,0):null;
-  els.modalTitle.textContent=normalized.query;
+  els.modalTitle.textContent=historyDisplayTitle(normalized);
   els.modalSubtitle.textContent=historyModalMeta(normalized);
   renderModalRollbar(normalized);
   renderModalStickySummary(modalResult,normalized);
   els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal',normalized);
   renderVisualEditor(modalResult);
-  els.modalQueryEdit.value=normalized.query;
+  els.modalQueryEdit.value=resultOrigin(modalResult,normalized.query);
   if(els.modalTagsEdit)els.modalTagsEdit.value=folderNamesForItem(normalized).join(' ');
   if(els.modalNoteEdit)els.modalNoteEdit.value=normalized.note;
   els.modalJsonEdit.value=JSON.stringify(modalResult,null,2);
@@ -5924,7 +6020,10 @@ function saveHistoryEdit(){
     notify(`JSON 格式不对：${error.message}`,'bad','保存失败');
     return;
   }
-  const query=els.modalQueryEdit.value.trim()||parsed?.meta?.query||parsed?.headword?.title||'未命名记录';
+  const query=els.modalQueryEdit.value.trim()||resultOrigin(parsed)||parsed?.headword?.title||'未命名记录';
+  parsed.meta=parsed.meta||{};
+  parsed.meta.origin=query;
+  parsed.meta.query=query;
   parsed=normalizeResultEntryType(parsed,query);
   const folderIds=ensureFavoriteFoldersByNames(els.modalTagsEdit?.value||'');
   const note=String(els.modalNoteEdit?.value||'').trim();
@@ -5945,7 +6044,7 @@ function saveHistoryEdit(){
   const renamedItems=originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query)?[originalItem]:[];
   if(!setHistory(history,{revive:true,deletedItems:renamedItems}))return;
   modalResult=parsed;
-  els.modalTitle.textContent=query;
+  els.modalTitle.textContent=resultDisplayTitle(parsed,query);
   const updatedItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   const updatedFollowups=updatedItem?.followups||[];
   els.modalSubtitle.textContent=historyModalMeta(updatedItem);
@@ -6407,7 +6506,7 @@ function renderApiProfilePicker(settings,profile){
     <div class="api-profile-menu-list">
       ${settings.apiProfiles.map((item,index)=>`
         <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
-          <span class="api-profile-drag" aria-hidden="true">${icon('grip-vertical')}</span>
+          <span class="api-profile-drag" draggable="true" aria-hidden="true">${icon('grip-vertical')}</span>
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
             <em>${escapeHTML(apiProfileSummary(item))}</em>
@@ -6906,7 +7005,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.16.2" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.17.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -7137,9 +7236,13 @@ els.apiProfileMenu?.addEventListener('click',event=>{
   if(action==='delete')return deleteApiProfile(id);
 });
 els.apiProfileMenu?.addEventListener('pointerdown',startApiProfilePointerDrag);
-els.apiProfileMenu?.addEventListener('pointermove',moveApiProfilePointerDrag);
-els.apiProfileMenu?.addEventListener('pointerup',endApiProfilePointerDrag);
-els.apiProfileMenu?.addEventListener('pointercancel',endApiProfilePointerDrag);
+document.addEventListener('pointermove',moveApiProfilePointerDrag,{passive:false});
+document.addEventListener('pointerup',endApiProfilePointerDrag);
+document.addEventListener('pointercancel',endApiProfilePointerDrag);
+els.apiProfileMenu?.addEventListener('dragstart',startApiProfileNativeDrag);
+els.apiProfileMenu?.addEventListener('dragover',moveApiProfileNativeDrag);
+els.apiProfileMenu?.addEventListener('drop',endApiProfileNativeDrag);
+els.apiProfileMenu?.addEventListener('dragend',endApiProfileNativeDrag);
 els.apiModelList?.addEventListener('click',event=>{
   const option=event.target.closest('.model-choice');
   if(!option)return;

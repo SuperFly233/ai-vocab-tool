@@ -697,6 +697,8 @@ body.modal-open{overflow:hidden}
 .visual-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}
 .visual-headword-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .visual-headword-grid .setting-field:nth-child(1),.visual-headword-grid .setting-field:nth-child(2),.visual-headword-grid .visual-wide{grid-column:1/-1}
+.visual-readonly{grid-column:1/-1}
+.visual-readonly input{color:var(--muted);background:color-mix(in srgb,var(--panel2) 72%,transparent);cursor:default}
 .visual-sense-grid{grid-template-columns:minmax(120px,.42fr) minmax(220px,1fr)}
 .visual-wide{grid-column:1/-1}
 .visual-input{width:100%;min-height:74px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:10px 11px;font-size:14px;line-height:1.55;resize:vertical;outline:0}
@@ -708,11 +710,24 @@ body.modal-open{overflow:hidden}
 .visual-head .plain-btn,.visual-card-head .danger-btn{min-width:64px;padding:6px 10px;font-size:13px}
 .icon-add-btn{width:34px;min-width:34px;height:34px;padding:0!important;border-radius:999px;font-size:22px;line-height:1}
 .visual-list{display:grid;gap:10px}
-.visual-card{border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:12px;display:grid;gap:10px}
+.visual-card{border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel2) 72%,var(--panel));padding:0;display:grid;overflow:visible}
 .visual-card{touch-action:pan-y}
-.visual-card-head b{font-size:14px;color:var(--muted)}
-.drag-handle{display:inline-flex;margin-right:6px;color:var(--soft);font-weight:900;letter-spacing:-.16em;cursor:grab;touch-action:none;user-select:none;-webkit-touch-callout:none}
+.visual-card-head{display:grid;grid-template-columns:42px minmax(0,1fr) 42px;gap:2px;min-height:56px;padding:5px 7px;position:relative}
+.visual-card-head b{font-size:14px;color:var(--text)}
+.drag-handle{width:36px;height:40px;border:0;border-radius:8px;background:transparent;display:grid;place-items:center;margin:0;color:var(--soft);cursor:grab;touch-action:none;user-select:none;-webkit-touch-callout:none}
+.drag-handle:hover{background:var(--panel);color:var(--accent)}
 .drag-handle:active{cursor:grabbing}
+.drag-handle svg{width:18px;height:18px}
+.visual-card-toggle{min-width:0;border:0;background:transparent;color:var(--text);display:grid;grid-template-columns:30px minmax(0,1fr) 20px;align-items:center;gap:9px;padding:4px 6px;text-align:left}
+.visual-card-index{width:28px;height:28px;border-radius:999px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:900}
+.visual-card-copy{min-width:0;display:grid;gap:1px}
+.visual-card-copy b,.visual-card-copy small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.visual-card-copy small{color:var(--soft);font-size:11px;font-weight:700}
+.visual-card-toggle>svg{width:17px;height:17px;color:var(--soft);transition:transform .18s ease}
+.visual-card.expanded .visual-card-toggle>svg{transform:rotate(180deg)}
+.visual-card-body{display:none;border-top:1px solid var(--line);padding:12px}
+.visual-card.expanded .visual-card-body{display:block}
+.visual-card-delete{width:36px!important;min-width:36px!important;height:36px!important}
 .visual-card-actions{display:flex;align-items:center;gap:5px}
 .visual-card-actions .icon-btn{width:30px;min-width:30px;height:30px;font-size:13px}
 .visual-field-hinted{position:relative}
@@ -1170,6 +1185,7 @@ svg.lucide,[data-lucide]{width:19px;height:19px;display:block;stroke-width:2}
 .modal-head{border-radius:18px 18px 0 0}
 
 @media(min-width:901px){
+  .sidebar>.nav{position:absolute;left:50%;width:max-content;max-width:40vw;transform:translateX(-50%)}
   .sidebar{transition:transform .2s ease,opacity .18s ease}
   body.home-scrolled .sidebar{transform:translateY(-92px);opacity:0;pointer-events:none}
   body.home-scrolled #view-home .editor-pane{top:4px!important;left:max(20px,calc((100vw - var(--max))/2 + 20px));right:max(20px,calc((100vw - var(--max))/2 + 20px));padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(18px);box-shadow:0 12px 34px rgba(32,35,31,.10)}

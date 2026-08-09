@@ -132,6 +132,11 @@ expect(/els\.historySearch\?\.addEventListener\('input',[\s\S]{0,220}scheduleHis
 expect(app.includes('SettingsData.addTombstone(settings.apiProfileTombstones,current.id,now)'), 'API profile deletion must create a settings tombstone');
 expect(app.includes('SettingsData.resolveOrderedIds('), 'API profile merge must resolve an independently clocked order');
 expect(app.includes('apiProfileOrder:profiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now'), 'API profile drag must persist order without rewriting profile content');
+expect(app.includes("result?.meta?.origin||result?.meta?.query")&&app.includes('resultDisplayTitle(latestHistoryResult(item)'), 'History and favorites must preserve Origin while displaying the normalized model title');
+expect(app.includes('result.meta.origin=query')&&app.includes('result.meta.query=query'), 'Successful lookups must preserve the exact submitted input in result metadata');
+expect(app.includes('class="visual-card ${visualOpenTarget===')&&app.includes('class="visual-card-body"')&&app.includes('function toggleVisualCard('), 'Large visual-editor collections must render as compact expandable rows');
+expect(app.includes("document.addEventListener('pointermove',moveApiProfilePointerDrag")&&app.includes("addEventListener('dragstart',startApiProfileNativeDrag)"), 'API profile ordering must support global pointer capture and native desktop drag fallback');
+expect(/@media\(min-width:901px\)\{[\s\S]*?\.sidebar>\.nav\{[^}]*left:50%;[^}]*transform:translateX\(-50%\)/.test(css), 'Desktop core navigation must be geometrically centered in the viewport');
 expect(app.includes('favoriteFolderOrder:ordered.map(folder=>folder.id)'), 'Favorite folder drag must persist an independent order');
 expect(app.includes('favoriteFolderOrderUpdatedAt:now'), 'Favorite folder order changes must record an order clock');
 expect(app.includes("els.folderSidebar?.addEventListener('pointerdown',startFolderPointerDrag)")&&app.includes('persistFavoriteFolderOrder('), 'Favorite folders must use the shared long-press pointer reorder path');

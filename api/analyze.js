@@ -75,11 +75,13 @@ const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句
 - meta.language 只能输出 en / zh / ja / ko / fr / es / de / other。
 - meta.defaultDirection 只能输出 en-zh / zh-en / ja-zh / zh-ja / ko-zh / zh-ko / fr-zh / zh-fr / es-zh / zh-es / de-zh / zh-de / other。
 - meta.entryType 只能输出 word / phrase。单个词输出 word；短语、固定表达、句子、从句和多词搭配都输出 phrase。
+- meta.origin 原样保留用户输入，不修正大小写、拼写、缩写或标点；headword.title 才是经过词典化、去 typo 和规范大小写后的默认展示标题。
 - headword.languageTag 使用与 meta.language 相同的值，不要写 EN、English、英文、[英语1] 等变体。
 - headword.basicPartOfSpeech 记录词条层面的全部主要词性，只能从 n / v / adj / adv / prep / conj / pron / det / aux / interj / phrase / sentence / other 中选择；如有多个词性，用 "/" 连接固定枚举值，例如 "n/v/adj"，并且必须覆盖 senses[].partOfSpeech 中出现的主要词性。senses[].partOfSpeech 仍然只能是单个固定枚举值；同一个词有多个词性时拆成多个 senses。
 - register.style 只能从 neutral / formal / informal / spoken / written / academic / business / literary / slang / technical / archaic / offensive / other 中选择；如确有多个，用 "/" 连接这些枚举值，例如 "formal/written"。
 {
   "meta": {
+    "origin": "用户原始输入，逐字保留",
     "query": "用户原始输入",
     "normalized": "规范词条",
     "language": "原语言，如 English / Chinese / Japanese",
