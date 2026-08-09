@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-08-04
+Last updated: 2026-08-10
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -46,6 +46,7 @@ Expected behavior:
 
 ## Latest Release
 
+- v0.18.0 turns visual editing into a navigable workbench. A sticky section directory exposes entry, sense, collocation, register, and confusion counts and tracks the current section inside the detail scroller. Visual rows and API profiles retain animated pointer reordering but also support a deterministic pick-then-place fallback through the same icon handle. Mouse drag activation now requires real movement, touch scrolling can cancel a pending long press, and visual pointer completion is captured at document level.
 - v0.17.0 separates exact user input (`meta.origin` and the history identity query) from the AI-normalized display title (`headword.title`). History, favorites, related entries, and detail headers prefer the normalized title. Visual editing now presents senses, collocations, and confusions as compact reorderable rows that expand one item at a time; pointer sorting is immediate on desktop and short-press on touch. Desktop core navigation is geometrically centered independently of utility actions.
 - v0.16.2 starts Supabase authentication before every local repair, settings hydration, and first render task. Authentication actions can idempotently trigger the same bootstrap promise themselves, so an earlier mobile-only startup exception can no longer leave login permanently stuck in a loading state.
 - v0.16.1 self-hosts the Supabase browser SDK under `/vendor` instead of relying on jsDelivr. Fresh mobile sessions on direct Cloudflare connections can initialize authentication without a cached third-party script. Cloud startup messaging now distinguishes loading, missing project configuration, and a missing SDK, and contract checks lock the same-origin load order.
@@ -63,6 +64,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.18.0 adds a compact sticky editor directory with section counts and active-position tracking. Reorder handles are real buttons with a pick-then-place fallback, so large editor blocks and API profiles remain sortable when native or Pointer drag behavior is unavailable.
 - v0.17.0 replaces giant always-open visual-editor blocks with compact expandable rows and dedicated drag handles. The visible vocabulary title is now consistently sourced from the model-normalized headword while exact input remains recoverable as Origin. Desktop Home, History, and Favorites stay centered on the page rather than in leftover toolbar space.
 - v0.16.2 decouples account readiness from history and settings restoration. The login surface initializes first and every authentication command can recover the bootstrap idempotently instead of telling the user to wait forever.
 - v0.16.1 removes authentication's third-party CDN dependency and replaces the misleading initial “Supabase not configured” label with an explicit connection state. A missing same-origin SDK now produces a refresh-oriented loading error instead of blaming account configuration.

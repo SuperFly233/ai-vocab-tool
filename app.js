@@ -76,8 +76,11 @@ let folderPointerDragState=null;
 let modalSwipeState=null;
 let visualPointerDragState=null;
 let visualOpenTarget='';
+let visualReorderPick=null;
 let apiProfilePointerDragState=null;
 let apiProfileNativeDragState=null;
+let apiProfileReorderPick=null;
+let suppressReorderHandleClickUntil=0;
 let rollPointerDragState=null;
 let lookupQueuePointerDragState=null;
 let suppressRollClick=false;
@@ -162,12 +165,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.17.0',
-  releaseDate:'2026-08-04',
+  version:'0.18.0',
+  releaseDate:'2026-08-10',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.18.0',
+    date:'2026-08-10',
+    title:'把可视化编辑升级为可定位、可可靠排序的工作台',
+    items:['可视化编辑新增固定区块目录，词条、义项、搭配、语感和辨析可直接定位；目录显示条目数量并随内部滚动标记当前位置，长词条不再需要盲目翻找。','义项、搭配、辨析和 API 配置保留拖拽与交换动画，同时新增“点按选中、再点目标位置”的排序兜底；触屏、键盘和不稳定 WebView 不再只能依赖拖拽事件。','排序抓手改为真正的图标按钮，按下与拖动明确分离；鼠标需要实际移动才开始拖拽，触屏滚动不会被误判成排序，拖出原容器后仍能正确收尾和持久化。'],
+  },
   {
     version:'0.17.0',
     date:'2026-08-04',
@@ -2675,6 +2684,7 @@ function setModalTab(id,button){
     els.modalCardPage.innerHTML=renderResultHTML(modalResult,item?.followups||[],'modal',item);
     renderModalStickySummary(modalResult,item);
   }
+  if(id==='visual')requestAnimationFrame(updateVisualEditorSectionState);
   if(id==='json')validateModalJSON(false);
   return true;
 }
@@ -5454,8 +5464,19 @@ function renderVisualEditor(result=modalResult){
   const collocations=Array.isArray(data.collocations)?data.collocations:[];
   const register=data.register||{};
   const confusions=Array.isArray(data.confusions)?data.confusions:[];
+  visualReorderPick=null;
   els.modalVisualEditor.classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
   els.modalVisualEditor.innerHTML=`
+    <nav class="visual-workbench-nav" aria-label="编辑区块">
+      <div class="visual-workbench-nav-scroll">
+        ${visualWorkbenchNavItem('visual-section-headword','词条','scan-search',0,true)}
+        ${visualWorkbenchNavItem('visual-section-senses','义项','list',senses.length)}
+        ${visualWorkbenchNavItem('visual-section-collocations','搭配','quote',collocations.length)}
+        ${visualWorkbenchNavItem('visual-section-register','语感','info',0)}
+        ${visualWorkbenchNavItem('visual-section-confusions','辨析','refresh-cw',confusions.length)}
+      </div>
+    </nav>
+    <section class="visual-section visual-headword-section" id="visual-section-headword" data-visual-section="headword">
     <div class="visual-grid visual-headword-grid">
       ${visualField('visual-title','词条标题',head.title||meta.query||'')}
       ${visualField('visual-core','核心义',head.coreMeaning||'')}
@@ -5466,9 +5487,10 @@ function renderVisualEditor(result=modalResult){
       ${visualField('visual-direction','方向',meta.defaultDirection||meta.direction||'')}
       ${visualTextarea('visual-summary','摘要',head.summary||'')}
     </div>
-    ${visualList('senses','义项',senses,renderVisualSense)}
-    ${visualList('collocations','固定搭配',collocations,renderVisualCollocation)}
-    <section class="visual-section">
+    </section>
+    ${visualList('senses','义项',senses,renderVisualSense,'visual-section-senses')}
+    ${visualList('collocations','固定搭配',collocations,renderVisualCollocation,'visual-section-collocations')}
+    <section class="visual-section" id="visual-section-register" data-visual-section="register">
       <div class="visual-head"><b>语义感受</b><span>语体、语气和使用场景</span></div>
       <div class="visual-grid compact">
         ${visualField('visual-register-style','语体属性',register.style||'')}
@@ -5476,8 +5498,11 @@ function renderVisualEditor(result=modalResult){
         ${visualTextarea('visual-register-environment','使用环境',register.environment||'')}
       </div>
     </section>
-    ${visualList('confusions','近义词 / 易混词',confusions,renderVisualConfusion)}
+    ${visualList('confusions','近义词 / 易混词',confusions,renderVisualConfusion,'visual-section-confusions')}
   `;
+}
+function visualWorkbenchNavItem(target,label,iconName,count=0,active=false){
+  return `<button class="visual-workbench-nav-item ${active?'active':''}" type="button" data-visual-section-target="${target}" aria-current="${active?'location':'false'}">${icon(iconName)}<span>${escapeHTML(label)}</span>${count?`<em>${count}</em>`:''}</button>`;
 }
 function visualField(id,label,value){
   return `<label class="setting-field visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}">${visualHintHTML(id)}</label>`;
@@ -5488,8 +5513,8 @@ function visualReadonlyField(id,label,value){
 function visualTextarea(id,label,value){
   return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" id="${id}">${escapeHTML(value)}</textarea>${visualHintHTML(id)}</label>`;
 }
-function visualList(kind,title,items,renderer){
-  return `<section class="visual-section">
+function visualList(kind,title,items,renderer,id=''){
+  return `<section class="visual-section"${id?` id="${id}"`:''} data-visual-section="${escapeAttr(kind)}">
     <div class="visual-head"><b>${escapeHTML(title)}</b><button class="plain-btn icon-add-btn" type="button" data-tip="新增" aria-label="新增" onclick="addVisualItem('${kind}')">${icon('plus')}</button></div>
     <div class="visual-list ${items.length?'':'empty'}">
       ${items.length?items.map((item,index)=>renderer(item,index)).join(''):'<div class="empty small-empty">暂无，可点击新增。</div>'}
@@ -5536,7 +5561,7 @@ function renderVisualConfusion(item={},index=0){
 }
 function visualCardHead(kind,index,title,meta=''){
   return `<div class="visual-card-head">
-    <button class="drag-handle" type="button" aria-label="拖拽调整顺序">${icon('grip-vertical')}</button>
+    <button class="drag-handle" type="button" aria-label="拖拽排序；也可点按选中后再点目标位置" aria-pressed="false" data-tip="拖拽排序；点按后再点目标位置">${icon('grip-vertical')}</button>
     <button class="visual-card-toggle" type="button" onclick="toggleVisualCard(this)" aria-expanded="${visualOpenTarget===`${kind}:${index}`}">
       <span class="visual-card-index">${index+1}</span><span class="visual-card-copy"><b>${escapeHTML(title)}</b>${meta?`<small>${escapeHTML(meta)}</small>`:''}</span>${icon('chevron-down')}
     </button>
@@ -5617,6 +5642,93 @@ function removeVisualItem(kind,index){
   if(Array.isArray(data[kind]))data[kind].splice(index,1);
   modalResult=data;
   renderVisualEditor(data);
+}
+function scrollVisualEditorSection(targetId){
+  const target=document.getElementById(targetId);
+  if(!target||!els.historyModalBody)return;
+  const bodyRect=els.historyModalBody.getBoundingClientRect();
+  const targetRect=target.getBoundingClientRect();
+  const navHeight=els.modalVisualEditor?.querySelector('.visual-workbench-nav')?.offsetHeight||0;
+  els.historyModalBody.scrollTo({top:els.historyModalBody.scrollTop+targetRect.top-bodyRect.top-navHeight-10,behavior:'smooth'});
+  setActiveVisualEditorSection(targetId);
+}
+function setActiveVisualEditorSection(targetId){
+  els.modalVisualEditor?.querySelectorAll('[data-visual-section-target]').forEach(button=>{
+    const active=button.dataset.visualSectionTarget===targetId;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-current',active?'location':'false');
+  });
+}
+function updateVisualEditorSectionState(){
+  if(activeModalTab!=='visual'||!els.modalVisualEditor)return;
+  const bodyRect=els.historyModalBody?.getBoundingClientRect();
+  if(!bodyRect)return;
+  const sections=[...els.modalVisualEditor.querySelectorAll('[data-visual-section]')];
+  const current=sections.reduce((best,section)=>{
+    const distance=Math.abs(section.getBoundingClientRect().top-bodyRect.top-62);
+    return !best||distance<best.distance?{section,distance}:best;
+  },null)?.section;
+  if(current?.id)setActiveVisualEditorSection(current.id);
+}
+function clearVisualReorderPick(){
+  visualReorderPick?.item?.classList.remove('reorder-picked');
+  visualReorderPick?.handle?.setAttribute('aria-pressed','false');
+  visualReorderPick=null;
+}
+function clearApiProfileReorderPick(){
+  apiProfileReorderPick?.item?.classList.remove('reorder-picked');
+  apiProfileReorderPick?.handle?.setAttribute('aria-pressed','false');
+  apiProfileReorderPick=null;
+}
+function movePickedItem(picked,target){
+  if(!picked||!target||picked===target||picked.parentElement!==target.parentElement)return false;
+  const children=[...picked.parentElement.children];
+  const pickedIndex=children.indexOf(picked);
+  const targetIndex=children.indexOf(target);
+  return animateDomReorder(picked.parentElement,picked,target,pickedIndex<targetIndex);
+}
+function handleVisualReorderPick(handle){
+  const item=handle.closest('.visual-card');
+  const kind=item?.dataset.visualKind;
+  if(!item||!kind)return;
+  if(!visualReorderPick){
+    clearApiProfileReorderPick();
+    visualReorderPick={item,handle,kind};
+    item.classList.add('reorder-picked');
+    handle.setAttribute('aria-pressed','true');
+    return;
+  }
+  if(visualReorderPick.item===item)return clearVisualReorderPick();
+  if(visualReorderPick.kind!==kind){
+    clearVisualReorderPick();
+    visualReorderPick={item,handle,kind};
+    item.classList.add('reorder-picked');
+    handle.setAttribute('aria-pressed','true');
+    return;
+  }
+  const picked=visualReorderPick.item;
+  const moved=movePickedItem(picked,item);
+  clearVisualReorderPick();
+  if(moved){
+    modalResult=collectVisualResult();
+    renderVisualEditor(modalResult);
+  }
+}
+function handleApiProfileReorderPick(handle){
+  const item=handle.closest('.api-profile-option');
+  if(!item)return;
+  if(!apiProfileReorderPick){
+    clearVisualReorderPick();
+    apiProfileReorderPick={item,handle};
+    item.classList.add('reorder-picked');
+    handle.setAttribute('aria-pressed','true');
+    return;
+  }
+  if(apiProfileReorderPick.item===item)return clearApiProfileReorderPick();
+  const picked=apiProfileReorderPick.item;
+  const moved=movePickedItem(picked,item);
+  clearApiProfileReorderPick();
+  if(moved)persistApiProfileOrder([...item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
 }
 function autoScrollDuringDrag(clientY,scroller=els.historyModalBody||document.scrollingElement,clientX=null,axis='y'){
   if(!scroller)return;
@@ -5719,17 +5831,15 @@ function startVisualPointerDrag(event){
       state.ghost=createReorderGhost(card,event,'编辑区块');
       card.setPointerCapture?.(event.pointerId);
   };
-  if(event.pointerType==='mouse')activate();
-  else state.timer=setTimeout(activate,180);
+  state.activate=activate;
+  if(event.pointerType!=='mouse')state.timer=setTimeout(activate,180);
 }
 function moveVisualPointerDrag(event){
   const state=visualPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
-  if(shouldCancelPendingDrag(state,event)){
-    cancelPendingPointerDrag(state);
-    visualPointerDragState=null;
-    return;
-  }
+  const distance=Math.hypot(event.clientX-state.startX,event.clientY-state.startY);
+  if(!state.active&&event.pointerType==='mouse'&&distance>5)state.activate?.();
+  if(!state.active&&event.pointerType!=='mouse'&&distance>(state.cancelDistance||18))return cancelPendingPointerDrag(state),visualPointerDragState=null;
   if(!state.active)return;
   event.preventDefault();
   positionReorderGhost(state.ghost,event);
@@ -5745,6 +5855,7 @@ function endVisualPointerDrag(event){
   clearDropMarks('.visual-card');
   visualPointerDragState=null;
   if(!state.active)return;
+  suppressReorderHandleClickUntil=Date.now()+280;
   modalResult=collectVisualResult();
   renderVisualEditor(modalResult);
 }
@@ -5771,8 +5882,8 @@ function startApiProfilePointerDrag(event){
       state.ghost=createReorderGhost(option,event,'API 配置');
       handle.setPointerCapture?.(event.pointerId);
   };
-  if(event.pointerType==='mouse')activate();
-  else state.timer=setTimeout(activate,180);
+  state.activate=activate;
+  if(event.pointerType!=='mouse')state.timer=setTimeout(activate,180);
 }
 function apiProfileDropMeta(clientY,item){
   const candidates=[...item.parentElement.querySelectorAll('.api-profile-option')]
@@ -5787,11 +5898,9 @@ function apiProfileDropMeta(clientY,item){
 function moveApiProfilePointerDrag(event){
   const state=apiProfilePointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
-  if(shouldCancelPendingDrag(state,event)){
-    cancelPendingPointerDrag(state);
-    apiProfilePointerDragState=null;
-    return;
-  }
+  const distance=Math.hypot(event.clientX-state.startX,event.clientY-state.startY);
+  if(!state.active&&event.pointerType==='mouse'&&distance>5)state.activate?.();
+  if(!state.active&&event.pointerType!=='mouse'&&distance>(state.cancelDistance||18))return cancelPendingPointerDrag(state),apiProfilePointerDragState=null;
   if(!state.active)return;
   event.preventDefault();
   positionReorderGhost(state.ghost,event);
@@ -5807,6 +5916,7 @@ function endApiProfilePointerDrag(event){
   clearApiProfileDropMarks();
   apiProfilePointerDragState=null;
   if(!state.active)return;
+  suppressReorderHandleClickUntil=Date.now()+280;
   persistApiProfileOrder([...state.item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
 }
 function startApiProfileNativeDrag(event){
@@ -6499,6 +6609,7 @@ async function resetModelPrompt(){
   notify('已恢复默认 Prompt。','good','Prompt');
 }
 function renderApiProfilePicker(settings,profile){
+  apiProfileReorderPick=null;
   if(els.apiProfileCurrentName)els.apiProfileCurrentName.textContent=profile.name||'未命名配置';
   if(!els.apiProfileMenu)return;
   els.apiProfileMenu.innerHTML=`
@@ -6506,7 +6617,7 @@ function renderApiProfilePicker(settings,profile){
     <div class="api-profile-menu-list">
       ${settings.apiProfiles.map((item,index)=>`
         <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
-          <span class="api-profile-drag" draggable="true" aria-hidden="true">${icon('grip-vertical')}</span>
+          <button class="api-profile-drag" type="button" draggable="true" aria-label="拖拽排序；也可点按选中后再点目标位置" aria-pressed="false" data-tip="拖拽排序；点按后再点目标位置">${icon('grip-vertical')}</button>
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
             <em>${escapeHTML(apiProfileSummary(item))}</em>
@@ -7005,7 +7116,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.17.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.18.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -7163,7 +7274,10 @@ els.historySearchScopeMenu?.addEventListener('click',event=>{
   const option=event.target.closest('[data-scope]');
   if(option)return toggleHistorySearchScope(option.dataset.scope);
 });
-els.historyModalBody?.addEventListener('scroll',updateHistoryModalScrollState,{passive:true});
+els.historyModalBody?.addEventListener('scroll',()=>{
+  updateHistoryModalScrollState();
+  updateVisualEditorSectionState();
+},{passive:true});
 els.historyModal?.addEventListener('touchstart',startHistoryModalEdgeSwipe,{passive:true});
 els.historyModal?.addEventListener('touchmove',moveHistoryModalEdgeSwipe,{passive:true});
 els.historyModal?.addEventListener('touchend',endHistoryModalEdgeSwipe,{passive:true});
@@ -7196,10 +7310,19 @@ function positionVisualHint(field){
   field.classList.toggle('hint-below',rect.top<190);
 }
 els.modalVisualEditor?.addEventListener('pointerdown',startVisualPointerDrag);
-els.modalVisualEditor?.addEventListener('pointermove',moveVisualPointerDrag);
-els.modalVisualEditor?.addEventListener('pointerup',endVisualPointerDrag);
-els.modalVisualEditor?.addEventListener('pointercancel',endVisualPointerDrag);
+document.addEventListener('pointermove',moveVisualPointerDrag,{passive:false});
+document.addEventListener('pointerup',endVisualPointerDrag);
+document.addEventListener('pointercancel',endVisualPointerDrag);
 els.modalVisualEditor?.addEventListener('click',event=>{
+  const sectionTarget=event.target.closest('[data-visual-section-target]')?.dataset.visualSectionTarget;
+  if(sectionTarget)return scrollVisualEditorSection(sectionTarget);
+  const reorderHandle=event.target.closest('.drag-handle');
+  if(reorderHandle){
+    event.preventDefault();
+    event.stopPropagation();
+    if(Date.now()<suppressReorderHandleClickUntil)return;
+    return handleVisualReorderPick(reorderHandle);
+  }
   const close=event.target.closest('.visual-hint-close');
   if(!close)return;
   event.preventDefault();
@@ -7223,6 +7346,13 @@ els.historyFilterbar?.addEventListener('click',event=>{
   if(event.target.closest('.history-filter-clear'))return clearHistoryFilter(key);
 });
 els.apiProfileMenu?.addEventListener('click',event=>{
+  const reorderHandle=event.target.closest('.api-profile-drag');
+  if(reorderHandle){
+    event.preventDefault();
+    event.stopPropagation();
+    if(Date.now()<suppressReorderHandleClickUntil)return;
+    return handleApiProfileReorderPick(reorderHandle);
+  }
   const action=event.target.closest('[data-profile-action]')?.dataset.profileAction;
   if(!action)return;
   const option=event.target.closest('.api-profile-option');
@@ -7269,6 +7399,8 @@ window.addEventListener('scroll',()=>{
 },{passive:true});
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){
+    clearVisualReorderPick();
+    clearApiProfileReorderPick();
     closeApiProfileMenu();
     closeHistoryFilterMenus();
     closeHistorySearchScopeMenu();
