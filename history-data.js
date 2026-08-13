@@ -90,5 +90,54 @@
       .map(([,item])=>item);
   }
 
-  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer,resolveMutableField});
+  function normalizeFragmentPins(items=[]){
+    const map=new Map();
+    (Array.isArray(items)?items:[]).filter(Boolean).forEach(item=>{
+      const key=String(item.key||'').trim();
+      if(!key)return;
+      const normalized={
+        ...item,
+        key,
+        kind:String(item.kind||'sense').trim()||'sense',
+        title:String(item.title||'').trim(),
+        meaning:String(item.meaning||'').trim(),
+        example:String(item.example||'').trim(),
+        translation:String(item.translation||'').trim(),
+        detail:String(item.detail||'').trim(),
+        sourceRollContentKey:String(item.sourceRollContentKey||'').trim(),
+        createdAt:String(item.createdAt||item.updatedAt||'').trim(),
+        updatedAt:String(item.updatedAt||item.createdAt||'').trim(),
+      };
+      const existing=map.get(key);
+      if(!existing){map.set(key,normalized);return}
+      map.set(key,preferNewer(existing,normalized)[0]);
+    });
+    return [...map.values()].sort((left,right)=>{
+      const timeDiff=timestamp(right.createdAt||right.updatedAt)-timestamp(left.createdAt||left.updatedAt);
+      return timeDiff||left.key.localeCompare(right.key);
+    });
+  }
+
+  function reconcileFragmentPins(items=[],tombstones=[]){
+    const active=new Map(normalizeTombstones(tombstones).map(item=>[item.key,item]));
+    const kept=[];
+    normalizeFragmentPins(items).forEach(item=>{
+      const tombstone=active.get(item.key);
+      if(!tombstone){kept.push(item);return}
+      if(timestamp(item.updatedAt||item.createdAt)>timestamp(tombstone.deletedAt)){
+        active.delete(item.key);
+        kept.push(item);
+      }
+    });
+    return {items:kept,tombstones:[...active.values()]};
+  }
+
+  function mergeFragmentPins(leftItems=[],leftTombstones=[],rightItems=[],rightTombstones=[]){
+    return reconcileFragmentPins(
+      normalizeFragmentPins([...leftItems,...rightItems]),
+      normalizeTombstones(leftTombstones,rightTombstones),
+    );
+  }
+
+  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,normalizeFragmentPins,reconcileFragmentPins,mergeFragmentPins,preferNewer,resolveMutableField});
 })(typeof globalThis==='object'?globalThis:this);

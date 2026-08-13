@@ -97,6 +97,7 @@ let tombstoneReadCache=null;
 let settingsReadCache=null;
 const activeToasts=new Map();
 const FOLDER_LIKED_ID='liked';
+const FOLDER_INSIGHTS_ID='insights';
 const FOLDER_UNFILED_ID='unfiled';
 const historyState={
   query:'',
@@ -165,12 +166,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.18.0',
-  releaseDate:'2026-08-10',
+  version:'0.19.0',
+  releaseDate:'2026-08-13',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.19.0',
+    date:'2026-08-13',
+    title:'收藏值得反复回看的具体知识片段',
+    items:['义项、固定搭配和易混辨析新增独立书签；收藏后会在各自分区内优先显示，并用克制的强调样式标记，不改变模型 JSON 或原始编辑顺序。','收藏夹新增系统目录“片段收藏”，按来源词条集中展示片段快照；点击可打开对应历史版本并定位原片段，整词个人收藏与片段收藏互不污染。','片段使用内容指纹逐项同步，取消收藏带独立删除墓碑；并发收藏、跨设备取消和再次收藏都能确定性合并，通知同时提供撤销操作。'],
+  },
   {
     version:'0.18.0',
     date:'2026-08-10',
@@ -1659,7 +1666,7 @@ function normalizeFavoriteFolders(value=[],fallbackUpdatedAt=''){
   const map=new Map();
   folders.forEach((folder,index)=>{
     const normalized=normalizeFavoriteFolder(folder,index,fallbackUpdatedAt);
-    if(!normalized||normalized.id===FOLDER_LIKED_ID||normalized.id===FOLDER_UNFILED_ID)return;
+    if(!normalized||normalized.id===FOLDER_LIKED_ID||normalized.id===FOLDER_INSIGHTS_ID||normalized.id===FOLDER_UNFILED_ID)return;
     const existing=map.get(normalized.id);
     map.set(normalized.id,SettingsData.preferNewerItem(existing,normalized));
   });
@@ -2101,6 +2108,10 @@ function mergeHistoryItems(localHistory,remoteHistory){
       normalized.folderIds,normalized.foldersUpdatedAt,
       mergeFolderIds(existing.folderIds,normalized.folderIds,existing.tags,normalized.tags),
     );
+    const fragmentPinData=HistoryData.mergeFragmentPins(
+      existing.fragmentPins,existing.fragmentPinTombstones,
+      normalized.fragmentPins,normalized.fragmentPinTombstones,
+    );
     const lookupCompletion=LookupTasks.resolveCompletion(existing,normalized);
     const favoriteAt=favoriteField.value
       ? favoriteField.side==='left'
@@ -2121,6 +2132,8 @@ function mergeHistoryItems(localHistory,remoteHistory){
       tagsUpdatedAt:tagsField.updatedAt||'',
       folderIds:normalizeFolderIds(foldersField.value),
       foldersUpdatedAt:foldersField.updatedAt||'',
+      fragmentPins:fragmentPinData.items,
+      fragmentPinTombstones:fragmentPinData.tombstones,
       lookupSignature:lookupCompletion.lookupSignature,
       lookupCompletedAt:lookupCompletion.lookupCompletedAt,
       note:latestHistoryNote(existing,normalized),
@@ -2231,7 +2244,8 @@ function normalizeHistoryItem(item){
   const tags=normalizeTags(base.tags);
   const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
   const legacyFolderIds=tags.map(legacyTagFolderId);
-  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',lookupSignature:String(base.lookupSignature||''),lookupCompletedAt:normalizeHistoryClock(base.lookupCompletedAt),createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
+  const fragmentPinData=HistoryData.reconcileFragmentPins(base.fragmentPins,base.fragmentPinTombstones);
+  const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),fragmentPins:fragmentPinData.items,fragmentPinTombstones:fragmentPinData.tombstones,note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',lookupSignature:String(base.lookupSignature||''),lookupCompletedAt:normalizeHistoryClock(base.lookupCompletedAt),createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
   Object.defineProperty(normalized,HISTORY_NORMALIZED,{value:true});
   return normalized;
 }
@@ -3004,16 +3018,8 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
-    ${renderSenseGroups(senses,result)}
-    ${renderItems('固定搭配',collocations,item=>`
-      <div class="item-index">${escapeHTML(item.index)}</div>
-      <div class="item-body">
-        <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
-        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
-        <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
-        <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
-      </div>
-    `)}
+    ${renderSenseGroups(senses,result,historyItem)}
+    ${renderCollocations(collocations,result,historyItem,queryTerms)}
     <div class="block">
       <div class="block-title">语义感受与使用说明</div>
       <div class="register-grid">
@@ -3022,34 +3028,77 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
         <div><b>使用环境</b><span>${escapeHTML(register.environment||'')}</span></div>
       </div>
     </div>
-    ${renderConfusions(confusions)}
+    ${renderConfusions(confusions,result,historyItem)}
     ${renderRelatedHistory(related)}
     ${renderHistoryNoteBlock(historyItem)}
     ${renderFollowupHTML(followups,scope)}
   `;
 }
-function renderItems(title,items,renderer){
-  return `<div class="block"><div class="block-title">${title}</div>${items.length?items.map(item=>`<div class="item">${renderer(item)}</div>`).join(''):'<div class="item empty-item">无</div>'}</div>`;
+function fragmentPinShape(kind,item={}){
+  if(kind==='sense')return {title:item.shortestLabel,meaning:item.meaning,example:item.example,translation:item.translation,detail:item.partOfSpeech};
+  if(kind==='collocation')return {title:item.phrase,meaning:item.meaning,example:item.example,translation:item.translation,detail:item.note};
+  return {title:item.term,meaning:item.difference,example:'',translation:'',detail:item.usage};
 }
-function renderSenseGroups(senses=[],result={}){
+function fragmentPinKey(kind,item={}){
+  const shape=fragmentPinShape(kind,item);
+  const value=[kind,shape.title,shape.meaning,shape.example,shape.translation,shape.detail]
+    .map(part=>String(part||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase())
+    .join('\u0000');
+  return `${kind}:${stableHash(value)}`;
+}
+function fragmentPinSet(historyItem={}){
+  if(!historyItem)return new Set();
+  return new Set(normalizeHistoryItem(historyItem).fragmentPins.map(item=>item.key));
+}
+function sortPinnedFragments(items=[],kind,historyItem={}){
+  const pins=fragmentPinSet(historyItem);
+  return (Array.isArray(items)?items:[]).map((item,index)=>({item,index,pinned:pins.has(fragmentPinKey(kind,item))}))
+    .sort((left,right)=>Number(right.pinned)-Number(left.pinned)||left.index-right.index);
+}
+function renderFragmentPinButton(historyItem,kind,item){
+  if(!historyItem?.id)return '';
+  const key=fragmentPinKey(kind,item);
+  const pinned=fragmentPinSet(historyItem).has(key);
+  const label=pinned?'取消收藏此片段':'收藏此片段';
+  return `<button class="fragment-pin-btn ${pinned?'active':''}" type="button" data-tip="${label}" aria-label="${label}" aria-pressed="${pinned}" onclick="toggleFragmentPin(${jsArg(historyItem.id)},${jsArg(kind)},${jsArg(key)},event)">${icon('bookmark')}</button>`;
+}
+function renderCollocations(items=[],result={},historyItem=null,queryTerms=[]){
+  if(!items.length)return '<div class="block"><div class="block-title">固定搭配</div><div class="item empty-item">无</div></div>';
+  return `<div class="block"><div class="block-title">固定搭配</div>${sortPinnedFragments(items,'collocation',historyItem).map(({item,index,pinned})=>`
+    <div class="item fragment-item ${pinned?'fragment-pinned':''}" data-fragment-key="${escapeAttr(fragmentPinKey('collocation',item))}">
+      <div class="item-index">${escapeHTML(item.index||index+1)}</div>
+      <div class="item-body">
+        <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}${pinned?'<span class="fragment-pin-label">已收藏</span>':''}</div>
+        <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
+        <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
+        <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
+      </div>
+      ${renderFragmentPinButton(historyItem,'collocation',item)}
+    </div>`).join('')}</div>`;
+}
+function renderSenseGroups(senses=[],result={},historyItem=null){
   const list=Array.isArray(senses)?senses:[];
   if(!list.length)return '<div class="block"><div class="block-title">义项分析</div><div class="item empty-item">无</div></div>';
   const groups=groupSensesByPartOfSpeech(list);
   const queryTerms=resultQueryHighlightTerms(result);
-  return `<div class="block"><div class="block-title">义项分析</div>${groups.map(group=>`
+  const pins=fragmentPinSet(historyItem);
+  const orderedGroups=groups.map((group,index)=>({...group,index,pinned:group.items.some(item=>pins.has(fragmentPinKey('sense',item)))}))
+    .sort((left,right)=>Number(right.pinned)-Number(left.pinned)||left.index-right.index);
+  return `<div class="block"><div class="block-title">义项分析</div>${orderedGroups.map(group=>`
     <section class="sense-group">
       <div class="sense-group-head">
         <span class="pos-pill">${escapeHTML(formatPosLabel(group.pos))}</span>
         <em>${group.items.length} 个义项</em>
       </div>
-      ${group.items.map((item,index)=>`<div class="item">
+      ${sortPinnedFragments(group.items,'sense',historyItem).map(({item,index,pinned})=>`<div class="item fragment-item ${pinned?'fragment-pinned':''}" data-fragment-key="${escapeAttr(fragmentPinKey('sense',item))}">
         <div class="item-index">${index+1}</div>
         <div class="item-body">
-          <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark></div>
+          <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark>${pinned?'<span class="fragment-pin-label">已收藏</span>':''}</div>
           <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
           <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
           <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
         </div>
+        ${renderFragmentPinButton(historyItem,'sense',item)}
       </div>`).join('')}
     </section>
   `).join('')}</div>`;
@@ -3222,9 +3271,83 @@ function posSortIndex(value){
   const index=order.indexOf(posTokensFromValue(value)[0]||value);
   return index>=0?index:order.length;
 }
-function renderConfusions(items){
+function renderConfusions(items,result={},historyItem=null){
   if(!items.length)return '';
-  return `<div class="block"><div class="block-title">近义词 / 易混词辨析</div><table class="confusion-table"><thead><tr><th>词</th><th>核心区别</th><th>语体/使用倾向</th></tr></thead><tbody>${items.map(item=>`<tr><td><mark>${escapeHTML(item.term)}</mark></td><td>${escapeHTML(item.difference)}</td><td>${escapeHTML(item.usage)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="block"><div class="block-title">近义词 / 易混词辨析</div><div class="table-scroll"><table class="confusion-table fragment-confusion-table"><thead><tr><th>词</th><th>核心区别</th><th>语体/使用倾向</th><th><span class="sr-only">收藏</span></th></tr></thead><tbody>${sortPinnedFragments(items,'confusion',historyItem).map(({item,pinned})=>`<tr class="fragment-item ${pinned?'fragment-pinned':''}" data-fragment-key="${escapeAttr(fragmentPinKey('confusion',item))}"><td><mark>${escapeHTML(item.term)}</mark>${pinned?'<span class="fragment-pin-label">已收藏</span>':''}</td><td>${escapeHTML(item.difference)}</td><td>${escapeHTML(item.usage)}</td><td>${renderFragmentPinButton(historyItem,'confusion',item)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function fragmentItemsForKind(result={},kind='sense'){
+  if(kind==='sense')return Array.isArray(result.senses)?result.senses:[];
+  if(kind==='collocation')return Array.isArray(result.collocations)?result.collocations:[];
+  if(kind==='confusion')return Array.isArray(result.confusions)?result.confusions:[];
+  return [];
+}
+function findFragmentInResult(result={},kind,key){
+  return fragmentItemsForKind(result,kind).find(item=>fragmentPinKey(kind,item)===key)||null;
+}
+function displayedResultForHistory(historyId,item={}){
+  if(Number(modalHistoryId)===Number(historyId)&&modalResult)return modalResult;
+  if(Number(currentHistoryId)===Number(historyId)&&currentResult)return currentResult;
+  return latestHistoryResult(item);
+}
+function makeFragmentPin(kind,fragment,result,now=new Date().toISOString()){
+  return {
+    key:fragmentPinKey(kind,fragment),
+    kind,
+    ...fragmentPinShape(kind,fragment),
+    sourceRollContentKey:historyRollContentKey({result}),
+    createdAt:now,
+    updatedAt:now,
+  };
+}
+function refreshFragmentPinViews(historyId){
+  const updated=getHistory().find(item=>Number(item.id)===Number(historyId));
+  if(!updated)return;
+  if(Number(currentHistoryId)===Number(historyId)&&currentResult){
+    els.resultCard.innerHTML=renderResultHTML(currentResult,currentFollowups,'current',updated);
+  }
+  if(Number(modalHistoryId)===Number(historyId)&&modalResult){
+    els.modalCardPage.innerHTML=renderResultHTML(modalResult,updated.followups||[],'modal',updated);
+    els.modalSubtitle.textContent=historyModalMeta(updated);
+  }
+}
+function setFragmentPinState(historyId,kind,key,shouldPin,sourceResult=null,{announce=true}={}){
+  const item=getHistory().find(row=>Number(row.id)===Number(historyId));
+  if(!item)return false;
+  const normalized=normalizeHistoryItem(item);
+  const result=sourceResult||displayedResultForHistory(historyId,normalized);
+  const fragment=findFragmentInResult(result,kind,key)
+    ||getHistoryRolls(normalized).map(roll=>findFragmentInResult(roll.result,kind,key)).find(Boolean);
+  if(shouldPin&&!fragment){
+    if(announce)notify('找不到这个片段，可能已在编辑中被改名。','bad','片段收藏');
+    return false;
+  }
+  const now=new Date().toISOString();
+  const pins=shouldPin
+    ? HistoryData.normalizeFragmentPins([...normalized.fragmentPins,makeFragmentPin(kind,fragment,result,now)])
+    : normalized.fragmentPins.filter(pin=>pin.key!==key);
+  const tombstones=shouldPin
+    ? normalized.fragmentPinTombstones.filter(item=>item.key!==key)
+    : HistoryData.normalizeTombstones(normalized.fragmentPinTombstones,[{key,deletedAt:now}]);
+  const updated={...normalized,fragmentPins:pins,fragmentPinTombstones:tombstones,fragmentPinsUpdatedAt:now,updatedAt:now};
+  if(!setHistory(getHistory().map(row=>Number(row.id)===Number(historyId)?updated:row)))return false;
+  refreshFragmentPinViews(historyId);
+  if(announce){
+    const labels={sense:'义项',collocation:'搭配',confusion:'辨析'};
+    notify(
+      shouldPin?'已加入片段收藏，并在当前分区置顶。':'已从片段收藏移除。',
+      'good','片段收藏',true,
+      {label:'撤销',run:()=>setFragmentPinState(historyId,kind,key,!shouldPin,result,{announce:false})},
+    );
+  }
+  return true;
+}
+function toggleFragmentPin(historyId,kind,key,event){
+  event?.preventDefault();
+  event?.stopPropagation();
+  const item=getHistory().find(row=>Number(row.id)===Number(historyId));
+  if(!item)return;
+  const pinned=normalizeHistoryItem(item).fragmentPins.some(pin=>pin.key===key);
+  setFragmentPinState(historyId,kind,key,!pinned,displayedResultForHistory(historyId,item));
 }
 function renderRelatedHistory(items=[]){
   if(!items.length)return '';
@@ -4339,7 +4462,8 @@ function maybeLoadMoreHistory(){
   }
   if(activeView==='folders'){
     const items=historyForFolder(folderState.activeId);
-    if((folderState.visibleCount||0)<items.length&&remaining<420)loadMoreFolders();
+    const count=folderState.activeId===FOLDER_INSIGHTS_ID?pinnedFragmentsFromHistory(items).length:items.length;
+    if((folderState.visibleCount||0)<count&&remaining<420)loadMoreFolders();
   }
 }
 function toggleHistoryFilters(){
@@ -4375,6 +4499,7 @@ function renderHistory(){
     const meta=historyEntryMeta(normalized,labelMode);
     const rollCount=getHistoryRolls(normalized).length;
     const versionText=rollCount>1?`${rollCount} 个版本`:'';
+    const fragmentCount=normalized.fragmentPins.length;
     return `
     <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
@@ -4385,6 +4510,7 @@ function renderHistory(){
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
           ${historyTimeMetaHTML(normalized,timeMode)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
+          ${fragmentCount?`<em class="history-fragment-count">${icon('bookmark')} ${fragmentCount} 个片段</em>`:''}
         </div>
       </div>
       <div class="history-actions">
@@ -4413,6 +4539,7 @@ function buildFolderCatalog(history=getHistory(),settings=getSettings()){
     if(!existing||new Date(folder.updatedAt||0)>=new Date(existing.updatedAt||0))map.set(folder.id,folder);
   };
   add({id:FOLDER_LIKED_ID,name:'个人收藏',system:true,parentId:'',order:-100});
+  add({id:FOLDER_INSIGHTS_ID,name:'片段收藏',system:true,selectable:false,parentId:'',order:-90});
   normalizeFavoriteFolders(settings.favoriteFolders).forEach(add);
   history.map(normalizeHistoryItem).forEach(item=>{
     item.tags.forEach(tag=>add({id:legacyTagFolderId(tag),name:tag,parentId:'',order:500,legacy:true,createdAt:item.createdAt,updatedAt:item.updatedAt}));
@@ -4433,6 +4560,7 @@ function normalizeItemFolderIds(item={},catalog=folderCatalog()){
   const normalized=normalizeHistoryItem(item);
   return uniq([
     ...(normalized.favorite?[FOLDER_LIKED_ID]:[]),
+    ...(normalized.fragmentPins.length?[FOLDER_INSIGHTS_ID]:[]),
     ...normalized.folderIds,
     ...normalized.tags.map(legacyTagFolderId),
   ]).filter(id=>catalog.some(folder=>folder.id===id));
@@ -4471,7 +4599,7 @@ function getHistoryDerived(){
       const folder=folderMap.get(id);
       if(!folder)return;
       const stats=statsMap.get(id)||{...folder,count:0};
-      stats.count+=1;
+      stats.count+=id===FOLDER_INSIGHTS_ID?item.fragmentPins.length:1;
       statsMap.set(id,stats);
       if(!itemsByFolder.has(id))itemsByFolder.set(id,[]);
       itemsByFolder.get(id).push(history[index]);
@@ -4527,11 +4655,12 @@ function exportFolderJSON(folderId=folderState.activeId){
   const folder=folderById(folderId);
   if(!folder)return notify('找不到这个收藏夹。','bad','收藏夹导出');
   const items=historyForFolder(folder.id);
-  downloadText(`ai-vocab-tool-folder-${folderExportName(folder)}.json`,JSON.stringify({folder,items},null,2));
-  notify(`已导出「${folder.name}」${items.length} 条记录。`,'good','收藏夹导出');
+  const fragments=folder.id===FOLDER_INSIGHTS_ID?pinnedFragmentsFromHistory(items):[];
+  downloadText(`ai-vocab-tool-folder-${folderExportName(folder)}.json`,JSON.stringify({folder,items,...(fragments.length?{fragments}: {})},null,2));
+  notify(`已导出「${folder.name}」${folder.id===FOLDER_INSIGHTS_ID?fragments.length:items.length} 条。`,'good','收藏夹导出');
 }
 function normalizeSelectableFolderIds(ids=[]){
-  const valid=new Set(folderCatalog().map(folder=>folder.id));
+  const valid=new Set(folderCatalog().filter(folder=>folder.selectable!==false).map(folder=>folder.id));
   return uniq((Array.isArray(ids)?ids:[ids]).map(id=>String(id||'').trim()).filter(id=>id&&valid.has(id)));
 }
 function foldersFromIds(ids=[]){
@@ -4570,7 +4699,7 @@ function closeFolderSelectModal(event){
 function renderFolderSelectModal(){
   if(!folderSelectContext||!els.folderSelectList)return;
   const selected=new Set(normalizeSelectableFolderIds(folderSelectContext.selectedIds));
-  const catalog=folderCatalog();
+  const catalog=folderCatalog().filter(folder=>folder.selectable!==false);
   const statsMap=new Map(folderStats().map(folder=>[folder.id,folder.count]));
   const isLookup=folderSelectContext.type==='lookup';
   const item=!isLookup?getHistory().find(row=>Number(row.id)===Number(folderSelectContext.historyId)):null;
@@ -4661,6 +4790,59 @@ function startLookupInFolder(folderId=folderState.activeId){
   focusQueryInput();
   notify('已把本次查询目标设为当前收藏夹。','good','收藏夹');
 }
+function pinnedFragmentsFromHistory(items=[]){
+  return (Array.isArray(items)?items:[]).flatMap(item=>{
+    const normalized=normalizeHistoryItem(item);
+    return normalized.fragmentPins.map(pin=>({
+      historyId:normalized.id,
+      sourceTitle:historyDisplayTitle(normalized),
+      sourceCreatedAt:normalized.createdAt,
+      pin,
+    }));
+  }).sort((left,right)=>{
+    const timeDiff=(new Date(right.pin.createdAt||right.pin.updatedAt||0).getTime()||0)-(new Date(left.pin.createdAt||left.pin.updatedAt||0).getTime()||0);
+    return timeDiff||historyCollator.compare(left.sourceTitle,right.sourceTitle)||left.pin.key.localeCompare(right.pin.key);
+  });
+}
+function fragmentKindLabel(kind){
+  return ({sense:'义项',collocation:'搭配',confusion:'辨析'})[kind]||'片段';
+}
+function renderPinnedFragment(entry){
+  const {historyId,sourceTitle,pin}=entry;
+  return `<article class="fragment-library-item" role="button" tabindex="0" onclick="openPinnedFragment(${jsArg(historyId)},${jsArg(pin.key)})" onkeydown="handlePinnedFragmentKey(event,${jsArg(historyId)},${jsArg(pin.key)})">
+    <div class="fragment-library-mark">${icon(pin.kind==='collocation'?'quote':pin.kind==='confusion'?'refresh-cw':'bookmark')}</div>
+    <div class="fragment-library-copy">
+      <div class="fragment-library-kicker"><span>${escapeHTML(fragmentKindLabel(pin.kind))}</span><em>来自 ${escapeHTML(sourceTitle)}</em></div>
+      <h3>${escapeHTML(pin.title||'未命名片段')}</h3>
+      ${pin.meaning?`<p>${escapeHTML(pin.meaning)}</p>`:''}
+      ${pin.example?`<blockquote>${escapeHTML(pin.example)}</blockquote>`:''}
+      ${pin.translation?`<small>${escapeHTML(pin.translation)}</small>`:''}
+    </div>
+    <button class="icon-btn fragment-library-remove" type="button" data-tip="取消收藏" aria-label="取消收藏" onclick="event.stopPropagation();setFragmentPinState(${jsArg(historyId)},${jsArg(pin.kind)},${jsArg(pin.key)},false,null)">${icon('bookmark-x')}</button>
+  </article>`;
+}
+function handlePinnedFragmentKey(event,historyId,key){
+  if(event.key!=='Enter'&&event.key!==' ')return;
+  event.preventDefault();
+  openPinnedFragment(historyId,key);
+}
+async function openPinnedFragment(historyId,key){
+  const item=getHistory().find(row=>Number(row.id)===Number(historyId));
+  const pin=normalizeHistoryItem(item||{}).fragmentPins.find(row=>row.key===key);
+  if(!item||!pin)return;
+  openHistoryModal(historyId);
+  const rolls=getHistoryRolls(item);
+  const sourceIndex=rolls.findIndex(roll=>historyRollContentKey(roll)===pin.sourceRollContentKey);
+  if(sourceIndex>=0&&historyRollViewKey(rolls[sourceIndex],sourceIndex)!==String(modalRollId)){
+    await setModalRoll(historyRollViewKey(rolls[sourceIndex],sourceIndex));
+  }
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const target=els.modalCardPage?.querySelector(`[data-fragment-key="${CSS.escape(key)}"]`);
+    target?.scrollIntoView({behavior:'smooth',block:'center'});
+    target?.classList.add('fragment-located');
+    setTimeout(()=>target?.classList.remove('fragment-located'),1400);
+  }));
+}
 function renderFoldersView(){
   if(!els.folderSidebar||!els.folderHistoryList)return;
   ensureFolderVisible();
@@ -4668,11 +4850,12 @@ function renderFoldersView(){
   if(!folders.some(folder=>folder.id===folderState.activeId))folderState.activeId=folders[0]?.id||FOLDER_LIKED_ID;
   const active=folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
   const items=historyForFolder(active.id);
-  const visible=items.slice(0,Math.min(folderState.visibleCount,items.length));
-  const more=visible.length<items.length;
+  const entries=active.id===FOLDER_INSIGHTS_ID?pinnedFragmentsFromHistory(items):items;
+  const visible=entries.slice(0,Math.min(folderState.visibleCount,entries.length));
+  const more=visible.length<entries.length;
   const settings=getSettings();
   els.folderPanel?.classList.toggle('detail-open',folderState.detailOpen);
-  if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${items.length} 条`;
+  if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${entries.length} 条`;
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
       <b>我的收藏夹</b>
@@ -4682,7 +4865,7 @@ function renderFoldersView(){
       ${folders.map(folder=>`
         <article class="folder-tab ${folder.id===active.id?'active':''}" data-folder-id="${escapeHTML(folder.id)}" data-folder-custom="${folder.system?'false':'true'}">
           <button class="folder-tab-main" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
-            <span>${icon(folder.system?'star':'folder')}</span>
+            <span>${icon(folder.id===FOLDER_INSIGHTS_ID?'bookmark':folder.system?'star':'folder')}</span>
             <b>${escapeHTML(folder.name)}</b>
             <em>${Number(folder.count||0)}</em>
             <i class="folder-enter-icon" aria-hidden="true">${icon('chevron-right')}</i>
@@ -4697,19 +4880,19 @@ function renderFoldersView(){
       <button class="folder-mobile-back" type="button" onclick="closeFolderDetail()" aria-label="返回收藏夹列表">${icon('arrow-left')}</button>
       <div>
         <h2>${escapeHTML(active.name)}</h2>
-        <p>${active.system?'星标记录会自动进入这里。':'自定义收藏夹，可从历史详情里把记录加入多个收藏夹。'}${active.parentId?' 已预留上级目录。':''}</p>
+        <p>${active.id===FOLDER_INSIGHTS_ID?'单独收藏的重要义项、搭配和辨析会集中在这里。':active.system?'星标记录会自动进入这里。':'自定义收藏夹，可从历史详情里把记录加入多个收藏夹。'}${active.parentId?' 已预留上级目录。':''}</p>
       </div>
       <div class="folder-head-actions">
         ${active.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">重命名</button>`}
-        <button class="plain-btn" type="button" onclick="startLookupInFolder('${escapeAttr(active.id)}')">查词加入此夹</button>
+        ${active.id===FOLDER_INSIGHTS_ID?'':`<button class="plain-btn" type="button" onclick="startLookupInFolder('${escapeAttr(active.id)}')">查词加入此夹</button>`}
         <button class="plain-btn primary-btn" type="button" onclick="exportFolderJSON('${escapeAttr(active.id)}')">导出 JSON</button>
       </div>
     `;
   }
-  els.folderHistoryList.innerHTML=items.length
-    ? visible.map(item=>renderFolderHistoryItem(item,settings.labelMode,settings.historyTimeMode)).join('')+(more?`
+  els.folderHistoryList.innerHTML=entries.length
+    ? (active.id===FOLDER_INSIGHTS_ID?visible.map(renderPinnedFragment).join(''):visible.map(item=>renderFolderHistoryItem(item,settings.labelMode,settings.historyTimeMode)).join(''))+(more?`
       <button class="history-load-more" type="button" onclick="loadMoreFolders()">
-        继续显示 ${Math.min(folderBatchSize(),items.length-visible.length)} 条
+        继续显示 ${Math.min(folderBatchSize(),entries.length-visible.length)} 条
       </button>
     `:'')
     : '<div class="empty">这个收藏夹还没有记录。</div>';
@@ -4730,6 +4913,7 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
   const meta=historyEntryMeta(normalized,labelMode);
   const rollCount=getHistoryRolls(normalized).length;
   const versionText=rollCount>1?`${rollCount} 个版本`:'';
+  const fragmentCount=normalized.fragmentPins.length;
   return `
     <div class="history-item ${normalized.favorite?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
       <div class="history-copy">
@@ -4740,6 +4924,7 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
           ${historyTimeMetaHTML(normalized,timeMode)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
+          ${fragmentCount?`<em class="history-fragment-count">${icon('bookmark')} ${fragmentCount} 个片段</em>`:''}
         </div>
       </div>
       <div class="history-actions">
@@ -6176,10 +6361,12 @@ function historyModalMeta(item){
   const followupCount=(item.followups||[]).length;
   const rollCount=getHistoryRolls(item).length;
   const folderCount=folderNamesForItem(normalized).length;
+  const fragmentCount=normalized.fragmentPins.length;
   const folderText=folderCount?` · ${folderCount} 个收藏夹`:'';
+  const fragmentText=fragmentCount?` · ${fragmentCount} 个收藏片段`:'';
   const noteText=normalized.note?' · 有备注':'';
   const timeText=historyTimeMetaText(normalized,getSettings().historyTimeMode);
-  return `${timeText}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${folderText}${noteText}`;
+  return `${timeText}${rollCount>1?` · ${rollCount} 个版本`:''}${followupCount?` · ${followupCount} 条追问`:''}${folderText}${fragmentText}${noteText}`;
 }
 function renderModalStickySummary(result={},historyItem=null){
   if(!els.modalStickySummary)return;
@@ -7116,7 +7303,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.18.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.19.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>

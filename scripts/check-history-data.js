@@ -1,6 +1,6 @@
 await import('../history-data.js');
 
-const {normalizeTombstones,reconcileHistory,mergeFollowups,preferNewer,resolveMutableField}=globalThis.HistoryData||{};
+const {normalizeTombstones,reconcileHistory,mergeFollowups,mergeFragmentPins,preferNewer,resolveMutableField}=globalThis.HistoryData||{};
 const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 const keyOf=item=>item.query;
@@ -67,6 +67,25 @@ expect(reverseRemovedFavorite.value===false&&reverseRemovedFavorite.side==='left
 const equalClockLeft=resolveMutableField(['alpha'],'2026-01-03T00:00:00.000Z',['beta'],'2026-01-03T00:00:00.000Z',['alpha','beta']);
 const equalClockRight=resolveMutableField(['beta'],'2026-01-03T00:00:00.000Z',['alpha'],'2026-01-03T00:00:00.000Z',['alpha','beta']);
 expect(JSON.stringify(equalClockLeft.value)===JSON.stringify(equalClockRight.value),'Equal-clock metadata conflicts must converge deterministically');
+
+const rareSense={key:'sense:clock-notice',kind:'sense',title:'注意到',meaning:'看到或注意到某事',createdAt:'2026-01-05T00:00:00.000Z',updatedAt:'2026-01-05T00:00:00.000Z'};
+const fixedPhrase={key:'collocation:clock-in',kind:'collocation',title:'clock in',meaning:'打卡上班',createdAt:'2026-01-06T00:00:00.000Z',updatedAt:'2026-01-06T00:00:00.000Z'};
+const mergedFragments=mergeFragmentPins([rareSense],[],[fixedPhrase],[]);
+expect(mergedFragments.items.length===2,'Concurrent fragment favorites must retain unrelated knowledge fragments');
+const removedFragment=mergeFragmentPins(
+  [rareSense],[],
+  [],[{key:rareSense.key,deletedAt:'2026-01-07T00:00:00.000Z'}],
+);
+expect(!removedFragment.items.length&&removedFragment.tombstones.length===1,'A newer fragment tombstone must prevent an old device from restoring a removed favorite');
+const repinnedFragment=mergeFragmentPins(
+  [{...rareSense,updatedAt:'2026-01-08T00:00:00.000Z'}],[],
+  [],[{key:rareSense.key,deletedAt:'2026-01-07T00:00:00.000Z'}],
+);
+expect(repinnedFragment.items.length===1&&!repinnedFragment.tombstones.length,'Re-favoriting a fragment after removal must revive it and clear the stale tombstone');
+expect(
+  JSON.stringify(mergeFragmentPins([rareSense],[],[fixedPhrase],[]))===JSON.stringify(mergeFragmentPins([fixedPhrase],[],[rareSense],[])),
+  'Fragment favorite merging must converge regardless of device merge direction',
+);
 
 if(failures.length){
   console.error(`History data check failed (${failures.length}):`);

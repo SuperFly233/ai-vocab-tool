@@ -13,6 +13,7 @@ const context={
   DEFAULT_API_PROFILE:{id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''},
   DEFAULT_SETTINGS:{apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''},
   FOLDER_LIKED_ID:'liked',
+  FOLDER_INSIGHTS_ID:'insights',
   FOLDER_UNFILED_ID:'unfiled',
   CLOUD_KEYS:{settings:'ai_vocab_tool_settings'},
   historyCollator:new Intl.Collator(['zh-Hans-CN','en'],{numeric:true,sensitivity:'base'}),
