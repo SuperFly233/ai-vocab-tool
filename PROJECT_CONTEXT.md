@@ -47,6 +47,7 @@ Expected behavior:
 
 ## Latest Release
 
+- v0.19.1 HTML-escapes string arguments before inserting them into quoted inline event attributes, fixing fragment bookmark handlers that the browser had truncated to `toggleFragmentPin(`. It also disables generated hover tooltips on coarse/no-hover pointers and constrains the main result grid so wide confusion tables scroll internally instead of expanding the mobile page.
 - v0.19.0 adds fragment-level knowledge favorites for senses, collocations, and confusion rows. Pins are content-addressed snapshots that sort first inside their own result section without mutating model JSON. A virtual “片段收藏” folder lists the saved fragment itself rather than force-favoriting the whole history entry, and opens the matching source roll before locating the original block. Fragment additions, removals, and re-pins merge independently with tombstones across devices.
 - v0.18.0 turns visual editing into a navigable workbench. A sticky section directory exposes entry, sense, collocation, register, and confusion counts and tracks the current section inside the detail scroller. Visual rows and API profiles retain animated pointer reordering but also support a deterministic pick-then-place fallback through the same icon handle. Mouse drag activation now requires real movement, touch scrolling can cancel a pending long press, and visual pointer completion is captured at document level.
 - v0.17.0 separates exact user input (`meta.origin` and the history identity query) from the AI-normalized display title (`headword.title`). History, favorites, related entries, and detail headers prefer the normalized title. Visual editing now presents senses, collocations, and confusions as compact reorderable rows that expand one item at a time; pointer sorting is immediate on desktop and short-press on touch. Desktop core navigation is geometrically centered independently of utility actions.
@@ -66,6 +67,7 @@ Expected behavior:
 
 ## Latest UI Notes
 
+- v0.19.1 suppresses generated hover-tooltip pseudo-elements on touch pointers, preserving single-tap behavior for fragment bookmark controls on iPhone Safari.
 - v0.19.0 adds a compact bookmark action to each sense, collocation, and confusion fragment. Pinned fragments receive a restrained accent rail and status chip, sort first only for display, and appear in a list-first virtual folder with source-word context and direct source-version navigation.
 - v0.18.0 adds a compact sticky editor directory with section counts and active-position tracking. Reorder handles are real buttons with a pick-then-place fallback, so large editor blocks and API profiles remain sortable when native or Pointer drag behavior is unavailable.
 - v0.17.0 replaces giant always-open visual-editor blocks with compact expandable rows and dedicated drag handles. The visible vocabulary title is now consistently sourced from the model-normalized headword while exact input remains recoverable as Origin. Desktop Home, History, and Favorites stay centered on the page rather than in leftover toolbar space.

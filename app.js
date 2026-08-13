@@ -166,12 +166,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.19.0',
+  version:'0.19.1',
   releaseDate:'2026-08-13',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.19.1',
+    date:'2026-08-13',
+    title:'修复片段收藏点击与移动端结果宽度',
+    items:['修复片段收藏事件参数被 HTML 属性引号截断、点击后实际没有执行的问题；同时在触屏设备关闭桌面 Hover 提示层，并增加明确按压反馈和异常提示。','首页结果面板允许收缩到手机屏幕宽度，宽辨析表格只在自己的容器内横向滚动，不再把整个页面撑出屏幕。'],
+  },
   {
     version:'0.19.0',
     date:'2026-08-13',
@@ -998,7 +1004,7 @@ function escapeAttr(value){
   return escapeHTML(value).replace(/`/g,'&#96;');
 }
 function jsArg(value){
-  return JSON.stringify(String(value??'')).replace(/</g,'\\u003c');
+  return escapeAttr(JSON.stringify(String(value??'')));
 }
 function icon(name){return `<i data-lucide="${escapeAttr(name)}"></i>`}
 function notify(message,type='info',title='Lexi酱',record=true,action=null){
@@ -3345,8 +3351,14 @@ function toggleFragmentPin(historyId,kind,key,event){
   event?.preventDefault();
   event?.stopPropagation();
   const item=getHistory().find(row=>Number(row.id)===Number(historyId));
-  if(!item)return;
+  if(!item){
+    notify('没有找到对应历史记录，请刷新页面后重试。','bad','片段收藏');
+    return;
+  }
   const pinned=normalizeHistoryItem(item).fragmentPins.some(pin=>pin.key===key);
+  const button=event?.currentTarget;
+  button?.classList.add('pressed');
+  button?.setAttribute('aria-busy','true');
   setFragmentPinState(historyId,kind,key,!pinned,displayedResultForHistory(historyId,item));
 }
 function renderRelatedHistory(items=[]){
@@ -7303,7 +7315,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.19.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.19.1" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
