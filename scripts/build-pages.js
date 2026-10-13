@@ -12,6 +12,7 @@ const files = [
   'icons.js',
   'lookup-tasks.js',
   'sync-state.js',
+  'learning-tools.js',
   'styles.css',
   'favicon.svg',
   'site.webmanifest',

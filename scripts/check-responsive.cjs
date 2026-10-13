@@ -1,21 +1,9 @@
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 
-const root = path.resolve(__dirname, '..');
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
-const server = http.createServer((req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-  const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
-  if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
-  fs.readFile(file, (error, data) => {
-    if (error) { res.writeHead(404).end(); return; }
-    res.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');
-    res.end(data);
-  });
-});
+const server = require('./browser-test-server.cjs').createServer();
 
 (async () => {
   let browser;
@@ -55,6 +43,10 @@ const server = http.createServer((req, res) => {
           tables: [...document.querySelectorAll('#result-card .table-scroll')].map(el => ({ width: el.clientWidth, scroll: el.scrollWidth })),
         }));
         console.log(JSON.stringify({ viewport: width, long, ...measure }));
+        if(measure.resultScroll>Math.ceil(measure.result))console.log(await page.evaluate(()=>{
+          const card=document.querySelector('#result-card'),rect=card.getBoundingClientRect();
+          return [...card.querySelectorAll('*')].filter(el=>el.getBoundingClientRect().right>rect.right||el.scrollWidth>el.clientWidth+1).map(el=>({tag:el.tagName,class:el.className,right:el.getBoundingClientRect().right,width:el.clientWidth,scroll:el.scrollWidth}));
+        }));
         assert.ok(measure.scroll <= measure.width, `Page overflow at ${width}px (${long ? 'long' : 'normal'}): ${measure.scroll}`);
         assert.ok(measure.resultScroll <= Math.ceil(measure.result), `Result content overflow at ${width}px: ${measure.resultScroll}`);
         if (process.env.QA_SCREENSHOTS) {
@@ -67,7 +59,12 @@ const server = http.createServer((req, res) => {
       else await bookmark.click();
       await page.waitForFunction(() => getHistory()[0].fragmentPins?.length === 1);
       await page.evaluate(() => window.scrollTo(0, 700));
+      await page.waitForTimeout(300);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+      const sticky=await page.locator('#view-home .editor-pane').boundingBox();
+      assert.ok(sticky&&sticky.y>=0&&sticky.y<100,'Search toolbar stays visible after scrolling');
+      console.log(JSON.stringify({viewport:width,scrolledToolbar:sticky}));
+      if(process.env.QA_SCREENSHOTS)await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`scrolled-${width}.png`)});
       await page.evaluate(() => openHistoryModal(1));
       await page.waitForTimeout(100);
       assert.ok(await page.evaluate(() => {

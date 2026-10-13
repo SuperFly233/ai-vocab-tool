@@ -13,6 +13,7 @@ const STORAGE_KEYS={
   logs:'ai_vocab_tool_logs_v1',
   lookupDraft:'ai_vocab_tool_lookup_draft_v1',
   lookupTasks:'ai_vocab_tool_lookup_tasks_v1',
+  reviewSession:'ai_vocab_tool_review_session_v1',
 };
 const CLOUD_KEYS={
   history:'ai_vocab_tool_history',
@@ -121,7 +122,14 @@ const folderState={
   activeId:FOLDER_LIKED_ID,
   visibleCount:0,
   detailOpen:false,
+  query:'',
 };
+let folderSearchTimer=null;
+const historySelection={active:false,ids:new Set()};
+let speechPlayback=null;
+let reviewSession=null;
+let reviewCards=[];
+let reviewReturnFocus=null;
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
   numeric:true,
   sensitivity:'base',
@@ -166,12 +174,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.19.2',
+  version:'0.20.0',
   releaseDate:'2026-10-13',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.20.0',
+    date:'2026-10-13',
+    title:'从查词到收藏、朗读与复习',
+    items:['词条与例句新增朗读和停止控制；收藏夹支持多关键词检索、整词及片段复习，并在本机恢复未完成的复习。','新增 Markdown 导出与历史批量操作：批量加入收藏夹、导出、删除和撤销，保留已有收藏关系。','修复模型排序结束时的清理异常、子按钮键盘误触、复制失败却报告成功、取消重新生成关闭详情及收藏写入失败残留忙碌状态。','通知限制同时显示数量，撤销按钮可以正常点击；手机和桌面浅深色交互、长文本宽度及持久化回归均加入自动检查。'],
+  },
   {
     version:'0.19.2',
     date:'2026-10-13',
@@ -1020,7 +1034,7 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
   const key=`${type}|${title}|${message}`;
   const existing=activeToasts.get(key);
   if(existing?.element?.isConnected){
-    if(existing.element.classList.contains('leaving')){
+    if(existing.element.classList.contains('leaving')||action||existing.action){
       clearTimeout(existing.timer);
       existing.element.remove();
       activeToasts.delete(key);
@@ -1037,7 +1051,15 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
   }
   const toast=document.createElement('div');
   const toastMode=normalizeToastMode(getSettings()?.toastMode);
+  const limit=toastMode==='snackbar'?1:3;
+  while(activeToasts.size>=limit){
+    const [oldKey,oldState]=activeToasts.entries().next().value;
+    clearTimeout(oldState.timer);
+    oldState.element.remove();
+    activeToasts.delete(oldKey);
+  }
   toast.className=`toast ${type} ${toastMode==='snackbar'?'snackbar':''}`;
+  toast.setAttribute('role',type==='bad'?'alert':'status');
   toast.innerHTML=`
       <div class="toast-row">
         <div class="toast-mark" aria-hidden="true">${toastIcon(type)}</div>
@@ -1055,21 +1077,26 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
     try{action?.run?.()}finally{dismissToast(key)}
   });
   bindToastSwipe(toast,key);
-  const state={element:toast,count:1,timer:null};
+  const state={element:toast,count:1,timer:null,action};
   activeToasts.set(key,state);
   armToastTimer(key,state);
+  toast.addEventListener('pointerenter',()=>clearTimeout(state.timer));
+  toast.addEventListener('pointerleave',()=>armToastTimer(key,state));
+  toast.addEventListener('focusin',()=>clearTimeout(state.timer));
+  toast.addEventListener('focusout',()=>armToastTimer(key,state));
 }
 function bindToastSwipe(toast,key){
   let startX=0;
   let active=false;
   toast.addEventListener('pointerdown',event=>{
+    if(event.button>0||event.target.closest('button,a'))return;
     startX=event.clientX;
     active=true;
-    toast.setPointerCapture?.(event.pointerId);
   });
   toast.addEventListener('pointermove',event=>{
     if(!active)return;
     const dx=event.clientX-startX;
+    if(Math.abs(dx)>4)toast.setPointerCapture?.(event.pointerId);
     toast.style.setProperty('--swipe-x',`${dx}px`);
     toast.classList.toggle('swiping',Math.abs(dx)>4);
   });
@@ -1094,9 +1121,10 @@ function restartToastProgress(toast){
   void progress.offsetWidth;
   progress.style.animation='';
 }
-function armToastTimer(key,state,duration=3200){
+function armToastTimer(key,state,duration=state.action?6500:3200){
   clearTimeout(state.timer);
   restartToastProgress(state.element);
+  state.element.querySelector('.toast-progress')?.style.setProperty('animation-duration',`${duration}ms`);
   state.timer=setTimeout(()=>dismissToast(key),duration);
 }
 function toastIcon(type){
@@ -2549,6 +2577,7 @@ function updateViewRoute(id,mode='push'){
 function showView(id,button,options={}){
   const next=VIEW_ROUTES[id]?id:'home';
   const changed=activeView!==next;
+  if(changed)stopSpeech();
   activeView=next;
   updateViewRoute(next,options.route||'push');
   document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${next}`));
@@ -2893,6 +2922,7 @@ function lookupErrorMessage(error){
   return error?.status?`HTTP ${error.status}：${message}`:message;
 }
 function renderResult(result,{animate=false}={}){
+  stopSpeech();
   currentResult=result;
   clearLookupLoadingTimers();
   clearJSONTypewriter();
@@ -3021,7 +3051,7 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
   return `
     <div class="entry-head">
       <div class="entry-kicker">${escapeHTML([displayLanguageLabel(head.languageTag||meta.language),displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query))].filter(Boolean).join(' · ')||'词条')}</div>
-      <div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>
+      <div class="entry-title-row"><div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>${renderSpeechButton(head.title||meta.query,head.languageTag||meta.language,'朗读词条')}</div>
       ${head.coreMeaning?`<div class="entry-core"><b>核心义</b><mark>${escapeHTML(head.coreMeaning)}</mark></div>`:''}
       <div class="entry-meta-grid">
         <span><b>类型</b>${escapeHTML(displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)))}</span>
@@ -3082,7 +3112,7 @@ function renderCollocations(items=[],result={},historyItem=null,queryTerms=[]){
       <div class="item-body">
         <div class="item-title"><mark>${escapeHTML(item.phrase)}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}${pinned?'<span class="fragment-pin-label">已收藏</span>':''}</div>
         <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
-        <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
+        <div class="line"><b>例句</b>${renderSpokenExample(item.example,result,highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms)))}</div>
         <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
       </div>
       ${renderFragmentPinButton(historyItem,'collocation',item)}
@@ -3107,7 +3137,7 @@ function renderSenseGroups(senses=[],result={},historyItem=null){
         <div class="item-body">
           <div class="item-title"><mark>${escapeHTML(item.shortestLabel)}</mark>${pinned?'<span class="fragment-pin-label">已收藏</span>':''}</div>
           <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
-          <div class="line"><b>例句</b><span>${highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms))}</span></div>
+          <div class="line"><b>例句</b>${renderSpokenExample(item.example,result,highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms)))}</div>
           <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
         </div>
         ${renderFragmentPinButton(historyItem,'sense',item)}
@@ -3365,7 +3395,12 @@ function toggleFragmentPin(historyId,kind,key,event){
   const button=event?.currentTarget;
   button?.classList.add('pressed');
   button?.setAttribute('aria-busy','true');
-  setFragmentPinState(historyId,kind,key,!pinned,displayedResultForHistory(historyId,item));
+  try{
+    setFragmentPinState(historyId,kind,key,!pinned,displayedResultForHistory(historyId,item));
+  }finally{
+    button?.classList.remove('pressed');
+    button?.removeAttribute('aria-busy');
+  }
 }
 function renderRelatedHistory(items=[]){
   if(!items.length)return '';
@@ -4479,8 +4514,7 @@ function maybeLoadMoreHistory(){
     return;
   }
   if(activeView==='folders'){
-    const items=historyForFolder(folderState.activeId);
-    const count=folderState.activeId===FOLDER_INSIGHTS_ID?pinnedFragmentsFromHistory(items).length:items.length;
+    const count=filteredFolderEntries().length;
     if((folderState.visibleCount||0)<count&&remaining<420)loadMoreFolders();
   }
 }
@@ -4492,12 +4526,15 @@ function toggleHistoryFilters(){
 }
 function renderHistory(){
   const allHistory=getHistory();
+  const existingIds=new Set(allHistory.map(item=>Number(item.id)));
+  historySelection.ids=new Set([...historySelection.ids].filter(id=>existingIds.has(id)));
   if(historyState.filtersOpen||openHistoryFilterKey)renderHistoryFilterOptions(allHistory);
   renderHistorySearchScopeControls();
   renderHistorySortControls();
   ensureHistoryVisible();
   updateHistoryFilterToggle();
   const history=filterAndSortHistory(allHistory);
+  renderHistorySelection(history);
   window.__historyFilteredCount=history.length;
   const total=allHistory.length;
   const settings=getSettings();
@@ -4519,7 +4556,8 @@ function renderHistory(){
     const versionText=rollCount>1?`${rollCount} 个版本`:'';
     const fragmentCount=normalized.fragmentPins.length;
     return `
-    <div class="history-item" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+    <div class="history-item ${historySelection.active?'selectable':''} ${historySelection.ids.has(Number(item.id))?'selected':''}" role="button" tabindex="0" onclick="handleHistoryItemClick(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+      ${historySelection.active?`<button class="history-select-btn" type="button" aria-label="选择 ${escapeAttr(historyDisplayTitle(normalized))}" aria-pressed="${historySelection.ids.has(Number(item.id))}" onclick="event.stopPropagation();toggleHistorySelection(${Number(item.id)})">${icon(historySelection.ids.has(Number(item.id))?'square-check':'square')}</button>`:''}
       <div class="history-copy">
         <div class="history-word">${escapeHTML(historyDisplayTitle(normalized))}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
@@ -4703,7 +4741,7 @@ function openFolderSelectModal(context={}){
   const historyId=Number(context.historyId||0);
   const item=historyId?getHistory().find(row=>Number(row.id)===historyId):null;
   const selected=type==='lookup'?lookupFolderIds:item?itemFolderIds(item):[];
-  folderSelectContext={type,historyId,selectedIds:normalizeSelectableFolderIds(selected)};
+  folderSelectContext={type,historyId,historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected)};
   renderFolderSelectModal();
   els.folderSelectModal.classList.add('open');
   document.body.classList.add('modal-open');
@@ -4720,10 +4758,11 @@ function renderFolderSelectModal(){
   const catalog=folderCatalog().filter(folder=>folder.selectable!==false);
   const statsMap=new Map(folderStats().map(folder=>[folder.id,folder.count]));
   const isLookup=folderSelectContext.type==='lookup';
+  const isBatch=folderSelectContext.type==='batch';
   const item=!isLookup?getHistory().find(row=>Number(row.id)===Number(folderSelectContext.historyId)):null;
   if(els.folderSelectTitle)els.folderSelectTitle.textContent=isLookup?'查询后加入收藏夹':'添加到收藏夹';
-  if(els.folderSelectSubtitle)els.folderSelectSubtitle.textContent=isLookup?'本次查询保存历史时自动加入所选收藏夹。':`「${item?.query||'这条记录'}」可同时加入多个收藏夹。`;
-  if(els.folderSelectStatus)els.folderSelectStatus.textContent=isLookup?'队列中的查询也会带上当前选择。':'选择后会同步到历史和云端。';
+  if(els.folderSelectSubtitle)els.folderSelectSubtitle.textContent=isLookup?'本次查询保存历史时自动加入所选收藏夹。':isBatch?`为 ${folderSelectContext.historyIds.length} 条记录追加收藏夹，不移除原有归属。`:`「${item?historyDisplayTitle(item):'这条记录'}」可同时加入多个收藏夹。`;
+  if(els.folderSelectStatus)els.folderSelectStatus.textContent=isLookup?'队列中的查询也会带上当前选择。':isBatch?'仅添加勾选的收藏夹，原有收藏和标签保持不变。':'选择后会同步到历史和云端。';
   els.folderSelectList.innerHTML=catalog.map(folder=>`
     <label class="folder-select-option ${selected.has(folder.id)?'active':''}">
       <input type="checkbox" value="${escapeHTML(folder.id)}" ${selected.has(folder.id)?'checked':''} onchange="updateFolderSelectDraft()">
@@ -4762,6 +4801,11 @@ function saveFolderSelection(){
   if(!folderSelectContext)return;
   updateFolderSelectDraft();
   const ids=normalizeSelectableFolderIds(folderSelectContext.selectedIds);
+  if(folderSelectContext.type==='batch'){
+    if(!ids.length)return notify('请至少选择一个收藏夹。','info','批量添加');
+    if(addSelectedHistoryToFolders(folderSelectContext.historyIds,ids))closeFolderSelectModal();
+    return;
+  }
   if(folderSelectContext.type==='lookup'){
     lookupFolderIds=ids;
     renderLookupFolderPicker();
@@ -4840,6 +4884,7 @@ function renderPinnedFragment(entry){
   </article>`;
 }
 function handlePinnedFragmentKey(event,historyId,key){
+  if(event.target!==event.currentTarget)return;
   if(event.key!=='Enter'&&event.key!==' ')return;
   event.preventDefault();
   openPinnedFragment(historyId,key);
@@ -4868,12 +4913,12 @@ function renderFoldersView(){
   if(!folders.some(folder=>folder.id===folderState.activeId))folderState.activeId=folders[0]?.id||FOLDER_LIKED_ID;
   const active=folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
   const items=historyForFolder(active.id);
-  const entries=active.id===FOLDER_INSIGHTS_ID?pinnedFragmentsFromHistory(items):items;
+  const entries=filteredFolderEntries(active.id,items);
   const visible=entries.slice(0,Math.min(folderState.visibleCount,entries.length));
   const more=visible.length<entries.length;
   const settings=getSettings();
   els.folderPanel?.classList.toggle('detail-open',folderState.detailOpen);
-  if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${entries.length} 条`;
+  if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${entries.length} 条${folderState.query?'匹配':''}`;
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
       <b>我的收藏夹</b>
@@ -4903,7 +4948,9 @@ function renderFoldersView(){
       <div class="folder-head-actions">
         ${active.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">重命名</button>`}
         ${active.id===FOLDER_INSIGHTS_ID?'':`<button class="plain-btn" type="button" onclick="startLookupInFolder('${escapeAttr(active.id)}')">查词加入此夹</button>`}
-        <button class="plain-btn primary-btn" type="button" onclick="exportFolderJSON('${escapeAttr(active.id)}')">导出 JSON</button>
+        <button class="icon-btn" type="button" data-tip="复习当前列表" aria-label="复习当前列表" onclick="startFolderReview()" ${entries.length?'':'disabled'}>${icon('layers')}</button>
+        <button class="icon-btn" type="button" data-tip="导出 Markdown" aria-label="导出 Markdown" onclick="exportFolderMarkdown()" ${entries.length?'':'disabled'}>${icon('file-text')}</button>
+        <button class="icon-btn" type="button" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportFolderJSON('${escapeAttr(active.id)}')">${icon('download')}</button>
       </div>
     `;
   }
@@ -4913,7 +4960,10 @@ function renderFoldersView(){
         继续显示 ${Math.min(folderBatchSize(),entries.length-visible.length)} 条
       </button>
     `:'')
-    : '<div class="empty">这个收藏夹还没有记录。</div>';
+    : `<div class="empty">${folderState.query?'没有匹配记录。':'这个收藏夹还没有记录。'}</div>`;
+  const search=document.getElementById('folder-search');
+  if(search&&search.value!==folderState.query)search.value=folderState.query;
+  document.getElementById('folder-search-clear')?.classList.toggle('hidden',!folderState.query);
 }
 function openFoldersRoot(button=document.getElementById('nav-folders')){
   folderState.detailOpen=false;
@@ -5034,9 +5084,10 @@ function compactPartOfSpeech(head={},senses=[],labelMode=currentLabelMode()){
   return tokens.length>3?`${visible.join(' / ')} +${tokens.length-3}`:visible.join(' / ');
 }
 function handleHistoryItemKey(event,id){
+  if(event.target!==event.currentTarget)return;
   if(event.key==='Enter'||event.key===' '){
     event.preventDefault();
-    openHistoryModal(id);
+    handleHistoryItemClick(id);
   }
 }
 function filterAndSortHistory(history){
@@ -5379,7 +5430,11 @@ function renderFolderManager(){
 function openFolderView(folderId){
   const value=String(folderId||FOLDER_LIKED_ID).trim();
   if(!value)return;
-  if(folderState.activeId!==value)folderState.visibleCount=0;
+  if(folderState.activeId!==value){
+    folderState.visibleCount=0;
+    folderState.query='';
+    clearTimeout(folderSearchTimer);
+  }
   folderState.activeId=value;
   folderState.detailOpen=true;
   showView('folders',document.getElementById('nav-folders'));
@@ -6108,7 +6163,7 @@ function moveApiProfilePointerDrag(event){
   event.preventDefault();
   positionReorderGhost(state.ghost,event);
   autoScrollDuringDrag(event.clientY,els.apiProfileMenu);
-  clearApiProfileDropMarks();
+  clearDropMarks('.api-profile-option');
   const meta=apiProfileDropMeta(event.clientY,state.item);
   if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
 }
@@ -6116,7 +6171,7 @@ function endApiProfilePointerDrag(event){
   const state=apiProfilePointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
   cancelPendingPointerDrag(state);
-  clearApiProfileDropMarks();
+  clearDropMarks('.api-profile-option');
   apiProfilePointerDragState=null;
   if(!state.active)return;
   suppressReorderHandleClickUntil=Date.now()+280;
@@ -6315,6 +6370,7 @@ function closeHistoryModal(event){
     return;
   }
   els.historyModal.classList.remove('open');
+  stopSpeech();
   document.body.classList.remove('modal-open');
   els.historyModal.querySelector('.modal-card')?.classList.remove('modal-scrolled');
   modalEditBaseline='';
@@ -6491,16 +6547,17 @@ function updateModalJSONStatus(isValid,message){
   els.modalJsonStatus.classList.toggle('bad',!isValid);
   els.modalJsonStatus.textContent=isValid?message:`JSON 错误：${message}`;
 }
-function copyModalJSON(){
+async function copyModalJSON(){
   if(!modalResult)return;
-  navigator.clipboard.writeText(JSON.stringify(modalResult,null,2));
-  notify('JSON 已复制。','good','复制完成');
+  if(!syncModalDraftFromActiveTab('card'))return;
+  await copyTextWithFeedback(JSON.stringify(modalResult,null,2),'JSON');
 }
-async function regenerateHistory(id){
+async function regenerateHistory(id,{closeModal=false}={}){
   const item=getHistory().find(row=>Number(row.id)===Number(id));
   if(!item)return notify('找不到这条历史记录。','bad','重新生成');
   const ok=await askConfirm(`确认重新生成“${item.query}”？新结果会保存为一个新版本，旧版本仍可切换查看。`,'重新生成');
   if(!ok)return;
+  if(closeModal)closeHistoryModal();
   els.query.value=item.query;
   updateEditorState();
   goHomeAndFocus();
@@ -6508,8 +6565,8 @@ async function regenerateHistory(id){
 }
 async function regenerateModalHistory(){
   if(!modalHistoryId)return;
-  closeHistoryModal();
-  await regenerateHistory(modalHistoryId);
+  if(historyModalHasDraft()&&!await askConfirm('当前修改尚未保存，确认放弃并重新生成吗？','放弃修改'))return;
+  await regenerateHistory(modalHistoryId,{closeModal:true});
 }
 function exportModalJSON(){
   if(!modalResult)return;
@@ -6702,21 +6759,300 @@ function exportCurrent(){
   const name=(currentResult.meta?.normalized||currentResult.meta?.query||'ai-vocab-tool').replace(/[\\/:*?"<>|]/g,'_');
   downloadText(`${name}.json`,JSON.stringify(currentResult,null,2));
 }
-function copyJSON(){
+async function copyJSON(){
   if(!currentResult)return notify('还没有结果。','bad','无法复制');
-  navigator.clipboard.writeText(JSON.stringify(currentResult,null,2));
-  notify('JSON 已复制。','good','复制完成');
+  await copyTextWithFeedback(JSON.stringify(currentResult,null,2),'JSON');
 }
-function downloadText(filename,text){
-  const blob=new Blob([text],{type:'application/json;charset=utf-8'});
+function downloadText(filename,text,type='application/json;charset=utf-8'){
+  const blob=new Blob([text],{type});
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
   link.href=url;
   link.download=filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function copyTextWithFeedback(text,label){
+  try{
+    if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+    await navigator.clipboard.writeText(text);
+    notify(`${label} 已复制。`,'good','复制完成');
+    return true;
+  }catch{
+    notify('浏览器未允许访问剪贴板，请改用导出。','bad','复制失败');
+    return false;
+  }
+}
+function renderSpeechButton(text,language='',label='朗读例句'){
+  if(!String(text||'').trim())return '';
+  return `<button class="speech-btn icon-btn" type="button" data-tip="${escapeAttr(label)}" data-speech-label="${escapeAttr(label)}" aria-label="${escapeAttr(label)}" aria-pressed="false" onclick="speakText(${jsArg(text)},${jsArg(language)},event)">${icon('volume-2')}</button>`;
+}
+function renderSpokenExample(text,result,html){
+  return `<span class="spoken-example"><span>${html}</span>${renderSpeechButton(text,result.headword?.languageTag||result.meta?.language)}</span>`;
+}
+function stopSpeech(){
+  const previous=speechPlayback;
+  speechPlayback=null;
+  if(!previous)return;
+  clearTimeout(previous.timer);
+  previous.button?.classList.remove('speaking');
+  previous.button?.setAttribute('aria-pressed','false');
+  if(previous.button){
+    previous.button.innerHTML=icon('volume-2');
+    previous.button.setAttribute('aria-label',previous.button.dataset.speechLabel||'朗读');
+    previous.button.dataset.tip=previous.button.dataset.speechLabel||'朗读';
+  }
+  window.speechSynthesis?.cancel();
+}
+function speakText(text,language='',event){
+  event?.stopPropagation();
+  const button=event?.currentTarget;
+  const repeated=Boolean(button&&speechPlayback?.button===button);
+  stopSpeech();
+  if(repeated)return;
+  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return notify('这个浏览器不支持朗读。','info','朗读不可用');
+  const value=String(text||'').trim();
+  if(!value)return;
+  const utterance=new SpeechSynthesisUtterance(value);
+  utterance.lang=LearningTools.speechLanguage(language,value);
+  const voices=window.speechSynthesis.getVoices();
+  const voice=voices.find(item=>item.lang===utterance.lang)||voices.find(item=>item.lang.split('-')[0]===utterance.lang.split('-')[0]);
+  if(voice)utterance.voice=voice;
+  speechPlayback={utterance,button,timer:setTimeout(()=>{
+    if(speechPlayback?.utterance!==utterance)return;
+    stopSpeech();
+    notify('设备朗读没有启动，请检查系统语音和声音设置。','info','朗读未启动');
+  },8000)};
+  if(button){
+    button.classList.add('speaking');
+    button.setAttribute('aria-pressed','true');
+    button.setAttribute('aria-label','停止朗读');
+    button.dataset.tip='停止朗读';
+    button.innerHTML=icon('square');
+  }
+  utterance.onstart=()=>{if(speechPlayback?.utterance===utterance)clearTimeout(speechPlayback.timer)};
+  utterance.onend=()=>{if(speechPlayback?.utterance===utterance)stopSpeech()};
+  utterance.onerror=error=>{
+    if(speechPlayback?.utterance!==utterance)return;
+    stopSpeech();
+    if(!['canceled','interrupted'].includes(error.error))notify('设备无法朗读这段内容，请检查系统语音。','bad','朗读失败');
+  };
+  try{
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }catch{
+    stopSpeech();
+    notify('设备无法启动朗读。','bad','朗读失败');
+  }
+}
+function filteredFolderEntries(folderId=folderState.activeId,items=historyForFolder(folderId)){
+  if(folderId===FOLDER_INSIGHTS_ID)return pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,entry.pin],folderState.query));
+  return items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags],folderState.query));
+}
+function searchFolder(value){
+  folderState.query=String(value||'');
+  folderState.visibleCount=folderBatchSize();
+  clearTimeout(folderSearchTimer);
+  folderSearchTimer=setTimeout(renderFoldersView,90);
+}
+function clearFolderSearch(){
+  clearTimeout(folderSearchTimer);
+  folderState.query='';
+  folderState.visibleCount=folderBatchSize();
+  renderFoldersView();
+  document.getElementById('folder-search')?.focus();
+}
+function historyMarkdown(items){
+  return items.map(item=>LearningTools.resultMarkdown(latestHistoryResult(item),{
+    title:historyDisplayTitle(item),origin:item.query,note:item.note,pins:normalizeHistoryItem(item).fragmentPins,
+  })).join('\n---\n\n');
+}
+function exportCurrentMarkdown(scope='current'){
+  if(scope==='modal'&&!syncModalDraftFromActiveTab('card'))return;
+  const result=scope==='modal'?modalResult:currentResult;
+  if(!result)return notify('还没有结果。','info','导出');
+  const item=scope==='modal'?getHistory().find(row=>Number(row.id)===Number(modalHistoryId)):getCurrentHistoryItem();
+  const note=scope==='modal'?els.modalNoteEdit?.value:item?.note;
+  const output=LearningTools.resultMarkdown(result,{origin:scope==='modal'?els.modalQueryEdit?.value:item?.query,note,pins:item?.fragmentPins});
+  downloadText(`${folderExportName({name:result.headword?.title||'词条'})}.md`,output,'text/markdown;charset=utf-8');
+  notify('Markdown 笔记已导出。','good','导出');
+}
+function exportFolderMarkdown(){
+  const folder=folderById(folderState.activeId);
+  if(!folder)return;
+  const entries=filteredFolderEntries();
+  if(!entries.length)return notify('没有可导出的记录。','info','导出');
+  const content=folder.id===FOLDER_INSIGHTS_ID?entries.map(entry=>LearningTools.fragmentMarkdown(entry.pin,entry.sourceTitle)).join('\n\n---\n\n'):historyMarkdown(entries);
+  downloadText(`${folderExportName(folder)}.md`,content,'text/markdown;charset=utf-8');
+  notify(`已导出 ${entries.length} 条 Markdown 笔记。`,'good','导出');
+}
+function handleHistoryItemClick(id){
+  if(historySelection.active)toggleHistorySelection(id);
+  else openHistoryModal(id);
+}
+function toggleHistorySelectionMode(){
+  historySelection.active=!historySelection.active;
+  historySelection.ids.clear();
+  renderHistory();
+}
+function toggleHistorySelection(id){
+  const value=Number(id);
+  if(historySelection.ids.has(value))historySelection.ids.delete(value);
+  else historySelection.ids.add(value);
+  renderHistory();
+}
+function selectMatchingHistory(){
+  historySelection.ids=new Set(filterAndSortHistory(getHistory()).map(item=>Number(item.id)));
+  renderHistory();
+}
+function clearHistorySelection(){
+  historySelection.ids.clear();
+  renderHistory();
+}
+function selectedHistoryItems(){return getHistory().filter(item=>historySelection.ids.has(Number(item.id)))}
+function renderHistorySelection(matches=[]){
+  const bar=document.getElementById('history-selection-bar');
+  const toggle=document.getElementById('history-selection-toggle');
+  toggle?.setAttribute('aria-pressed',String(historySelection.active));
+  toggle?.classList.toggle('active',historySelection.active);
+  if(!bar)return;
+  bar.hidden=!historySelection.active;
+  document.getElementById('history-selection-count').textContent=`已选 ${historySelection.ids.size} 条`;
+  bar.querySelectorAll('[data-needs-selection]').forEach(button=>{button.disabled=!historySelection.ids.size});
+  document.getElementById('history-select-matching').disabled=!matches.length;
+}
+function exportSelectedHistory(format='json'){
+  const items=selectedHistoryItems();
+  if(!items.length)return;
+  downloadText(`Lexi-selected.${format==='markdown'?'md':'json'}`,format==='markdown'?historyMarkdown(items):JSON.stringify(items,null,2),format==='markdown'?'text/markdown;charset=utf-8':'application/json;charset=utf-8');
+  notify(`已导出 ${items.length} 条记录。`,'good','批量导出');
+}
+function addSelectedHistoryToFolders(historyIds,folderIds){
+  const ids=new Set(historyIds.map(Number));
+  const now=new Date().toISOString();
+  const selected=normalizeSelectableFolderIds(folderIds);
+  const addFavorite=selected.includes(FOLDER_LIKED_ID);
+  const additions=selected.filter(id=>id!==FOLDER_LIKED_ID);
+  let count=0;
+  const history=getHistory().map(item=>{
+    if(!ids.has(Number(item.id)))return item;
+    count++;
+    const normalized=normalizeHistoryItem(item);
+    return {...normalized,folderIds:normalizeFolderIds([...normalized.folderIds,...additions]),foldersUpdatedAt:now,
+      ...(addFavorite?{favorite:true,favoriteAt:normalized.favoriteAt||now,favoriteUpdatedAt:now}:{}),updatedAt:now};
+  });
+  if(!count){notify('所选记录已被移除。','info','批量添加');return false}
+  if(!setHistory(history))return false;
+  renderFolderManager();
+  notify(`已为 ${count} 条记录添加收藏夹。`,'good','批量添加');
+  return true;
+}
+async function deleteSelectedHistory(){
+  const ids=new Set(historySelection.ids);
+  if(!ids.size||!await askConfirm(`删除选中的 ${ids.size} 条记录？此操作会同步到其他设备。`,'批量删除'))return;
+  const history=getHistory();
+  const deletedItems=history.filter(item=>ids.has(Number(item.id)));
+  if(!setHistory(history.filter(item=>!ids.has(Number(item.id))),{deletedItems}))return;
+  notify(`已删除 ${deletedItems.length} 条记录。`,'good','批量删除',true,{label:'撤销',run:()=>{
+    const now=new Date().toISOString();
+    if(setHistory([...getHistory(),...deletedItems.map(item=>({...item,updatedAt:now}))],{revive:true}))notify('已恢复删除的记录。','good','撤销删除');
+  }});
+}
+function startFolderReview(){
+  const entries=filteredFolderEntries();
+  const historyById=new Map(getHistory().map(item=>[Number(item.id),item]));
+  const prepared=folderState.activeId===FOLDER_INSIGHTS_ID?entries.map(entry=>{
+    const item=historyById.get(Number(entry.historyId));
+    const source=getHistoryRolls(item).find(roll=>historyRollContentKey(roll)===entry.pin.sourceRollContentKey);
+    return {id:entry.historyId,title:entry.sourceTitle,pin:entry.pin,result:source?.result||latestHistoryResult(item)};
+  }):entries.map(item=>({id:item.id,title:historyDisplayTitle(item),result:latestHistoryResult(item),contentKey:stableHash(historyRollContentKey(getHistoryRolls(item)[0]||{}))}));
+  reviewCards=LearningTools.reviewDeck(prepared);
+  if(!reviewCards.length)return notify('当前列表没有可复习内容。','info','复习');
+  const sourceKey=`${folderState.activeId}\0${normalizeSearch(folderState.query)}`;
+  reviewSession=LearningTools.restoreReview(reviewCards,sourceKey,readJSON(STORAGE_KEYS.reviewSession,{}));
+  reviewReturnFocus=document.activeElement;
+  stopSpeech();
+  document.getElementById('review-modal').classList.add('open');
+  document.body.classList.add('modal-open');
+  renderReview();
+  document.getElementById('review-close').focus();
+}
+function saveReviewSession(){
+  try{writeJSON(STORAGE_KEYS.reviewSession,{...reviewSession,updatedAt:new Date().toISOString()})}
+  catch(error){notify(storageFailureMessage(error,'本次复习进度'),'bad','复习进度未保存')}
+}
+function closeReview(event){
+  if(event&&event.target!==document.getElementById('review-modal'))return;
+  saveReviewSession();
+  stopSpeech();
+  document.getElementById('review-modal').classList.remove('open');
+  if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
+  if(reviewReturnFocus?.isConnected)reviewReturnFocus.focus();
+}
+function revealReview(){
+  if(!reviewSession?.keys[reviewSession.index])return;
+  reviewSession.revealed=!reviewSession.revealed;
+  saveReviewSession();
+  renderReview();
+  document.querySelector('#review-content .review-reveal')?.focus();
+}
+function rateReview(rating){
+  if(!reviewSession)return;
+  reviewSession=LearningTools.rateReview(reviewSession,rating);
+  stopSpeech();
+  saveReviewSession();
+  renderReview();
+  document.querySelector('#review-content .review-reveal,#review-content .review-summary button')?.focus();
+}
+function shuffleReview(){
+  if(!reviewSession)return;
+  reviewSession=LearningTools.shuffleReview(reviewSession);
+  stopSpeech();
+  saveReviewSession();
+  renderReview();
+}
+function retryReview(){
+  const retry=reviewSession.keys.filter(key=>reviewSession.ratings[key]!=='known');
+  reviewSession={...reviewSession,keys:retry.length?retry:reviewSession.keys,index:0,ratings:{},revealed:false};
+  saveReviewSession();
+  renderReview();
+  document.querySelector('#review-content .review-reveal')?.focus();
+}
+function openReviewSource(){
+  const card=reviewCards.find(item=>item.key===reviewSession.keys[reviewSession.index]);
+  if(!card)return;
+  closeReview();
+  if(card.fragmentKey)openPinnedFragment(card.historyId,card.fragmentKey);
+  else openHistoryModal(card.historyId);
+}
+function renderReview(){
+  const total=reviewSession.keys.length;
+  const done=reviewSession.index>=total;
+  const body=document.getElementById('review-content');
+  document.getElementById('review-progress').textContent=done?`已完成 ${total} 张`:`${reviewSession.index+1} / ${total}`;
+  document.getElementById('review-shuffle').disabled=done;
+  if(done){
+    const ratings=Object.values(reviewSession.ratings);
+    body.innerHTML=`<div class="review-summary"><span>${icon('circle-check')}</span><h2>本轮复习完成</h2><p>已掌握 ${ratings.filter(value=>value==='known').length} · 待巩固 ${ratings.filter(value=>value==='again').length} · 跳过 ${ratings.filter(value=>value==='skip').length}</p><button class="plain-btn primary-btn" onclick="retryReview()">${ratings.some(value=>value!=='known')?'再练待巩固内容':'再练一轮'}</button></div>`;
+    return;
+  }
+  const card=reviewCards.find(item=>item.key===reviewSession.keys[reviewSession.index]);
+  body.innerHTML=`<div class="review-question"><div class="review-kicker">${escapeHTML(card.kind==='word'?'词条':fragmentKindLabel(card.kind))}</div><div class="entry-title-row"><h2>${escapeHTML(card.prompt)}</h2>${renderSpeechButton(card.prompt,card.language,'朗读词条')}</div>${card.cue?`<blockquote>${escapeHTML(card.cue)}</blockquote>`:''}<div class="review-answer" ${reviewSession.revealed?'':'hidden'}><h3>${escapeHTML(card.answer)}</h3>${card.example&&card.example!==card.cue?`<p>${escapeHTML(card.example)}</p>`:''}${card.translation?`<p>${escapeHTML(card.translation)}</p>`:''}</div></div><div class="review-controls"><button class="plain-btn review-reveal" aria-expanded="${reviewSession.revealed}" onclick="revealReview()">${reviewSession.revealed?'隐藏释义':'显示释义'}</button><div class="review-rating"><button class="plain-btn" onclick="rateReview('again')" ${reviewSession.revealed?'':'disabled'}>待巩固</button><button class="plain-btn primary-btn" onclick="rateReview('known')" ${reviewSession.revealed?'':'disabled'}>已掌握</button><button class="icon-btn" data-tip="跳过" aria-label="跳过" onclick="rateReview('skip')">${icon('skip-forward')}</button></div><button class="review-source" onclick="openReviewSource()">${icon('arrow-up-right')}<span>查看原词条</span></button></div>`;
+}
+function handleReviewKey(event){
+  if(!document.getElementById('review-modal')?.classList.contains('open'))return;
+  if(event.key==='Escape'){event.stopPropagation();event.preventDefault();closeReview();return}
+  if(event.key!=='Tab')return;
+  const focusable=[...document.querySelectorAll('#review-modal button:not(:disabled)')].filter(node=>node.getClientRects().length);
+  const first=focusable[0],last=focusable.at(-1);
+  if(!document.getElementById('review-modal').contains(document.activeElement)){event.preventDefault();first?.focus()}
+  else if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
 }
 function resetCurrentLookupState(){
+  stopSpeech();
   clearResultTypewriter();
   lookupRunId+=1;
   lookupBusy=false;
@@ -6790,11 +7126,10 @@ function loadDefaultPromptIntoEditor(){
   if(els.modelPromptEditor)els.modelPromptEditor.value=text;
   notify('已把默认 Prompt 放入编辑框，保存后才会覆盖当前规则。','info','Prompt');
 }
-function copyModelPrompt(){
+async function copyModelPrompt(){
   const text=els.modelPromptEditor?.value.trim()?els.modelPromptEditor.value:currentPromptText();
   if(!text)return notify('还没有可复制的 Prompt。','bad','Prompt');
-  navigator.clipboard.writeText(text);
-  notify('Prompt 已复制。','good','复制完成');
+  await copyTextWithFeedback(text,'Prompt');
 }
 function saveModelPrompt(){
   const text=els.modelPromptEditor?.value.trim()||'';
@@ -7264,7 +7599,7 @@ async function factoryReset(){
     commitStorageChanges([
       STORAGE_KEYS.history,STORAGE_KEYS.historyTombstones,STORAGE_KEYS.settings,
       STORAGE_KEYS.theme,STORAGE_KEYS.layout,STORAGE_KEYS.logs,
-      STORAGE_KEYS.lookupDraft,STORAGE_KEYS.lookupTasks,
+      STORAGE_KEYS.lookupDraft,STORAGE_KEYS.lookupTasks,STORAGE_KEYS.reviewSession,
     ].map(key=>({key,value:null})));
   }catch(error){
     notify(storageFailureMessage(error,'恢复出厂'),'bad','恢复失败',false);
@@ -7321,7 +7656,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.19.2" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.20.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -7613,6 +7948,9 @@ document.addEventListener('keydown',event=>{
     if(els.apiProfileModal?.classList.contains('open'))closeApiProfileModal();
   }
 });
+window.addEventListener('pagehide',stopSpeech);
+document.addEventListener('keydown',handleReviewKey,true);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopSpeech()});
 els.query?.addEventListener('input',handleQueryInput);
 document.querySelector('#view-home .editor-pane')?.addEventListener('click',focusHomeQueryFromSticky);
 els.query?.addEventListener('keydown',event=>{

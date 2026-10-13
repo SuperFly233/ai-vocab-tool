@@ -1,9 +1,12 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "precheck": "node --check learning-tools.js && node scripts/check-learning-tools.js",
+    "check:learning-ui": "node scripts/check-learning-ui.cjs",
+    "check:learning": "node scripts/check-learning-tools.js",
     "check:responsive": "node scripts/check-responsive.cjs",
     "build:icons": "node scripts/build-icons.js",
     "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",

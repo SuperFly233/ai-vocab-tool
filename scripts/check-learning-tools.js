@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import '../learning-tools.js';
+const tools=globalThis.LearningTools;
+
+assert.equal(tools.matches({title:'ＣＬＯＣＫ',example:'I noticed the guard.'},'clock noticed'),true);
+assert.equal(tools.matches({title:'clock'},'clock absent'),false);
+assert.equal(tools.matches({note:'个人笔记'},''),true);
+for(const [language,sample,expected] of [['English','clock','en-US'],['日语','世界','ja-JP'],['','も','ja-JP'],['','你好','zh-CN'],['','안녕','ko-KR'],['fr-FR','bonjour','fr-FR'],['German','Uhr','de-DE']])assert.equal(tools.speechLanguage(language,sample),expected);
+
+const result={meta:{origin:'clok',language:'English'},headword:{title:'clock',coreMeaning:'注意到',summary:'Observe someone'},senses:[{shortestLabel:'注意',partOfSpeech:'verb',meaning:'Notice',example:'She clocked the guard.',translation:'她注意到了守卫。'}],collocations:[{phrase:'clock in',meaning:'打卡'}],confusions:[{term:'notice',difference:'Neutral',usage:'Common'}],register:{style:'informal',tone:'casual',environment:'dialogue'}};
+const snapshot=JSON.stringify(result);
+const pin={key:'sense:1',kind:'sense',title:'注意到',meaning:'Notice',example:'She clocked the guard.',translation:'她注意到了守卫。'};
+const markdown=tools.resultMarkdown(result,{note:'**Keep my note**',pins:[pin]});
+for(const text of ['# clock','clok','注意到','verb','She clocked','clock in','notice','informal','**Keep my note**','收藏片段'])assert.ok(markdown.includes(text),text);
+assert.equal(JSON.stringify(result),snapshot,'Export must not mutate model JSON');
+assert.ok(tools.resultMarkdown({headword:{title:'<script>*[x]*'}}).includes(String.raw`\<script\>\*\[x\]\*`),'Model output is escaped as Markdown text');
+assert.ok(tools.resultMarkdown({}).includes('# 词条'));
+assert.ok(tools.fragmentMarkdown(pin,'clock').includes('来自：clock'));
+
+const cards=tools.reviewDeck([{id:1,result,contentKey:'version1'},{id:1,result,pin},{id:2,result:{headword:{title:'test'}}}]);
+assert.equal(cards.length,3);
+assert.equal(cards[0].prompt,'clock');
+assert.equal(cards[1].prompt,'clock','Rare sense cards must ask about the source word');
+assert.equal(cards[1].cue,pin.example);
+assert.equal(cards[2].answer,'暂无释义');
+assert.equal(tools.reviewDeck([{id:1,result,pin:{...pin,example:''}}])[0].cue,'','Do not leak the meaning on the front');
+let session=tools.restoreReview(cards,'liked',null);
+assert.equal(tools.rateReview(session,'known'),session,'Cannot rate an unrevealed answer');
+session=tools.rateReview({...session,revealed:true},'again');
+assert.equal(session.index,1);
+assert.equal(session.ratings[cards[0].key],'again');
+const shuffled=tools.shuffleReview(session,()=>0);
+assert.equal(shuffled.keys[0],session.keys[0],'Shuffling must retain completed cards');
+assert.deepEqual([...shuffled.keys].sort(),[...session.keys].sort());
+const restored=tools.restoreReview(cards,'liked',{...shuffled,revealed:true});
+assert.deepEqual(restored, {...shuffled,revealed:true});
+const afterDeletion=tools.restoreReview(cards.slice(1),'liked',session);
+assert.equal(afterDeletion.index,0);
+assert.equal(afterDeletion.keys.length,2);
+assert.equal(Object.keys(afterDeletion.ratings).length,0);
+assert.equal(tools.restoreReview(cards,'different',session).index,0);
+assert.equal(tools.restoreReview(cards,'liked',{...session,index:3}).index,0,'Completed sessions start a fresh round');
+assert.equal(tools.restoreReview([], 'empty', session).keys.length,0);
+console.log('Learning tools check passed: multilingual search, Markdown safety, speech language, review ratings/shuffle/resume/deletion.');

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.19.2" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.19.2" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.19.2">
-<link rel="stylesheet" href="/styles.css?v=0.19.2-20261013">
+<link rel="icon" href="/favicon.svg?v=0.20.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.20.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.20.0">
+<link rel="stylesheet" href="/styles.css?v=0.20.0-20261013">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.19.2" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.20.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -52,7 +52,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.19.2" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.20.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -115,6 +115,7 @@
             <button class="tab-btn" onclick="setResultTab('json',this)">JSON</button>
           </div>
           <div class="result-icons">
+            <button class="icon-btn" data-tip="导出 Markdown" onclick="exportCurrentMarkdown()" aria-label="导出 Markdown"><i data-lucide="file-text"></i></button>
             <button class="icon-btn" data-tip="复制 JSON" onclick="copyJSON()" aria-label="复制 JSON"><i data-lucide="copy"></i></button>
             <button class="icon-btn" data-tip="导出 JSON" onclick="exportCurrent()" aria-label="导出 JSON"><i data-lucide="download"></i></button>
           </div>
@@ -134,6 +135,7 @@
         </div>
         <div class="action-row compact">
           <button class="icon-btn" data-tip="导出历史" onclick="exportHistory()" aria-label="导出历史"><i data-lucide="download"></i></button>
+          <button class="icon-btn" id="history-selection-toggle" data-tip="批量选择" onclick="toggleHistorySelectionMode()" aria-label="批量选择" aria-pressed="false"><i data-lucide="square-check"></i></button>
         </div>
       </div>
       <div class="history-tools" id="history-tools">
@@ -172,6 +174,17 @@
           <button class="sort-btn" data-sort="followups" onclick="setHistorySort('followups')">追问 <span>↓</span></button>
         </div>
       </div>
+      <div class="history-selection-bar" id="history-selection-bar" hidden>
+        <strong id="history-selection-count" aria-live="polite">已选 0 条</strong>
+        <div class="history-selection-controls">
+          <button class="plain-btn" id="history-select-matching" onclick="selectMatchingHistory()">全选筛选结果</button>
+          <button class="icon-btn" data-tip="清空选择" aria-label="清空选择" onclick="clearHistorySelection()"><i data-lucide="x"></i></button>
+          <button class="icon-btn" data-needs-selection data-tip="批量加入收藏夹" aria-label="批量加入收藏夹" onclick="openFolderSelectModal({type:'batch'})"><i data-lucide="folder-plus"></i></button>
+          <button class="icon-btn" data-needs-selection data-tip="导出所选 JSON" aria-label="导出所选 JSON" onclick="exportSelectedHistory()"><i data-lucide="download"></i></button>
+          <button class="icon-btn" data-needs-selection data-tip="导出所选 Markdown" aria-label="导出所选 Markdown" onclick="exportSelectedHistory('markdown')"><i data-lucide="file-text"></i></button>
+          <button class="icon-btn danger-icon" data-needs-selection data-tip="删除所选" aria-label="删除所选" onclick="deleteSelectedHistory()"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
       <div class="history-list" id="history-list"></div>
     </div>
   </section>
@@ -192,6 +205,11 @@
         <aside class="folder-sidebar" id="folder-sidebar"></aside>
         <section class="folder-content">
           <div class="folder-content-head" id="folder-content-head"></div>
+          <label class="folder-search history-search">
+            <span><i data-lucide="search"></i></span>
+            <input id="folder-search" type="search" placeholder="搜索收藏夹内的词条、释义或例句" aria-label="搜索当前收藏夹" autocomplete="off" oninput="searchFolder(this.value)">
+            <button class="history-clear-btn hidden" id="folder-search-clear" type="button" data-tip="清空搜索" aria-label="清空搜索" onclick="clearFolderSearch()"><i data-lucide="x"></i></button>
+          </label>
           <div class="history-list" id="folder-history-list"></div>
         </section>
       </div>
@@ -433,6 +451,7 @@
           <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
         </div>
         <div class="modal-file-actions" aria-label="详情文件操作">
+          <button class="icon-btn" data-tip="导出 Markdown" aria-label="导出 Markdown" onclick="exportCurrentMarkdown('modal')"><i data-lucide="file-text"></i></button>
           <button class="icon-btn" data-tip="复制 JSON" aria-label="复制 JSON" onclick="copyModalJSON()"><i data-lucide="copy"></i></button>
           <button class="icon-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()"><i data-lucide="download"></i></button>
         </div>
@@ -481,6 +500,17 @@
       </section>
     </div>
   </div>
+</div>
+
+<div class="modal-layer review-layer" id="review-modal" onclick="closeReview(event)">
+  <section class="modal-card review-modal-card" role="dialog" aria-modal="true" aria-labelledby="review-title">
+    <header class="modal-head">
+      <div class="modal-title-block"><h2 class="section-title" id="review-title">收藏复习</h2><div class="section-sub" id="review-progress" aria-live="polite"></div></div>
+      <button class="icon-btn" id="review-shuffle" data-tip="打乱未复习内容" aria-label="打乱未复习内容" onclick="shuffleReview()"><i data-lucide="shuffle"></i></button>
+      <button class="icon-btn modal-close-btn" id="review-close" data-tip="关闭并保留进度" aria-label="关闭并保留进度" onclick="closeReview()"><i data-lucide="x"></i></button>
+    </header>
+    <div class="review-content" id="review-content"></div>
+  </section>
 </div>
 
 <div class="modal-layer" id="api-profile-modal" onclick="closeApiProfileModal(event)">
@@ -563,13 +593,14 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.19.2"></script>
-<script src="/icons.js?v=0.19.2"></script>
-<script src="/history-data.js?v=0.19.2"></script>
-<script src="/settings-data.js?v=0.19.2"></script>
-<script src="/storage-state.js?v=0.19.2"></script>
-<script src="/lookup-tasks.js?v=0.19.2"></script>
-<script src="/sync-state.js?v=0.19.2"></script>
-<script src="/app.js?v=0.19.2-20261013.1"></script>
+<script src="/vendor/supabase.js?v=0.20.0"></script>
+<script src="/icons.js?v=0.20.0"></script>
+<script src="/history-data.js?v=0.20.0"></script>
+<script src="/settings-data.js?v=0.20.0"></script>
+<script src="/storage-state.js?v=0.20.0"></script>
+<script src="/lookup-tasks.js?v=0.20.0"></script>
+<script src="/sync-state.js?v=0.20.0"></script>
+<script src="/learning-tools.js?v=0.20.0"></script>
+<script src="/app.js?v=0.20.0-20261013.1"></script>
 </body>
 </html>

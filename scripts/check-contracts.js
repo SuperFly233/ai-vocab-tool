@@ -41,6 +41,7 @@ const versions = {
   iconsAsset: firstMatch(html, /\/icons\.js\?v=([\d.]+)/),
   lookupTasksAsset: firstMatch(html, /\/lookup-tasks\.js\?v=([\d.]+)/),
   syncStateAsset: firstMatch(html, /\/sync-state\.js\?v=([\d.]+)/),
+  learningAsset: firstMatch(html, /\/learning-tools\.js\?v=([\d.]+)/),
   changelog: firstMatch(changelog, /^## v([\d.]+)/m),
   readme: firstMatch(readme, /^- v([\d.]+)/m),
   context: firstMatch(projectContext, /^- v([\d.]+)/m),
@@ -87,6 +88,8 @@ expect(html.indexOf('/storage-state.js?v=')<html.indexOf('/app.js?v='), 'storage
 expect(/src="\/icons\.js\?v=/.test(html), 'icons.js must use a versioned root-absolute path');
 expect(!html.includes('/vendor/lucide.min.js'), 'the browser must not download the complete Lucide library');
 expect(html.indexOf('/icons.js?v=')<html.indexOf('/app.js?v='), 'icon hydration must load before app.js');
+expect(html.indexOf('/learning-tools.js?v=')>=0&&html.indexOf('/learning-tools.js?v=')<html.indexOf('/app.js?v='), 'Learning tools must load before app.js');
+expect(!app.includes('clearApiProfileDropMarks('), 'API reordering must use the shared defined drop-marker cleanup');
 expect(/src="\/lookup-tasks\.js\?v=/.test(html), 'lookup-tasks.js 必须使用根绝对路径，避免二级 URL 加载失败');
 expect(app.includes("historyTombstones:'ai_vocab_tool_history_tombstones'"), '前端同步键缺少历史删除墓碑');
 expect(syncApi.includes("'ai_vocab_tool_history_tombstones'"), '同步 API 白名单缺少历史删除墓碑');
