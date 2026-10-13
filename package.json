@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:responsive": "node scripts/check-responsive.cjs",
     "build:icons": "node scripts/build-icons.js",
     "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",
     "check:contracts": "node scripts/check-contracts.js",

@@ -255,6 +255,10 @@ body.home-scrolled #view-home .workspace{padding-top:var(--home-sticky-height,84
 .result-page{display:none;width:100%;min-width:0;max-width:100%;overflow:auto;min-height:0;padding:18px}
 .result-page.active{display:block}
 #result-card{min-width:0;max-width:100%}
+/* Model output may contain long compounds, URLs, or unbroken examples. */
+:is(#result-card,.history-modal-card .modal-page) :is(.entry-head,.block,.sense-group,.item-body,.entry-core,.register-grid>div){min-width:0;max-width:100%}
+:is(#result-card,.history-modal-card .modal-page) :is(.entry-title,.entry-meta,.entry-kicker,.entry-meta-grid span,.item-title,.line span,.register-grid span,.chip,.pos-pill){min-width:0;overflow-wrap:anywhere}
+:is(#result-card,.history-modal-card .modal-page) .table-scroll{min-width:0;width:100%}
 .result-page.result-typing .typewriter-chunk{transition:opacity .18s ease,transform .18s ease}
 .result-page.result-typing .typewriter-chunk.pending{opacity:0;transform:translateY(8px);pointer-events:none}
 .result-page.result-typing .typewriter-chunk.active{opacity:1;transform:none}

@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-08-13
+Last updated: 2026-10-13
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
@@ -47,6 +47,7 @@ Expected behavior:
 
 ## Latest Release
 
+- v0.19.2 wraps unbroken model text and constrains nested result grids in both home and history detail. `scripts/check-responsive.cjs` verifies page and result-content widths independently (outer clipping alone can hide overflow), internal table scrolling, and real bookmark clicks at 320/390/768/1440px. Use `PLAYWRIGHT_PATH` and `BROWSER_PATH` for bundled runtime packages/browsers.
 - v0.19.1 HTML-escapes string arguments before inserting them into quoted inline event attributes, fixing fragment bookmark handlers that the browser had truncated to `toggleFragmentPin(`. It also disables generated hover tooltips on coarse/no-hover pointers and constrains the main result grid so wide confusion tables scroll internally instead of expanding the mobile page.
 - v0.19.0 adds fragment-level knowledge favorites for senses, collocations, and confusion rows. Pins are content-addressed snapshots that sort first inside their own result section without mutating model JSON. A virtual “片段收藏” folder lists the saved fragment itself rather than force-favoriting the whole history entry, and opens the matching source roll before locating the original block. Fragment additions, removals, and re-pins merge independently with tombstones across devices.
 - v0.18.0 turns visual editing into a navigable workbench. A sticky section directory exposes entry, sense, collocation, register, and confusion counts and tracks the current section inside the detail scroller. Visual rows and API profiles retain animated pointer reordering but also support a deterministic pick-then-place fallback through the same icon handle. Mouse drag activation now requires real movement, touch scrolling can cancel a pending long press, and visual pointer completion is captured at document level.
