@@ -14,7 +14,7 @@ The selected design extends the current lookup and library rather than adding an
 - [x] Markdown export: current/draft detail, folder, fragments and history selection; correct file type and escaped model text; JSON export unchanged.
 - [x] Bulk history: select visible/matching records, explicit selection count, additive folder assignment, atomic delete with tombstones, JSON/Markdown export.
 - [x] Pure data tests plus real browser interactions on mobile and desktop, light/dark screenshots, scroll/width measurements, and existing full test suite.
-- [ ] Release docs, cache versions, clean build, commit/push, Cloudflare deployment and live version verification.
+- [x] Release docs, cache versions, clean build, commit/push, Cloudflare deployment and live version verification.
 
 ## Alternatives Considered
 
@@ -29,3 +29,4 @@ Record tested behavior and release artifacts here as each acceptance item is com
 - Width checks pass at 320/390/768/1440px for normal and unbroken long model text. Wide tables scroll internally. Scrolled toolbar top is 0px on mobile and 4px on desktop, with heights 62px and 64px respectively.
 - Screenshots saved under the host temporary directory `lexi-v020-qa`; inspected mobile dark review/detail, desktop folder search and mobile scrolled result.
 - Real browser testing found and fixed the undefined `clearApiProfileDropMarks` call and pointer capture preventing toast action clicks. Hidden CSS tooltips no longer contribute invisible scroll overflow.
+- Released v0.20.0 in commit `d92ddf9`, pushed to main. Cloudflare deployment: https://4881efc3.ai-vocab-tool.pages.dev . Production https://ai-vocab-tool.pages.dev returned HTTP 200 with the v0.20.0 app asset and the new learning module verified.
