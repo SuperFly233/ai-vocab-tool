@@ -44,7 +44,7 @@ const server=require('./browser-test-server.cjs').createServer();
    };
    await page.evaluate(()=>{
     const date='2026-10-10T00:00:00Z';
-    const make=(title,label)=>({meta:{origin:'clok',query:'clok',language:'English'},headword:{title,coreMeaning:label},senses:[{shortestLabel:'注意',meaning:'Notice',example:'She clocked him.',translation:'她注意到他。'},{shortestLabel:label,meaning:label,example:'An example.'}],collocations:[{phrase:'clock in',meaning:'打卡'}],confusions:[{term:'notice',difference:label}]});
+    const make=(title,label)=>({meta:{origin:'clok',query:'clok',language:'English'},headword:{title,coreMeaning:label},register:{style:`style ${label}`},senses:[{shortestLabel:'注意',meaning:'Notice',example:'She clocked him.',translation:'她注意到他。'},{shortestLabel:label,meaning:label,example:'An example.'}],collocations:[{phrase:'clock in',meaning:'打卡'}],confusions:[{term:'notice',difference:label}]});
     const rolls=['a','b','c'].map((id,i)=>({id,createdAt:date,model:`Model ${id}`,result:make(`clock ${id}`,`Meaning ${i}`)}));
     setHistory([{id:1,query:'clok',createdAt:date,updatedAt:date,rolls,result:rolls[0].result,favorite:true}]);
     window.__original=JSON.parse(JSON.stringify(getHistory()));
@@ -95,6 +95,7 @@ const server=require('./browser-test-server.cjs').createServer();
    assert.equal(await page.locator('#version-merge-content h3').textContent(),'clock b');
    await page.locator('.version-merge-head select').selectOption('a');
    assert.equal(await page.locator('#version-merge-content h3').textContent(),'clock a');
+   assert.ok((await page.locator('#version-merge-content').textContent()).includes('style Meaning 0'),'Scalar fields are visible in integration preview');
    await shot('integration');
    await click(page.getByRole('button',{name:'保存为新版本',exact:true}));
    await page.waitForFunction(()=>getHistory()[0].rolls.length===4);

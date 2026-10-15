@@ -21,7 +21,7 @@ Version ids survive edits. Roll tombstones reconcile by timestamp; explicit undo
 - [x] Browser deletion/undo/stale sync/default/name/import/merge/draft/export tests.
 - [x] Desktop/mobile light/dark scrolling, width and screenshot inspection.
 - [x] Existing full checks and learning/responsive regressions.
-- [ ] Release and production verification.
+- [x] Release and production verification.
 
 ## Evidence and Delivery Counts
 
@@ -34,3 +34,5 @@ Fixes (7): overlapping sticky regions; stable-id edited versions duplicating on 
 Existing workflow improvements (3): compact height-stable version strip; separate touch swipe and long-press grip sorting; persistent top save action and draft guards.
 
 New features (5): single/bulk version deletion with undo and sync tombstones; version naming; explicit default display version; validated JSON version import; comparison and non-destructive integration with base selection, preview, deduplicated knowledge lists and source provenance. The flat manager groups these actions without nested cards. Integration is deterministic and does not invoke an AI model; scalar conflicts follow the chosen base and differently worded list items remain distinct.
+
+Release v0.21.0: implementation commit `9e26b97` followed by the final scalar-metadata preview patch. Published to Cloudflare at https://e9b15cdf.ai-vocab-tool.pages.dev . Production `/history` returned HTTP 200 and the final `/app.js?v=0.21.0-20261015.2` asset; the fetched source includes version deletion, scalar comparison and roll reconciliation. The final patch passed all six browser contexts and `npm run check`; `npm run build:pages` produced the deployed static output. Unrelated pre-existing Wrangler development logs were not committed.

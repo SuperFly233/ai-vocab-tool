@@ -6583,7 +6583,9 @@ function toggleVersionSelection(id){
 }
 function versionSummaryHTML(result={}){
   const head=result.headword||{};
-  return `<h3>${escapeHTML(head.title||'未命名')}</h3><p>${escapeHTML(head.coreMeaning||'')}</p><p>${escapeHTML(head.summary||'')}</p>${[['义项','senses'],['搭配','collocations'],['辨析','confusions']].map(([label,key])=>`<h4>${label} · ${result[key]?.length||0}</h4><ul>${(result[key]||[]).map(row=>`<li><b>${escapeHTML(row.shortestLabel||row.phrase||row.term||'')}</b><p>${escapeHTML(row.meaning||row.difference||'')}</p><p>${escapeHTML(row.example||row.usage||'')}</p><p>${escapeHTML(row.translation||'')}</p></li>`).join('')}</ul>`).join('')}`;
+  const fields=[['语言',head.languageTag||result.meta?.language],['词性',head.basicPartOfSpeech],['方向',result.meta?.defaultDirection||result.meta?.direction],['语体',result.register?.style],['语气',result.register?.tone],['环境',result.register?.environment]];
+  const metadata=fields.filter(([,value])=>value).map(([label,value])=>`<p><b>${label}</b> ${escapeHTML(value)}</p>`).join('');
+  return `<h3>${escapeHTML(head.title||'未命名')}</h3><p>${escapeHTML(head.coreMeaning||'')}</p><p>${escapeHTML(head.summary||'')}</p>${metadata}${[['义项','senses'],['搭配','collocations'],['辨析','confusions']].map(([label,key])=>`<h4>${label} · ${result[key]?.length||0}</h4><ul>${(result[key]||[]).map(row=>`<li><b>${escapeHTML(row.shortestLabel||row.phrase||row.term||'')}</b><p>${escapeHTML(row.meaning||row.difference||'')}</p><p>${escapeHTML(row.example||row.usage||'')}</p><p>${escapeHTML(row.translation||'')}</p></li>`).join('')}</ul>`).join('')}`;
 }
 function renderVersionManager(){
   const item=modalVersionItem();
