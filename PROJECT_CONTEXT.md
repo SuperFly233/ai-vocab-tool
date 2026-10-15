@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-13
+Last updated: 2026-10-16
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.22.1: membership selectors keep initial selection and apply only its delta against the latest history record. No-op saves must not advance record or independent field clocks. Record-picker selections are revalidated on render and submit. `check:favorites-boundaries` covers six production-browser cases. UI flattening requested on 2026-10-16 must start only after this patch is verified and deployed.
 
 `ai-vocab-tool` is a personal AI vocabulary lookup tool. The user cares most about:
 

@@ -179,12 +179,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.22.0',
-  releaseDate:'2026-10-15',
+  version:'0.22.1',
+  releaseDate:'2026-10-16',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.22.1',
+    date:'2026-10-16',
+    title:'保护收藏归属的并发变更',
+    items:['收藏选择只提交本次增减，保留弹窗打开后其他设备更新的归属和星标；未变化的字段不推进同步时间。','直接确认未改动的选择、重复批量添加不再写入记录；新增条目计数只包含实际变化。','从已有历史添加时重新核对记录，排除已删除和已加入的选择，提交前再次校验，避免残留计数。'],
+  },
   {
     version:'0.22.0',
     date:'2026-10-15',
@@ -4769,7 +4775,7 @@ function openFolderSelectModal(context={}){
   const item=historyId?getHistory().find(row=>Number(row.id)===historyId):null;
   const selected=type==='lookup'?lookupFolderIds:item?itemFolderIds(item):[];
   if(type==='history'&&!item)return notify('记录已被删除。','info','收藏夹');
-  folderSelectContext={type,historyId,historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected),returnFocus:document.activeElement};
+  folderSelectContext={type,historyId,historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected),initialIds:normalizeSelectableFolderIds(selected),returnFocus:document.activeElement};
   document.getElementById('folder-select-search').value='';
   document.getElementById('folder-selector-create-name').value='';
   renderFolderSelectModal();
@@ -4866,26 +4872,34 @@ function saveFolderSelection(){
     closeFolderSelectModal();
     return;
   }
-  if(applyFolderSelectionToHistory(folderSelectContext.historyId,ids))closeFolderSelectModal();
+  if(applyFolderSelectionToHistory(folderSelectContext.historyId,ids,folderSelectContext.initialIds))closeFolderSelectModal();
 }
-function applyFolderSelectionToHistory(historyId,ids=[]){
-  if(!getHistory().some(item=>Number(item.id)===Number(historyId))){notify('记录已被删除。','info','收藏夹');return false}
+function applyFolderSelectionToHistory(historyId,ids=[],initialIds=null){
+  const current=getHistory().find(item=>Number(item.id)===Number(historyId));
+  if(!current){notify('记录已被删除。','info','收藏夹');return false}
   const now=new Date().toISOString();
-  const selected=normalizeSelectableFolderIds(ids);
+  let selected=normalizeSelectableFolderIds(ids);
+  const latest=normalizeSelectableFolderIds(itemFolderIds(current));
+  // Apply the user's delta to the latest record, preserving untouched sync updates.
+  if(initialIds){
+    const initial=normalizeSelectableFolderIds(initialIds);
+    const removed=new Set(initial.filter(id=>!selected.includes(id)));
+    const added=selected.filter(id=>!initial.includes(id));
+    selected=normalizeSelectableFolderIds([...latest.filter(id=>!removed.has(id)),...added]);
+  }
   const favorite=selected.includes(FOLDER_LIKED_ID);
   const folderIds=selected.filter(id=>id!==FOLDER_LIKED_ID);
+  const favoriteChanged=favorite!==Boolean(current.favorite);
+  const latestFolders=latest.filter(id=>id!==FOLDER_LIKED_ID);
+  const foldersChanged=folderIds.length!==latestFolders.length||folderIds.some(id=>!latestFolders.includes(id));
+  if(!favoriteChanged&&!foldersChanged)return true;
   const history=getHistory().map(item=>{
     if(Number(item.id)!==Number(historyId))return item;
     const normalized=normalizeHistoryItem(item);
     return {
       ...normalized,
-      favorite,
-      favoriteAt:favorite?(normalized.favoriteAt||now):'',
-      favoriteUpdatedAt:now,
-      folderIds,
-      foldersUpdatedAt:now,
-      tags:[],
-      tagsUpdatedAt:now,
+      ...(favoriteChanged?{favorite,favoriteAt:favorite?(normalized.favoriteAt||now):'',favoriteUpdatedAt:now}:{}),
+      ...(foldersChanged?{folderIds,foldersUpdatedAt:now,tags:[],tagsUpdatedAt:now}:{}),
       updatedAt:now,
     };
   });
@@ -4932,6 +4946,7 @@ function updateFolderRecordCount(){
 function moreFolderRecords(){folderRecordPicker.limit+=60;renderFolderRecordPicker()}
 function renderFolderRecordPicker(){
   if(!folderRecordPicker)return;
+  pruneFolderRecordSelection();
   const {folderId,query,selected,limit}=folderRecordPicker;
   const items=getHistory().filter(item=>LearningTools.matches([item.query,latestHistoryResult(item),item.note],query));
   document.getElementById('folder-record-list').innerHTML=items.slice(0,limit).map(item=>{
@@ -4940,11 +4955,17 @@ function renderFolderRecordPicker(){
   }).join('')+(items.length>limit?'<button class="history-load-more" onclick="moreFolderRecords()">继续显示</button>':'')||'<div class="empty">没有匹配词条</div>';
   updateFolderRecordCount();
 }
+function pruneFolderRecordSelection(){
+  if(!folderRecordPicker)return;
+  const available=new Set(getHistory().filter(item=>!itemFolderIds(item).includes(folderRecordPicker.folderId)).map(item=>Number(item.id)));
+  for(const id of folderRecordPicker.selected)if(!available.has(id))folderRecordPicker.selected.delete(id);
+}
 function saveFolderRecordPicker(){
   if(!folderRecordPicker)return;
   const {folderId,selected}=folderRecordPicker;
   if(!folderById(folderId)){notify('收藏夹已被删除。','info','收藏夹');return}
-  if(!selected.size)return;
+  pruneFolderRecordSelection();
+  if(!selected.size){renderFolderRecordPicker();notify('所选记录已加入或已被移除，请重新选择。','info','收藏夹');return}
   if(addSelectedHistoryToFolders([...selected],[folderId]))closeFolderRecordPicker();
 }
 function handleLibraryModalKey(event){
@@ -7209,14 +7230,21 @@ function addSelectedHistoryToFolders(historyIds,folderIds){
   const addFavorite=selected.includes(FOLDER_LIKED_ID);
   const additions=selected.filter(id=>id!==FOLDER_LIKED_ID);
   let count=0;
+  let matched=0;
   const history=getHistory().map(item=>{
     if(!ids.has(Number(item.id)))return item;
-    count++;
+    matched++;
     const normalized=normalizeHistoryItem(item);
-    return {...normalized,folderIds:normalizeFolderIds([...normalized.folderIds,...additions]),foldersUpdatedAt:now,
-      ...(addFavorite?{favorite:true,favoriteAt:normalized.favoriteAt||now,favoriteUpdatedAt:now}:{}),updatedAt:now};
+    const existing=itemFolderIds(item);
+    const foldersChanged=additions.some(id=>!existing.includes(id));
+    const favoriteChanged=addFavorite&&!normalized.favorite;
+    if(!foldersChanged&&!favoriteChanged)return item;
+    count++;
+    return {...normalized,...(foldersChanged?{folderIds:normalizeFolderIds([...normalized.folderIds,...additions]),foldersUpdatedAt:now}:{}),
+      ...(favoriteChanged?{favorite:true,favoriteAt:normalized.favoriteAt||now,favoriteUpdatedAt:now}:{}),updatedAt:now};
   });
-  if(!count){notify('所选记录已被移除。','info','批量添加');return false}
+  if(!matched){notify('所选记录已被移除。','info','批量添加');return false}
+  if(!count){notify('所选记录已在这些收藏夹中。','info','批量添加');return true}
   if(!setHistory(history))return false;
   renderFolderManager();
   notify(`已为 ${count} 条记录添加收藏夹。`,'good','批量添加');
@@ -7929,7 +7957,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.1" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
