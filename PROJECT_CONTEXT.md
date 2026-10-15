@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.22.3 balances the overly bare v0.22.2 reading layout: individual entries use a quiet single-level surface and numbered heading, while sense groups remain transparent and unbordered. Core meaning has an accent band; definition/example text is primary and translation secondary. Preserve full-width body lines and 44px bookmarks. Do not equate removing nested borders with removing all reading hierarchy.
+
 - v0.22.2: shared result/detail reading rows are borderless except separators. Fragment item bodies use `display:contents`: index/title/bookmark occupy only the heading row, `.line` spans both grid columns. Do not restore mobile `padding-right:42px` or reserve a permanent bookmark column. Group/core/metadata/register framing is removed. `check:reading-ui` validates 320/390/1440 light/dark, 44px bookmark hit areas, text width, title separation and scrolled interactions.
 
 - v0.22.1: membership selectors keep initial selection and apply only its delta against the latest history record. No-op saves must not advance record or independent field clocks. Record-picker selections are revalidated on render and submit. `check:favorites-boundaries` covers six production-browser cases. UI flattening requested on 2026-10-16 must start only after this patch is verified and deployed.

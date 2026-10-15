@@ -24,11 +24,11 @@ const server=require('./browser-test-server.cjs').createServer();
     currentHistoryId=1;renderResult(result);openHistoryModal(1);
    });
    await page.waitForTimeout(350);
-   const shot=async name=>{if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`${process.env.QA_LABEL||'flat'}-${name}-${width}-${theme}.png`)})}};
+   const shot=async name=>{if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`${process.env.QA_LABEL||'balanced'}-${name}-${width}-${theme}.png`)})}};
    const measure=await page.locator('#modal-card-page .fragment-item').nth(1).evaluate(el=>{
     const text=el.querySelector('.line>span'),button=el.querySelector('.fragment-pin-btn'),title=el.querySelector('.item-title');
     const group=el.closest('.sense-group');
-    return {itemWidth:el.clientWidth,textWidth:text.getBoundingClientRect().width,groupBorder:getComputedStyle(group).borderLeftWidth,itemBorder:getComputedStyle(el).borderLeftWidth,buttonWidth:button.getBoundingClientRect().width,titleRight:title.getBoundingClientRect().right,buttonLeft:button.getBoundingClientRect().left};
+    return {itemWidth:el.clientWidth,textWidth:text.getBoundingClientRect().width,groupBorder:getComputedStyle(group).borderLeftWidth,groupBackground:getComputedStyle(group).backgroundColor,itemBorder:getComputedStyle(el).borderLeftWidth,itemBackground:getComputedStyle(el).backgroundColor,itemRadius:getComputedStyle(el).borderRadius,buttonWidth:button.getBoundingClientRect().width,titleRight:title.getBoundingClientRect().right,buttonLeft:button.getBoundingClientRect().left};
    });
    console.log(JSON.stringify({width,theme,...measure}));
    await shot('detail-top');
@@ -37,6 +37,9 @@ const server=require('./browser-test-server.cjs').createServer();
    await shot('detail-reading');
    if(process.env.QA_LABEL!=='before'){
     assert.equal(measure.groupBorder,'0px');assert.equal(measure.itemBorder,'0px');
+    assert.equal(measure.groupBackground,'rgba(0, 0, 0, 0)','Outer group stays unframed');
+    assert.notEqual(measure.itemBackground,'rgba(0, 0, 0, 0)','Individual entries have a quiet reading surface');
+    assert.equal(measure.itemRadius,'8px');
     assert.ok(measure.textWidth>measure.itemWidth*.69,'Reading text uses most available width');
     assert.ok(measure.buttonWidth>=40,'Bookmark remains touch-friendly');
     assert.ok(await row.evaluate(el=>{
