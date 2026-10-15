@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.20.0" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.20.0" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.20.0">
-<link rel="stylesheet" href="/styles.css?v=0.20.0-20261013">
+<link rel="icon" href="/favicon.svg?v=0.21.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.21.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.21.0">
+<link rel="stylesheet" href="/styles.css?v=0.21.0-20261015">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.20.0" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.21.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -52,7 +52,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.20.0" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.21.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -451,17 +451,19 @@
           <button class="tab-btn" id="modal-json-tab" onclick="setModalTab('json',this)">编辑 JSON</button>
         </div>
         <div class="modal-file-actions" aria-label="详情文件操作">
-          <button class="icon-btn" data-tip="导出 Markdown" aria-label="导出 Markdown" onclick="exportCurrentMarkdown('modal')"><i data-lucide="file-text"></i></button>
+          <button class="icon-btn modal-save-btn" data-tip="保存修改" aria-label="保存修改" onclick="saveModalDraft()"><i data-lucide="save"></i></button>
+          <button class="icon-btn modal-export-btn" data-tip="导出 Markdown" aria-label="导出 Markdown" onclick="exportCurrentMarkdown('modal')"><i data-lucide="file-text"></i></button>
           <button class="icon-btn" data-tip="复制 JSON" aria-label="复制 JSON" onclick="copyModalJSON()"><i data-lucide="copy"></i></button>
-          <button class="icon-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()"><i data-lucide="download"></i></button>
+          <button class="icon-btn modal-export-btn" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportModalJSON()"><i data-lucide="download"></i></button>
         </div>
       </div>
       <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="requestCloseHistoryModal()"><i data-lucide="x"></i></button>
     </div>
+    <div class="modal-rollbar" id="modal-rollbar"></div>
     <div class="modal-body" id="history-modal-body">
-      <div class="modal-rollbar" id="modal-rollbar"></div>
       <div class="modal-sticky-summary" id="modal-sticky-summary"></div>
       <section class="modal-page active" id="modal-card-page"></section>
+      <section class="modal-page" id="modal-versions-page" aria-label="版本管理"></section>
       <section class="modal-page visual-page" id="modal-visual-page">
         <div class="visual-editor" id="modal-visual-editor"></div>
         <div class="modal-edit-footer">
@@ -593,14 +595,14 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.20.0"></script>
-<script src="/icons.js?v=0.20.0"></script>
-<script src="/history-data.js?v=0.20.0"></script>
-<script src="/settings-data.js?v=0.20.0"></script>
-<script src="/storage-state.js?v=0.20.0"></script>
-<script src="/lookup-tasks.js?v=0.20.0"></script>
-<script src="/sync-state.js?v=0.20.0"></script>
-<script src="/learning-tools.js?v=0.20.0"></script>
-<script src="/app.js?v=0.20.0-20261013.1"></script>
+<script src="/vendor/supabase.js?v=0.21.0"></script>
+<script src="/icons.js?v=0.21.0"></script>
+<script src="/history-data.js?v=0.21.0"></script>
+<script src="/settings-data.js?v=0.21.0"></script>
+<script src="/storage-state.js?v=0.21.0"></script>
+<script src="/lookup-tasks.js?v=0.21.0"></script>
+<script src="/sync-state.js?v=0.21.0"></script>
+<script src="/learning-tools.js?v=0.21.0"></script>
+<script src="/app.js?v=0.21.0-20261015.1"></script>
 </body>
 </html>

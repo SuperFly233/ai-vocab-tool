@@ -139,5 +139,39 @@
     );
   }
 
-  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,normalizeFragmentPins,reconcileFragmentPins,mergeFragmentPins,preferNewer,resolveMutableField});
+  function reconcileRolls(rolls=[],tombstones=[]){
+    const deleted=new Map(normalizeTombstones(tombstones).map(item=>[item.key,item]));
+    const byId=new Map();
+    for(const roll of rolls){
+      if(!roll?.result)continue;
+      const key=String(roll.id);
+      const previous=byId.get(key);
+      if(!previous){byId.set(key,roll);continue}
+      const winner=preferNewer(previous,roll)[0];
+      const name=resolveMutableField(previous.name||'',previous.nameUpdatedAt,roll.name||'',roll.nameUpdatedAt,winner.name||previous.name||roll.name||'');
+      byId.set(key,{...winner,...(name.value?{name:name.value,nameUpdatedAt:name.updatedAt||''}:{})});
+    }
+    const kept=[];
+    for(const [key,roll] of byId){
+      const tombstone=deleted.get(key);
+      if(tombstone&&timestamp(roll.updatedAt||roll.createdAt)<=timestamp(tombstone.deletedAt))continue;
+      if(tombstone)deleted.delete(key);
+      kept.push(roll);
+    }
+    return {rolls:kept,tombstones:[...deleted.values()]};
+  }
+  function integrateResults(results=[]){
+    if(!results.length)throw new Error('请选择来源版本');
+    const merged=JSON.parse(JSON.stringify(results[0]));
+    for(const key of ['senses','collocations','confusions']){
+      const seen=new Set();
+      merged[key]=results.flatMap(result=>Array.isArray(result[key])?result[key]:[]).filter(item=>{
+        const fingerprint=signature(item);
+        if(seen.has(fingerprint))return false;
+        seen.add(fingerprint);return true;
+      }).map(item=>JSON.parse(JSON.stringify(item)));
+    }
+    return merged;
+  }
+  root.HistoryData=Object.freeze({normalizeTombstones,reconcileHistory,mergeFollowups,normalizeFragmentPins,reconcileFragmentPins,mergeFragmentPins,preferNewer,resolveMutableField,reconcileRolls,integrateResults});
 })(typeof globalThis==='object'?globalThis:this);

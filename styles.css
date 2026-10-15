@@ -791,6 +791,46 @@ body.modal-open{overflow:hidden}
 .visual-page{display:none;gap:12px}
 .visual-page.active{display:grid}
 .visual-editor{display:grid;gap:14px;position:relative;min-width:0;width:100%}
+.history-modal-card{grid-template-rows:auto auto minmax(0,1fr)}
+.history-modal-card>.modal-rollbar,.history-modal-card.modal-scrolled>.modal-rollbar{position:relative;top:auto;z-index:21;margin:0;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);box-shadow:none}
+.history-modal-card .roll-btn,.history-modal-card.modal-scrolled .roll-btn{position:relative;min-width:112px;max-width:200px;height:48px;padding:5px 26px 5px 10px;touch-action:pan-x}
+.roll-btn .roll-grip{position:absolute;right:2px;top:0;bottom:0;width:22px;display:grid;place-items:center;touch-action:none;cursor:grab;color:var(--soft)}
+.roll-btn .roll-grip svg{width:14px;height:14px}
+.history-modal-card .roll-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-modal-card .roll-btn em{display:none}
+.history-modal-card.modal-scrolled .roll-btn strong{display:block}
+.history-modal-card .reroll-btn,.history-modal-card.modal-scrolled .reroll-btn{width:34px;min-width:34px;height:34px}
+.version-bar-actions,.version-actions,.version-selection-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.version-bar-actions{flex-wrap:nowrap}
+.modal-file-actions .modal-save-btn{display:none}
+.editing-mode .modal-file-actions .modal-save-btn{display:grid;color:var(--accent);background:var(--accent-bg)}
+.editing-mode .modal-file-actions .modal-export-btn{display:none}
+.version-bar-actions .icon-btn{width:34px;min-width:34px;height:34px}
+.version-manager-head,.version-merge-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.version-manager-head h3{margin:4px 0;font-size:18px}
+.version-manager-head small{color:var(--soft);font-size:13px}
+.version-import{position:relative;display:flex;align-items:center;gap:6px;cursor:pointer}
+.version-import input{position:absolute;width:1px;height:1px;opacity:0}
+.version-import:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.version-import svg{width:16px;height:16px}
+.version-row{display:grid;grid-template-columns:18px minmax(0,1fr) repeat(3,30px);gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);min-width:0}
+.version-row>input{width:18px;height:18px;accent-color:var(--accent)}
+.version-row-info{min-width:0;display:grid;gap:4px}
+.version-name{width:100%;min-width:0;padding:4px 0;border:0;border-bottom:1px solid transparent;border-radius:0;background:transparent;color:var(--text);font:inherit;font-weight:700;text-overflow:ellipsis}
+.version-name:focus{outline:none;border-color:var(--accent)}
+.version-row small{font-size:11px;color:var(--soft);overflow-wrap:anywhere}
+.version-row .icon-btn{width:30px;min-width:30px;height:30px}
+.version-selection-actions{margin:14px 0;padding-bottom:14px;border-bottom:1px solid var(--line);font-size:13px}
+.version-selection-actions>span{margin-right:auto}
+.version-comparison{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px;margin:16px 0}
+.version-comparison details,.version-merge-preview{min-width:0;border-bottom:1px solid var(--line);padding:10px 0;overflow-wrap:anywhere}
+.version-comparison summary,.version-merge-preview summary{cursor:pointer;color:var(--accent);font-weight:700}
+.version-comparison p,.version-merge-preview p{color:var(--muted);font-size:14px;white-space:pre-wrap}
+.version-comparison ul,.version-merge-preview ul{padding-left:20px}
+.version-merge-head select{max-width:220px;margin-left:8px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:7px}
+#version-integration>.primary-btn{margin:16px 0}
+.history-modal-card .visual-workbench-nav{top:-14px;margin:0 -14px 2px;width:calc(100% + 28px);max-width:calc(100% + 28px);padding:8px 14px;border-radius:0;border-left:0;border-right:0;box-shadow:none;background:var(--panel)}
+.history-modal-card .visual-section{scroll-margin-top:64px}
 .visual-workbench-nav{position:sticky;top:-1px;z-index:24;min-width:0;max-width:100%;overflow:hidden;margin:-4px 0 2px;padding:6px;border:1px solid color-mix(in srgb,var(--line) 84%,transparent);border-radius:10px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(18px);box-shadow:0 10px 26px rgba(0,0,0,.08)}
 .visual-workbench-nav-scroll{display:flex;align-items:center;gap:4px;width:100%;max-width:100%;min-width:0;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
 .visual-workbench-nav-scroll::-webkit-scrollbar{display:none}
@@ -1128,7 +1168,7 @@ body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-ou
   .history-meta{font-size:11.5px}
   .result-toolbar{align-items:flex-start}
   .history-modal-card .modal-head-actions{gap:5px}
-  .history-modal-card .modal-view-tabs{gap:4px;overflow:hidden}
+  .history-modal-card .modal-view-tabs{gap:4px;overflow-x:auto;overflow-y:hidden}
   .history-modal-card .modal-head .tab-btn{min-width:0;padding:5px 7px;font-size:12px}
   .history-modal-card .modal-file-actions{gap:2px;padding-left:5px}
   .history-modal-card .modal-head .icon-btn{width:32px;min-width:32px;height:32px;font-size:15px}

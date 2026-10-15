@@ -165,6 +165,9 @@ expect(!html.includes('id="top-settings-btn"'), 'Top navigation must not duplica
 expect(app.includes("lookupOptionsExpanded=!narrow||getSettings().homeStickyMode==='expanded'"), 'Desktop sticky lookup must preserve direction and folder controls');
 expect(app.includes('createReorderGhost')&&app.includes('animateDomReorder'), 'Long-press reorder must use a ghost and animated sibling movement');
 expect(app.includes('persistModalRollOrder')&&app.includes('persistApiProfileOrder'), 'Pointer reorder must persist version and API profile order');
+expect(html.indexOf('id="modal-rollbar"')<html.indexOf('id="history-modal-body"'), 'Version strip must live outside the detail body scroller');
+expect(app.includes('rollTombstones:rollData.tombstones')&&app.includes('HistoryData.reconcileRolls'), 'Version deletion and edits must reconcile in production history merge');
+expect(app.includes('rollOrderUpdatedAt:duplicateRoll?normalized.rollOrderUpdatedAt:now'), 'New generations must advance their independent default-order clock');
 expect(app.includes("reorderDropMeta(event.clientX,event.clientY,'.roll-btn',els.modalRollbar,'x')"), 'Horizontal version reorder must compare pointer position on the x axis');
 expect(app.includes("els.lookupQueue?.addEventListener('pointerdown',startLookupQueuePointerDrag)")&&app.includes('persistLookupQueueOrder'), 'Lookup queue must use persistent long-press reorder');
 expect(!app.includes('function moveLookupQueueItem(')&&!app.includes('function promoteLookupQueueItem('), 'Lookup queue must not restore legacy move or promote controls');

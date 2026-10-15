@@ -130,6 +130,8 @@ let speechPlayback=null;
 let reviewSession=null;
 let reviewCards=[];
 let reviewReturnFocus=null;
+let versionSelection=new Set();
+let versionMergeDraft=null;
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
   numeric:true,
   sensitivity:'base',
@@ -174,12 +176,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.20.0',
-  releaseDate:'2026-10-13',
+  version:'0.21.0',
+  releaseDate:'2026-10-15',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.21.0',
+    date:'2026-10-15',
+    title:'重做详情页与多版本工作流',
+    items:['版本管理支持命名、默认展示、单个及批量删除撤销和 JSON 导入；版本删除携带同步墓碑，旧设备不会恢复已删除版本。','支持多版本对比、指定基础版本与整合预览，合并义项、搭配和辨析并去重，保存为新版本且保留来源。','版本条移出内容滚动区，解决与可视化目录吸顶重叠；编辑模式顶部增加保存按钮，保持稳定紧凑布局。','修复预览修改来源 JSON、同一版本编辑后同步重复、切换版本标题和原始输入滞后、导出忽略 JSON 草稿，以及新生成使用过期快照和默认顺序回滚。'],
+  },
   {
     version:'0.20.0',
     date:'2026-10-13',
@@ -2131,8 +2139,11 @@ function mergeHistoryItems(localHistory,remoteHistory){
     const existing=map.get(key);
     if(!existing){map.set(key,normalized);return}
     const [primary,secondary]=HistoryData.preferNewer(existing,normalized);
-    const rolls=dedupeRolls([...getHistoryRolls(primary),...getHistoryRolls(secondary)]);
-    const latest=rolls[0]||makeHistoryRoll(normalized.result,normalized.createdAt);
+    const rollData=HistoryData.reconcileRolls([...getHistoryRolls(primary),...getHistoryRolls(secondary)],HistoryData.normalizeTombstones(primary.rollTombstones,secondary.rollTombstones));
+    const orderField=HistoryData.resolveMutableField(Array.isArray(existing.rollOrder)?existing.rollOrder:[],existing.rollOrderUpdatedAt,Array.isArray(normalized.rollOrder)?normalized.rollOrder:[],normalized.rollOrderUpdatedAt,[]);
+    const order=new Map(orderField.value.map((id,index)=>[String(id),index]));
+    const rolls=dedupeRolls(rollData.rolls).sort((a,b)=>(order.get(String(a.id))??1e9)-(order.get(String(b.id))??1e9));
+    const latest=rolls[0]||{result:null};
     const favoriteField=HistoryData.resolveMutableField(
       existing.favorite,existing.favoriteUpdatedAt,
       normalized.favorite,normalized.favoriteUpdatedAt,
@@ -2183,6 +2194,9 @@ function mergeHistoryItems(localHistory,remoteHistory){
       result:latest.result,
       followups:dedupeFollowups([...(existing.followups||[]),...(normalized.followups||[])]),
       rolls,
+      rollTombstones:rollData.tombstones,
+      rollOrder:rolls.map(roll=>String(roll.id)),
+      rollOrderUpdatedAt:orderField.updatedAt||'',
     });
   };
   remoteHistory.forEach(put);
@@ -2240,7 +2254,7 @@ function dedupeRolls(rolls){
     });
 }
 function makeHistoryRoll(result,createdAt=new Date().toISOString(),id=null,meta={}){
-  return {id:id||Date.now()+Math.floor(Math.random()*1000),createdAt,result,...meta};
+  return {id:id||crypto.randomUUID(),createdAt,result,...meta};
 }
 function comparableResultValue(value,key=''){
   const volatile=new Set(['model','modelSource','createdAt','updatedAt','generatedAt','timestamp','requestId']);
@@ -2268,7 +2282,7 @@ function normalizeHistoryItem(item){
   if(item?.[HISTORY_NORMALIZED])return item;
   const base={...item};
   const createdAt=base.createdAt||new Date().toISOString();
-  const rolls=dedupeRolls(Array.isArray(base.rolls)&&base.rolls.length
+  const rollData=HistoryData.reconcileRolls((Array.isArray(base.rolls)&&(base.rolls.length||base.rollTombstones?.length)
     ? base.rolls.map(roll=>({
       ...roll,
       createdAt:roll.createdAt||createdAt,
@@ -2279,14 +2293,17 @@ function normalizeHistoryItem(item){
     : [makeHistoryRoll(base.result,createdAt,base.id||Date.parse(createdAt),{
       model:base.model||base.result?.meta?.model||'未记录',
       modelSource:base.modelSource||'unknown',
-    })]);
-  const latest=rolls[0]||makeHistoryRoll(base.result,createdAt);
+    })]).map(roll=>({...roll,id:roll.id||`legacy_${stableHash(historyRollContentKey(roll))}`})),base.rollTombstones||[]);
+  const rolls=dedupeRolls(rollData.rolls);
+  const latest=rolls[0]||{result:null};
   const tags=normalizeTags(base.tags);
   const explicitFolderIds=normalizeFolderIds(base.folderIds||base.folders);
   const legacyFolderIds=tags.map(legacyTagFolderId);
   const fragmentPinData=HistoryData.reconcileFragmentPins(base.fragmentPins,base.fragmentPinTombstones);
   const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),fragmentPins:fragmentPinData.items,fragmentPinTombstones:fragmentPinData.tombstones,note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',lookupSignature:String(base.lookupSignature||''),lookupCompletedAt:normalizeHistoryClock(base.lookupCompletedAt),createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
   Object.defineProperty(normalized,HISTORY_NORMALIZED,{value:true});
+  normalized.rollTombstones=rollData.tombstones;
+  normalized.result=rolls[0]?.result||null;
   return normalized;
 }
 function normalizeHistoryClock(value){
@@ -4368,7 +4385,7 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
   result.meta.query=query;
   result.meta.normalized=result.meta.normalized||result.headword?.title||query;
   const history=getHistory();
-  const existing=sourceItem||history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query);
+  const existing=history.find(item=>Number(item.id)===Number(existingId))||findHistoryByQuery(query)||sourceItem;
   const roll=makeHistoryRoll(result,now,null,modelInfo);
   const selected=normalizeSelectableFolderIds(folderIds);
   const favorite=selected.includes(FOLDER_LIKED_ID);
@@ -4394,6 +4411,8 @@ function saveLookupResult({query,result,existingId=null,sourceItem=null,modelInf
       lookupCompletedAt:now,
       updatedAt:now,
       rolls:nextRolls,
+      rollOrder:nextRolls.map(roll=>String(roll.id)),
+      rollOrderUpdatedAt:duplicateRoll?normalized.rollOrderUpdatedAt:now,
     };
     const persisted=setHistory(history.map(item=>Number(item.id)===Number(existing.id)?saved:item),{revive:true});
     return {item:saved,persisted};
@@ -5162,9 +5181,7 @@ function rawList(value){
   return value?[value]:[];
 }
 function normalizeResultEntryType(result={},fallbackQuery=''){
-  result.meta=result.meta||{};
-  result.meta.entryType=entryTypeForResult(result,fallbackQuery);
-  return result;
+  return {...result,meta:{...(result.meta||{}),entryType:entryTypeForResult(result,fallbackQuery)}};
 }
 function entryTypeForResult(result={},fallbackQuery=''){
   const explicit=canonicalEntryType(result.meta?.entryType);
@@ -6211,7 +6228,7 @@ function endApiProfileNativeDrag(event){
 }
 function startRollPointerDrag(event){
   const roll=event.target.closest('.roll-btn');
-  if(!roll||event.button>0)return;
+  if(!roll||!event.target.closest('.roll-grip')||event.button>0)return;
   rollPointerDragState={
     pointerId:event.pointerId,
     item:roll,
@@ -6337,11 +6354,13 @@ function saveVisualHistoryEdit(){
   saveHistoryEdit();
 }
 function openHistoryModal(id){
+  versionSelection.clear();
+  versionMergeDraft=null;
   const item=getHistory().find(row=>Number(row.id)===Number(id));
   if(!item)return;
   const normalized=normalizeHistoryItem(item);
   const latest=getHistoryRolls(normalized)[0];
-  modalResult=latest?.result||normalized.result;
+  modalResult=latest?.result||normalized.result||{};
   modalHistoryId=Number(item.id);
   modalRollId=latest?historyRollViewKey(latest,0):null;
   els.modalTitle.textContent=historyDisplayTitle(normalized);
@@ -6381,6 +6400,7 @@ async function requestCloseHistoryModal(){
 }
 function saveHistoryEdit(){
   if(!modalHistoryId)return;
+  if(!getHistoryRolls(modalVersionItem()).length)return notify('当前没有可编辑版本，请先导入或重新生成。','info','版本');
   let parsed;
   try{
     parsed=JSON.parse(els.modalJsonEdit.value);
@@ -6429,6 +6449,10 @@ function saveHistoryEdit(){
   captureModalEditBaseline();
   notify('历史记录已保存。','good','编辑完成');
 }
+function saveModalDraft(){
+  if(activeModalTab==='visual')saveVisualHistoryEdit();
+  else if(activeModalTab==='json')saveHistoryEdit();
+}
 function historyModalMeta(item){
   if(!item)return '';
   const normalized=normalizeHistoryItem(item);
@@ -6471,20 +6495,21 @@ function renderModalRollbar(item){
   const normalized=normalizeHistoryItem(item||{});
   const rolls=getHistoryRolls(normalized);
   if(!rolls.length){
-    els.modalRollbar.innerHTML='';
+    els.modalRollbar.innerHTML=`<span class="section-sub">暂无版本</span><div class="version-bar-actions"><button class="icon-btn" aria-label="管理版本" data-tip="管理版本" onclick="openVersionManager()">${icon('layers')}</button><button class="icon-btn" aria-label="重新生成" data-tip="重新生成" onclick="regenerateModalHistory()">${icon('refresh-cw')}</button></div>`;
     return;
   }
   els.modalRollbar.innerHTML=`
     <div class="roll-tabs">
       ${rolls.map((roll,index)=>`
         <button class="roll-btn ${historyRollViewKey(roll,index)===String(modalRollId)?'active':''}" data-roll-index="${index}" data-roll-key="${escapeAttr(historyRollViewKey(roll,index))}" onclick="setModalRoll(${jsArg(historyRollViewKey(roll,index))})">
-          <span>版本 ${rolls.length-index}</span>
+          <span>${escapeHTML(roll.name||`版本 ${rolls.length-index}`)}${index===0?' · 默认':''}</span>
           <em>${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN',{hour12:false}))}</em>
           <strong>${escapeHTML(roll.model||'未记录')}</strong>
+          <span class="roll-grip" aria-hidden="true">${icon('grip-vertical')}</span>
         </button>
       `).join('')}
     </div>
-    <button class="icon-btn primary-icon reroll-btn" data-tip="重新生成" aria-label="重新生成" onclick="regenerateModalHistory()">${icon('refresh-cw')}</button>
+    <div class="version-bar-actions"><button class="icon-btn" data-tip="管理版本" aria-label="管理版本" onclick="openVersionManager()">${icon('layers')}</button><button class="icon-btn primary-icon reroll-btn" data-tip="重新生成" aria-label="重新生成" onclick="regenerateModalHistory()">${icon('refresh-cw')}</button></div>
   `;
 }
 async function setModalRoll(rollId){
@@ -6497,6 +6522,9 @@ async function setModalRoll(rollId){
   if(!roll)return;
   modalRollId=historyRollViewKey(roll,index);
   modalResult=roll.result;
+  stopSpeech();
+  els.modalTitle.textContent=resultDisplayTitle(roll.result,item.query);
+  els.modalQueryEdit.value=resultOrigin(roll.result,item.query);
   els.modalCardPage.innerHTML=renderResultHTML(roll.result,item.followups||[],'modal',item);
   els.modalJsonEdit.value=JSON.stringify(roll.result,null,2);
   renderVisualEditor(roll.result);
@@ -6508,6 +6536,7 @@ async function setModalRoll(rollId){
   captureModalEditBaseline();
 }
 function persistModalRollOrder(keys=[]){
+  if(historyModalHasDraft()){renderModalRollbar(modalVersionItem());return notify('请先保存编辑，再调整版本顺序。','info','保留修改')}
   const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
   if(!item)return;
   const normalized=normalizeHistoryItem(item);
@@ -6519,7 +6548,8 @@ function persistModalRollOrder(keys=[]){
   });
   if(rolls.length!==current.length||rolls.every((roll,index)=>roll===current[index]))return;
   const selected=rolls.find((roll,index)=>historyRollViewKey(roll,index)===String(modalRollId))||rolls[0];
-  const updated={...normalized,rolls,result:rolls[0]?.result||normalized.result,updatedAt:new Date().toISOString()};
+  const now=new Date().toISOString();
+  const updated={...normalized,rolls,result:rolls[0]?.result||normalized.result,rollOrder:rolls.map(roll=>String(roll.id)),rollOrderUpdatedAt:now,updatedAt:now};
   if(!setHistory(getHistory().map(row=>Number(row.id)===Number(modalHistoryId)?updated:row)))return;
   modalRollId=historyRollViewKey(selected,rolls.indexOf(selected));
   modalResult=selected.result;
@@ -6528,7 +6558,122 @@ function persistModalRollOrder(keys=[]){
   renderVisualEditor(selected.result);
   renderModalRollbar(updated);
   renderModalStickySummary(selected.result,updated);
+  captureModalEditBaseline();
   notify('版本顺序已调整。','good','版本');
+}
+function modalVersionItem(){return getHistory().find(item=>Number(item.id)===Number(modalHistoryId))}
+function openVersionManager(){
+  if(historyModalHasDraft())return notify('请先保存当前编辑，再管理版本。','info','保留修改');
+  versionSelection=new Set([String(getHistoryRolls(modalVersionItem()).find(roll=>historyRollViewKey(roll)===String(modalRollId))?.id||'')]);
+  versionMergeDraft=null;
+  showVersionManager();
+}
+function showVersionManager(){
+  activeModalTab='versions';
+  document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id==='modal-versions-page'));
+  document.querySelectorAll('.modal-view-tabs .tab-btn').forEach(button=>button.classList.remove('active'));
+  els.historyModal.querySelector('.modal-card').classList.remove('editing-mode');
+  els.historyModalBody.scrollTo({top:0});
+  renderVersionManager();
+}
+function toggleVersionSelection(id){
+  if(versionSelection.has(String(id)))versionSelection.delete(String(id));else versionSelection.add(String(id));
+  versionMergeDraft=null;
+  renderVersionManager();
+}
+function versionSummaryHTML(result={}){
+  const head=result.headword||{};
+  return `<h3>${escapeHTML(head.title||'未命名')}</h3><p>${escapeHTML(head.coreMeaning||'')}</p><p>${escapeHTML(head.summary||'')}</p>${[['义项','senses'],['搭配','collocations'],['辨析','confusions']].map(([label,key])=>`<h4>${label} · ${result[key]?.length||0}</h4><ul>${(result[key]||[]).map(row=>`<li><b>${escapeHTML(row.shortestLabel||row.phrase||row.term||'')}</b><p>${escapeHTML(row.meaning||row.difference||'')}</p><p>${escapeHTML(row.example||row.usage||'')}</p><p>${escapeHTML(row.translation||'')}</p></li>`).join('')}</ul>`).join('')}`;
+}
+function renderVersionManager(){
+  const item=modalVersionItem();
+  if(!item)return;
+  const rolls=getHistoryRolls(item);
+  const selected=rolls.filter(roll=>versionSelection.has(String(roll.id)));
+  document.getElementById('modal-versions-page').innerHTML=`<div class="version-manager-head"><h3>版本管理 <small>${rolls.length}</small></h3><div class="version-actions"><label class="plain-btn version-import">${icon('plus')}<span>导入 JSON</span><input type="file" accept=".json,application/json" onchange="importModalVersion(this)"></label></div></div><div class="version-list">${rolls.map((roll,index)=>`<div class="version-row"><input type="checkbox" aria-label="选择${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" ${versionSelection.has(String(roll.id))?'checked':''} onchange="toggleVersionSelection(${jsArg(roll.id)})"><div class="version-row-info"><input class="version-name" aria-label="版本名称" value="${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" maxlength="60" onchange="renameModalVersion(${jsArg(roll.id)},this.value)"><small>${index===0?'默认展示 · ':''}${escapeHTML(roll.model||'未记录')} · ${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN'))}</small></div><button class="icon-btn" aria-label="打开版本" data-tip="打开版本" onclick="setModalRoll(${jsArg(historyRollViewKey(roll))})">${icon('arrow-up-right')}</button><button class="icon-btn" aria-label="设为默认" data-tip="设为默认" onclick="setDefaultModalVersion(${jsArg(roll.id)})" ${index===0?'disabled':''}>${icon('star')}</button><button class="icon-btn danger-icon" aria-label="删除版本" data-tip="删除版本" onclick="deleteModalVersions([${jsArg(roll.id)}])" ${rolls.length<2?'disabled':''}>${icon('trash-2')}</button></div>`).join('')}</div><div class="version-selection-actions"><span>已选 ${selected.length}</span><button class="plain-btn" onclick="previewVersionIntegration()" ${selected.length<2?'disabled':''}>对比与整合</button><button class="icon-btn danger-icon" aria-label="删除所选版本" data-tip="删除所选版本" onclick="deleteModalVersions([...versionSelection])" ${!selected.length||selected.length===rolls.length?'disabled':''}>${icon('trash-2')}</button></div><div id="version-integration"></div>`;
+}
+function saveModalVersions(item,rolls,extra={}){
+  const now=new Date().toISOString();
+  const order=rolls.map(roll=>String(roll.id));
+  const orderChanged=JSON.stringify(order)!==JSON.stringify(getHistoryRolls(item).map(roll=>String(roll.id)));
+  const updated={...item,...extra,rolls,result:rolls[0]?.result||null,rollOrder:order,rollOrderUpdatedAt:orderChanged?now:item.rollOrderUpdatedAt||'',updatedAt:now};
+  if(!setHistory(getHistory().map(row=>Number(row.id)===Number(item.id)?updated:row)))return false;
+  if(Number(currentHistoryId)===Number(item.id)&&rolls[0])renderResult(rolls[0].result);
+  openHistoryModal(item.id);
+  showVersionManager();
+  return true;
+}
+function renameModalVersion(id,name){
+  const item=modalVersionItem();if(!item)return;
+  const value=String(name).trim().slice(0,60);
+  if(!value)return renderVersionManager();
+  saveModalVersions(item,getHistoryRolls(item).map(roll=>String(roll.id)===String(id)?{...roll,name:value,nameUpdatedAt:new Date().toISOString()}:roll));
+}
+function setDefaultModalVersion(id){
+  const item=modalVersionItem();if(!item)return;
+  const rolls=getHistoryRolls(item),chosen=rolls.find(roll=>String(roll.id)===String(id));
+  if(chosen&&saveModalVersions(item,[chosen,...rolls.filter(roll=>roll!==chosen)]))notify('默认展示版本已更新。','good','版本');
+}
+async function deleteModalVersions(ids){
+  const item=modalVersionItem();if(!item)return;
+  const keys=new Set(ids.map(String)),rolls=getHistoryRolls(item);
+  const removed=rolls.filter(roll=>keys.has(String(roll.id)));
+  if(!removed.length)return;
+  if(removed.length===rolls.length)return notify('请至少保留一个版本；删除整条记录请返回历史列表。','info','保留版本');
+  if(!await askConfirm(`删除 ${removed.length} 个版本？收藏片段快照仍会保留。`,'删除版本'))return;
+  const live=modalVersionItem();if(!live)return;
+  const liveRolls=getHistoryRolls(live),kept=liveRolls.filter(roll=>!keys.has(String(roll.id)));
+  if(!kept.length)return notify('版本已变化，请重新选择。','info','版本');
+  const deletedAt=new Date().toISOString();
+  const tombstones=HistoryData.normalizeTombstones(live.rollTombstones,removed.map(roll=>({key:String(roll.id),deletedAt})));
+  if(!saveModalVersions(live,kept,{rollTombstones:tombstones}))return;
+  notify(`已删除 ${removed.length} 个版本。`,'good','版本',true,{label:'撤销',run:()=>{
+    const current=getHistory().find(row=>Number(row.id)===Number(item.id));if(!current)return;
+    const now=new Date().toISOString();
+    const restored=removed.map(roll=>({...roll,updatedAt:now}));
+    const next=HistoryData.reconcileRolls([...getHistoryRolls(current),...restored],current.rollTombstones);
+    if(Number(modalHistoryId)===Number(item.id)&&els.historyModal.classList.contains('open'))saveModalVersions(current,next.rolls,{rollTombstones:next.tombstones});
+    else setHistory(getHistory().map(row=>Number(row.id)===Number(item.id)?{...current,rolls:next.rolls,rollTombstones:next.tombstones,updatedAt:now}:row));
+  }});
+}
+function previewVersionIntegration(){
+  const rolls=getHistoryRolls(modalVersionItem()).filter(roll=>versionSelection.has(String(roll.id)));
+  if(rolls.length<2)return;
+  const result=HistoryData.integrateResults(rolls.map(roll=>roll.result));
+  versionMergeDraft={result,ids:rolls.map(roll=>String(roll.id)),sources:rolls.map(roll=>historyRollContentKey(roll)),historyId:modalHistoryId};
+  document.getElementById('version-integration').innerHTML=`<div class="version-merge-head"><h3>对比与整合</h3><label>基础版本<select onchange="changeVersionMergeBase(this.value)">${rolls.map(roll=>`<option value="${escapeAttr(roll.id)}">${escapeHTML(roll.name||roll.model||roll.id)}</option>`).join('')}</select></label></div><p class="section-sub">标题、核心义与语体沿用基础版本；义项、搭配和辨析合并，完全相同的项目去重。来源版本不变。</p><div class="version-comparison">${rolls.map(roll=>`<details><summary>${escapeHTML(roll.name||roll.model||roll.id)}</summary>${versionSummaryHTML(roll.result)}</details>`).join('')}</div><details class="version-merge-preview" open><summary>整合预览</summary><div id="version-merge-content">${versionSummaryHTML(result)}</div></details><button class="plain-btn primary-btn" onclick="commitVersionIntegration()">保存为新版本</button>`;
+}
+function changeVersionMergeBase(id){
+  if(!versionMergeDraft)return;
+  const rolls=getHistoryRolls(modalVersionItem()).filter(roll=>versionMergeDraft.ids.includes(String(roll.id)));
+  rolls.sort((a,b)=>Number(String(b.id)===String(id))-Number(String(a.id)===String(id)));
+  versionMergeDraft.result=HistoryData.integrateResults(rolls.map(roll=>roll.result));
+  document.getElementById('version-merge-content').innerHTML=versionSummaryHTML(versionMergeDraft.result);
+}
+function commitVersionIntegration(){
+  const draft=versionMergeDraft,item=modalVersionItem();
+  if(!draft||!item||draft.historyId!==modalHistoryId)return;
+  const rolls=getHistoryRolls(item);
+  if(!draft.ids.every((id,index)=>rolls.some(roll=>String(roll.id)===id&&historyRollContentKey(roll)===draft.sources[index])))return notify('来源版本已变化，请重新对比。','info','整合');
+  appendModalVersion(draft.result,{name:'整合版本',model:'整合',mergedFrom:draft.ids});
+}
+function appendModalVersion(result,meta={}){
+  const item=modalVersionItem();if(!item)return;
+  const rolls=getHistoryRolls(item);
+  if(rolls.some(roll=>historyRollContentKey(roll)===historyRollContentKey({result})))return notify('已有内容完全相同的版本，没有重复添加。','info','版本');
+  const roll=makeHistoryRoll(result,new Date().toISOString(),crypto.randomUUID(),meta);
+  if(saveModalVersions(item,[roll,...rolls])){setModalRoll(historyRollViewKey(roll));notify('新版本已保存，来源版本保持不变。','good','版本')}
+}
+async function importModalVersion(input){
+  const file=input.files?.[0],id=modalHistoryId;if(!file)return;
+  try{
+    if(file.size>2*1024*1024)throw new Error('文件超过 2 MB');
+    const result=JSON.parse(await file.text());
+    if(!result||Array.isArray(result)||typeof result.headword?.title!=='string'||!result.headword.title.trim())throw new Error('需要包含 headword.title 的词条 JSON');
+    for(const key of ['senses','collocations','confusions'])if(result[key]!==undefined&&(!Array.isArray(result[key])||result[key].some(row=>!row||typeof row!=='object'||Array.isArray(row))))throw new Error(`${key} 必须为对象列表`);
+    if(id!==modalHistoryId||!els.historyModal.classList.contains('open'))return;
+    appendModalVersion(result,{name:file.name.replace(/\.json$/i,''),model:'导入'});
+  }catch(error){notify(`无法导入：${error.message}`,'bad','导入版本')}
 }
 function validateModalJSON(showSuccess=true){
   if(!els.modalJsonEdit)return false;
@@ -6570,6 +6715,7 @@ async function regenerateModalHistory(){
 }
 function exportModalJSON(){
   if(!modalResult)return;
+  if(!syncModalDraftFromActiveTab('card'))return;
   const name=(modalResult.meta?.normalized||modalResult.meta?.query||'history').replace(/[\\/:*?"<>|]/g,'_');
   downloadText(`${name}.json`,JSON.stringify(modalResult,null,2));
 }
@@ -7656,7 +7802,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.20.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.21.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
