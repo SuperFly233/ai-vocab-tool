@@ -179,12 +179,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.22.1',
+  version:'0.22.2',
   releaseDate:'2026-10-16',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.22.2',
+    date:'2026-10-16',
+    title:'让正文回归阅读',
+    items:['义项、搭配改为平铺阅读条目，以标题、留白和分隔线区分层级，移除分组框套条目框及悬浮阴影。','编号和收藏控件只占标题行，释义、例句和译文使用完整内容宽度；片段收藏保留 44px 触屏热区和已收藏状态。','核心义、词条元信息及语感说明移除多余外框，首页与详情共用一致的阅读样式，保留例句高亮、朗读及编辑入口。'],
+  },
   {
     version:'0.22.1',
     date:'2026-10-16',
@@ -7957,7 +7963,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.1" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.2" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
