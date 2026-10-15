@@ -7107,14 +7107,15 @@ function speakText(text,language='',event){
 function filteredFolderEntries(folderId=folderState.activeId,items=historyForFolder(folderId)){
   if(folderSearchIsGlobal())items=getHistory().filter(item=>itemFolderIds(item).length);
   let entries;
-  if(!folderSearchIsGlobal()&&folderId===FOLDER_INSIGHTS_ID)entries=pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,entry.pin],folderState.query));
-  else entries=items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags,normalizeHistoryItem(item).fragmentPins,itemFolders(item).map(folder=>folder.name)],folderState.query));
+  if(!folderSearchIsGlobal()&&folderId===FOLDER_INSIGHTS_ID)entries=pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,searchableFragment(entry.pin)],folderState.query));
+  else entries=items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags,normalizeHistoryItem(item).fragmentPins.map(searchableFragment),itemFolders(item).map(folder=>folder.name)],folderState.query));
   return [...entries].sort((a,b)=>{
     if(folderState.sort==='title')return historyCollator.compare(a.sourceTitle||historyDisplayTitle(a),b.sourceTitle||historyDisplayTitle(b));
     const field=folderState.sort==='created'?'createdAt':'updatedAt';
     return (new Date(b[field]||b.pin?.[field]||b.createdAt||0).getTime()||0)-(new Date(a[field]||a.pin?.[field]||a.createdAt||0).getTime()||0)||String(a.id||a.pin?.key).localeCompare(String(b.id||b.pin?.key));
   });
 }
+function searchableFragment(pin={}){return [pin.title,pin.meaning,pin.example,pin.translation,pin.detail]}
 function folderSearchIsGlobal(){return Boolean(folderState.query.trim()&&folderState.searchScope==='all')}
 function setFolderSearchScope(value){folderState.searchScope=value==='current'?'current':'all';if(value==='current')folderState.detailOpen=true;folderState.visibleCount=folderBatchSize();renderFoldersView()}
 function setFolderSort(value){folderState.sort=['title','created'].includes(value)?value:'updated';folderState.visibleCount=folderBatchSize();renderFoldersView()}

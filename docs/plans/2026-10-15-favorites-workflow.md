@@ -28,6 +28,6 @@ Existing learning UI checks passed four contexts; version UI checks passed six c
 
 ## Delivery Counts
 
-- Bug fixes (7): stale detail edits overwriting membership; nested picker removing body lock; Escape closing underlying detail; folder navigation clearing query; focused membership tooltip causing overflow; Markdown export hidden while editing; favorites membership badges unexpectedly switching to history.
+- Bug fixes (8): stale detail edits overwriting membership; nested picker removing body lock; Escape closing underlying detail; folder navigation clearing query; focused membership tooltip causing overflow; Markdown export hidden while editing; favorites membership badges unexpectedly switching to history; internal fragment provenance falsely matching search text.
 - Existing workflow improvements (4): persistent direct detail membership row; one sticky search toolbar with explicit scope; compact mobile entry actions; inline folder creation with duplicate protection and a visible selected count.
 - New capabilities (4): global favorites/folder-name/fragment search; three result sort orders; existing-history multi-select addition; searchable membership picker.
