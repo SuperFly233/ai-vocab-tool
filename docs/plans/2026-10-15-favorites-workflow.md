@@ -18,7 +18,7 @@ The user wants direct membership management inside detail, a single top-level fa
 - [x] Global search, empty-folder match, current-folder scope, navigation retention, sort and result export/review.
 - [x] Existing-record selection, filtering, duplicate protection and quota handling.
 - [x] Screenshot and viewport/scroll geometry verification, existing test suites.
-- [ ] Versioned release, commit/push, deployment and live verification.
+- [x] Versioned release, commit/push, deployment and live verification.
 
 ## Verified Evidence
 
@@ -31,3 +31,7 @@ Existing learning UI checks passed four contexts; version UI checks passed six c
 - Bug fixes (8): stale detail edits overwriting membership; nested picker removing body lock; Escape closing underlying detail; folder navigation clearing query; focused membership tooltip causing overflow; Markdown export hidden while editing; favorites membership badges unexpectedly switching to history; internal fragment provenance falsely matching search text.
 - Existing workflow improvements (4): persistent direct detail membership row; one sticky search toolbar with explicit scope; compact mobile entry actions; inline folder creation with duplicate protection and a visible selected count.
 - New capabilities (4): global favorites/folder-name/fragment search; three result sort orders; existing-history multi-select addition; searchable membership picker.
+
+## Release
+
+v0.22.0 was committed in `d488e73` with final search-accuracy patch `9e3f877`, both pushed to main. Final Cloudflare deployment: https://cb89b9a9.ai-vocab-tool.pages.dev . Production `/favorites` returned HTTP 200 and `/app.js?v=0.22.0-20261015.3`; fetched JS and CSS both matched the local deployed build exactly. The final narrow-screen light/dark regression passed after the search-accuracy patch. Inspected the 320x640 many-folder screenshot to verify the visible footer and independently scrolling list. Pre-existing Wrangler development logs remain untouched and uncommitted.
