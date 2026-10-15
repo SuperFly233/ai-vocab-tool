@@ -477,10 +477,10 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .history-actions{display:flex;gap:8px}
 .history-load-more{border:1px dashed color-mix(in srgb,var(--accent) 42%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent-bg) 42%,var(--panel));color:var(--accent);padding:12px 14px;font-size:14px;font-weight:900;transition:transform .16s ease,border-color .16s ease,background .16s ease}
 .history-load-more:hover{transform:translateY(-1px);border-color:var(--accent);background:var(--accent-bg)}
-.folder-panel{display:grid;gap:8px;padding:0;overflow:hidden;border:0;box-shadow:none;background:transparent}
+.folder-panel{display:grid;gap:8px;padding:0;overflow:clip;border:0;box-shadow:none;background:transparent}
 .folder-panel>.section-head{padding:6px 2px 14px;border-bottom:1px solid var(--line)}
 .folder-layout{min-width:0;display:grid;grid-template-columns:minmax(220px,.24fr) minmax(0,1fr);gap:0;align-items:start}
-.folder-sidebar{position:sticky;top:18px;min-width:0;display:grid;gap:4px;max-height:calc(100vh - 176px);overflow-y:auto;overflow-x:hidden;padding:10px 14px 10px 0;border-right:1px solid var(--line);overscroll-behavior:contain}
+.folder-sidebar{position:sticky;top:150px;min-width:0;display:grid;gap:4px;max-height:calc(100vh - 176px);overflow-y:auto;overflow-x:hidden;padding:10px 14px 10px 0;border-right:1px solid var(--line);overscroll-behavior:contain}
 .folder-sidebar-head{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px 10px;color:var(--muted);font-size:13px;font-weight:900}
 .folder-sidebar-head .icon-btn{width:30px;min-width:30px;height:30px;min-height:30px;border-radius:999px}
 .folder-tab-list{min-width:0;display:grid;gap:0}
@@ -508,6 +508,42 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .folder-search{margin:12px 0 4px;min-width:0}
 .folder-search input{width:100%;min-width:0;appearance:none;-webkit-appearance:none}
 .folder-search input::-webkit-search-cancel-button{display:none;-webkit-appearance:none}
+.folder-toolbar{position:sticky;top:82px;z-index:800;display:grid;grid-template-columns:minmax(0,1fr) 132px 118px;gap:10px;align-items:center;padding:10px 0;background:var(--bg)}
+.folder-toolbar .folder-search{margin:0}
+.folder-toolbar select{width:100%;min-width:0;height:40px;border:1px solid var(--line);border-radius:999px;padding:0 12px;background:var(--panel);color:var(--text);font:inherit;font-size:13px}
+.folder-match-list{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.folder-match-list:empty{display:none}
+.folder-match{display:flex;align-items:center;gap:7px;max-width:100%;border:0;border-radius:999px;padding:7px 10px;background:var(--panel2);color:var(--text)}
+.folder-match svg{width:16px;height:16px;flex:none}
+.folder-match span{min-width:0;overflow-wrap:anywhere;text-align:left}
+.folder-match small{color:var(--soft)}
+.modal-folder-membership{display:grid;grid-template-columns:auto minmax(0,1fr) 32px;gap:10px;align-items:center;padding:4px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);min-width:0}
+.modal-folder-membership>.icon-btn{width:32px;min-width:32px;height:32px;color:var(--accent)}
+.modal-folder-membership [data-tip]:after{left:auto;right:0;transform:translateY(0)}
+.modal-folder-names{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--text)}
+.modal-folder-names>span+span:before{content:' / ';color:var(--soft)}
+.folder-inline-create{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:8px;align-items:center}
+.folder-inline-create input{min-width:0;height:38px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:0 12px;color:var(--text);font:inherit;font-size:14px}
+.folder-inline-create .icon-btn{width:36px;min-width:36px;height:36px}
+.folder-select-option[hidden]{display:none!important}
+.folder-select-layer,.folder-record-layer{z-index:18000}
+.folder-record-row{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--line)}
+.folder-record-row input{width:18px;height:18px;accent-color:var(--accent)}
+.folder-record-row span{min-width:0;display:grid;gap:4px}
+.folder-record-row b,.folder-record-row small{overflow-wrap:anywhere}
+.folder-record-row small,.folder-record-row em{font-size:12px;color:var(--soft);font-style:normal}
+@media(max-width:900px){
+ .folder-toolbar{top:72px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px;padding:8px 0}
+ .folder-toolbar>.folder-search{grid-column:1/-1}
+ #folder-panel.global-searching .folder-content{display:grid}
+ #folder-panel.global-searching .folder-content-head{grid-template-columns:minmax(0,1fr) auto}
+ #folder-panel.global-searching .folder-content-head .folder-head-actions{grid-column:2;grid-row:1;justify-content:flex-end}
+ .folder-panel.global-searching .folder-sidebar{display:none}
+ .folder-content .history-item{display:block}
+ .folder-content .history-word{padding-right:110px;min-height:34px;white-space:normal;overflow-wrap:anywhere}
+ .folder-content .history-actions{position:absolute;right:0;top:10px;gap:3px;padding:0;border:0}
+ .folder-content .history-actions .icon-btn{width:32px;min-width:32px;height:32px;min-height:32px}
+}
 button{user-select:none;-webkit-user-select:none}
 .folder-mobile-back{display:none!important;width:36px;height:36px;border:0;border-radius:999px;background:var(--panel2);color:var(--text);font-size:28px;line-height:1}
 .folder-content .history-list{gap:0}
@@ -791,7 +827,7 @@ body.modal-open{overflow:hidden}
 .visual-page{display:none;gap:12px}
 .visual-page.active{display:grid}
 .visual-editor{display:grid;gap:14px;position:relative;min-width:0;width:100%}
-.history-modal-card{grid-template-rows:auto auto minmax(0,1fr)}
+.history-modal-card{grid-template-rows:auto auto auto minmax(0,1fr)}
 .history-modal-card>.modal-rollbar,.history-modal-card.modal-scrolled>.modal-rollbar{position:relative;top:auto;z-index:21;margin:0;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);box-shadow:none}
 .history-modal-card .roll-btn,.history-modal-card.modal-scrolled .roll-btn{position:relative;min-width:112px;max-width:200px;height:48px;padding:5px 26px 5px 10px;touch-action:pan-x}
 .roll-btn .roll-grip{position:absolute;right:2px;top:0;bottom:0;width:22px;display:grid;place-items:center;touch-action:none;cursor:grab;color:var(--soft)}
@@ -805,6 +841,7 @@ body.modal-open{overflow:hidden}
 .modal-file-actions .modal-save-btn{display:none}
 .editing-mode .modal-file-actions .modal-save-btn{display:grid;color:var(--accent);background:var(--accent-bg)}
 .editing-mode .modal-file-actions .modal-export-btn{display:none}
+.editing-mode .modal-file-actions .modal-export-btn[data-tip="导出 Markdown"]{display:grid}
 .version-bar-actions .icon-btn{width:34px;min-width:34px;height:34px}
 .version-manager-head,.version-merge-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .version-manager-head h3{margin:4px 0;font-size:18px}
@@ -1231,8 +1268,9 @@ body[data-toast-mode="snackbar"] .toast-stack{left:50%;right:auto;top:auto;botto
 }
 
 /* Compact folder picker: content-sized until the list genuinely needs scrolling. */
-.modal-card.folder-select-card{width:min(620px,calc(100vw - 28px));max-height:min(720px,calc(100vh - 28px));grid-template-rows:auto minmax(0,auto) auto}
-.folder-select-card .folder-select-body{display:grid;gap:10px;padding:10px 14px}
+.modal-card.folder-select-card{width:min(620px,calc(100vw - 28px));max-height:min(720px,calc(100vh - 28px));grid-template-rows:auto minmax(0,1fr) auto}
+.folder-select-card .folder-select-body{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:10px 14px;overflow:hidden}
+.folder-select-card .folder-select-list{min-height:0}
 .folder-select-card .folder-select-list{display:grid;gap:2px;max-height:min(52vh,420px);overflow:auto;padding-right:2px}
 .folder-select-card .folder-select-option{min-height:48px;border:1px solid transparent;border-radius:12px;padding:8px 10px}
 .folder-select-card .folder-select-option span{border-radius:999px}

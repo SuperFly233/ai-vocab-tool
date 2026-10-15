@@ -177,7 +177,10 @@ expect(app.includes('lookupSignature:activeLookupSignature'), 'Successful lookup
 expect(app.includes('LookupTasks.resolveCompletion(existing,normalized)'), 'History merge must preserve the newest lookup completion independently of unrelated edits');
 expect(app.includes('favoriteUpdatedAt:favorite?now:normalized.favoriteUpdatedAt'), 'Reasserting an existing favorite must refresh its field clock');
 expect(app.includes('foldersUpdatedAt:selectedFolderIds.length?now:normalized.foldersUpdatedAt'), 'Reasserting an existing lookup folder must refresh its field clock');
-expect(/return \{\.\.\.normalized,query,tags:\[\],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now/.test(app), 'History editor save must authoritatively clock empty folder and tag state');
+expect(!/const folderIds=ensureFavoriteFoldersByNames\(els\.modalTagsEdit/.test(app)&&/return \{\.\.\.normalized,query,note,noteUpdatedAt:/.test(app), 'Entry edits must preserve live folder membership owned by the selector');
+expect(html.indexOf('id="folder-search"')<html.indexOf('class="folder-layout"'), 'Favorites must expose one shared search above the folder split view');
+expect(html.includes('id="modal-folder-membership"')&&app.includes('function renderModalFolderMembership'), 'Detail must expose direct folder membership editing');
+expect(app.includes('document.addEventListener(\'keydown\',handleLibraryModalKey,true)'), 'Nested library dialogs must capture keyboard navigation before the underlying detail');
 expect(/class="modal-head-actions"[\s\S]*class="modal-view-tabs"[\s\S]*class="modal-file-actions"/.test(html), 'History modal header must separate view tabs from file actions');
 expect(/<\/div>\s*<button class="icon-btn danger-icon modal-close-btn"/.test(html), 'History modal close control must remain outside the scrolling action group');
 expect(/id="api-profile-modal-title"[\s\S]{0,420}<button class="icon-btn danger-icon modal-close-btn" id="api-profile-modal-close"/.test(html), 'API profile close control must remain a direct top-right modal header action');

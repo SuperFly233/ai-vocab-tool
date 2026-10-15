@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.21.0" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.21.0" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.21.0">
-<link rel="stylesheet" href="/styles.css?v=0.21.0-20261015">
+<link rel="icon" href="/favicon.svg?v=0.22.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.22.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.22.0">
+<link rel="stylesheet" href="/styles.css?v=0.22.0-20261015">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.21.0" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.22.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -52,7 +52,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.21.0" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.22.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -198,18 +198,23 @@
         </div>
         <div class="action-row compact">
           <button class="icon-btn" data-tip="新建收藏夹" onclick="createFavoriteFolder()" aria-label="新建收藏夹"><i data-lucide="folder-plus"></i></button>
-          <button class="icon-btn" data-tip="导出当前收藏夹" onclick="exportFolderJSON()" aria-label="导出当前收藏夹"><i data-lucide="download"></i></button>
+          <button class="icon-btn" data-tip="导出当前列表" onclick="exportVisibleFolderJSON()" aria-label="导出当前列表"><i data-lucide="download"></i></button>
         </div>
       </div>
+      <div class="folder-toolbar">
+          <label class="folder-search history-search">
+            <span><i data-lucide="search"></i></span>
+            <input id="folder-search" type="search" placeholder="搜索全部收藏、释义、片段或收藏夹" aria-label="搜索收藏" autocomplete="off" oninput="searchFolder(this.value)">
+            <button class="history-clear-btn hidden" id="folder-search-clear" type="button" data-tip="清空搜索" aria-label="清空搜索" onclick="clearFolderSearch()"><i data-lucide="x"></i></button>
+          </label>
+          <select id="folder-search-scope" aria-label="搜索范围" onchange="setFolderSearchScope(this.value)"><option value="all">全部收藏</option><option value="current">当前收藏夹</option></select>
+          <select id="folder-sort" aria-label="收藏排序" onchange="setFolderSort(this.value)"><option value="updated">最近更新</option><option value="title">词条名称</option><option value="created">创建时间</option></select>
+      </div>
+      <div id="folder-match-list" class="folder-match-list"></div>
       <div class="folder-layout">
         <aside class="folder-sidebar" id="folder-sidebar"></aside>
         <section class="folder-content">
           <div class="folder-content-head" id="folder-content-head"></div>
-          <label class="folder-search history-search">
-            <span><i data-lucide="search"></i></span>
-            <input id="folder-search" type="search" placeholder="搜索收藏夹内的词条、释义或例句" aria-label="搜索当前收藏夹" autocomplete="off" oninput="searchFolder(this.value)">
-            <button class="history-clear-btn hidden" id="folder-search-clear" type="button" data-tip="清空搜索" aria-label="清空搜索" onclick="clearFolderSearch()"><i data-lucide="x"></i></button>
-          </label>
           <div class="history-list" id="folder-history-list"></div>
         </section>
       </div>
@@ -460,6 +465,7 @@
       <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="requestCloseHistoryModal()"><i data-lucide="x"></i></button>
     </div>
     <div class="modal-rollbar" id="modal-rollbar"></div>
+    <div id="modal-folder-membership" class="modal-folder-membership"></div>
     <div class="modal-body" id="history-modal-body">
       <div class="modal-sticky-summary" id="modal-sticky-summary"></div>
       <section class="modal-page active" id="modal-card-page"></section>
@@ -478,7 +484,7 @@
         </label>
         <label class="setting-field">
           <span>收藏夹</span>
-          <input class="cloud-input" id="modal-tags-edit" type="text" placeholder="逗号或空格分隔，例如 尼克书的课 写作 六级">
+          <input class="cloud-input" id="modal-tags-edit" type="text" readonly aria-label="收藏夹归属（通过顶部收藏夹按钮修改）">
         </label>
         <label class="setting-field">
           <span>备注</span>
@@ -497,6 +503,7 @@
         </label>
         <div class="modal-edit-footer">
           <div class="json-status" id="modal-json-status">等待检查</div>
+          <button class="icon-btn" type="button" data-tip="导出 JSON" aria-label="导出编辑中的 JSON" onclick="exportModalJSON()"><i data-lucide="download"></i></button>
           <button class="plain-btn primary-btn" onclick="saveHistoryEdit()">保存修改</button>
         </div>
       </section>
@@ -560,7 +567,7 @@
 </div>
 
 <div class="modal-layer folder-select-layer" id="folder-select-modal" onclick="closeFolderSelectModal(event)">
-  <div class="modal-card folder-select-card" onclick="event.stopPropagation()">
+  <div class="modal-card folder-select-card" role="dialog" aria-modal="true" aria-labelledby="folder-select-title" onclick="event.stopPropagation()">
     <div class="modal-head">
       <div class="modal-title-block">
         <div class="section-title" id="folder-select-title">添加到收藏夹</div>
@@ -569,8 +576,9 @@
       <button class="icon-btn danger-icon modal-close-btn" data-tip="关闭" aria-label="关闭" onclick="closeFolderSelectModal()"><i data-lucide="x"></i></button>
     </div>
     <div class="folder-select-body">
+      <label class="history-search"><span><i data-lucide="search"></i></span><input id="folder-select-search" type="search" aria-label="筛选收藏夹" placeholder="查找收藏夹" oninput="filterFolderSelector(this.value)"></label>
       <div class="folder-select-list" id="folder-select-list"></div>
-      <button class="plain-btn ghost-btn folder-create-btn" type="button" onclick="createFavoriteFolderFromSelector()"><i data-lucide="folder-plus"></i><span>新建收藏夹</span></button>
+      <form class="folder-inline-create" onsubmit="event.preventDefault();createFavoriteFolderFromSelector()"><input id="folder-selector-create-name" type="text" placeholder="新收藏夹名称" maxlength="60" aria-label="新收藏夹名称"><button class="icon-btn" type="submit" data-tip="新建收藏夹" aria-label="新建收藏夹"><i data-lucide="folder-plus"></i></button></form>
     </div>
     <div class="modal-edit-footer">
       <div class="json-status" id="folder-select-status">选择后会同步到历史和云端。</div>
@@ -582,6 +590,13 @@
   </div>
 </div>
 
+<div class="modal-layer folder-record-layer" id="folder-record-modal" onclick="closeFolderRecordPicker(event)">
+  <section class="modal-card folder-select-card" role="dialog" aria-modal="true" aria-labelledby="folder-record-title" onclick="event.stopPropagation()">
+    <header class="modal-head"><div class="modal-title-block"><h2 class="section-title" id="folder-record-title">添加已有词条</h2><div class="section-sub" id="folder-record-subtitle"></div></div><button class="icon-btn modal-close-btn" aria-label="关闭词条选择" data-tip="关闭" onclick="closeFolderRecordPicker()"><i data-lucide="x"></i></button></header>
+    <div class="folder-select-body"><label class="history-search"><span><i data-lucide="search"></i></span><input id="folder-record-search" type="search" placeholder="搜索历史词条、释义或原始输入" aria-label="搜索已有词条" oninput="filterFolderRecordPicker(this.value)"></label><div id="folder-record-list" class="folder-select-list"></div></div>
+    <footer class="modal-edit-footer"><span id="folder-record-count" class="json-status">已选 0 条</span><button class="plain-btn primary-btn" id="folder-record-save" onclick="saveFolderRecordPicker()">添加</button></footer>
+  </section>
+</div>
 <div class="confirm-layer" id="confirm-layer">
   <div class="confirm-card" id="confirm-card">
     <div class="confirm-title" id="confirm-title">确认操作</div>
@@ -595,14 +610,14 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.21.0"></script>
-<script src="/icons.js?v=0.21.0"></script>
-<script src="/history-data.js?v=0.21.0"></script>
-<script src="/settings-data.js?v=0.21.0"></script>
-<script src="/storage-state.js?v=0.21.0"></script>
-<script src="/lookup-tasks.js?v=0.21.0"></script>
-<script src="/sync-state.js?v=0.21.0"></script>
-<script src="/learning-tools.js?v=0.21.0"></script>
-<script src="/app.js?v=0.21.0-20261015.2"></script>
+<script src="/vendor/supabase.js?v=0.22.0"></script>
+<script src="/icons.js?v=0.22.0"></script>
+<script src="/history-data.js?v=0.22.0"></script>
+<script src="/settings-data.js?v=0.22.0"></script>
+<script src="/storage-state.js?v=0.22.0"></script>
+<script src="/lookup-tasks.js?v=0.22.0"></script>
+<script src="/sync-state.js?v=0.22.0"></script>
+<script src="/learning-tools.js?v=0.22.0"></script>
+<script src="/app.js?v=0.22.0-20261015.2"></script>
 </body>
 </html>

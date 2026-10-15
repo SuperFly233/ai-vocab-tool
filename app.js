@@ -123,6 +123,8 @@ const folderState={
   visibleCount:0,
   detailOpen:false,
   query:'',
+  searchScope:'all',
+  sort:'updated',
 };
 let folderSearchTimer=null;
 const historySelection={active:false,ids:new Set()};
@@ -132,6 +134,7 @@ let reviewCards=[];
 let reviewReturnFocus=null;
 let versionSelection=new Set();
 let versionMergeDraft=null;
+let folderRecordPicker=null;
 const historyCollator=new Intl.Collator(['zh-Hans-CN','en','ja','ko','fr','es'],{
   numeric:true,
   sensitivity:'base',
@@ -176,12 +179,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.21.0',
+  version:'0.22.0',
   releaseDate:'2026-10-15',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.22.0',
+    date:'2026-10-15',
+    title:'统一收藏检索与条目归属管理',
+    items:['收藏夹页面使用统一吸顶搜索，默认跨夹检索，支持当前夹范围、收藏夹名称与片段内容搜索、匹配目录快捷入口及三种排序。','详情页新增常驻收藏夹归属行，增减收藏独立保存，不再被词条草稿中的旧文本覆盖；嵌套选择层保留滚动锁、焦点及底层详情。','新增从已有历史批量加入当前收藏夹，搜索筛选后保留选择，已加入记录不可重复添加；选择器支持目录搜索、内联创建和同名保护。','手机列表操作收进条目首行；修复切夹丢失查询、详情提示溢出与编辑模式隐藏导出入口，当前列表导出和复习使用相同结果范围。'],
+  },
   {
     version:'0.21.0',
     date:'2026-10-15',
@@ -2712,7 +2721,6 @@ function modalVisualFieldValues(){
 function modalEditSignature(){
   return JSON.stringify({
     query:els.modalQueryEdit?.value||'',
-    folders:els.modalTagsEdit?.value||'',
     note:els.modalNoteEdit?.value||'',
     json:els.modalJsonEdit?.value||'',
     visual:modalVisualFieldValues(),
@@ -4601,10 +4609,10 @@ function renderHistory(){
     </button>
   `:'');
 }
-function renderHistoryFolders(item={}){
+function renderHistoryFolders(item={},library=false){
   const list=itemFolders(item).filter(folder=>folder.id!==FOLDER_LIKED_ID);
   if(!list.length)return '';
-  return `<div class="history-tags">${list.slice(0,5).map(folder=>`<button type="button" onclick="filterByHistoryFolder('${escapeAttr(folder.id)}',event)">${escapeHTML(folder.name)}</button>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
+  return `<div class="history-tags">${list.slice(0,5).map(folder=>`<button type="button" onclick="${library?`event.stopPropagation();openFolderView(${jsArg(folder.id)})`:`filterByHistoryFolder(${jsArg(folder.id)},event)`}">${escapeHTML(folder.name)}</button>`).join('')}${list.length>5?`<em>+${list.length-5}</em>`:''}</div>`;
 }
 function buildFolderCatalog(history=getHistory(),settings=getSettings()){
   const map=new Map();
@@ -4760,15 +4768,21 @@ function openFolderSelectModal(context={}){
   const historyId=Number(context.historyId||0);
   const item=historyId?getHistory().find(row=>Number(row.id)===historyId):null;
   const selected=type==='lookup'?lookupFolderIds:item?itemFolderIds(item):[];
-  folderSelectContext={type,historyId,historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected)};
+  if(type==='history'&&!item)return notify('记录已被删除。','info','收藏夹');
+  folderSelectContext={type,historyId,historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected),returnFocus:document.activeElement};
+  document.getElementById('folder-select-search').value='';
+  document.getElementById('folder-selector-create-name').value='';
   renderFolderSelectModal();
   els.folderSelectModal.classList.add('open');
   document.body.classList.add('modal-open');
+  document.getElementById('folder-select-search').focus();
 }
 function closeFolderSelectModal(event){
   if(event&&event.target!==els.folderSelectModal)return;
   els.folderSelectModal?.classList.remove('open');
-  document.body.classList.remove('modal-open');
+  if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
+  if(folderSelectContext?.returnFocus?.isConnected)folderSelectContext.returnFocus.focus();
+  else if(els.historyModal.classList.contains('open'))document.querySelector('#modal-folder-membership button')?.focus();
   folderSelectContext=null;
 }
 function renderFolderSelectModal(){
@@ -4790,6 +4804,13 @@ function renderFolderSelectModal(){
       <em>${Number(statsMap.get(folder.id)||0)} 条</em>
     </label>
   `).join('');
+  updateFolderSelectionStatus();
+}
+function updateFolderSelectionStatus(){
+  if(!folderSelectContext||!els.folderSelectStatus)return;
+  const count=normalizeSelectableFolderIds(folderSelectContext.selectedIds).length;
+  const note=folderSelectContext.type==='batch'?'仅追加，不移除已有归属。':folderSelectContext.type==='lookup'?'保存查询时加入。':'确定后立即保存。';
+  els.folderSelectStatus.textContent=`已选 ${count} 个收藏夹 · ${note}`;
 }
 function updateFolderSelectDraft(){
   if(!folderSelectContext)return;
@@ -4797,16 +4818,28 @@ function updateFolderSelectDraft(){
   els.folderSelectList?.querySelectorAll('.folder-select-option').forEach(option=>{
     option.classList.toggle('active',Boolean(option.querySelector('input')?.checked));
   });
+  updateFolderSelectionStatus();
+}
+function filterFolderSelector(query){
+  els.folderSelectList?.querySelectorAll('.folder-select-option').forEach(option=>{option.hidden=!LearningTools.matches(option.querySelector('b')?.textContent,query)});
 }
 function createFavoriteFolderFromSelector(){
-  const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
-  if(!name)return;
+  const input=document.getElementById('folder-selector-create-name');
+  const name=String(input.value||'').trim();
+  if(!name){notify('请输入收藏夹名称。','info','收藏夹');input.focus();return}
   const folder=createFavoriteFolderRecord(name);
   if(!folder)return;
   if(folderSelectContext)folderSelectContext.selectedIds=normalizeSelectableFolderIds([...(folderSelectContext.selectedIds||[]),folder.id]);
   renderFolderSelectModal();
+  input.value='';
+  document.getElementById('folder-select-search').value=folder.name;
+  filterFolderSelector(folder.name);
 }
 function createFavoriteFolderRecord(name){
+  name=String(name||'').trim();
+  if(!name||name.length>60){notify('收藏夹名称需要 1–60 个字符。','info','收藏夹');return null}
+  const duplicate=folderCatalog().find(folder=>normalizeSearch(folder.name)===normalizeSearch(name));
+  if(duplicate){notify('已有同名收藏夹。','info','收藏夹');return duplicate}
   const settings=getSettings();
   const now=new Date().toISOString();
   const folder={id:`folder_${Date.now()}_${stableHash(name)}`,name,parentId:'',order:settings.favoriteFolders.length,createdAt:now,updatedAt:now};
@@ -4836,6 +4869,7 @@ function saveFolderSelection(){
   if(applyFolderSelectionToHistory(folderSelectContext.historyId,ids))closeFolderSelectModal();
 }
 function applyFolderSelectionToHistory(historyId,ids=[]){
+  if(!getHistory().some(item=>Number(item.id)===Number(historyId))){notify('记录已被删除。','info','收藏夹');return false}
   const now=new Date().toISOString();
   const selected=normalizeSelectableFolderIds(ids);
   const favorite=selected.includes(FOLDER_LIKED_ID);
@@ -4856,6 +4890,12 @@ function applyFolderSelectionToHistory(historyId,ids=[]){
     };
   });
   if(!setHistory(history))return false;
+  if(Number(modalHistoryId)===Number(historyId)&&els.historyModal.classList.contains('open')){
+    const updated=getHistory().find(item=>Number(item.id)===Number(historyId));
+    if(els.modalTagsEdit)els.modalTagsEdit.value=folderNamesForItem(updated).join(' ');
+    els.modalSubtitle.textContent=historyModalMeta(updated);
+    renderModalFolderMembership(updated);
+  }
   renderFolderManager();
   notify('收藏夹已更新。','good','收藏夹');
   return true;
@@ -4863,6 +4903,61 @@ function applyFolderSelectionToHistory(historyId,ids=[]){
 function openHistoryFolderSelector(id,event){
   event?.stopPropagation();
   openFolderSelectModal({type:'history',historyId:id});
+}
+function openFolderRecordPicker(){
+  const folder=folderById(folderState.activeId);
+  if(!folder||folder.selectable===false||folderSearchIsGlobal())return;
+  folderRecordPicker={folderId:folder.id,selected:new Set(),query:'',limit:60,returnFocus:document.activeElement};
+  document.getElementById('folder-record-subtitle').textContent=folder.name;
+  document.getElementById('folder-record-search').value='';
+  document.getElementById('folder-record-modal').classList.add('open');
+  document.body.classList.add('modal-open');
+  renderFolderRecordPicker();
+  document.getElementById('folder-record-search').focus();
+}
+function closeFolderRecordPicker(event){
+  const layer=document.getElementById('folder-record-modal');
+  if(event&&event.target!==layer)return;
+  layer.classList.remove('open');
+  if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
+  if(folderRecordPicker?.returnFocus?.isConnected)folderRecordPicker.returnFocus.focus();
+  folderRecordPicker=null;
+}
+function filterFolderRecordPicker(query){if(!folderRecordPicker)return;folderRecordPicker.query=query;folderRecordPicker.limit=60;renderFolderRecordPicker()}
+function toggleFolderRecord(id,checked){if(!folderRecordPicker)return;if(checked)folderRecordPicker.selected.add(Number(id));else folderRecordPicker.selected.delete(Number(id));updateFolderRecordCount()}
+function updateFolderRecordCount(){
+  document.getElementById('folder-record-count').textContent=`已选 ${folderRecordPicker?.selected.size||0} 条`;
+  document.getElementById('folder-record-save').disabled=!folderRecordPicker?.selected.size;
+}
+function moreFolderRecords(){folderRecordPicker.limit+=60;renderFolderRecordPicker()}
+function renderFolderRecordPicker(){
+  if(!folderRecordPicker)return;
+  const {folderId,query,selected,limit}=folderRecordPicker;
+  const items=getHistory().filter(item=>LearningTools.matches([item.query,latestHistoryResult(item),item.note],query));
+  document.getElementById('folder-record-list').innerHTML=items.slice(0,limit).map(item=>{
+    const existing=itemFolderIds(item).includes(folderId);
+    return `<label class="folder-record-row"><input type="checkbox" ${existing||selected.has(Number(item.id))?'checked':''} ${existing?'disabled':''} onchange="toggleFolderRecord(${Number(item.id)},this.checked)"><span><b>${escapeHTML(historyDisplayTitle(item))}</b><small>${escapeHTML(historyEntrySummary(item))}</small></span><em>${existing?'已加入':''}</em></label>`;
+  }).join('')+(items.length>limit?'<button class="history-load-more" onclick="moreFolderRecords()">继续显示</button>':'')||'<div class="empty">没有匹配词条</div>';
+  updateFolderRecordCount();
+}
+function saveFolderRecordPicker(){
+  if(!folderRecordPicker)return;
+  const {folderId,selected}=folderRecordPicker;
+  if(!folderById(folderId)){notify('收藏夹已被删除。','info','收藏夹');return}
+  if(!selected.size)return;
+  if(addSelectedHistoryToFolders([...selected],[folderId]))closeFolderRecordPicker();
+}
+function handleLibraryModalKey(event){
+  if(els.confirmLayer?.classList.contains('open'))return;
+  const layer=els.folderSelectModal?.classList.contains('open')?els.folderSelectModal:document.getElementById('folder-record-modal')?.classList.contains('open')?document.getElementById('folder-record-modal'):null;
+  if(!layer)return;
+  if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();if(layer===els.folderSelectModal)closeFolderSelectModal();else closeFolderRecordPicker();return}
+  if(event.key!=='Tab')return;
+  const controls=[...layer.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(node=>node.getClientRects().length&&!node.closest('[hidden]'));
+  const first=controls[0],last=controls.at(-1);
+  if(!layer.contains(document.activeElement)){event.preventDefault();first?.focus()}
+  else if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
 }
 function startLookupInFolder(folderId=folderState.activeId){
   lookupFolderIds=normalizeSelectableFolderIds([folderId]);
@@ -4930,13 +5025,15 @@ function renderFoldersView(){
   ensureFolderVisible();
   const folders=folderStats();
   if(!folders.some(folder=>folder.id===folderState.activeId))folderState.activeId=folders[0]?.id||FOLDER_LIKED_ID;
-  const active=folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
+  const globalSearch=folderSearchIsGlobal();
+  const active=globalSearch?{id:'all',name:'全部收藏',system:true}:folderById(folderState.activeId)||folders[0]||{id:FOLDER_LIKED_ID,name:'个人收藏',count:0,system:true};
   const items=historyForFolder(active.id);
   const entries=filteredFolderEntries(active.id,items);
   const visible=entries.slice(0,Math.min(folderState.visibleCount,entries.length));
   const more=visible.length<entries.length;
   const settings=getSettings();
   els.folderPanel?.classList.toggle('detail-open',folderState.detailOpen);
+  els.folderPanel?.classList.toggle('global-searching',globalSearch);
   if(els.folderCount)els.folderCount.textContent=`${folders.length} 个收藏夹 · 当前 ${entries.length} 条${folderState.query?'匹配':''}`;
   els.folderSidebar.innerHTML=`
     <div class="folder-sidebar-head">
@@ -4945,7 +5042,7 @@ function renderFoldersView(){
     </div>
     <div class="folder-tab-list">
       ${folders.map(folder=>`
-        <article class="folder-tab ${folder.id===active.id?'active':''}" data-folder-id="${escapeHTML(folder.id)}" data-folder-custom="${folder.system?'false':'true'}">
+        <article class="folder-tab ${!globalSearch&&folder.id===active.id?'active':''}" data-folder-id="${escapeHTML(folder.id)}" data-folder-custom="${folder.system?'false':'true'}">
           <button class="folder-tab-main" type="button" onclick="openFolderView('${escapeAttr(folder.id)}')">
             <span>${icon(folder.id===FOLDER_INSIGHTS_ID?'bookmark':folder.system?'star':'folder')}</span>
             <b>${escapeHTML(folder.name)}</b>
@@ -4959,17 +5056,17 @@ function renderFoldersView(){
   `;
   if(els.folderContentHead){
     els.folderContentHead.innerHTML=`
-      <button class="folder-mobile-back" type="button" onclick="closeFolderDetail()" aria-label="返回收藏夹列表">${icon('arrow-left')}</button>
+      ${globalSearch?'':`<button class="folder-mobile-back" type="button" onclick="closeFolderDetail()" aria-label="返回收藏夹列表">${icon('arrow-left')}</button>`}
       <div>
         <h2>${escapeHTML(active.name)}</h2>
-        <p>${active.id===FOLDER_INSIGHTS_ID?'单独收藏的重要义项、搭配和辨析会集中在这里。':active.system?'星标记录会自动进入这里。':'自定义收藏夹，可从历史详情里把记录加入多个收藏夹。'}${active.parentId?' 已预留上级目录。':''}</p>
+        <p>${globalSearch?`${entries.length} 条匹配记录`:active.id===FOLDER_INSIGHTS_ID?'已收藏的义项、搭配与辨析':`${entries.length} 条记录`}</p>
       </div>
       <div class="folder-head-actions">
         ${active.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">重命名</button>`}
-        ${active.id===FOLDER_INSIGHTS_ID?'':`<button class="plain-btn" type="button" onclick="startLookupInFolder('${escapeAttr(active.id)}')">查词加入此夹</button>`}
+        ${globalSearch||active.id===FOLDER_INSIGHTS_ID?'':`<button class="plain-btn" type="button" onclick="openFolderRecordPicker()">添加已有词条</button><button class="icon-btn" type="button" data-tip="查词加入此夹" aria-label="查词加入此夹" onclick="startLookupInFolder('${escapeAttr(active.id)}')">${icon('plus')}</button>`}
         <button class="icon-btn" type="button" data-tip="复习当前列表" aria-label="复习当前列表" onclick="startFolderReview()" ${entries.length?'':'disabled'}>${icon('layers')}</button>
         <button class="icon-btn" type="button" data-tip="导出 Markdown" aria-label="导出 Markdown" onclick="exportFolderMarkdown()" ${entries.length?'':'disabled'}>${icon('file-text')}</button>
-        <button class="icon-btn" type="button" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportFolderJSON('${escapeAttr(active.id)}')">${icon('download')}</button>
+        <button class="icon-btn" type="button" data-tip="导出 JSON" aria-label="导出 JSON" onclick="exportVisibleFolderJSON()">${icon('download')}</button>
       </div>
     `;
   }
@@ -4982,13 +5079,20 @@ function renderFoldersView(){
     : `<div class="empty">${folderState.query?'没有匹配记录。':'这个收藏夹还没有记录。'}</div>`;
   const search=document.getElementById('folder-search');
   if(search&&search.value!==folderState.query)search.value=folderState.query;
+  if(search)search.placeholder=folderState.searchScope==='current'?`搜索「${folderById(folderState.activeId)?.name||'当前收藏夹'}」内的词条、释义或例句`:'搜索全部收藏、释义、片段或收藏夹';
   document.getElementById('folder-search-clear')?.classList.toggle('hidden',!folderState.query);
+  document.getElementById('folder-search-scope').value=folderState.searchScope;
+  document.getElementById('folder-sort').value=folderState.sort;
+  const matchingFolders=folderState.query?folders.filter(folder=>LearningTools.matches(folder.name,folderState.query)):[];
+  document.getElementById('folder-match-list').innerHTML=matchingFolders.map(folder=>`<button class="folder-match" onclick="openFolderView(${jsArg(folder.id)})">${icon(folder.id===FOLDER_INSIGHTS_ID?'bookmark':'folder')}<span>${escapeHTML(folder.name)}</span><small>${folder.count}</small></button>`).join('');
 }
 function openFoldersRoot(button=document.getElementById('nav-folders')){
   folderState.detailOpen=false;
+  folderState.searchScope='all';
   showView('folders',button);
 }
 function closeFolderDetail(){
+  folderState.searchScope='all';
   if(folderIdFromPath()&&window.history.state?.fromFolderRoot)return window.history.back();
   folderState.detailOpen=false;
   renderFoldersView();
@@ -5006,7 +5110,7 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
       <div class="history-copy">
         <div class="history-word">${escapeHTML(historyDisplayTitle(normalized))}</div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
-        ${renderHistoryFolders(normalized)}
+        ${renderHistoryFolders(normalized,true)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
           ${historyTimeMetaHTML(normalized,timeMode)}
@@ -5449,10 +5553,10 @@ function openFolderView(folderId){
   if(!value)return;
   if(folderState.activeId!==value){
     folderState.visibleCount=0;
-    folderState.query='';
     clearTimeout(folderSearchTimer);
   }
   folderState.activeId=value;
+  folderState.searchScope='current';
   folderState.detailOpen=true;
   showView('folders',document.getElementById('nav-folders'));
   const route=`${VIEW_ROUTES.folders}/${encodeURIComponent(value)}`;
@@ -6365,6 +6469,7 @@ function openHistoryModal(id){
   modalRollId=latest?historyRollViewKey(latest,0):null;
   els.modalTitle.textContent=historyDisplayTitle(normalized);
   els.modalSubtitle.textContent=historyModalMeta(normalized);
+  renderModalFolderMembership(normalized);
   renderModalRollbar(normalized);
   renderModalStickySummary(modalResult,normalized);
   els.modalCardPage.innerHTML=renderResultHTML(modalResult,normalized.followups||[],'modal',normalized);
@@ -6414,7 +6519,6 @@ function saveHistoryEdit(){
   parsed.meta.origin=query;
   parsed.meta.query=query;
   parsed=normalizeResultEntryType(parsed,query);
-  const folderIds=ensureFavoriteFoldersByNames(els.modalTagsEdit?.value||'');
   const note=String(els.modalNoteEdit?.value||'').trim();
   const now=new Date().toISOString();
   const originalItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
@@ -6428,7 +6532,7 @@ function saveHistoryEdit(){
       ? {...roll,result:parsed,updatedAt:now}
       : roll);
     modalRollId=updatedRolls[selectedIndex]?historyRollViewKey(updatedRolls[selectedIndex],selectedIndex):modalRollId;
-    return {...normalized,query,tags:[],tagsUpdatedAt:now,folderIds,foldersUpdatedAt:now,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
+    return {...normalized,query,note,noteUpdatedAt:noteChanged?now:normalized.noteUpdatedAt,result:parsed,rolls:updatedRolls,followups:item.followups||[],updatedAt:now};
   });
   const renamedItems=originalItem&&historyIdentityKey(originalItem)!==normalizeSearch(query)?[originalItem]:[];
   if(!setHistory(history,{revive:true,deletedItems:renamedItems}))return;
@@ -6437,6 +6541,7 @@ function saveHistoryEdit(){
   const updatedItem=getHistory().find(item=>Number(item.id)===Number(modalHistoryId));
   const updatedFollowups=updatedItem?.followups||[];
   els.modalSubtitle.textContent=historyModalMeta(updatedItem);
+  renderModalFolderMembership(updatedItem);
   renderModalRollbar(updatedItem);
   renderModalStickySummary(parsed,updatedItem);
   els.modalCardPage.innerHTML=renderResultHTML(parsed,updatedFollowups,'modal',updatedItem);
@@ -6452,6 +6557,10 @@ function saveHistoryEdit(){
 function saveModalDraft(){
   if(activeModalTab==='visual')saveVisualHistoryEdit();
   else if(activeModalTab==='json')saveHistoryEdit();
+}
+function renderModalFolderMembership(item){
+  const folders=itemFolders(item).filter(folder=>folder.selectable!==false);
+  document.getElementById('modal-folder-membership').innerHTML=`<span>收藏夹</span><div class="modal-folder-names">${folders.length?folders.map(folder=>`<span>${escapeHTML(folder.name)}</span>`).join(''):'<span class="section-sub">尚未加入</span>'}</div><button class="icon-btn" type="button" data-tip="修改收藏夹" aria-label="修改收藏夹" onclick="openHistoryFolderSelector(${Number(item.id)},event)">${icon('folder-plus')}</button>`;
 }
 function historyModalMeta(item){
   if(!item)return '';
@@ -6996,8 +7105,23 @@ function speakText(text,language='',event){
   }
 }
 function filteredFolderEntries(folderId=folderState.activeId,items=historyForFolder(folderId)){
-  if(folderId===FOLDER_INSIGHTS_ID)return pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,entry.pin],folderState.query));
-  return items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags],folderState.query));
+  if(folderSearchIsGlobal())items=getHistory().filter(item=>itemFolderIds(item).length);
+  let entries;
+  if(!folderSearchIsGlobal()&&folderId===FOLDER_INSIGHTS_ID)entries=pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,entry.pin],folderState.query));
+  else entries=items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags,normalizeHistoryItem(item).fragmentPins,itemFolders(item).map(folder=>folder.name)],folderState.query));
+  return [...entries].sort((a,b)=>{
+    if(folderState.sort==='title')return historyCollator.compare(a.sourceTitle||historyDisplayTitle(a),b.sourceTitle||historyDisplayTitle(b));
+    const field=folderState.sort==='created'?'createdAt':'updatedAt';
+    return (new Date(b[field]||b.pin?.[field]||b.createdAt||0).getTime()||0)-(new Date(a[field]||a.pin?.[field]||a.createdAt||0).getTime()||0)||String(a.id||a.pin?.key).localeCompare(String(b.id||b.pin?.key));
+  });
+}
+function folderSearchIsGlobal(){return Boolean(folderState.query.trim()&&folderState.searchScope==='all')}
+function setFolderSearchScope(value){folderState.searchScope=value==='current'?'current':'all';if(value==='current')folderState.detailOpen=true;folderState.visibleCount=folderBatchSize();renderFoldersView()}
+function setFolderSort(value){folderState.sort=['title','created'].includes(value)?value:'updated';folderState.visibleCount=folderBatchSize();renderFoldersView()}
+function exportVisibleFolderJSON(){
+  const entries=filteredFolderEntries();
+  downloadText('Lexi-favorites.json',JSON.stringify(entries,null,2));
+  notify(`已导出当前列表 ${entries.length} 条记录。`,'good','收藏夹');
 }
 function searchFolder(value){
   folderState.query=String(value||'');
@@ -7028,11 +7152,11 @@ function exportCurrentMarkdown(scope='current'){
   notify('Markdown 笔记已导出。','good','导出');
 }
 function exportFolderMarkdown(){
-  const folder=folderById(folderState.activeId);
+  const folder=folderSearchIsGlobal()?{id:'all',name:'全部收藏'}:folderById(folderState.activeId);
   if(!folder)return;
   const entries=filteredFolderEntries();
   if(!entries.length)return notify('没有可导出的记录。','info','导出');
-  const content=folder.id===FOLDER_INSIGHTS_ID?entries.map(entry=>LearningTools.fragmentMarkdown(entry.pin,entry.sourceTitle)).join('\n\n---\n\n'):historyMarkdown(entries);
+  const content=!folderSearchIsGlobal()&&folder.id===FOLDER_INSIGHTS_ID?entries.map(entry=>LearningTools.fragmentMarkdown(entry.pin,entry.sourceTitle)).join('\n\n---\n\n'):historyMarkdown(entries);
   downloadText(`${folderExportName(folder)}.md`,content,'text/markdown;charset=utf-8');
   notify(`已导出 ${entries.length} 条 Markdown 笔记。`,'good','导出');
 }
@@ -7111,14 +7235,14 @@ async function deleteSelectedHistory(){
 function startFolderReview(){
   const entries=filteredFolderEntries();
   const historyById=new Map(getHistory().map(item=>[Number(item.id),item]));
-  const prepared=folderState.activeId===FOLDER_INSIGHTS_ID?entries.map(entry=>{
+  const prepared=!folderSearchIsGlobal()&&folderState.activeId===FOLDER_INSIGHTS_ID?entries.map(entry=>{
     const item=historyById.get(Number(entry.historyId));
     const source=getHistoryRolls(item).find(roll=>historyRollContentKey(roll)===entry.pin.sourceRollContentKey);
     return {id:entry.historyId,title:entry.sourceTitle,pin:entry.pin,result:source?.result||latestHistoryResult(item)};
   }):entries.map(item=>({id:item.id,title:historyDisplayTitle(item),result:latestHistoryResult(item),contentKey:stableHash(historyRollContentKey(getHistoryRolls(item)[0]||{}))}));
   reviewCards=LearningTools.reviewDeck(prepared);
   if(!reviewCards.length)return notify('当前列表没有可复习内容。','info','复习');
-  const sourceKey=`${folderState.activeId}\0${normalizeSearch(folderState.query)}`;
+  const sourceKey=`${folderSearchIsGlobal()?'all':folderState.activeId}\0${normalizeSearch(folderState.query)}`;
   reviewSession=LearningTools.restoreReview(reviewCards,sourceKey,readJSON(STORAGE_KEYS.reviewSession,{}));
   reviewReturnFocus=document.activeElement;
   stopSpeech();
@@ -7804,7 +7928,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.21.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -7923,8 +8047,8 @@ function handleQueryInput(){
   saveLookupDraft();
 }
 document.addEventListener('keydown',event=>{
-  if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open'))closeConfirm(false);
-  if(event.key==='Escape'&&els.historyModal.classList.contains('open'))requestCloseHistoryModal();
+  if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open')){event.stopImmediatePropagation();closeConfirm(false);return}
+  if(event.key==='Escape'&&els.historyModal.classList.contains('open')){event.stopImmediatePropagation();requestCloseHistoryModal();return}
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
     event.preventDefault();
     showView('history',document.getElementById('nav-history'));
@@ -8098,6 +8222,7 @@ document.addEventListener('keydown',event=>{
 });
 window.addEventListener('pagehide',stopSpeech);
 document.addEventListener('keydown',handleReviewKey,true);
+document.addEventListener('keydown',handleLibraryModalKey,true);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopSpeech()});
 els.query?.addEventListener('input',handleQueryInput);
 document.querySelector('#view-home .editor-pane')?.addEventListener('click',focusHomeQueryFromSticky);
