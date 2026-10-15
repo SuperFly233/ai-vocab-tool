@@ -34,3 +34,11 @@ Screenshots: `%TEMP%/lexi-reading-qa`, before/flat, mobile and desktop, light an
 - Responsive UI: 320/390/768/1440 normal and long text, local wide-table scrolling, sticky search and detail width.
 - Existing learning workflow: speech, review, export, drafts, reorder and quota rollback. The quota case now uses an actually absent membership rather than a no-op repeat addition.
 - Complete data and contract checks, build, Git push and production resource verification.
+
+## Outcome
+
+- Data patch: four bug fixes, six boundary cases passed; commit `6bbf62d`, pushed and deployed. Production HTML version and exact application script were verified.
+- Reading patch: three existing-function UI improvements, zero new user-facing features; commit `e459fbe`, pushed and Cloudflare deployment confirmed at `https://95995971.ai-vocab-tool.pages.dev`.
+- Full checks/build, six reading viewport/theme cases, four responsive widths and four learning viewport/theme cases passed. The earlier six favorites viewport/theme cases also passed after the data patch.
+- Final reading-release production resource comparison remains unverified: PowerShell encountered TLS EOF, curl encountered peer failure and a partial-transfer timeout. This environment's verification failure does not establish a site outage. No claim of successful final resource comparison is made.
+- Touch testing used Edge mobile emulation, not a physical iPhone/Safari session.
