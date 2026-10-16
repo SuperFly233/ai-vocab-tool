@@ -28,7 +28,8 @@ const server=require('./browser-test-server.cjs').createServer();
    const measure=await page.locator('#modal-card-page .fragment-item').nth(1).evaluate(el=>{
     const text=el.querySelector('.line>span'),button=el.querySelector('.fragment-pin-btn'),title=el.querySelector('.item-title');
     const group=el.closest('.sense-group');
-    return {itemWidth:el.clientWidth,textWidth:text.getBoundingClientRect().width,groupBorder:getComputedStyle(group).borderLeftWidth,groupBackground:getComputedStyle(group).backgroundColor,itemBorder:getComputedStyle(el).borderLeftWidth,itemBackground:getComputedStyle(el).backgroundColor,itemRadius:getComputedStyle(el).borderRadius,buttonWidth:button.getBoundingClientRect().width,titleRight:title.getBoundingClientRect().right,buttonLeft:button.getBoundingClientRect().left};
+    const lines=el.querySelectorAll('.line');
+    return {itemWidth:el.clientWidth,textWidth:text.getBoundingClientRect().width,lineGap:lines[1].getBoundingClientRect().top-lines[0].getBoundingClientRect().bottom,groupBorder:getComputedStyle(group).borderLeftWidth,groupBackground:getComputedStyle(group).backgroundColor,itemBorder:getComputedStyle(el).borderLeftWidth,itemBackground:getComputedStyle(el).backgroundColor,itemRadius:getComputedStyle(el).borderRadius,buttonWidth:button.getBoundingClientRect().width,titleRight:title.getBoundingClientRect().right,buttonLeft:button.getBoundingClientRect().left};
    });
    console.log(JSON.stringify({width,theme,...measure}));
    await shot('detail-top');
@@ -42,6 +43,7 @@ const server=require('./browser-test-server.cjs').createServer();
     assert.equal(measure.itemRadius,'8px');
     assert.ok(measure.textWidth>measure.itemWidth*.69,'Reading text uses most available width');
     assert.ok(measure.buttonWidth>=40,'Bookmark remains touch-friendly');
+    assert.ok(measure.lineGap>=2&&measure.lineGap<=5,'Reading paragraphs have a compact but nonzero gap');
     assert.ok(await row.evaluate(el=>{
      const title=el.querySelector('.item-title'),button=el.querySelector('.fragment-pin-btn');
      const range=document.createRange();range.selectNodeContents(title);

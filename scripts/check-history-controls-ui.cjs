@@ -39,6 +39,17 @@ const server=require('./browser-test-server.cjs').createServer();
     await page.evaluate(()=>clearHistoryFilter('language'));
    });
    await page.evaluate(()=>{historyState.query='';historyState.searchScopeOpen=false;resetHistorySearchScopes()});
+   await check('Search clear and scope have independent space and normal text size',async()=>{
+    await page.locator('#history-search').fill('needle');await page.waitForTimeout(160);
+    const geometry=await page.evaluate(()=>{
+     const clear=document.getElementById('history-clear-btn').getBoundingClientRect(),scope=document.getElementById('history-search-scope-toggle').getBoundingClientRect();
+     return {clearRight:clear.right,scopeLeft:scope.left,font:parseFloat(getComputedStyle(document.getElementById('history-search-scope-summary')).fontSize)};
+    });
+    assert.ok(geometry.clearRight+4<=geometry.scopeLeft,'Controls do not overlap');
+    assert.ok(geometry.font<=14,'Scope summary is a secondary control');
+    await page.locator('#history-clear-btn').click();
+    assert.equal(await page.locator('#history-clear-btn').evaluate(el=>getComputedStyle(el).display),'none','Empty search has no ghost clear button');
+   });
    await check('Implicit all narrows on first choice, then adds and restores',async()=>{
     await page.locator('#history-search').fill('needle');await page.waitForTimeout(160);
     assert.equal(await page.locator('#history-list .history-item').count(),2);

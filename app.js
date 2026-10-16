@@ -38,6 +38,7 @@ const VIEW_ROUTES={
   account:'/account',
 };
 let currentResult=null;
+let currentResultModelInfo=null;
 let currentHistoryId=null;
 let currentFollowups=[];
 let modalResult=null;
@@ -179,12 +180,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.22.4',
+  version:'0.22.5',
   releaseDate:'2026-10-16',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.22.5',
+    date:'2026-10-16',
+    title:'恢复渐进显示并对齐结果信息',
+    items:['修复历史搜索范围字号继承错误和清空按钮重叠；两个控件使用独立布局，空输入不再显示残留叉号。','查询预览支持未闭合字段和义项，流式块平滑展示；整段返回的查询和追问恢复渐进显示，流式完成不从头重播，并兼容减少动态效果偏好。','首页与详情共用模型、来源和生成时间展示，信息跟随实际结果版本，未知来源不冒充当前配置。','小幅收紧阅读区上下内边距、段间距和模块间距，保持字号、宽正文和 44px 收藏触屏区域。'],
+  },
   {
     version:'0.22.4',
     date:'2026-10-16',
@@ -2970,14 +2977,15 @@ function lookupErrorMessage(error){
   const message=error?.message||String(error||'未知错误');
   return error?.status?`HTTP ${error.status}：${message}`:message;
 }
-function renderResult(result,{animate=false}={}){
+function renderResult(result,{animate=false,modelInfo=null}={}){
   stopSpeech();
+  currentResultModelInfo=modelInfo||(result===currentResult?currentResultModelInfo:null);
   currentResult=result;
   clearLookupLoadingTimers();
   clearJSONTypewriter();
   els.resultJson.innerHTML=renderStructuredJSON(result);
   clearResultTypewriter();
-  els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current',getCurrentHistoryItem());
+  els.resultCard.innerHTML=renderResultHTML(result,currentFollowups,'current',getCurrentHistoryItem(),currentResultModelInfo);
   if(animate){
     startResultTypewriter(els.resultCard);
     startJSONTypewriter(els.resultJson);
@@ -3035,7 +3043,7 @@ function startResultTypewriter(root){
         if(!node.nodeValue.trim())return NodeFilter.FILTER_REJECT;
         const parent=node.parentElement;
         if(!parent)return NodeFilter.FILTER_REJECT;
-        if(parent.closest('button,textarea,input,select,pre,code,script,style,.result-icons,.json-section'))return NodeFilter.FILTER_REJECT;
+        if(parent.closest('button,textarea,input,select,pre,code,script,style,.result-icons,.json-section,.entry-provenance'))return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       },
     });
@@ -3087,7 +3095,16 @@ function startResultTypewriter(root){
   };
   resultTypewriterTimers.push(setTimeout(tick,40));
 }
-function renderResultHTML(result,followups=[],scope='current',historyItem=null){
+function renderResultProvenance(result,scope,historyItem,modelInfo=null){
+  const rolls=historyItem?getHistoryRolls(historyItem):[];
+  const key=historyRollContentKey({result});
+  const roll=(scope==='modal'?rolls.find((entry,index)=>historyRollViewKey(entry,index)===String(modalRollId)):null)
+    ||rolls.find(entry=>historyRollContentKey(entry)===key);
+  const info=roll||modelInfo||result.meta||{};
+  const source=info.modelSource&&info.modelSource!=='unknown'?info.modelSource:'未记录';
+  return `<div class="entry-provenance"><span>模型 <b>${escapeHTML(info.model||'未记录')}</b></span><span>来源 <b>${escapeHTML(source)}</b></span>${roll?.createdAt?`<span>生成 <time>${escapeHTML(formatHistoryTime(roll.createdAt))}</time></span>`:''}</div>`;
+}
+function renderResultHTML(result,followups=[],scope='current',historyItem=null,modelInfo=null){
   result=normalizeResultEntryType(result,result?.meta?.query||result?.headword?.title||historyItem?.query||'');
   const head=result.headword||{};
   const meta=result.meta||{};
@@ -3101,6 +3118,7 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null){
     <div class="entry-head">
       <div class="entry-kicker">${escapeHTML([displayLanguageLabel(head.languageTag||meta.language),displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query))].filter(Boolean).join(' · ')||'词条')}</div>
       <div class="entry-title-row"><div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>${renderSpeechButton(head.title||meta.query,head.languageTag||meta.language,'朗读词条')}</div>
+      ${renderResultProvenance(result,scope,historyItem,modelInfo)}
       ${head.coreMeaning?`<div class="entry-core"><b>核心义</b><mark>${escapeHTML(head.coreMeaning)}</mark></div>`:''}
       <div class="entry-meta-grid">
         <span><b>类型</b>${escapeHTML(displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)))}</span>
@@ -3722,6 +3740,35 @@ function updatePendingFollowup(scope,answer){
 function clearPendingFollowup(scope){
   if(pendingFollowup?.scope===scope)pendingFollowup=null;
 }
+function createProgressiveText(onUpdate,isCurrent=()=>true){
+  // Smooth cumulative chunks without replaying content on completion.
+  let target='',shown='',timer=null,deadline=0,finishResolve=null,active=true;
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const settle=()=>{finishResolve?.();finishResolve=null};
+  const cancel=()=>{active=false;clearTimeout(timer);timer=null;settle()};
+  const tick=()=>{
+    timer=null;
+    if(!active||!isCurrent()){cancel();return}
+    if(!target.startsWith(shown))shown='';
+    const remaining=target.length-shown.length;
+    const frames=deadline?Math.max(1,(deadline-performance.now())/16):16;
+    let end=reduced?target.length:Math.min(target.length,shown.length+Math.max(2,Math.ceil(remaining/frames)));
+    if(end<target.length&&/[\uD800-\uDBFF]/.test(target[end-1]))end++;
+    if(end!==shown.length){shown=target.slice(0,end);onUpdate?.(shown)}
+    if(shown===target){if(deadline)settle();return}
+    timer=setTimeout(tick,16);
+  };
+  const push=text=>{if(!active)return;target=String(text||'');if(timer===null)tick()};
+  return {
+    push,cancel,
+    finish(text){
+      deadline=performance.now()+900;
+      push(text);
+      if(!active||shown===target)return Promise.resolve();
+      return new Promise(resolve=>{finishResolve=resolve});
+    },
+  };
+}
 async function readFollowupStream(response,onDelta){
   const reader=response.body?.getReader();
   if(!reader)throw new Error('当前浏览器无法读取流式回答。');
@@ -3759,37 +3806,40 @@ async function readFollowupStream(response,onDelta){
   return answer.trim();
 }
 async function requestFollowup(question,baseItem,{scope=null,onDelta=null}={}){
-  const settings=currentApiSettings();
-  const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
-  const response=await fetch('/api/followup',{
-    method:'POST',
-    headers:await analyzeHeaders(hasLocalEndpoint),
-    body:JSON.stringify({
-      question,
-      result:baseItem.result,
-      followups:baseItem.followups||[],
-      apiUrl:hasLocalEndpoint?settings.apiUrl:'',
-      apiKey:hasLocalEndpoint?settings.apiKey:'',
-      model:hasLocalEndpoint?settings.model:'',
-      stream:true,
-    }),
-  });
-  const contentType=response.headers.get('content-type')||'';
-  if(response.ok&&response.body&&contentType.includes('text/event-stream')){
-    const streamed=await readFollowupStream(response,onDelta);
-    if(streamed)return streamed;
-    throw new Error('模型没有返回追问内容。');
-  }
-  let data=null;
+  const reveal=createProgressiveText(onDelta,()=>!scope||pendingFollowup?.scope===scope);
   try{
-    data=await response.json();
-  }catch{
-    throw new Error(response.ok?'追问接口返回格式异常。':'追问失败，接口没有返回可解析的错误信息。');
-  }
-  if(!response.ok)throw new Error(data.error||'追问失败');
-  if(!data.answer)throw new Error('模型没有返回追问内容。');
-  if(scope&&data.answer)onDelta?.(data.answer);
-  return data.answer;
+    const settings=currentApiSettings();
+    const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
+    const response=await fetch('/api/followup',{
+      method:'POST',
+      headers:await analyzeHeaders(hasLocalEndpoint),
+      body:JSON.stringify({
+        question,
+        result:baseItem.result,
+        followups:baseItem.followups||[],
+        apiUrl:hasLocalEndpoint?settings.apiUrl:'',
+        apiKey:hasLocalEndpoint?settings.apiKey:'',
+        model:hasLocalEndpoint?settings.model:'',
+        stream:true,
+      }),
+    });
+    const contentType=response.headers.get('content-type')||'';
+    if(response.ok&&response.body&&contentType.includes('text/event-stream')){
+      const streamed=await readFollowupStream(response,answer=>reveal.push(answer));
+      if(streamed){await reveal.finish(streamed);return streamed}
+      throw new Error('模型没有返回追问内容。');
+    }
+    let data=null;
+    try{
+      data=await response.json();
+    }catch{
+      throw new Error(response.ok?'追问接口返回格式异常。':'追问失败，接口没有返回可解析的错误信息。');
+    }
+    if(!response.ok)throw new Error(data.error||'追问失败');
+    if(!data.answer)throw new Error('模型没有返回追问内容。');
+    await reveal.finish(data.answer);
+    return data.answer;
+  }finally{reveal.cancel()}
 }
 async function askCurrentFollowup(){
   if(followupBusy)return;
@@ -4068,12 +4118,12 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     systemPrompt:settings.modelPrompt||'',
   };
   try{
-    const data=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
+    const {result:data,streamed}=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
     const {item:saved,persisted}=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
     currentHistoryId=persisted?saved.id:null;
     currentFollowups=persisted?saved.followups||[]:[];
-    renderResult(data,{animate:false});
+    renderResult(saved?.result||data,{animate:!streamed,modelInfo});
     if(persisted)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
     else notify('模型结果已生成并保留在当前页面，但没有写入历史。请先用结果区的保存按钮导出 JSON。','warn','结果尚未保存',false);
   }catch(error){
@@ -4101,11 +4151,12 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
         body:JSON.stringify({...payload,stream:true}),
       });
       const contentType=response.headers.get('content-type')||'';
+      let streamed=false;
       const data=response.ok&&response.body&&contentType.includes('text/event-stream')
-        ? await readLookupStream(response,{query,runId})
+        ? await readLookupStream(response,{query,runId,onProgress:()=>{streamed=true}})
         : await parseLookupResponse(response);
       if(!response.ok)throw lookupHttpError(response,data);
-      return data;
+      return {result:data,streamed};
     }catch(error){
       lastError=normalizeLookupError(error);
       if(isStaleLookup(runId,query))throw lastError;
@@ -4120,7 +4171,7 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
   }
   throw lastError||new Error('查询失败');
 }
-async function readLookupStream(response,{query,runId}){
+async function readLookupStream(response,{query,runId,onProgress=null}){
   const reader=response.body?.getReader();
   if(!reader)throw new Error('当前浏览器无法读取流式查询。');
   const decoder=new TextDecoder();
@@ -4128,6 +4179,10 @@ async function readLookupStream(response,{query,runId}){
   let raw='';
   let finalResult=null;
   let streamStarted=false;
+  const reveal=createProgressiveText(text=>{
+    onProgress?.();
+    renderLookupStreamPreview(text,query,runId,false);
+  },()=>!isStaleLookup(runId,query));
   const handleEvent=data=>{
     if(data.delta){
       if(!streamStarted){
@@ -4136,41 +4191,54 @@ async function readLookupStream(response,{query,runId}){
         clearJSONTypewriter();
       }
       raw+=String(data.delta);
-      renderLookupStreamPreview(raw,query,runId,false);
+      reveal.push(raw);
     }
     if(data.result){
       finalResult=data.result;
-      renderLookupStreamPreview(raw,query,runId,true);
     }
     if(data.error)throw new Error(data.error);
   };
-  while(true){
-    const {done,value}=await reader.read();
-    if(done)break;
-    if(isStaleLookup(runId,query))throw new Error('查询已被新的请求取代。');
-    buffer+=decoder.decode(value,{stream:true});
-    const events=buffer.split(/\r?\n\r?\n/);
-    buffer=events.pop()||'';
-    for(const event of events){
-      for(const line of event.split(/\r?\n/)){
-        if(!line.startsWith('data:'))continue;
-        const rawLine=line.slice(5).trim();
-        if(!rawLine)continue;
-        let data=null;
-        try{data=JSON.parse(rawLine)}catch{continue}
-        handleEvent(data);
-      }
+  const consume=event=>{
+    for(const line of event.split(/\r?\n/)){
+      if(!line.startsWith('data:'))continue;
+      let data;
+      try{data=JSON.parse(line.slice(5).trim())}catch{continue}
+      handleEvent(data);
     }
-  }
-  if(!finalResult)throw new Error('流式查询结束但没有收到校验后的 JSON。');
-  return finalResult;
-}
-function decodeJSONText(value){
-  try{return JSON.parse(`"${String(value||'')}"`)}catch{return String(value||'')}
+  };
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      if(isStaleLookup(runId,query))throw new Error('查询已被新的请求取代。');
+      buffer+=decoder.decode(value,{stream:true});
+      const events=buffer.split(/\r?\n\r?\n/);
+      buffer=events.pop()||'';
+      for(const event of events)consume(event);
+    }
+    buffer+=decoder.decode();
+    if(buffer.trim())consume(buffer);
+    if(!finalResult)throw new Error('流式查询结束但没有收到校验后的 JSON。');
+    await reveal.finish(raw);
+    renderLookupStreamPreview(raw,query,runId,true);
+    return finalResult;
+  }finally{reveal.cancel()}
 }
 function partialStringValue(raw,key){
-  const match=String(raw||'').match(new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`));
-  return match?decodeJSONText(match[1]):'';
+  const start=valueStartForKey(raw,key);
+  if(start<0||raw[start]!=='"')return '';
+  let encoded='';
+  for(let index=start+1;index<raw.length;index++){
+    const char=raw[index];
+    if(char==='"'||char.charCodeAt(0)<32)break;
+    if(char==='\\'){
+      const size=raw[index+1]==='u'?6:2;
+      const escape=raw.slice(index,index+size);
+      if(escape.length<size||!/^\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})$/.test(escape))break;
+      encoded+=escape;index+=size-1;
+    }else encoded+=char;
+  }
+  try{return JSON.parse(`"${encoded}"`).replace(/[\uD800-\uDBFF]$/,'')}catch{return ''}
 }
 function scanJSONObjectAt(text,start){
   let depth=0,inString=false,escaped=false;
@@ -4202,8 +4270,11 @@ function partialObjectValue(raw,key){
   const start=valueStartForKey(raw,key);
   if(start<0||raw[start]!=='{')return null;
   const json=scanJSONObjectAt(raw,start);
-  if(!json)return null;
+  if(!json)return partialObjectStrings(raw.slice(start),['style','tone','environment']);
   try{return JSON.parse(json)}catch{return null}
+}
+function partialObjectStrings(raw,fields){
+  return Object.fromEntries(fields.map(key=>[key,partialStringValue(raw,key)]).filter(([,value])=>value));
 }
 function partialArrayObjects(raw,key){
   const start=valueStartForKey(raw,key);
@@ -4222,7 +4293,12 @@ function partialArrayObjects(raw,key){
     if(char==='"'){inString=true;index+=1;continue}
     if(char==='{'){
       const json=scanJSONObjectAt(raw,index);
-      if(!json)break;
+      if(!json){
+        const fields={senses:['partOfSpeech','shortestLabel','meaning','example','translation'],collocations:['phrase','note','meaning','example','translation'],confusions:['term','difference','usage']}[key]||[];
+        const partial=partialObjectStrings(raw.slice(index),fields);
+        if(Object.keys(partial).length)items.push(partial);
+        break;
+      }
       try{items.push(JSON.parse(json))}catch{}
       index+=json.length;
       continue;
@@ -4388,7 +4464,7 @@ function lookupModelInfo(settings,hasLocalEndpoint){
   const model=(hasLocalEndpoint?settings.model:configInfo?.model)||'未配置';
   return {
     model,
-    modelSource:hasLocalEndpoint?`网页设置：${settings.apiProfileName||'默认配置'}`:'Vercel 环境变量',
+    modelSource:hasLocalEndpoint?`网页设置：${settings.apiProfileName||'默认配置'}`:'服务端配置',
   };
 }
 async function analyzeHeaders(hasLocalEndpoint){
@@ -7979,7 +8055,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.4" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.5" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
