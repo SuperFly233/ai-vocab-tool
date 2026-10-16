@@ -27,3 +27,9 @@ The server still validates the final structured result; only that final result i
 - Screenshots inspected: desktop history after overlap fix, mobile home provenance, and compact mobile/desktop reading. Evidence directories: `%TEMP%/lexi-history-controls-qa`, `%TEMP%/lexi-streaming-qa`, `%TEMP%/lexi-compact-qa`.
 
 Tests run offline with synthetic data. No real model request or account credentials are used; live DeepSeek API behavior and physical iPhone/Safari remain outside this verification.
+
+## Text Rhythm Follow-Up
+
+The user correctly identified a remaining unequal visual interval after equal container gaps were checked. The 30px speech control stretched the example row beyond its 24.75px text line. A dedicated regression reproduced 28.75px versus 34px between text origins. Positioning the speech button outside row sizing while reserving its horizontal column yields 28.75px for both intervals, without reducing its 30px click area or covering adjacent text.
+
+`check:reading-rhythm-ui` passes 12 home/detail checks at 320/390/1440px, light/dark, including real speech-button clicks with mocked synthesis. This is part of the same spacing optimization, not a separate feature. Asset revision 2 replaces the initial v0.22.5 build before this request batch is closed.

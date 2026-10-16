@@ -11,6 +11,7 @@
     "check:reading-ui": "node scripts/check-reading-ui.cjs",
     "check:history-controls-ui": "node scripts/check-history-controls-ui.cjs",
     "check:streaming-ui": "node scripts/check-streaming-ui.cjs",
+    "check:reading-rhythm-ui": "node scripts/check-reading-rhythm-ui.cjs",
     "check:learning-ui": "node scripts/check-learning-ui.cjs",
     "check:learning": "node scripts/check-learning-tools.js",
     "check:responsive": "node scripts/check-responsive.cjs",

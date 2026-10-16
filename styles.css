@@ -322,7 +322,8 @@ body.lookup-busy .primary-icon{animation:pulse .9s ease-in-out infinite}
 .speech-btn.icon-btn{flex:0 0 auto;width:30px;min-width:30px;height:30px;padding:0;align-self:start;color:var(--soft);background:transparent;border-color:transparent}
 .speech-btn.icon-btn svg{width:16px;height:16px}
 .speech-btn.speaking{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
-.spoken-example{display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:start;gap:6px;min-width:0}
+.spoken-example{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:start;gap:6px;min-width:0}
+.spoken-example>.speech-btn.icon-btn{position:absolute;right:0;top:calc((1lh - 30px)/2);font-size:inherit;line-height:inherit}
 .spoken-example>span{min-width:0;overflow-wrap:anywhere}
 .result-page .speech-btn{scroll-margin-block:140px 96px}
 .entry-meta{margin-top:10px;color:var(--muted);font-size:15px;font-weight:500}
