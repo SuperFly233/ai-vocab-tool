@@ -1,4 +1,5 @@
 import { relayIfIpv6Blocked } from './relay.js';
+import { modelEvents, streamHeaders } from './model-stream.js';
 
 const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句子的结构化词汇分析助手。用户原始规则必须完整保留；JSON 只是为了让网页格式化排版的输出容器。你必须严格根据用户输入输出合法 JSON；不要输出 Markdown、代码块、解释性前言、总结套话或模型自我表态。
 
@@ -236,23 +237,9 @@ function writeStreamEvent(response, data) {
 }
 
 async function streamAnalyze(upstream, response, parseContext) {
-  response.writeHead(200, {
-    'Content-Type': 'text/event-stream; charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-
-  const reader = upstream.body?.getReader();
-  if (!reader) {
-    writeStreamEvent(response, { error: '当前模型接口没有返回可读取的流。' });
-    response.end();
-    return;
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = '';
+  streamHeaders(response);
   let content = '';
+  let thinking = false;
   const finish = async () => {
     try {
       const result = await parseModelJSON({ ...parseContext, content });
@@ -265,35 +252,16 @@ async function streamAnalyze(upstream, response, parseContext) {
   };
 
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split(/\r?\n\r?\n/);
-      buffer = events.pop() || '';
-      for (const event of events) {
-        for (const line of event.split(/\r?\n/)) {
-          if (!line.startsWith('data:')) continue;
-          const raw = line.slice(5).trim();
-          if (!raw) continue;
-          if (raw === '[DONE]') {
-            await finish();
-            return;
-          }
-          try {
-            const parsed = JSON.parse(raw);
-            const delta = parsed.choices?.[0]?.delta?.content
-              ?? parsed.choices?.[0]?.message?.content
-              ?? parsed.choices?.[0]?.text
-              ?? '';
-            if (delta) {
-              content += delta;
-              writeStreamEvent(response, { delta });
-            }
-          } catch {
-            // Ignore provider keepalive frames that are not JSON.
-          }
-        }
+    for await (const parsed of modelEvents(upstream.body)) {
+      const choice = parsed.choices?.[0];
+      if (choice?.delta?.reasoning_content && !thinking && !content) {
+        thinking = true;
+        writeStreamEvent(response, { status: 'thinking' });
+      }
+      const delta = choice?.delta?.content ?? choice?.message?.content ?? choice?.text ?? '';
+      if (delta) {
+        content += delta;
+        writeStreamEvent(response, { delta });
       }
     }
     await finish();
@@ -334,6 +302,7 @@ export default async function handler(request, response) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Accept: stream ? 'text/event-stream' : 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
@@ -341,7 +310,9 @@ export default async function handler(request, response) {
         temperature: 0.2,
         max_tokens: 9000,
         stream,
-        response_format: { type: 'json_object' },
+        // Some compatible gateways buffer JSON mode until validation finishes.
+        // Streaming uses the JSON-only system contract and validates at EOF.
+        ...(!stream ? { response_format: { type: 'json_object' } } : {}),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -357,7 +328,7 @@ export default async function handler(request, response) {
     }
 
     const upstreamContentType = upstream.headers.get('content-type') || '';
-    if (stream && upstreamContentType.includes('text/event-stream')) {
+    if (stream && upstreamContentType.toLowerCase().includes('text/event-stream')) {
       await streamAnalyze(upstream, response, { apiUrl, apiKey, model });
       return;
     }
@@ -370,18 +341,7 @@ export default async function handler(request, response) {
     }
 
     const result = await parseModelJSON({ apiUrl, apiKey, model, content });
-    if (stream) {
-      response.writeHead(200, {
-        'Content-Type': 'text/event-stream; charset=utf-8',
-        'Cache-Control': 'no-cache, no-transform',
-        Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no',
-      });
-      writeStreamEvent(response, { delta: content });
-      writeStreamEvent(response, { result, done: true });
-      response.end();
-      return;
-    }
+    if (stream) response.setHeader('X-Lexi-Stream', 'buffered');
     response.status(200).json(result);
   } catch (error) {
     response.status(error.status || 500).json({ error: error.message || 'Unexpected server error' });

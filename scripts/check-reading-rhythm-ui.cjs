@@ -14,7 +14,7 @@ const server=require('./browser-test-server.cjs').createServer();
    await page.goto(`http://127.0.0.1:${server.address().port}`);
    await page.waitForFunction(()=>typeof renderResult==='function');
    await page.evaluate(()=>{
-    const result={meta:{query:'rhythm',language:'English'},headword:{title:'rhythm'},senses:[{shortestLabel:'节奏',meaning:'单行释义',example:'One line.',translation:'单行译文'}]};
+    const result={meta:{query:'rhythm',language:'English'},headword:{title:'rhythm'},senses:[{shortestLabel:'节奏',meaning:'单行释义',example:'One line.',translation:'单行译文'},{shortestLabel:'真了不起（赞赏）',meaning:'对他人的能力或表现表达欣赏。',example:"You solved it already? You're really something!",translation:'你已经解决了？你真了不起！'}]};
     setHistory([{id:1,query:'rhythm',result,createdAt:'2026-10-10T00:00:00Z'}]);currentHistoryId=1;renderResult(result);
    });
    for(const root of ['#result-card','#modal-card-page']){
@@ -31,6 +31,21 @@ const server=require('./browser-test-server.cjs').createServer();
     assert.ok(Math.abs(measured.first-measured.second)<=.5,'Single-line text rows must have equal vertical rhythm');
     assert.equal(measured.buttonHeight,30,'Speech hit area is preserved');
     assert.ok(measured.noOverlap,'Speech button does not cover adjacent rows');
+    const highlighted=page.locator(`${root} .fragment-item`).nth(1);
+    await highlighted.evaluate(el=>{
+     const example=el.querySelector('.spoken-example>span');
+     example.innerHTML="You solved it already? <mark class=\"hit-mark\">You're really something!</mark>";
+     el.querySelector('.line:last-child>span').innerHTML='你已经解决了？<mark class="hit-mark">你真了不起！</mark>';
+    });
+    const gaps=await highlighted.evaluate(el=>{
+     const rows=[...el.querySelectorAll('.line')].map(line=>line.getBoundingClientRect());
+     return [rows[1].top-rows[0].bottom,rows[2].top-rows[1].bottom];
+    });
+    assert.ok(Math.abs(gaps[0]-gaps[1])<=.5,`Highlighted text must keep equal row gaps: ${gaps}`);
+    if(width===1440&&theme==='light'&&root==='#result-card'){
+     await highlighted.scrollIntoViewIfNeeded();
+     await highlighted.screenshot({path:require('node:path').join(require('node:os').tmpdir(),'lexi-highlighted-row-rhythm.png')});
+    }
     const button=row.locator('.spoken-example .speech-btn');
     if(width<900)await button.tap();else await button.click();
     assert.equal(await page.evaluate(()=>__spokenText),'One line.');

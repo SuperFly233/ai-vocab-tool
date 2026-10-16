@@ -1,4 +1,5 @@
 import { relayIfIpv6Blocked } from './relay.js';
+import { modelEvents, streamHeaders } from './model-stream.js';
 
 async function assertCanUseEnvironmentKey(request, payload) {
   if (payload.apiKey) return;
@@ -72,50 +73,20 @@ function writeStreamEvent(response, data) {
 }
 
 async function streamFollowup(upstream, response) {
-  response.writeHead(200, {
-    'Content-Type': 'text/event-stream; charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-
-  const reader = upstream.body?.getReader();
-  if (!reader) {
-    writeStreamEvent(response, { error: '当前模型接口没有返回可读取的流。' });
-    response.end();
-    return;
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = '';
+  streamHeaders(response);
+  let thinking = false;
+  let contentStarted = false;
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split(/\r?\n\r?\n/);
-      buffer = events.pop() || '';
-      for (const event of events) {
-        for (const line of event.split(/\r?\n/)) {
-          if (!line.startsWith('data:')) continue;
-          const raw = line.slice(5).trim();
-          if (!raw) continue;
-          if (raw === '[DONE]') {
-            writeStreamEvent(response, { done: true });
-            response.end();
-            return;
-          }
-          try {
-            const parsed = JSON.parse(raw);
-            const delta = parsed.choices?.[0]?.delta?.content
-              ?? parsed.choices?.[0]?.message?.content
-              ?? parsed.choices?.[0]?.text
-              ?? '';
-            if (delta) writeStreamEvent(response, { delta });
-          } catch {
-            // Some providers send keepalive frames that are not JSON.
-          }
-        }
+    for await (const parsed of modelEvents(upstream.body)) {
+      const choice = parsed.choices?.[0];
+      if (choice?.delta?.reasoning_content && !thinking && !contentStarted) {
+        thinking = true;
+        writeStreamEvent(response, { status: 'thinking' });
+      }
+      const delta = choice?.delta?.content ?? choice?.message?.content ?? choice?.text ?? '';
+      if (delta) {
+        contentStarted = true;
+        writeStreamEvent(response, { delta });
       }
     }
     writeStreamEvent(response, { done: true });
@@ -154,6 +125,7 @@ export default async function handler(request, response) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Accept: stream ? 'text/event-stream' : 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
@@ -173,7 +145,7 @@ export default async function handler(request, response) {
     }
 
     const upstreamContentType = upstream.headers.get('content-type') || '';
-    if (stream && upstreamContentType.includes('text/event-stream')) {
+    if (stream && upstreamContentType.toLowerCase().includes('text/event-stream')) {
       await streamFollowup(upstream, response);
       return;
     }
@@ -184,6 +156,7 @@ export default async function handler(request, response) {
       response.status(502).json({ error: 'Empty model response' });
       return;
     }
+    if (stream) response.setHeader('X-Lexi-Stream', 'buffered');
     response.status(200).json({ answer });
   } catch (error) {
     response.status(error.status || 500).json({ error: error.message || 'Unexpected server error' });

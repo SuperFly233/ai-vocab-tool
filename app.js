@@ -180,12 +180,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.22.5',
+  version:'0.22.6',
   releaseDate:'2026-10-16',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.22.6',
+    date:'2026-10-16',
+    title:'按真实网络增量显示模型输出',
+    items:['流式查询不再强制上游 JSON 模式，避免兼容网关等待完整 JSON 才吐正文；仍要求 JSON 输出并在结束时校验。','移除整包响应的逐字补播，查询和追问收到多少正文就显示多少；普通 JSON 不再包装成 SSE。','统一解析服务端 SSE，保留没有末尾空行的最后一段，识别模型错误和思考状态；不展示或保存思考原文。','运行日志记录首段正文、全文完成耗时及分段数量；新增通过真实 HTTP 与 Pages 适配器的浏览器回归。'],
+  },
   {
     version:'0.22.5',
     date:'2026-10-16',
@@ -2874,15 +2880,7 @@ function renderLookupLoading(query,settings,runId=lookupRunId){
       `).join('')}
     </div>
   `;
-  els.resultJson.innerHTML=`<div class="json-stream-loading"><pre id="lookup-stream-json">{
-  "meta": { "query": ${JSON.stringify(query)}, "status": "requesting" },
-  "headword": "waiting...",
-  "senses": [],
-  "collocations": [],
-  "register": {},
-  "confusions": []
-}</pre></div>`;
-  startLookupJSONPlaceholder(runId);
+  els.resultJson.innerHTML='<div class="json-stream-loading"><pre id="lookup-stream-json">正在等待模型正文…</pre></div>';
   startLookupLoadingProgress(runId);
 }
 function startLookupJSONPlaceholder(runId){
@@ -3740,36 +3738,39 @@ function updatePendingFollowup(scope,answer){
 function clearPendingFollowup(scope){
   if(pendingFollowup?.scope===scope)pendingFollowup=null;
 }
-function createProgressiveText(onUpdate,isCurrent=()=>true){
-  // Smooth cumulative chunks without replaying content on completion.
-  let target='',shown='',timer=null,deadline=0,finishResolve=null,active=true;
-  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const settle=()=>{finishResolve?.();finishResolve=null};
-  const cancel=()=>{active=false;clearTimeout(timer);timer=null;settle()};
-  const tick=()=>{
-    timer=null;
+function createReceivedText(onUpdate,isCurrent=()=>true){
+  // Display received text, never manufacture a token cadence after completion.
+  let shown='',active=true;
+  const cancel=()=>{active=false};
+  const push=text=>{
     if(!active||!isCurrent()){cancel();return}
-    if(!target.startsWith(shown))shown='';
-    const remaining=target.length-shown.length;
-    const frames=deadline?Math.max(1,(deadline-performance.now())/16):16;
-    let end=reduced?target.length:Math.min(target.length,shown.length+Math.max(2,Math.ceil(remaining/frames)));
-    if(end<target.length&&/[\uD800-\uDBFF]/.test(target[end-1]))end++;
-    if(end!==shown.length){shown=target.slice(0,end);onUpdate?.(shown)}
-    if(shown===target){if(deadline)settle();return}
-    timer=setTimeout(tick,16);
+    const value=String(text||'');
+    if(value!==shown){shown=value;onUpdate?.(shown)}
   };
-  const push=text=>{if(!active)return;target=String(text||'');if(timer===null)tick()};
   return {
     push,cancel,
     finish(text){
-      deadline=performance.now()+900;
       push(text);
-      if(!active||shown===target)return Promise.resolve();
-      return new Promise(resolve=>{finishResolve=resolve});
+      return Promise.resolve();
     },
   };
 }
-async function readFollowupStream(response,onDelta){
+function streamTiming(kind){
+  const start=performance.now();
+  const metrics={kind,mode:'pending',chunks:0};
+  return {
+    headers(mode){metrics.mode=mode;metrics.headersMs=Math.round(performance.now()-start)},
+    thinking(){metrics.thinkingMs??=Math.round(performance.now()-start)},
+    content(){metrics.firstContentMs??=Math.round(performance.now()-start);metrics.chunks++},
+    finish(){
+      metrics.completeMs=Math.round(performance.now()-start);
+      console.info('[Lexi stream]',JSON.stringify(metrics));
+      const first=metrics.firstContentMs===undefined?'无正文':`${(metrics.firstContentMs/1000).toFixed(2)} 秒`;
+      pushLog(`${metrics.mode==='live'?'流式':'整包返回'} · 首段 ${first} · 完成 ${(metrics.completeMs/1000).toFixed(2)} 秒 · ${metrics.chunks} 段`,'info',`${kind==='lookup'?'查询':'追问'}传输`);
+    },
+  };
+}
+async function readFollowupStream(response,onDelta,onStatus=null){
   const reader=response.body?.getReader();
   if(!reader)throw new Error('当前浏览器无法读取流式回答。');
   const decoder=new TextDecoder();
@@ -3784,6 +3785,7 @@ async function readFollowupStream(response,onDelta){
       let data=null;
       try{data=JSON.parse(raw)}catch{continue}
       if(data.error)throw new Error(data.error);
+      if(data.status)onStatus?.(data.status);
       if(data.delta){
         answer+=String(data.delta);
         onDelta?.(answer);
@@ -3806,7 +3808,8 @@ async function readFollowupStream(response,onDelta){
   return answer.trim();
 }
 async function requestFollowup(question,baseItem,{scope=null,onDelta=null}={}){
-  const reveal=createProgressiveText(onDelta,()=>!scope||pendingFollowup?.scope===scope);
+  const reveal=createReceivedText(onDelta,()=>!scope||pendingFollowup?.scope===scope);
+  const timing=streamTiming('followup');
   try{
     const settings=currentApiSettings();
     const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
@@ -3824,8 +3827,11 @@ async function requestFollowup(question,baseItem,{scope=null,onDelta=null}={}){
       }),
     });
     const contentType=response.headers.get('content-type')||'';
+    timing.headers(contentType.includes('text/event-stream')?'live':'buffered');
     if(response.ok&&response.body&&contentType.includes('text/event-stream')){
-      const streamed=await readFollowupStream(response,answer=>reveal.push(answer));
+      const streamed=await readFollowupStream(response,answer=>{timing.content();reveal.push(answer)},status=>{
+        if(status==='thinking'){timing.thinking();if(scope)updatePendingFollowup(scope,'模型正在思考，等待正文…')}
+      });
       if(streamed){await reveal.finish(streamed);return streamed}
       throw new Error('模型没有返回追问内容。');
     }
@@ -3837,9 +3843,10 @@ async function requestFollowup(question,baseItem,{scope=null,onDelta=null}={}){
     }
     if(!response.ok)throw new Error(data.error||'追问失败');
     if(!data.answer)throw new Error('模型没有返回追问内容。');
+    timing.content();
     await reveal.finish(data.answer);
     return data.answer;
-  }finally{reveal.cancel()}
+  }finally{reveal.cancel();timing.finish()}
 }
 async function askCurrentFollowup(){
   if(followupBusy)return;
@@ -4118,12 +4125,12 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     systemPrompt:settings.modelPrompt||'',
   };
   try{
-    const {result:data,streamed}=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
+    const {result:data}=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
     const {item:saved,persisted}=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
     currentHistoryId=persisted?saved.id:null;
     currentFollowups=persisted?saved.followups||[]:[];
-    renderResult(saved?.result||data,{animate:!streamed,modelInfo});
+    renderResult(saved?.result||data,{animate:false,modelInfo});
     if(persisted)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
     else notify('模型结果已生成并保留在当前页面，但没有写入历史。请先用结果区的保存按钮导出 JSON。','warn','结果尚未保存',false);
   }catch(error){
@@ -4144,6 +4151,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
 async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
   let lastError=null;
   for(let attempt=1;attempt<=LOOKUP_MAX_ATTEMPTS;attempt+=1){
+    const timing=streamTiming('lookup');
     try{
       const response=await fetch('/api/analyze',{
         method:'POST',
@@ -4151,11 +4159,19 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
         body:JSON.stringify({...payload,stream:true}),
       });
       const contentType=response.headers.get('content-type')||'';
+      timing.headers(contentType.includes('text/event-stream')?'live':'buffered');
       let streamed=false;
       const data=response.ok&&response.body&&contentType.includes('text/event-stream')
-        ? await readLookupStream(response,{query,runId,onProgress:()=>{streamed=true}})
+        ? await readLookupStream(response,{query,runId,onProgress:()=>{streamed=true;timing.content()},onStatus:status=>{
+          if(status==='thinking'){
+            timing.thinking();
+            const label=els.resultCard.querySelector('.entry-kicker');
+            if(label)label.textContent='模型正在思考，等待正文…';
+          }
+        }})
         : await parseLookupResponse(response);
       if(!response.ok)throw lookupHttpError(response,data);
+      if(!streamed)timing.content();
       return {result:data,streamed};
     }catch(error){
       lastError=normalizeLookupError(error);
@@ -4167,11 +4183,11 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
         continue;
       }
       throw lastError;
-    }
+    }finally{timing.finish()}
   }
   throw lastError||new Error('查询失败');
 }
-async function readLookupStream(response,{query,runId,onProgress=null}){
+async function readLookupStream(response,{query,runId,onProgress=null,onStatus=null}){
   const reader=response.body?.getReader();
   if(!reader)throw new Error('当前浏览器无法读取流式查询。');
   const decoder=new TextDecoder();
@@ -4179,11 +4195,12 @@ async function readLookupStream(response,{query,runId,onProgress=null}){
   let raw='';
   let finalResult=null;
   let streamStarted=false;
-  const reveal=createProgressiveText(text=>{
+  const reveal=createReceivedText(text=>{
     onProgress?.();
     renderLookupStreamPreview(text,query,runId,false);
   },()=>!isStaleLookup(runId,query));
   const handleEvent=data=>{
+    if(data.status)onStatus?.(data.status);
     if(data.delta){
       if(!streamStarted){
         streamStarted=true;
@@ -8055,7 +8072,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.5" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.6" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
