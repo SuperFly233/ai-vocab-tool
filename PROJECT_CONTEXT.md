@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.22.4: render history filters independently of the mobile `filtersOpen` state. CSS alone controls mobile collapse; desktop must not require opening filters elsewhere first. Cache collected option values on `getHistoryDerived().historyFilterOptions`, invalidated with existing history/settings changes. All search scopes remains the normalized full list internally, but renders no individually pressed scope buttons; first click narrows to one scope, subsequent clicks toggle inclusively, zero explicit scopes restores all. Opening the menu is not a filtering operation. `check:history-controls-ui` covers 30 cases across three widths and two themes.
+
 - v0.22.3 balances the overly bare v0.22.2 reading layout: individual entries use a quiet single-level surface and numbered heading, while sense groups remain transparent and unbordered. Core meaning has an accent band; definition/example text is primary and translation secondary. Preserve full-width body lines and 44px bookmarks. Do not equate removing nested borders with removing all reading hierarchy.
 
 - v0.22.2: shared result/detail reading rows are borderless except separators. Fragment item bodies use `display:contents`: index/title/bookmark occupy only the heading row, `.line` spans both grid columns. Do not restore mobile `padding-right:42px` or reserve a permanent bookmark column. Group/core/metadata/register framing is removed. `check:reading-ui` validates 320/390/1440 light/dark, 44px bookmark hit areas, text width, title separation and scrolled interactions.

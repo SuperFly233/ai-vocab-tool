@@ -447,7 +447,8 @@ mark.hit-mark{border-radius:4px;background:linear-gradient(180deg,color-mix(in s
 .history-search-scope-option,.history-search-scope-clear{border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text);min-height:30px;padding:5px 8px;font-size:13px;font-weight:850;text-align:left;display:flex;align-items:center;gap:6px}
 .history-search-scope-option:hover,.history-search-scope-clear:hover{background:var(--panel2);border-color:var(--line2)}
 .history-search-scope-option.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
-.history-search-scope-option span{width:12px;color:var(--accent);font-size:12px;padding:0}
+.history-search-scope-option span{width:16px;flex:0 0 16px;display:grid;place-items:center;color:var(--accent);padding:0}
+.history-search-scope-option svg{width:14px;height:14px}
 .history-search-scope-clear{justify-content:center;color:var(--muted)}
 .history-list{display:grid;gap:10px}
 .history-item{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:13px 14px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease;cursor:pointer}

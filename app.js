@@ -179,12 +179,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.22.3',
+  version:'0.22.4',
   releaseDate:'2026-10-16',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.22.4',
+    date:'2026-10-16',
+    title:'修复历史筛选显示与搜索范围交互',
+    items:['历史筛选控件不再依赖移动端展开状态才初始化；桌面直达、刷新、跨页返回和窗口变宽均可直接使用七类筛选。','默认全范围搜索不再逐项显示全选；第一次选择直接限定该范围，再次选择可以追加，取消最后一项或点击全部范围恢复全范围，打开菜单不会改变结果。','筛选选项复用历史派生缓存，记录变化时自动重建；范围选中标记改用居中的 Lucide 图标，并提供按钮按下状态。'],
+  },
   {
     version:'0.22.3',
     date:'2026-10-16',
@@ -4502,17 +4508,17 @@ function historySearchScopeSummary(){
 function renderHistorySearchScopeControls(){
   if(!els.historySearchScopeMenu)return;
   historyState.searchScopes=normalizeHistorySearchScopes(historyState.searchScopes);
-  const scopes=new Set(historyState.searchScopes);
+  const scopes=new Set(historyState.searchScopes.length===HISTORY_SEARCH_SCOPE_OPTIONS.length?[]:historyState.searchScopes);
   if(els.historySearchScopeSummary)els.historySearchScopeSummary.textContent=historySearchScopeSummary();
   els.historySearchScope?.classList.toggle('open',historyState.searchScopeOpen);
   els.historySearchScopeToggle?.setAttribute('aria-expanded',String(historyState.searchScopeOpen));
   els.historySearchScopeMenu.innerHTML=`
     ${HISTORY_SEARCH_SCOPE_OPTIONS.map(option=>`
-      <button class="history-search-scope-option ${scopes.has(option.key)?'active':''}" type="button" data-scope="${escapeHTML(option.key)}">
-        <span>${scopes.has(option.key)?'✓':' '}</span>${escapeHTML(option.label)}
+      <button class="history-search-scope-option ${scopes.has(option.key)?'active':''}" type="button" data-scope="${escapeHTML(option.key)}" aria-pressed="${scopes.has(option.key)}">
+        <span aria-hidden="true">${scopes.has(option.key)?icon('check'):''}</span>${escapeHTML(option.label)}
       </button>
     `).join('')}
-    <button class="history-search-scope-clear" type="button" data-scope-action="all">全部范围</button>
+    <button class="history-search-scope-clear" type="button" data-scope-action="all" aria-pressed="${scopes.size===0}">全部范围</button>
   `;
 }
 function toggleHistorySearchScopeMenu(){
@@ -4527,10 +4533,11 @@ function closeHistorySearchScopeMenu(){
 function toggleHistorySearchScope(scope){
   const valid=HISTORY_SEARCH_SCOPE_OPTIONS.map(item=>item.key);
   if(!valid.includes(scope))return;
-  const current=new Set(normalizeHistorySearchScopes(historyState.searchScopes));
-  if(current.has(scope)&&current.size>1)current.delete(scope);
+  const normalized=normalizeHistorySearchScopes(historyState.searchScopes);
+  const current=new Set(normalized.length===valid.length?[]:normalized);
+  if(current.has(scope))current.delete(scope);
   else current.add(scope);
-  historyState.searchScopes=[...current];
+  historyState.searchScopes=normalizeHistorySearchScopes([...current]);
   rerenderHistoryFromStart();
 }
 function resetHistorySearchScopes(){
@@ -4573,7 +4580,7 @@ function renderHistory(){
   const allHistory=getHistory();
   const existingIds=new Set(allHistory.map(item=>Number(item.id)));
   historySelection.ids=new Set([...historySelection.ids].filter(id=>existingIds.has(id)));
-  if(historyState.filtersOpen||openHistoryFilterKey)renderHistoryFilterOptions(allHistory);
+  renderHistoryFilterOptions(allHistory);
   renderHistorySearchScopeControls();
   renderHistorySortControls();
   ensureHistoryVisible();
@@ -5482,7 +5489,10 @@ function collectHistoryOptions(history){
   ]));
 }
 function renderHistoryFilterOptions(history){
-  const options=collectHistoryOptions(history);
+  const derived=getHistoryDerived();
+  const options=history===derived.history
+    ? (derived.historyFilterOptions??=collectHistoryOptions(history))
+    : collectHistoryOptions(history);
   renderHistoryFilterGroup('entryType','类型',options.entryType);
   renderHistoryFilterGroup('language','语言',options.language);
   renderHistoryFilterGroup('direction','方向',options.direction);
@@ -7969,7 +7979,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.3" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.4" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
