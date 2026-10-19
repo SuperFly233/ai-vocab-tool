@@ -11,7 +11,7 @@
 - [x] Drag interactions share direct item movement, with no offset capsule and consistent mouse/touch activation.
 - [x] Editing cannot close from pointer exit or a gesture released outside its dialog.
 - [x] Regression and viewport checks cover each requirement.
-- [ ] Commit/push/deploy and verify the actual production runtime assets.
+- [x] Commit/push/deploy and verify the actual production runtime assets.
 
 ## Approach
 
@@ -32,6 +32,12 @@ Chromium emulation; add WebKit coverage when the runtime is available.
 
 ## Verification Evidence
 
+- Implementation commit `b1b1512` pushed to main and deployed to
+  https://d08fd398.ai-vocab-tool.pages.dev. Production HTML revision
+  `0.24.0-20261019.5` and scene-data, scene-ui, ui-overlays, app, styles and icons
+  matched the built output. Fresh unauthenticated production WebKit at 390x844
+  rendered the plus menu at x=49, y=153, width=220, height=96.28125. Screenshot:
+  `tmp/scene-qa/production-menu-webkit-390.png` (ignored QA artifact).
 - `check:scenes-ui`: 390/1440, light/dark; main media selection, media order,
   context/media placement, native modal viewer, notification top-layer behavior,
   local refresh/edit/delete/restore and portable binary roundtrip. Real encoded
