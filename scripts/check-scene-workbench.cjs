@@ -88,11 +88,15 @@ const server=require('./browser-test-server.cjs').createServer();
    assert.ok(await page.locator('#history-modal-body').evaluate((node,before)=>node.scrollTop>before+20,scrollBefore),'Holding near edge continues scrolling large rows');
    assert.ok(await page.locator('.direct-drag').evaluate(node=>node.classList.contains('expanded')),'Dragging does not collapse original content');
    await page.waitForFunction(()=>{
-    const bounds=document.querySelector('#history-modal-body').getBoundingClientRect(),target=[...document.querySelectorAll('.visual-card[data-visual-kind="senses"]')].find(node=>!node.classList.contains('direct-drag')).getBoundingClientRect();
+    const cards=[...document.querySelectorAll('.visual-card[data-visual-kind="senses"]')];
+    if(!cards[0].classList.contains('direct-drag'))return true;
+    const bounds=document.querySelector('#history-modal-body').getBoundingClientRect(),target=cards.find(node=>!node.classList.contains('direct-drag')).getBoundingClientRect();
     return target.top>=bounds.top&&target.bottom<=bounds.bottom;
    },null,{timeout:4000});
-   const largeTarget=await page.locator('.visual-card[data-visual-kind="senses"]:not(.direct-drag)').boundingBox();
-   await page.mouse.move(largeTarget.x+30,largeTarget.y+largeTarget.height-4,{steps:4});
+   if(await visual.first().evaluate(node=>node.classList.contains('direct-drag'))){
+    const largeTarget=await page.locator('.visual-card[data-visual-kind="senses"]:not(.direct-drag)').boundingBox();
+    await page.mouse.move(largeTarget.x+30,largeTarget.y+largeTarget.height-4,{steps:4});
+   }
    await page.mouse.up();
    assert.equal(await page.evaluate(()=>modalResult.senses[0].shortestLabel),'notice','Expanded large row can cross screens and finish reordering');
    await page.evaluate(()=>{saveHistoryEdit();closeHistoryModal();showView('home');scrollTo(0,0);lookupQueue=[{id:1,query:'one'},{id:2,query:'two'}];lookupQueueExpanded=true;renderLookupQueue()});

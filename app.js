@@ -180,12 +180,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.24.0',
+  version:'0.24.1',
   releaseDate:'2026-10-19',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.24.1',date:'2026-10-19',title:'恢复有意的遮罩关闭与指向提示',
+    items:['恢复主动点击弹窗两侧空白关闭；只有按下、松开均在同一遮罩且没有明显拖动时才触发，拖出编辑区不会误关。','未保存场景、历史编辑与 API 配置的遮罩关闭会先确认，取消后保留草稿。','按钮提示移除 300ms 等待，恢复圆润气泡和指向按钮的上下尖角，保留原生顶层、换行与视口避让。'],
+  },
   {
     version:'0.24.0',date:'2026-10-19',title:'场景成为词条的第一阅读区',
     items:['主场景位于标题后、释义前，桌面左右配图、手机上下阅读；关联场景直接出现在对应义项和搭配里。','场景和素材均可排序，多张图片、GIF 或视频可选作主素材；原生放大预览支持查看原件。','首页加号与 API 选择器使用有明确尺寸的原生顶层菜单，处理窄屏、滚动与视口变化；提示文字顶层显示并自动换行避让。','API、可视化编辑、收藏夹、版本、队列和场景统一直接移动原条目，取消胶囊影子；长块不再折叠，边缘持续滚动。','编辑弹窗仅通过明确操作关闭，移出或在遮罩松手不会丢失草稿；编辑操作逐步统一为带提示的图标。'],
@@ -8384,6 +8388,11 @@ els.apiProfileModalTest?.addEventListener('click',testApiProfileDraft);
 els.apiProfileModalSave?.addEventListener('click',saveApiProfileFromModal);
 els.apiProfileModalCancel?.addEventListener('click',()=>closeApiProfileModal());
 els.apiProfileModalClose?.addEventListener('click',()=>closeApiProfileModal());
+els.historyModal?.addEventListener('backdrop-dismiss',requestCloseHistoryModal);
+els.apiProfileModal?.addEventListener('backdrop-dismiss',async()=>{
+  if(apiProfileModalHasDraft()&&!await askConfirm('当前配置尚未保存，确认放弃并关闭吗？','放弃修改'))return;
+  closeApiProfileModal();
+});
 document.addEventListener('click',event=>{
   if(!els.historyFilterbar?.contains(event.target))closeHistoryFilterMenus();
   if(!els.historySearchScope?.contains(event.target))closeHistorySearchScopeMenu();

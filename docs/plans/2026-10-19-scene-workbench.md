@@ -1,5 +1,13 @@
 # Scene Workbench and Interaction Consistency
 
+v0.24.1 clarification: intentional backdrop clicks are restored. Matching
+pointer-down/up on the same backdrop with at most 8px movement requests close
+(with a dirty-draft confirmation); a gesture starting inside does not. This
+supersedes the v0.24.0 blanket backdrop blocking described in historical evidence.
+Tooltip bubbles are immediate, rounded and have a viewport-aware pointing arrow.
+`check:overlays-ui` passes at 390/1440 in Chromium and WebKit, covering all three
+editor backdrops, confirmation cancellation, immediate hints and both arrow sides.
+
 ## Required Outcome
 
 - [x] iPhone-class menu layout stays compact in WebKit, including scrolling and viewport changes.

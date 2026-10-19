@@ -73,6 +73,7 @@
       ${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" ${scene.sourceTitle||scene.sourceUrl||scene.chapter||scene.timeRange?'open':''}><summary>${icon('chevron-down')}来源信息</summary><div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details>
       </div><p id="scene-editor-status" role="status"></p><footer>${!item?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item?'保存场景':'随查词保存'}</button></footer></form></section>`;
     document.body.append(layer);document.body.classList.add('modal-open');
+    layer.addEventListener('backdrop-dismiss',()=>close());
     layer.querySelector('#scene-file-picker').addEventListener('change',event=>{addFiles(event.target.files);event.target.value=''});
     layer.addEventListener('paste',event=>{const files=[...event.clipboardData.files];if(files.length){event.preventDefault();addFiles(files)}});
     layer.addEventListener('dragover',event=>{if([...event.dataTransfer.types].includes('Files')){event.preventDefault();layer.classList.add('dragging')}});
