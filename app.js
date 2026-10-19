@@ -180,12 +180,18 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.22.6',
-  releaseDate:'2026-10-16',
+  version:'0.23.0',
+  releaseDate:'2026-10-19',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.23.0',
+    date:'2026-10-19',
+    title:'场景记忆与多媒体素材',
+    items:['新增独立场景记录：原句、译文、笔记、出处、章节、时间段和网址，既可随查词加入，也可直接创建个人词条。','图片、GIF、MP4/WebM 支持选择文件、粘贴和拖放；原文件独立存放、内容去重，视频不自动播放。','场景可关联具体义项或搭配，详情与首页共用编辑，来源折叠；复习显示匹配场景，历史与收藏检索包含场景文字。','登录后素材走独立私有同步通道，按需下载并校验；场景备份包含原文件，可导入恢复。Anki 自动写入仍属后续联动计划。'],
+  },
   {
     version:'0.22.6',
     date:'2026-10-16',
@@ -2210,6 +2216,7 @@ function mergeHistoryItems(localHistory,remoteHistory){
       normalized.fragmentPins,normalized.fragmentPinTombstones,
     );
     const lookupCompletion=LookupTasks.resolveCompletion(existing,normalized);
+    const sceneData=SceneData.reconcile([...(existing.scenes||[]),...(normalized.scenes||[])],[...(existing.sceneTombstones||[]),...(normalized.sceneTombstones||[])]);
     const favoriteAt=favoriteField.value
       ? favoriteField.side==='left'
         ? existing.favoriteAt||favoriteField.updatedAt
@@ -2231,6 +2238,8 @@ function mergeHistoryItems(localHistory,remoteHistory){
       foldersUpdatedAt:foldersField.updatedAt||'',
       fragmentPins:fragmentPinData.items,
       fragmentPinTombstones:fragmentPinData.tombstones,
+      scenes:sceneData.items,
+      sceneTombstones:sceneData.tombstones,
       lookupSignature:lookupCompletion.lookupSignature,
       lookupCompletedAt:lookupCompletion.lookupCompletedAt,
       note:latestHistoryNote(existing,normalized),
@@ -2349,6 +2358,9 @@ function normalizeHistoryItem(item){
   const normalized={...base,favorite:Boolean(base.favorite),favoriteAt:base.favoriteAt||'',favoriteUpdatedAt:normalizeHistoryClock(base.favoriteUpdatedAt),tags,tagsUpdatedAt:normalizeHistoryClock(base.tagsUpdatedAt),folderIds:mergeFolderIds(explicitFolderIds,legacyFolderIds),foldersUpdatedAt:normalizeHistoryClock(base.foldersUpdatedAt),fragmentPins:fragmentPinData.items,fragmentPinTombstones:fragmentPinData.tombstones,note:String(base.note||''),noteUpdatedAt:base.noteUpdatedAt||'',lookupSignature:String(base.lookupSignature||''),lookupCompletedAt:normalizeHistoryClock(base.lookupCompletedAt),createdAt,result:base.result||latest.result,rolls,followups:dedupeFollowups(base.followups||[])};
   Object.defineProperty(normalized,HISTORY_NORMALIZED,{value:true});
   normalized.rollTombstones=rollData.tombstones;
+  const sceneData=SceneData.reconcile(base.scenes,base.sceneTombstones);
+  normalized.scenes=sceneData.items;
+  normalized.sceneTombstones=sceneData.tombstones;
   normalized.result=rolls[0]?.result||null;
   return normalized;
 }
@@ -2506,6 +2518,7 @@ async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
     setCloudBusy(false,false);
     if(lookupRecoveryPending)hydrateLookupTasks();
     flushQueuedCloudSync();
+    SceneUI.syncPending();
   }
 }
 async function uploadItemsToCloud(items,dirtySnapshot={}){
@@ -3125,19 +3138,20 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null,m
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
-    ${renderSenseGroups(senses,result,historyItem)}
-    ${renderCollocations(collocations,result,historyItem,queryTerms)}
-    <div class="block">
+    ${!meta.authored||senses.length?renderSenseGroups(senses,result,historyItem):''}
+    ${!meta.authored||collocations.length?renderCollocations(collocations,result,historyItem,queryTerms):''}
+    ${!meta.authored||Object.values(register).some(Boolean)?`<div class="block">
       <div class="block-title">语义感受与使用说明</div>
       <div class="register-grid">
         <div><b>语体属性</b><span>${escapeHTML(displayStyleLabel(register.style)||'')}</span></div>
         <div><b>语义气质</b><span>${escapeHTML(register.tone||'')}</span></div>
         <div><b>使用环境</b><span>${escapeHTML(register.environment||'')}</span></div>
       </div>
-    </div>
+    </div>`:''}
     ${renderConfusions(confusions,result,historyItem)}
     ${renderRelatedHistory(related)}
     ${renderHistoryNoteBlock(historyItem)}
+    ${SceneUI.render(historyItem)}
     ${renderFollowupHTML(followups,scope)}
   `;
 }
@@ -3179,6 +3193,7 @@ function renderCollocations(items=[],result={},historyItem=null,queryTerms=[]){
         <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
         <div class="line"><b>例句</b>${renderSpokenExample(item.example,result,highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms)))}</div>
         <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
+        ${SceneUI.render(historyItem,fragmentPinKey('collocation',item))}
       </div>
       ${renderFragmentPinButton(historyItem,'collocation',item)}
     </div>`).join('')}</div>`;
@@ -3204,6 +3219,7 @@ function renderSenseGroups(senses=[],result={},historyItem=null){
           <div class="line"><b>语意</b><span>${escapeHTML(item.meaning||'')}</span></div>
           <div class="line"><b>例句</b>${renderSpokenExample(item.example,result,highlightText(item.example,exampleHighlightTermsForItem(item,queryTerms)))}</div>
           <div class="line"><b>译文</b><span>${highlightText(item.translation,translationHighlightTermsForItem(item,result))}</span></div>
+          ${SceneUI.render(historyItem,fragmentPinKey('sense',item))}
         </div>
         ${renderFragmentPinButton(historyItem,'sense',item)}
       </div>`).join('')}
@@ -4130,6 +4146,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     const {item:saved,persisted}=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
     currentHistoryId=persisted?saved.id:null;
     currentFollowups=persisted?saved.followups||[]:[];
+    if(persisted)await SceneUI.attachPending(saved.id,query);
     renderResult(saved?.result||data,{animate:false,modelInfo});
     if(persisted)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
     else notify('模型结果已生成并保留在当前页面，但没有写入历史。请先用结果区的保存按钮导出 JSON。','warn','结果尚未保存',false);
@@ -5899,11 +5916,14 @@ function historySearchText(item){
   const pieces=[];
   if(scopes.includes('word')){
     pieces.push(normalized.query,result.meta?.query,result.meta?.normalized,result.headword?.title);
+    pieces.push(normalized.scenes.map(scene=>scene.title));
   }
   if(scopes.includes('meaning')){
+    pieces.push(normalized.scenes.map(scene=>scene.translation));
     pieces.push(result.headword?.coreMeaning,result.headword?.summary,result.senses?.map(sense=>[sense.shortestLabel,sense.meaning,sense.translation]),result.collocations?.map(item=>[item.phrase,item.meaning,item.translation]));
   }
   if(scopes.includes('example')){
+    pieces.push(normalized.scenes.map(scene=>scene.quote));
     pieces.push(result.senses?.map(sense=>sense.example),result.collocations?.map(item=>item.example));
   }
   if(scopes.includes('collocation')){
@@ -5913,6 +5933,7 @@ function historySearchText(item){
     pieces.push(result.confusions);
   }
   if(scopes.includes('other')){
+    pieces.push(normalized.scenes.map(scene=>[scene.note,scene.sourceTitle,scene.chapter,scene.timeRange,scene.sourceUrl,scene.targetLabel,scene.media.map(ref=>ref.name)]));
     pieces.push(folderNamesForItem(normalized),normalized.note,normalized.createdAt,normalized.updatedAt,result.meta,result.register,normalized.followups);
   }
   return normalizeSearch(flattenText(pieces));
@@ -6980,7 +7001,10 @@ async function clearHistory(){
   if(!setHistory([],{deletedItems:history}))return;
   notify('历史记录已清空。','good','历史记录');
 }
-function exportHistory(){downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2))}
+function exportHistory(){
+  downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2));
+  if(getHistory().some(item=>item.scenes?.some(scene=>scene.media?.length)))notify('已导出记录和场景文字；媒体原件请使用词条内的“导出场景备份”。','info','历史导出');
+}
 function parseHistoryImportPayload(text){
   const unwrap=value=>{
     if(typeof value==='string')return unwrap(JSON.parse(value));
@@ -7244,7 +7268,7 @@ function filteredFolderEntries(folderId=folderState.activeId,items=historyForFol
   if(folderSearchIsGlobal())items=getHistory().filter(item=>itemFolderIds(item).length);
   let entries;
   if(!folderSearchIsGlobal()&&folderId===FOLDER_INSIGHTS_ID)entries=pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,searchableFragment(entry.pin)],folderState.query));
-  else entries=items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags,normalizeHistoryItem(item).fragmentPins.map(searchableFragment),itemFolders(item).map(folder=>folder.name)],folderState.query));
+  else entries=items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags,normalizeHistoryItem(item).scenes.map(scene=>[scene.title,scene.quote,scene.translation,scene.note,scene.sourceTitle,scene.chapter,scene.timeRange]),normalizeHistoryItem(item).fragmentPins.map(searchableFragment),itemFolders(item).map(folder=>folder.name)],folderState.query));
   return [...entries].sort((a,b)=>{
     if(folderState.sort==='title')return historyCollator.compare(a.sourceTitle||historyDisplayTitle(a),b.sourceTitle||historyDisplayTitle(b));
     const field=folderState.sort==='created'?'createdAt':'updatedAt';
@@ -7456,6 +7480,7 @@ function renderReview(){
   }
   const card=reviewCards.find(item=>item.key===reviewSession.keys[reviewSession.index]);
   body.innerHTML=`<div class="review-question"><div class="review-kicker">${escapeHTML(card.kind==='word'?'词条':fragmentKindLabel(card.kind))}</div><div class="entry-title-row"><h2>${escapeHTML(card.prompt)}</h2>${renderSpeechButton(card.prompt,card.language,'朗读词条')}</div>${card.cue?`<blockquote>${escapeHTML(card.cue)}</blockquote>`:''}<div class="review-answer" ${reviewSession.revealed?'':'hidden'}><h3>${escapeHTML(card.answer)}</h3>${card.example&&card.example!==card.cue?`<p>${escapeHTML(card.example)}</p>`:''}${card.translation?`<p>${escapeHTML(card.translation)}</p>`:''}</div></div><div class="review-controls"><button class="plain-btn review-reveal" aria-expanded="${reviewSession.revealed}" onclick="revealReview()">${reviewSession.revealed?'隐藏释义':'显示释义'}</button><div class="review-rating"><button class="plain-btn" onclick="rateReview('again')" ${reviewSession.revealed?'':'disabled'}>待巩固</button><button class="plain-btn primary-btn" onclick="rateReview('known')" ${reviewSession.revealed?'':'disabled'}>已掌握</button><button class="icon-btn" data-tip="跳过" aria-label="跳过" onclick="rateReview('skip')">${icon('skip-forward')}</button></div><button class="review-source" onclick="openReviewSource()">${icon('arrow-up-right')}<span>查看原词条</span></button></div>`;
+  body.querySelector('.review-answer')?.insertAdjacentHTML('beforeend',SceneUI.renderReview(card));
 }
 function handleReviewKey(event){
   if(!document.getElementById('review-modal')?.classList.contains('open'))return;
@@ -8072,7 +8097,7 @@ function renderAbout(){
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
   els.aboutContainer.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.22.6" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.23.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>

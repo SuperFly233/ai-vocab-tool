@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-16
+Last updated: 2026-10-19
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.23.0 scene memory: `scene-data.js` owns pure metadata reconciliation/tombstones, strict file sniffing and IndexedDB blobs/drafts. `scene-ui.js` owns pre-query/manual/existing-entry editing, fragment links, scene reading, lazy media, review and portable backups. `scene-media.js` transports immutable hash-addressed files through authenticated `/api/media`, outside the sync key allowlist, using bounded chunks in the existing private study_store RLS namespace. History holds only scene metadata/references. Never embed blob/base64 in normal history, send media to a model implicitly, or claim Anki sync exists. File limit 20 MB / 6 per scene; portable backup 30 MB media. Future Anki bridge requires deck mapping, note identity and explicit authorized companion setup. See docs/plans/2026-10-19-scenes-and-media.md. Authorized production acceptance created a separate synthetic scene entry and PNG; upload, reload, remote read-back bypassing cache and SHA verification passed (production log 2026-10-19 13:57:06). Physical iPhone/Safari remains untested. Automated browser tests cover mobile/desktop, real WebM playback, multi-chunk reconstruction, errors, retry and backup/restore.
 
 - Reading rhythm retained: `.spoken-example` reserves a 30px column but its speech button is absolutely centered on the first text line, avoiding a 30px minimum example row versus 24.75px other rows. Text origins now advance by 28.75px for single-line definition/example/translation. `check:reading-rhythm-ui` checks home/detail at three widths and both themes, equal rhythm, preserved speech hit area and non-overlap. Retain 4px paragraph gaps and do not compensate by inflating all other rows.
 
