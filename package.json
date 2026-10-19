@@ -1,6 +1,6 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.23.1",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,8 +15,9 @@
     "check:reading-rhythm-ui": "node scripts/check-reading-rhythm-ui.cjs",
     "check:learning-ui": "node scripts/check-learning-ui.cjs",
     "check:learning": "node scripts/check-learning-tools.js",
-    "check:scenes": "node --check scene-data.js && node --check scene-media.js && node --check scene-ui.js && node --check api/media.js && node scripts/check-scenes.js && node scripts/check-media-api.js",
+    "check:scenes": "node --check scene-data.js && node --check scene-media.js && node --check scene-ui.js && node --check ui-overlays.js && node --check api/media.js && node scripts/check-scenes.js && node scripts/check-media-api.js",
     "check:scenes-ui": "node scripts/check-scenes-ui.cjs && node scripts/check-scene-media-ui.cjs",
+    "check:workbench-ui": "node scripts/check-scene-workbench.cjs",
     "check:responsive": "node scripts/check-responsive.cjs",
     "build:icons": "node scripts/build-icons.js",
     "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",

@@ -66,6 +66,8 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
    },[...png]);
    await page.waitForFunction(()=>!document.querySelector('[data-scene-action="manual"]').disabled);
    assert.equal(await page.locator('.scene-file-row').count(),2,'Drop duplicate is deduplicated by content');
+   await page.locator('.scene-file-row').nth(1).locator('[data-scene-action="hero"]').click();
+   await page.locator('.scene-file-grip').first().press('ArrowDown');
    await page.locator('.scene-source-fields summary').click();
    await page.locator('[name="sourceTitle"]').fill('Episode 02');
    await page.locator('[name="timeRange"]').fill('00:07:18 – 00:07:20');
@@ -78,6 +80,24 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
    await page.waitForFunction(()=>document.querySelectorAll('.scene-asset img').length===2);
    const saved=await page.evaluate(()=>getHistory()[0]);
    assert.equal(saved.scenes[0].quote,"Let's start over!");assert.equal(saved.scenes[0].media.length,2);
+   assert.equal(saved.scenes[0].heroMedia.length,2,'Multiple main media are persisted');
+   assert.equal(await page.evaluate(item=>{
+    const stale={...item,scenes:item.scenes.map(scene=>({...scene,heroMedia:[],featured:false,order:999,updatedAt:scene.createdAt}))};
+    return mergeHistoryItems([item],[stale])[0].scenes[0].heroMedia.length;
+   },saved),2,'Application cloud merge preserves newer main-media selection');
+   assert.equal(saved.scenes[0].media[0].mime,'image/gif','Media order persists on save');
+   const reading=await page.locator('.scene-record').first().evaluate(node=>{
+    const text=node.querySelector('.scene-context').getBoundingClientRect(),media=node.querySelector('.scene-media').getBoundingClientRect();
+    return {right:media.left>=text.right,below:media.top>=text.bottom};
+   });
+   assert.ok(width>=900?reading.right:reading.below,'Desktop pairs text with media on right; mobile stacks');
+   await page.locator('.scene-record [data-scene-action="enlarge"]').first().click();
+   await page.waitForSelector('#scene-viewer[open]');
+   assert.ok(await page.locator('#scene-viewer').evaluate(node=>node.matches(':modal')),'Media enlargement uses native modal top layer');
+   await page.evaluate(()=>notify('Viewer notification test','info','Media',false));
+   assert.ok(await page.locator('#toast-stack').evaluate(node=>node.matches(':popover-open')&&node.closest('dialog:modal')),'Notifications remain visible and interactive above viewer');
+   await page.keyboard.press('Escape');
+   await page.waitForSelector('#scene-viewer',{state:'detached'});
    assert.ok(saved.scenes[0].sourceUrl.startsWith('https://example.com/'));
    assert.equal(await page.evaluate(()=>Object.values(localStorage).some(value=>value.includes('data:image/'))),false,'Binary never enters localStorage');
    const id=saved.id;

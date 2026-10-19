@@ -143,7 +143,7 @@ expect(/\.visual-workbench-nav\{[^}]*position:sticky/.test(css)&&/\.visual-workb
 expect(app.includes('function handleVisualReorderPick(')&&app.includes('function handleApiProfileReorderPick(')&&app.includes('function movePickedItem('), 'Visual rows and API profiles must retain a click/keyboard reorder fallback');
 expect(app.includes('<button class="api-profile-drag"')&&app.includes('<button class="drag-handle"'), 'Reorder handles must be real icon buttons instead of font characters or inert spans');
 expect(app.includes("document.addEventListener('pointermove',moveVisualPointerDrag")&&app.includes("document.addEventListener('pointerup',endVisualPointerDrag"), 'Visual pointer ordering must finish even after the pointer leaves the editor');
-expect(app.includes("document.addEventListener('pointermove',moveApiProfilePointerDrag")&&app.includes("addEventListener('dragstart',startApiProfileNativeDrag)"), 'API profile ordering must support global pointer capture and native desktop drag fallback');
+expect(app.includes("document.addEventListener('pointermove',moveApiProfilePointerDrag")&&app.includes('draggable="false"')&&!app.includes('startApiProfileNativeDrag'), 'API profile ordering uses shared pointer interactions, without a competing native drag preview');
 expect(/@media\(min-width:901px\)\{[\s\S]*?\.sidebar>\.nav\{[^}]*left:50%;[^}]*transform:translateX\(-50%\)/.test(css), 'Desktop core navigation must be geometrically centered in the viewport');
 expect(app.includes('favoriteFolderOrder:ordered.map(folder=>folder.id)'), 'Favorite folder drag must persist an independent order');
 expect(app.includes('favoriteFolderOrderUpdatedAt:now'), 'Favorite folder order changes must record an order clock');

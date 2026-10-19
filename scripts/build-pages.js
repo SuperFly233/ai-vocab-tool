@@ -15,6 +15,7 @@ const files = [
   'learning-tools.js',
   'scene-data.js',
   'scene-media.js',
+  'ui-overlays.js',
   'scene-ui.js',
   'styles.css',
   'favicon.svg',

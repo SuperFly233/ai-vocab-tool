@@ -80,7 +80,7 @@ let visualPointerDragState=null;
 let visualOpenTarget='';
 let visualReorderPick=null;
 let apiProfilePointerDragState=null;
-let apiProfileNativeDragState=null;
+let apiProfileMenuScrollY=0;
 let apiProfileReorderPick=null;
 let suppressReorderHandleClickUntil=0;
 let rollPointerDragState=null;
@@ -180,12 +180,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.23.1',
+  version:'0.24.0',
   releaseDate:'2026-10-19',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.24.0',date:'2026-10-19',title:'场景成为词条的第一阅读区',
+    items:['主场景位于标题后、释义前，桌面左右配图、手机上下阅读；关联场景直接出现在对应义项和搭配里。','场景和素材均可排序，多张图片、GIF 或视频可选作主素材；原生放大预览支持查看原件。','首页加号与 API 选择器使用有明确尺寸的原生顶层菜单，处理窄屏、滚动与视口变化；提示文字顶层显示并自动换行避让。','API、可视化编辑、收藏夹、版本、队列和场景统一直接移动原条目，取消胶囊影子；长块不再折叠，边缘持续滚动。','编辑弹窗仅通过明确操作关闭，移出或在遮罩松手不会丢失草稿；编辑操作逐步统一为带提示的图标。'],
+  },
   {
     version:'0.23.1',date:'2026-10-19',title:'压缩首页场景入口',
     items:['场景添加、自建词条与导入收进搜索按钮旁的加号菜单，不再单独占一行高度。','菜单支持点击外部或 Escape 关闭，窄屏自动避让边缘；滚动时入口仍保留。'],
@@ -1136,6 +1140,7 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
     <div class="toast-progress" aria-hidden="true"></div>
   `;
   document.getElementById('toast-stack').appendChild(toast);
+  globalThis.UIOverlays?.raiseNotifications();
   toast.querySelector('.toast-close')?.addEventListener('click',()=>dismissToast(key));
   toast.querySelector('.toast-action')?.addEventListener('click',()=>{
     try{action?.run?.()}finally{dismissToast(key)}
@@ -3134,6 +3139,7 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null,m
       <div class="entry-kicker">${escapeHTML([displayLanguageLabel(head.languageTag||meta.language),displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query))].filter(Boolean).join(' · ')||'词条')}</div>
       <div class="entry-title-row"><div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>${renderSpeechButton(head.title||meta.query,head.languageTag||meta.language,'朗读词条')}</div>
       ${renderResultProvenance(result,scope,historyItem,modelInfo)}
+      ${SceneUI.render(historyItem)}
       ${head.coreMeaning?`<div class="entry-core"><b>核心义</b><mark>${escapeHTML(head.coreMeaning)}</mark></div>`:''}
       <div class="entry-meta-grid">
         <span><b>类型</b>${escapeHTML(displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)))}</span>
@@ -3155,7 +3161,6 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null,m
     ${renderConfusions(confusions,result,historyItem)}
     ${renderRelatedHistory(related)}
     ${renderHistoryNoteBlock(historyItem)}
-    ${SceneUI.render(historyItem)}
     ${renderFollowupHTML(followups,scope)}
   `;
 }
@@ -3594,7 +3599,7 @@ function renderFollowupItem(item,scope){
       <div class="followup-answer">${formatFollowupAnswer(item.answer)}</div>
       <div class="followup-actions">
         ${item.pending?'':`
-          <button class="plain-btn ghost-btn" onclick="editFollowup('${scope}',${id})">编辑</button>
+          <button class="icon-btn" aria-label="编辑追问" data-tip="编辑追问" onclick="editFollowup('${scope}',${id})">${icon('pencil')}</button>
           <button class="danger-btn" onclick="deleteFollowup('${scope}',${id})">删除</button>
         `}
       </div>
@@ -5216,7 +5221,7 @@ function renderFoldersView(){
         <p>${globalSearch?`${entries.length} 条匹配记录`:active.id===FOLDER_INSIGHTS_ID?'已收藏的义项、搭配与辨析':`${entries.length} 条记录`}</p>
       </div>
       <div class="folder-head-actions">
-        ${active.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">重命名</button>`}
+        ${active.system?'':`<button class="icon-btn" type="button" aria-label="重命名收藏夹" data-tip="重命名收藏夹" onclick="renameFavoriteFolder('${escapeAttr(active.id)}')">${icon('pencil')}</button>`}
         ${globalSearch||active.id===FOLDER_INSIGHTS_ID?'':`<button class="plain-btn" type="button" onclick="openFolderRecordPicker()">添加已有词条</button><button class="icon-btn" type="button" data-tip="查词加入此夹" aria-label="查词加入此夹" onclick="startLookupInFolder('${escapeAttr(active.id)}')">${icon('plus')}</button>`}
         <button class="icon-btn" type="button" data-tip="复习当前列表" aria-label="复习当前列表" onclick="startFolderReview()" ${entries.length?'':'disabled'}>${icon('layers')}</button>
         <button class="icon-btn" type="button" data-tip="导出 Markdown" aria-label="导出 Markdown" onclick="exportFolderMarkdown()" ${entries.length?'':'disabled'}>${icon('file-text')}</button>
@@ -5697,7 +5702,7 @@ function renderFolderManager(){
           <div class="tag-manager-actions">
             <button class="plain-btn" type="button" onclick="openFolderView('${escapeAttr(item.id)}')">打开</button>
             <button class="plain-btn" type="button" onclick="exportFolderJSON('${escapeAttr(item.id)}')">导出</button>
-            ${item.system?'':`<button class="plain-btn" type="button" onclick="renameFavoriteFolder('${escapeAttr(item.id)}')">重命名</button>
+            ${item.system?'':`<button class="icon-btn" type="button" aria-label="重命名收藏夹" data-tip="重命名收藏夹" onclick="renameFavoriteFolder('${escapeAttr(item.id)}')">${icon('pencil')}</button>
             <button class="danger-btn" type="button" onclick="deleteFavoriteFolder('${escapeAttr(item.id)}')">移除</button>`}
           </div>
         </article>
@@ -5847,15 +5852,18 @@ function startFolderPointerDrag(event){
     startY:event.clientY,
     active:false,
     ghost:null,
-    timer:setTimeout(()=>{
+    timer:null,
+  };
+  const state=folderPointerDragState;
+  state.activate=()=>{
       if(!folderPointerDragState)return;
       folderPointerDragState.active=true;
       item.classList.add('dragging');
       document.body.classList.add('reorder-active');
       folderPointerDragState.ghost=createReorderGhost(item,event,'收藏夹');
       item.setPointerCapture?.(event.pointerId);
-    },240),
-  };
+    };
+  if(event.pointerType!=='mouse')state.timer=setTimeout(state.activate,180);
 }
 function moveFolderPointerDrag(event){
   const state=folderPointerDragState;
@@ -5876,6 +5884,7 @@ function moveFolderPointerDrag(event){
 function endFolderPointerDrag(event){
   const state=folderPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(state.active&&event.type!=='pointercancel')moveFolderPointerDrag(event);
   cancelPendingPointerDrag(state);
   clearFolderDropMarks();
   folderPointerDragState=null;
@@ -6101,7 +6110,7 @@ function renderVisualConfusion(item={},index=0){
 }
 function visualCardHead(kind,index,title,meta=''){
   return `<div class="visual-card-head">
-    <button class="drag-handle" type="button" aria-label="拖拽排序；也可点按选中后再点目标位置" aria-pressed="false" data-tip="拖拽排序；点按后再点目标位置">${icon('grip-vertical')}</button>
+    <button class="drag-handle" type="button" aria-label="拖动排序；键盘可按两次选择目标" aria-pressed="false" data-tip="拖动排序">${icon('grip-vertical')}</button>
     <button class="visual-card-toggle" type="button" onclick="toggleVisualCard(this)" aria-expanded="${visualOpenTarget===`${kind}:${index}`}">
       <span class="visual-card-index">${index+1}</span><span class="visual-card-copy"><b>${escapeHTML(title)}</b>${meta?`<small>${escapeHTML(meta)}</small>`:''}</span>${icon('chevron-down')}
     </button>
@@ -6270,7 +6279,9 @@ function handleApiProfileReorderPick(handle){
   clearApiProfileReorderPick();
   if(moved)persistApiProfileOrder([...item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
 }
+let reorderScrollFrame=null;
 function autoScrollDuringDrag(clientY,scroller=els.historyModalBody||document.scrollingElement,clientX=null,axis='y'){
+  cancelAnimationFrame(reorderScrollFrame);reorderScrollFrame=null;
   if(!scroller)return;
   const rect=scroller===document.scrollingElement
     ? {top:0,bottom:window.innerHeight,left:0,right:window.innerWidth}
@@ -6286,16 +6297,34 @@ function autoScrollDuringDrag(clientY,scroller=els.historyModalBody||document.sc
     if(clientX<rect.left+edge)scroll.left=-Math.round(maxSpeed*(1-(clientX-rect.left)/edge));
     else if(clientX>rect.right-edge)scroll.left=Math.round(maxSpeed*(1-(rect.right-clientX)/edge));
   }
-  if(scroll.top||scroll.left)scroller.scrollBy(scroll);
+  if(scroll.top||scroll.left){
+    scroller.scrollBy(scroll);
+    if(document.body.classList.contains('reorder-active'))reorderScrollFrame=requestAnimationFrame(()=>{
+      const item=document.querySelector('.direct-drag'),state=item?._directDrag;
+      if(state)positionReorderGhost(item,{clientX:state.clientX,clientY:state.clientY});
+      autoScrollDuringDrag(clientY,scroller,clientX,axis);
+    });
+  }
 }
 function reorderDropMeta(clientX,clientY,itemSelector,scope=null,axis='y'){
   const element=document.elementFromPoint(clientX,clientY);
-  const item=element?.closest?.(itemSelector);
-  if(!item||scope&&!scope.contains(item))return null;
+  const bounds=scope?.getBoundingClientRect()||{top:0,left:0,right:innerWidth,bottom:innerHeight};
+  let item=element?.closest?.(itemSelector);
+  if(item?.classList.contains('dragging')||scope&&!scope.contains(item))item=null;
+  if(!item&&scope&&clientY>=Math.max(0,bounds.top)&&clientY<=Math.min(innerHeight,bounds.bottom)&&clientX>=Math.max(0,bounds.left)&&clientX<=Math.min(innerWidth,bounds.right)){
+    item=[...scope.querySelectorAll(itemSelector)].filter(node=>!node.classList.contains('dragging')).reduce((best,node)=>{
+      const rect=node.getBoundingClientRect();
+      if(rect.bottom<0||rect.top>innerHeight||rect.right<0||rect.left>innerWidth)return best;
+      const center=axis==='x'?(Math.max(0,rect.left)+Math.min(innerWidth,rect.right))/2:(Math.max(0,rect.top)+Math.min(innerHeight,rect.bottom))/2;
+      const distance=Math.abs((axis==='x'?clientX:clientY)-center);
+      return !best||distance<best.distance?{node,distance}:best;
+    },null)?.node;
+  }
+  if(!item)return null;
   const rect=item.getBoundingClientRect();
   const after=axis==='x'
-    ? clientX>rect.left+rect.width/2
-    : clientY>rect.top+rect.height/2;
+    ? clientX>(Math.max(0,rect.left,bounds.left)+Math.min(innerWidth,rect.right,bounds.right))/2
+    : clientY>(Math.max(0,rect.top,bounds.top)+Math.min(innerHeight,rect.bottom,bounds.bottom))/2;
   return {item,after};
 }
 function clearDropMarks(selector){
@@ -6306,17 +6335,18 @@ function markDropTarget(meta){
   meta.item.classList.add(meta.after?'drop-after':'drop-before');
 }
 function createReorderGhost(item,event,label='正在移动'){
-  const ghost=document.createElement('div');
-  ghost.className='reorder-ghost';
-  const title=item.querySelector('b,strong,.api-profile-select span,.roll-btn span')?.textContent?.trim()||label;
-  ghost.innerHTML=`${icon('grip-vertical')}<span>${escapeHTML(title)}</span>`;
-  document.body.appendChild(ghost);
-  positionReorderGhost(ghost,event);
-  return ghost;
+  const rect=item.getBoundingClientRect();
+  item._directDrag={offsetX:event.clientX-rect.left,offsetY:event.clientY-rect.top,x:0,y:0};
+  item.classList.add('direct-drag');
+  return item;
 }
 function positionReorderGhost(ghost,event){
-  if(!ghost)return;
-  ghost.style.transform=`translate3d(${Math.round(event.clientX+14)}px,${Math.round(event.clientY+14)}px,0)`;
+  const state=ghost?._directDrag;if(!state)return;
+  const rect=ghost.getBoundingClientRect();
+  state.x=event.clientX-state.offsetX-(rect.left-state.x);
+  state.y=event.clientY-state.offsetY-(rect.top-state.y);
+  state.clientX=event.clientX;state.clientY=event.clientY;
+  ghost.style.translate=`${Math.round(state.x)}px ${Math.round(state.y)}px`;
 }
 function animateDomReorder(container,dragged,target,after){
   if(!container||!dragged||!target||dragged===target)return false;
@@ -6325,6 +6355,7 @@ function animateDomReorder(container,dragged,target,after){
   const children=[...container.children];
   const before=new Map(children.map(node=>[node,node.getBoundingClientRect()]));
   container.insertBefore(dragged,after?target.nextSibling:target);
+  if(dragged._directDrag)positionReorderGhost(dragged,{clientX:dragged._directDrag.clientX,clientY:dragged._directDrag.clientY});
   [...container.children].forEach(node=>{
     if(node===dragged)return;
     const previous=before.get(node);
@@ -6339,13 +6370,16 @@ function animateDomReorder(container,dragged,target,after){
 }
 function cancelPendingPointerDrag(state){
   if(!state)return;
+  cancelAnimationFrame(reorderScrollFrame);reorderScrollFrame=null;
   clearTimeout(state.timer);
-  state.ghost?.remove();
+  if(state.ghost){state.ghost.style.translate='';state.ghost.classList.remove('direct-drag');delete state.ghost._directDrag}
   state.item?.classList.remove('dragging');
   document.body.classList.remove('reorder-active');
 }
 function shouldCancelPendingDrag(state,event){
-  return !state.active&&Math.hypot(event.clientX-state.startX,event.clientY-state.startY)>(state.cancelDistance||9);
+  const distance=Math.hypot(event.clientX-state.startX,event.clientY-state.startY);
+  if(!state.active&&event.pointerType==='mouse'&&distance>5)state.activate?.();
+  return !state.active&&distance>(state.cancelDistance||18);
 }
 function startVisualPointerDrag(event){
   const handle=event.target.closest('.drag-handle');
@@ -6365,7 +6399,6 @@ function startVisualPointerDrag(event){
   const activate=()=>{
       if(visualPointerDragState!==state)return;
       state.active=true;
-      card.classList.remove('expanded');
       card.classList.add('dragging');
       document.body.classList.add('reorder-active');
       state.ghost=createReorderGhost(card,event,'编辑区块');
@@ -6391,6 +6424,7 @@ function moveVisualPointerDrag(event){
 function endVisualPointerDrag(event){
   const state=visualPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(state.active&&event.type!=='pointercancel')moveVisualPointerDrag(event);
   cancelPendingPointerDrag(state);
   clearDropMarks('.visual-card');
   visualPointerDragState=null;
@@ -6452,43 +6486,12 @@ function moveApiProfilePointerDrag(event){
 function endApiProfilePointerDrag(event){
   const state=apiProfilePointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(state.active&&event.type!=='pointercancel')moveApiProfilePointerDrag(event);
   cancelPendingPointerDrag(state);
   clearDropMarks('.api-profile-option');
   apiProfilePointerDragState=null;
   if(!state.active)return;
   suppressReorderHandleClickUntil=Date.now()+280;
-  persistApiProfileOrder([...state.item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
-}
-function startApiProfileNativeDrag(event){
-  const handle=event.target.closest('.api-profile-drag');
-  const item=event.target.closest('.api-profile-option');
-  if(!handle||!item)return;
-  if(apiProfilePointerDragState){
-    cancelPendingPointerDrag(apiProfilePointerDragState);
-    apiProfilePointerDragState=null;
-  }
-  apiProfileNativeDragState={item};
-  item.classList.add('dragging');
-  document.body.classList.add('reorder-active');
-  event.dataTransfer.effectAllowed='move';
-  event.dataTransfer.setData('text/plain',item.dataset.profileId||'');
-}
-function moveApiProfileNativeDrag(event){
-  const state=apiProfileNativeDragState;
-  if(!state)return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect='move';
-  autoScrollDuringDrag(event.clientY,els.apiProfileMenu);
-  const meta=apiProfileDropMeta(event.clientY,state.item);
-  if(meta)animateDomReorder(state.item.parentElement,state.item,meta.item,meta.after);
-}
-function endApiProfileNativeDrag(event){
-  const state=apiProfileNativeDragState;
-  if(!state)return;
-  event?.preventDefault?.();
-  apiProfileNativeDragState=null;
-  state.item.classList.remove('dragging');
-  document.body.classList.remove('reorder-active');
   persistApiProfileOrder([...state.item.parentElement.querySelectorAll('.api-profile-option')].map(node=>node.dataset.profileId));
 }
 function startRollPointerDrag(event){
@@ -6501,7 +6504,10 @@ function startRollPointerDrag(event){
     startY:event.clientY,
     active:false,
     ghost:null,
-    timer:setTimeout(()=>{
+    timer:null,
+  };
+  const state=rollPointerDragState;
+  state.activate=()=>{
       if(!rollPointerDragState)return;
       rollPointerDragState.active=true;
       suppressRollClick=true;
@@ -6509,8 +6515,8 @@ function startRollPointerDrag(event){
       document.body.classList.add('reorder-active');
       rollPointerDragState.ghost=createReorderGhost(roll,event,'版本');
       roll.setPointerCapture?.(event.pointerId);
-    },260),
-  };
+    };
+  if(event.pointerType!=='mouse')state.timer=setTimeout(state.activate,180);
 }
 function moveRollPointerDrag(event){
   const state=rollPointerDragState;
@@ -6532,6 +6538,7 @@ function moveRollPointerDrag(event){
 function endRollPointerDrag(event){
   const state=rollPointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(state.active&&event.type!=='pointercancel')moveRollPointerDrag(event);
   cancelPendingPointerDrag(state);
   clearDropMarks('.roll-btn');
   rollPointerDragState=null;
@@ -6553,15 +6560,18 @@ function startLookupQueuePointerDrag(event){
     startY:event.clientY,
     active:false,
     ghost:null,
-    timer:setTimeout(()=>{
+    timer:null,
+  };
+  const state=lookupQueuePointerDragState;
+  state.activate=()=>{
       if(!lookupQueuePointerDragState)return;
       lookupQueuePointerDragState.active=true;
       item.classList.add('dragging');
       document.body.classList.add('reorder-active');
       lookupQueuePointerDragState.ghost=createReorderGhost(item,event,'查询任务');
       item.setPointerCapture?.(event.pointerId);
-    },220),
-  };
+    };
+  if(event.pointerType!=='mouse')state.timer=setTimeout(state.activate,180);
 }
 function moveLookupQueuePointerDrag(event){
   const state=lookupQueuePointerDragState;
@@ -6582,6 +6592,7 @@ function moveLookupQueuePointerDrag(event){
 function endLookupQueuePointerDrag(event){
   const state=lookupQueuePointerDragState;
   if(!state||state.pointerId!==event.pointerId)return;
+  if(state.active&&event.type!=='pointercancel')moveLookupQueuePointerDrag(event);
   cancelPendingPointerDrag(state);
   clearDropMarks('.queue-item');
   lookupQueuePointerDragState=null;
@@ -7602,13 +7613,13 @@ function renderApiProfilePicker(settings,profile){
     <div class="api-profile-menu-list">
       ${settings.apiProfiles.map((item,index)=>`
         <div class="api-profile-option ${item.id===profile.id?'active':''}" data-profile-index="${index}" data-profile-id="${escapeHTML(item.id)}">
-          <button class="api-profile-drag" type="button" draggable="true" aria-label="拖拽排序；也可点按选中后再点目标位置" aria-pressed="false" data-tip="拖拽排序；点按后再点目标位置">${icon('grip-vertical')}</button>
+          <button class="api-profile-drag" type="button" draggable="false" aria-label="拖动排序；键盘可按两次选择目标" aria-pressed="false" data-tip="拖动排序">${icon('grip-vertical')}</button>
           <button class="api-profile-select" type="button" data-profile-action="select">
             <span>${escapeHTML(item.name||'未命名配置')}</span>
             <em>${escapeHTML(apiProfileSummary(item))}</em>
           </button>
-          <button class="api-profile-edit" type="button" data-profile-action="edit">编辑</button>
-          <button class="api-profile-delete" type="button" data-profile-action="delete" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">${icon('x')}</button>
+          <button class="api-profile-edit icon-btn" type="button" data-profile-action="edit" aria-label="编辑配置" data-tip="编辑配置">${icon('pencil')}</button>
+          <button class="api-profile-delete icon-btn" type="button" data-profile-action="delete" data-tip="删除配置" aria-label="删除 ${escapeAttr(item.name||'未命名配置')}">${icon('x')}</button>
         </div>
       `).join('')}
     </div>
@@ -7626,6 +7637,7 @@ function closeApiProfileMenu(){
   els.apiProfilePicker?.closest('.setting-group')?.classList.remove('profile-menu-host-open');
   els.apiProfileMenuToggle?.setAttribute('aria-expanded','false');
   if(els.apiProfileMenu){
+    if(els.apiProfileMenu.matches(':popover-open'))els.apiProfileMenu.hidePopover();
     els.apiProfileMenu.classList.remove('floating-open');
     if(els.apiProfileMenu.parentElement!==els.apiProfilePicker)els.apiProfilePicker?.appendChild(els.apiProfileMenu);
     els.apiProfileMenu.style.left='';
@@ -7641,13 +7653,17 @@ function positionApiProfileMenu(){
   const margin=12;
   const mobile=window.matchMedia?.('(max-width: 900px)').matches;
   const bottomReserve=mobile?96:margin;
-  const width=Math.min(rect.width,window.innerWidth-margin*2);
+  if(rect.bottom<0||rect.top>window.innerHeight){closeApiProfileMenu();return}
+  const width=Math.min(640,Math.max(360,rect.width),window.innerWidth-margin*2);
   const left=Math.max(margin,Math.min(rect.left,window.innerWidth-width-margin));
-  const top=Math.min(rect.bottom+2,window.innerHeight-bottomReserve-120);
+  const space=Math.max(80,window.innerHeight-bottomReserve-margin);
+  const desired=Math.min(480,space);
+  const below=window.innerHeight-bottomReserve-rect.bottom-8;
+  const top=below>=Math.min(260,desired)?rect.bottom+8:Math.max(margin,Math.min(rect.top-desired-8,window.innerHeight-bottomReserve-desired));
   els.apiProfileMenu.style.left=`${left}px`;
   els.apiProfileMenu.style.top=`${Math.max(margin,top)}px`;
   els.apiProfileMenu.style.width=`${width}px`;
-  els.apiProfileMenu.style.maxHeight=`${Math.max(160,window.innerHeight-Math.max(margin,top)-bottomReserve)}px`;
+  els.apiProfileMenu.style.maxHeight=`${Math.min(desired,window.innerHeight-Math.max(margin,top)-bottomReserve)}px`;
 }
 function toggleApiProfileMenu(){
   const open=!els.apiProfilePicker?.classList.contains('open');
@@ -7655,11 +7671,13 @@ function toggleApiProfileMenu(){
   els.apiProfilePicker?.closest('.setting-group')?.classList.toggle('profile-menu-host-open',open);
   els.apiProfileMenuToggle?.setAttribute('aria-expanded',String(open));
   if(open){
+    apiProfileMenuScrollY=window.scrollY;
     if(els.apiProfileMenu&&els.apiProfileMenu.parentElement!==document.body)document.body.appendChild(els.apiProfileMenu);
     els.apiProfileMenu?.classList.add('floating-open');
+    els.apiProfileMenu?.showPopover();
     requestAnimationFrame(positionApiProfileMenu);
   }else{
-    els.apiProfileMenu?.classList.remove('floating-open');
+    closeApiProfileMenu();
   }
 }
 function renderSettings(){
@@ -8306,7 +8324,8 @@ els.modalVisualEditor?.addEventListener('click',event=>{
     event.preventDefault();
     event.stopPropagation();
     if(Date.now()<suppressReorderHandleClickUntil)return;
-    return handleVisualReorderPick(reorderHandle);
+    if(event.detail===0)return handleVisualReorderPick(reorderHandle);
+    return;
   }
   const close=event.target.closest('.visual-hint-close');
   if(!close)return;
@@ -8336,7 +8355,8 @@ els.apiProfileMenu?.addEventListener('click',event=>{
     event.preventDefault();
     event.stopPropagation();
     if(Date.now()<suppressReorderHandleClickUntil)return;
-    return handleApiProfileReorderPick(reorderHandle);
+    if(event.detail===0)return handleApiProfileReorderPick(reorderHandle);
+    return;
   }
   const action=event.target.closest('[data-profile-action]')?.dataset.profileAction;
   if(!action)return;
@@ -8354,10 +8374,6 @@ els.apiProfileMenu?.addEventListener('pointerdown',startApiProfilePointerDrag);
 document.addEventListener('pointermove',moveApiProfilePointerDrag,{passive:false});
 document.addEventListener('pointerup',endApiProfilePointerDrag);
 document.addEventListener('pointercancel',endApiProfilePointerDrag);
-els.apiProfileMenu?.addEventListener('dragstart',startApiProfileNativeDrag);
-els.apiProfileMenu?.addEventListener('dragover',moveApiProfileNativeDrag);
-els.apiProfileMenu?.addEventListener('drop',endApiProfileNativeDrag);
-els.apiProfileMenu?.addEventListener('dragend',endApiProfileNativeDrag);
 els.apiModelList?.addEventListener('click',event=>{
   const option=event.target.closest('.model-choice');
   if(!option)return;
@@ -8378,7 +8394,9 @@ window.addEventListener('resize',()=>{
   updateHomeEmptyLayout();
   syncHomeStickySpacer();
 });
+window.visualViewport?.addEventListener('resize',closeApiProfileMenu);
 window.addEventListener('scroll',()=>{
+  if(els.apiProfilePicker?.classList.contains('open')&&window.scrollY!==apiProfileMenuScrollY)closeApiProfileMenu();
   updateHomeStickyState();
   maybeLoadMoreHistory();
 },{passive:true});

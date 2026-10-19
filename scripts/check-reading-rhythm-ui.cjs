@@ -35,7 +35,7 @@ const server=require('./browser-test-server.cjs').createServer();
     await highlighted.evaluate(el=>{
      const example=el.querySelector('.spoken-example>span');
      example.innerHTML="You solved it already? <mark class=\"hit-mark\">You're really something!</mark>";
-     el.querySelector('.line:last-child>span').innerHTML='你已经解决了？<mark class="hit-mark">你真了不起！</mark>';
+     [...el.querySelectorAll('.line')].at(-1).querySelector(':scope>span').innerHTML='你已经解决了？<mark class="hit-mark">你真了不起！</mark>';
     });
     const gaps=await highlighted.evaluate(el=>{
      const rows=[...el.querySelectorAll('.line')].map(line=>line.getBoundingClientRect());

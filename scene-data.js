@@ -20,7 +20,10 @@
     const id=text(item.id,100);
     if(!/^[\w-]{1,100}$/.test(id))return null;
     const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','targetLabel'];
+    const media=normalizeMedia(item.media);
+    const heroMedia=Array.isArray(item.heroMedia)?item.heroMedia.filter(id=>media.some(ref=>ref.id===id)):media.slice(0,1).map(ref=>ref.id);
     return {id,...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
+      order:Number.isFinite(item.order)?item.order:time(item.createdAt),featured:typeof item.featured==='boolean'?item.featured:!item.targetKey,heroMedia:[...new Set(heroMedia)],
       sourceUrl:sourceUrl(item.sourceUrl),targetKey:text(item.targetKey,120),media:normalizeMedia(item.media),
       createdAt:time(item.createdAt)?item.createdAt:'',updatedAt:time(item.updatedAt)?item.updatedAt:time(item.createdAt)?item.createdAt:''};
   }
@@ -43,7 +46,7 @@
       if(tombstone)deleted.delete(item.id);
       kept.push(item);
     }
-    return {items:kept.sort((a,b)=>time(a.createdAt)-time(b.createdAt)||a.id.localeCompare(b.id)),tombstones:[...deleted.values()].sort((a,b)=>a.key.localeCompare(b.key))};
+    return {items:kept.sort((a,b)=>a.order-b.order||time(a.createdAt)-time(b.createdAt)||a.id.localeCompare(b.id)),tombstones:[...deleted.values()].sort((a,b)=>a.key.localeCompare(b.key))};
   }
   function detectMime(bytes){
     const ascii=(start,end)=>String.fromCharCode(...bytes.slice(start,end));
