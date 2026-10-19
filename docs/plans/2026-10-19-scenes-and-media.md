@@ -47,10 +47,14 @@ scene IDs or UI. No public bucket, remote media hotlinking or third-party upload
 - [x] Add private independent media sync transport and retry/download states.
 - [x] Add review and portable backup/restore.
 - [x] Run functional, responsive and visual acceptance; update release docs.
-- [ ] Commit, push and deploy only after release gates pass.
+- [x] Commit, push and deploy only after release gates pass.
 
 ## Acceptance Record
 
+- Implementation commit `2292eee` pushed to main. Final Cloudflare deployment:
+  https://77e89558.ai-vocab-tool.pages.dev. Production HTML revision
+  `0.23.0-20261019.3` and all five changed runtime/style assets matched the built
+  output after deployment.
 - `npm run check`: data, API, sync, settings, storage and existing contracts pass.
 - `npm run check:scenes-ui`: 390/1440 px, light/dark; picker, paste, drop,
   persisted drafts, authored entries, editing, deletion/undo and modal stacking.
