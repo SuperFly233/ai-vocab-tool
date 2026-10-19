@@ -192,10 +192,24 @@
       for(const [id,url] of urls)if(!active.has(id)){URL.revokeObjectURL(url);urls.delete(id)}
     },200);
   }).observe(document.documentElement,{childList:true,subtree:true});
+  const queryMenu=document.getElementById('scene-query-menu');
+  const menuToggle=document.querySelector('.scene-menu-toggle');
+  queryMenu?.addEventListener('toggle',()=>{
+    const shown=queryMenu.matches(':popover-open');menuToggle.setAttribute('aria-expanded',String(shown));
+    if(shown){
+      const anchor=menuToggle.getBoundingClientRect();
+      queryMenu.style.left=`${Math.max(12,Math.min(innerWidth-queryMenu.offsetWidth-12,anchor.right-queryMenu.offsetWidth))}px`;
+      queryMenu.style.top=`${Math.max(12,Math.min(innerHeight-queryMenu.offsetHeight-12,anchor.bottom+8))}px`;
+    }
+  });
+  addEventListener('resize',()=>queryMenu?.hidePopover());
+  document.addEventListener('scroll',()=>{if(queryMenu?.matches(':popover-open'))queryMenu.hidePopover()},true);
   document.addEventListener('click',event=>{
     const button=event.target.closest('[data-scene-action]');if(!button)return;
     event.preventDefault();event.stopPropagation();
     const name=button.dataset.sceneAction,parent=button.closest('[data-history-id]'),card=button.closest('[data-scene-id]');
+    if(name==='menu'){queryMenu.togglePopover();return}
+    if(queryMenu?.matches(':popover-open'))queryMenu.hidePopover();
     if(name==='open')open();
     else if(name==='import')pickBackup();
     else if(name==='backup')exportBackup(parent?.dataset.historyId);

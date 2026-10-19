@@ -180,12 +180,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.23.0',
+  version:'0.23.1',
   releaseDate:'2026-10-19',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.23.1',date:'2026-10-19',title:'压缩首页场景入口',
+    items:['场景添加、自建词条与导入收进搜索按钮旁的加号菜单，不再单独占一行高度。','菜单支持点击外部或 Escape 关闭，窄屏自动避让边缘；滚动时入口仍保留。'],
+  },
   {
     version:'0.23.0',
     date:'2026-10-19',

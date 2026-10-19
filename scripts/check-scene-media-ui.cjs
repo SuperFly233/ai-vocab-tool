@@ -61,6 +61,7 @@ const server=require('./browser-test-server.cjs').createServer();
   const record=await first.page.evaluate(()=>getHistory()[0]);
   const second=await open();
   const chooserPromise=second.page.waitForEvent('filechooser');
+  await second.page.locator('[data-scene-action="menu"]').click();
   await second.page.locator('[data-scene-action="import"]').click();
   const chooser=await chooserPromise;
   await chooser.setFiles({name:'scene-backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(archive))});

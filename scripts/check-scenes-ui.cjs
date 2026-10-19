@@ -18,6 +18,35 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
    await page.goto(`http://127.0.0.1:${server.address().port}`);
    await page.waitForFunction(()=>typeof SceneUI!=='undefined'&&typeof renderResult==='function');
    await page.locator('#query-input').fill('start over');
+   await page.locator('[data-scene-action="menu"]').click();
+   await page.waitForSelector('#scene-query-menu:popover-open');
+   const compact=await page.evaluate(()=>{
+    const input=document.querySelector('#query-input').getBoundingClientRect(),toggle=document.querySelector('.scene-menu-toggle').getBoundingClientRect(),menu=document.querySelector('#scene-query-menu').getBoundingClientRect();
+    return {sameRow:Math.abs(input.top+input.height/2-toggle.top-toggle.height/2)<3,menuFits:menu.left>=0&&menu.right<=innerWidth,extraRow:!!document.querySelector('.scene-query-actions')};
+   });
+   assert.ok(compact.sameRow&&compact.menuFits&&!compact.extraRow,'Scene entry adds no separate toolbar row');
+   if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`scene-menu-${width}-${theme}.png`)})}
+   await page.keyboard.press('Escape');
+   await page.waitForSelector('#scene-query-menu:popover-open',{state:'hidden'});
+   await page.waitForFunction(()=>document.querySelector('.scene-menu-toggle').getAttribute('aria-expanded')==='false');
+   assert.equal(await page.locator('.scene-menu-toggle').getAttribute('aria-expanded'),'false');
+   const geometry=await page.evaluate(()=>{
+    const box=selector=>{const rect=document.querySelector(selector).getBoundingClientRect();return {top:rect.top,width:rect.width,height:rect.height}};
+    return {input:box('#query-input'),panel:box('.editor-pane'),result:box('.result-pane'),overflow:document.documentElement.scrollWidth>innerWidth};
+   });
+   assert.ok(!geometry.overflow,'Compact toolbar must not overflow');
+   console.log(`Compact toolbar ${width}px ${theme}: ${JSON.stringify(geometry)}`);
+   await page.evaluate(()=>{document.querySelector('.result-pane').style.minHeight='1800px';scrollTo(0,400)});
+   await page.waitForTimeout(200);
+   assert.ok(await page.locator('.scene-menu-toggle').isVisible(),'Scene entry remains available while scrolling');
+   await page.locator('.scene-menu-toggle').click();
+   await page.waitForSelector('#scene-query-menu:popover-open');
+   if(process.env.QA_SCREENSHOTS)await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`scene-menu-scrolled-${width}-${theme}.png`)});
+   await page.evaluate(()=>scrollTo(0,0));
+   await page.waitForTimeout(200);
+   await page.evaluate(()=>document.querySelector('.result-pane').style.minHeight='');
+   if(await page.locator('#scene-query-menu').isVisible())await page.keyboard.press('Escape');
+   await page.locator('.scene-menu-toggle').click();
    await page.locator('[data-scene-action="open"]').click();
    const layer=await page.locator('#scene-editor').evaluate(node=>({layer:Number(getComputedStyle(node).zIndex),history:Number(getComputedStyle(document.querySelector('#history-modal')).zIndex),top:node.querySelector('.scene-editor').getBoundingClientRect().top,bottom:node.querySelector('.scene-editor').getBoundingClientRect().bottom}));
    assert.ok(layer.layer>layer.history,'Scene editor must be above existing detail/review layers');assert.ok(layer.top>=0&&layer.bottom<=900,'Editor fits viewport');
