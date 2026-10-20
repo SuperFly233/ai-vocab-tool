@@ -13,7 +13,7 @@ Architecture: retain history/scene metadata and existing private media transport
 - [x] Account/network: useful direct shortcuts and honest same-origin reachability indicator, no assumption that navigator.onLine proves Internet access.
 - [x] Deletion: scene confirmation plus undo; audit other persisted delete actions for confirmation/undo and preserve concurrent edits on restore.
 - [x] Stream layout: no-index confusions must not enter the 28px index column; constrain partial confusions/examples while receiving long strings.
-- [ ] Verify data, UI/mobile/desktop/streaming/media, report exact delivered counts and known limits, commit/push/deploy and verify production files.
+- [x] Verify data, UI/mobile/desktop/streaming/media, report exact delivered counts and known limits, commit/push/deploy and verify production files.
 
 No private production records are needed for this release. WebKit layout fixtures are distinct from real IndexedDB acceptance. Autoplay is opt-in and muted; viewer close does not unexpectedly resume audio.
 
@@ -67,4 +67,8 @@ No private production records are needed for this release. WebKit layout fixture
 - Passed `check:streaming-ui` and `check:streaming-e2e`: incomplete JSON/Unicode, full-width no-index confusions, provenance, buffered fallback, real upstream gated until text is visibly received for lookup and followup.
 - Passed `check:overlays-ui`, `check:mobile-notices-ui`, `check:workbench-ui`, `check:scene-authoring-ui`, `check:delete-undo-ui`: deliberate backdrop intent, arrow tips, bounded notices (45px simple / 81.5px detail for normal messages), SVG alignment, API/scene drag, manual highlights/source reuse, deletion restoration and visible network dot.
 - Screenshots inspected from ignored `tmp/scene-qa/`: mobile/desktop detail reading, settings and scene hub. Screenshot fixtures contain no personal data.
-- Pending: final release build, Git push, Cloudflare deployment and production asset comparison.
+- Completed `npm run build:pages`; release commit `367844a` pushed to `origin/main`.
+- Cloudflare deployment: https://f3d409f7.ai-vocab-tool.pages.dev ; production: https://ai-vocab-tool.pages.dev ; scene hub: https://ai-vocab-tool.pages.dev/scenes .
+- Production returned HTTP 200 and byte-equivalent (LF-normalized) content for index.html, app.js, styles.css, scene-data.js, scene-ui.js, experience-ui.js, request-ui.js and lookup-tasks.js. `/scenes` returned the v0.27.0 / 20261020.4 HTML.
+- Final tally: 23 accepted items = 8 bug fixes/regressions + 8 improvements + 7 features. No planned item remains unimplemented; physical-device and real-account cross-device testing remain explicit validation limits, not claimed as passed.
+- Stop after this release as requested; no automatic next iteration.
