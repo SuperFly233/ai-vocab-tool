@@ -54,4 +54,9 @@
 
 ## 发布
 
-待最终回归、构建、提交、Push、Cloudflare 部署及线上静态文件核验。
+- 功能提交：`29dac6a`，已 Push 到 `origin/main`。
+- Cloudflare 部署成功：https://a274dc8c.ai-vocab-tool.pages.dev 。
+- 生产站点：https://ai-vocab-tool.pages.dev ，场景入口 `/scenes`，批量入口 `/batch`。
+- 生产 `index.html`、`app.js`、`styles.css`、`scene-ui.js`、`experience-ui.js`、`request-ui.js`、`lookup-tasks.js`、`ui-overlays.js`、`icons.js` 均 HTTP 200，与本地 `dist` 内容逐项相等（统一 CRLF/LF 后比较）。
+- `/scenes` 与 `/batch` 均 HTTP 200，引用 `v=0.28.0-20261021.1` 静态资源。
+- 本轮完成并部署后暂停，不自动追加下一轮。
