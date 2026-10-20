@@ -78,6 +78,8 @@ const deduped=normalizeSnapshot({
   queue:[{query:' same ',folderIds:['a','b']},{query:'other'}],
 });
 expect(deduped.queue.length===1&&deduped.queue[0].query==='other','Snapshot normalization must remove duplicate signatures');
+const sceneTasks=normalizeSnapshot({queue:[{query:'same',sceneGroupId:'scene-a'},{query:'same',sceneGroupId:'scene-b'}]});
+expect(sceneTasks.queue.length===2&&sceneTasks.queue[1].sceneGroupId==='scene-b','Same phrase from different scenes retains both associations after queue recovery');
 
 if(failures.length){
   console.error(`Lookup task check failed (${failures.length}):`);

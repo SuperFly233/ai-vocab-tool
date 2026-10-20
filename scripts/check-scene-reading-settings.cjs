@@ -47,6 +47,15 @@ const server=require('./browser-test-server.cjs').createServer();
     });
     assert.ok(layout.coreFirst&&!layout.overflow);assert.ok(layout.mediaHeight<=(width<=600?180:220)+1);
     assert.equal(await scene.locator('[data-scene-action="load"],[data-scene-action="sync"]').count(),0,'No manual loading/sync controls in normal reading');
+    if(width>600){
+     const divider=scene.locator('.scene-splitter');await divider.focus();
+     await page.keyboard.press('ArrowLeft');assert.equal(await divider.getAttribute('aria-valuenow'),'41');
+     await divider.press('Home');assert.equal(await divider.getAttribute('aria-valuenow'),'38');
+     const box=await divider.boundingBox();assert.ok(box.width>=10&&box.height>50,'Divider has a stable pointer target');
+     await page.mouse.move(box.x+box.width/2,box.y+20);await page.mouse.down();await page.mouse.move(box.x-40,box.y+20,{steps:5});await page.mouse.up();
+     assert.ok(Number(await divider.getAttribute('aria-valuenow'))>38,'Pointer dragging adjusts media ratio');
+     await divider.dblclick();assert.equal(await divider.getAttribute('aria-valuenow'),'38');
+    }
     assert.ok(await scene.locator('.scene-sync-error').evaluate(node=>node.hidden));
     if(process.env.QA_SCREENSHOTS&&scope.includes('modal'))await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`reading-${engine}-${width}-${theme}.png`)});
    }
@@ -73,7 +82,7 @@ const server=require('./browser-test-server.cjs').createServer();
    }
    await page.evaluate(()=>{closeHistoryModal();showView('settings')});
    const font=page.locator('#font-mode-sans');await font.scrollIntoViewIfNeeded();
-   const settings=await page.locator('#settings-experience').evaluate(root=>{
+   const settings=await page.locator('#settings-reading').evaluate(root=>{
     const font=root.querySelector('#font-mode-sans'),style=getComputedStyle(font),button=font.getBoundingClientRect(),row=font.closest('.setting-row'),copy=row.firstElementChild.getBoundingClientRect();
     return {nowrap:style.whiteSpace==='nowrap',buttonWidth:button.width,copyWidth:copy.width,rowWidth:row.clientWidth,overflow:document.documentElement.scrollWidth>innerWidth};
    });

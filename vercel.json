@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/scenes", "destination": "/" },
     { "source": "/history", "destination": "/" },
     { "source": "/history/:path*", "destination": "/" },
     { "source": "/favorites", "destination": "/" },

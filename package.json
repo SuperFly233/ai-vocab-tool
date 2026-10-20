@@ -1,11 +1,13 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "precheck": "node --check learning-tools.js && node scripts/check-learning-tools.js && node scripts/check-versions.js && npm run check:scenes",
+    "precheck": "node --check experience-ui.js && node --check request-ui.js && node --check learning-tools.js && node scripts/check-learning-tools.js && node scripts/check-versions.js && npm run check:scenes",
     "check:versions-ui": "node scripts/check-versions-ui.cjs",
+    "check:workspace-ui": "node --check experience-ui.js && node --check request-ui.js && node scripts/check-reading-workspace.cjs",
+    "check:delete-undo-ui": "node scripts/check-delete-undo.cjs",
     "check:favorites-ui": "node scripts/check-favorites-ui.cjs",
     "check:favorites-boundaries": "node scripts/check-favorites-boundaries.cjs",
     "check:reading-ui": "node scripts/check-reading-ui.cjs",

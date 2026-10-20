@@ -14,6 +14,7 @@
       normalizedText(request.note),
       text(request.existingId),
       folders.join(','),
+      ...(text(request.sceneGroupId)?[text(request.sceneGroupId)]:[]),
     ].join('\u001f');
   }
 
@@ -29,6 +30,7 @@
       folderIds,
       queuedAt:text(request.queuedAt),
       startedAt:text(request.startedAt),
+      ...(text(request.sceneGroupId)?{sceneGroupId:text(request.sceneGroupId)}:{}),
     };
     normalized.signature=requestSignature(normalized);
     return normalized;

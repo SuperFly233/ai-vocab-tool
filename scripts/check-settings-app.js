@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 await import('../settings-data.js');
+await import('../scene-data.js');
 
 const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
 const start=app.indexOf('function normalizeSettings');
@@ -10,6 +11,7 @@ if(start<0||end<0)throw new Error('Could not locate production settings function
 
 const context={
   SettingsData:globalThis.SettingsData,
+  SceneData:globalThis.SceneData,
   DEFAULT_API_PROFILE:{id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''},
   DEFAULT_SETTINGS:{apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''},
   FOLDER_LIKED_ID:'liked',
@@ -53,6 +55,11 @@ const reverse=context.mergeSettings(remote,local);
 expect(forward.modelPrompt===''&&reverse.modelPrompt==='','A newer empty Prompt must win in both device argument orders');
 expect(forward.updatedAt===newer&&reverse.updatedAt===newer,'Merged settings must retain the winning overall clock');
 expect(JSON.stringify(forward)===JSON.stringify(reverse),'Deterministic legacy settings must converge in both merge directions');
+const scene={id:'shared-scene',groupId:'group-a',quote:'Old quote',createdAt:old,updatedAt:old};
+const sceneLocal={...local,sceneLibrary:[scene]},sceneRemote={...remote,sceneLibrary:[{...scene,quote:'New quote',updatedAt:newer}]};
+expect(context.mergeSettings(sceneLocal,sceneRemote).sceneLibrary[0].quote==='New quote','Independent scene content uses per-scene clocks');
+expect(JSON.stringify(context.mergeSettings(sceneLocal,sceneRemote).sceneLibrary)===JSON.stringify(context.mergeSettings(sceneRemote,sceneLocal).sceneLibrary),'Scene libraries converge in both directions');
+expect(context.mergeSettings(sceneLocal,{...remote,sceneLibraryTombstones:[{key:scene.id,deletedAt:newer}]}).sceneLibrary.length===0,'Independent scene deletion cannot revive from a stale device');
 
 if(failures.length){
   console.error(`Production settings check failed (${failures.length}):`);

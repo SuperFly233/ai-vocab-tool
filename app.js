@@ -33,6 +33,7 @@ const VIEW_ROUTES={
   home:'/',
   history:'/history',
   folders:'/favorites',
+  scenes:'/scenes',
   settings:'/settings',
   about:'/about',
   account:'/account',
@@ -180,12 +181,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.26.0',
+  version:'0.27.0',
   releaseDate:'2026-10-20',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.27.0',date:'2026-10-20',title:'场景工作区与批量查词，阅读导航和媒体交互统一',
+    items:['独立保存场景，从同一原句批量查询多个词组；共用素材、关联已有词条、按失败项重试，场景专区支持搜索与来源和媒体筛选。','新增顶部或左侧阅读目录，重组阅读、媒体和通知设置；图文分隔线支持拖动、键盘调整与双击复位，视频放大暂停原播放并继承进度。','版本一键非破坏整合，删除增加确认与撤销；修复流式辨析正文误落入 28px 序号列，显示真实请求阶段与首字耗时，增加站点连接状态。'],
+  },
   {
     version:'0.26.0',date:'2026-10-20',title:'核心义优先阅读，场景与设置减负',
     items:['核心义和基本信息先于场景展示；场景配图以完整比例紧凑预览，仍可放大查看原件。','打开词条自动加载可见素材，后台自动同步；移除常驻同步按钮和正常状态文字，只有失败才显示原因和重试。联网恢复后自动补传。','设置说明使用剩余宽度，选项不再拆字；常驻填写提示和主场景开关共用胶囊样式及键盘交互，多选仍保留勾选框。'],
@@ -1599,6 +1604,7 @@ function setHistory(items,{revive=false,deletedItems=[]}={}){
   markCloudDirty(CLOUD_KEYS.history);
   markCloudDirty(CLOUD_KEYS.historyTombstones);
   if(activeView==='history')renderHistory();
+  if(activeView==='scenes')globalThis.SceneUI?.renderHub();
   renderLookupFolderPicker();
   if(activeView==='folders')renderFoldersView();
   scheduleCloudSync();
@@ -1745,6 +1751,12 @@ function normalizeSettings(raw={}){
     historyTimeMode,
     homeStickyMode,
     visualHintsPinned,
+    readingNav:['top','left','off'].includes(source.readingNav)?source.readingNav:'top',
+    mediaAutoplay:source.mediaAutoplay===true,
+    mediaControls:source.mediaControls!==false,
+    mediaTools:['auto','always','hidden'].includes(source.mediaTools)?source.mediaTools:'auto',
+    sceneLibrary:SceneData.reconcile(source.sceneLibrary,source.sceneLibraryTombstones).items,
+    sceneLibraryTombstones:SceneData.reconcile(source.sceneLibrary,source.sceneLibraryTombstones).tombstones,
     toastMode,
     toastPosition,
     modelPrompt,
@@ -1896,6 +1908,12 @@ function mergeSettings(localRaw,remoteRaw){
     historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
     homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
+    readingNav:preferLocalSettings?local.readingNav:remote.readingNav,
+    mediaAutoplay:preferLocalSettings?local.mediaAutoplay:remote.mediaAutoplay,
+    mediaControls:preferLocalSettings?local.mediaControls:remote.mediaControls,
+    mediaTools:preferLocalSettings?local.mediaTools:remote.mediaTools,
+    sceneLibrary:[...(local.sceneLibrary||[]),...(remote.sceneLibrary||[])],
+    sceneLibraryTombstones:[...(local.sceneLibraryTombstones||[]),...(remote.sceneLibraryTombstones||[])],
     toastMode:preferLocalSettings?local.toastMode:remote.toastMode||local.toastMode,
     toastPosition:preferLocalSettings?local.toastPosition:remote.toastPosition||local.toastPosition,
     modelPrompt:SettingsData.selectPreferredValue(local.modelPrompt,remote.modelPrompt,preferLocalSettings),
@@ -1937,6 +1955,7 @@ function cloudReady(){
   return true;
 }
 function setCloudStatus(message,type='info',busy=false){
+  globalThis.NetworkUI?.cloudStatus(message,type);
   cloudBusy=Boolean(busy);
   document.body.classList.toggle('cloud-syncing',cloudBusy);
   const text=message||'同步状态会显示在这里';
@@ -2691,6 +2710,7 @@ function showView(id,button,options={}){
   els.accountToggle?.classList.toggle('view-active',next==='account');
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
+  if(next==='scenes')globalThis.SceneUI?.renderHub();
   if(next==='settings')renderSettings();
   if(next==='about')renderAbout();
   if(next==='account')renderAuthGate();
@@ -2901,7 +2921,7 @@ function renderLookupLoading(query,settings,runId=lookupRunId){
     <div class="lookup-stream">
       <div class="lookup-progress-badge" aria-live="polite">
         <i aria-hidden="true"></i>
-        <span id="lookup-progress-percent">8%</span>
+        <span id="lookup-progress-percent">等待正文</span>
       </div>
       <div class="entry-head lookup-skeleton-head">
         <div class="entry-kicker">生成中 · ${escapeHTML(source)}</div>
@@ -2949,28 +2969,20 @@ function startLookupJSONPlaceholder(runId){
 function startLookupLoadingProgress(runId){
   const percentEl=document.getElementById('lookup-progress-percent');
   if(!percentEl)return;
-  let value=8;
-  let blockIndex=0;
-  const blocks=[...els.resultCard.querySelectorAll('.lookup-skeleton-block')];
-  blocks[0]?.classList.add('active');
+  const started=performance.now();
+  percentEl.textContent='等待正文';
   const timer=setInterval(()=>{
     if(runId!==lookupRunId||!lookupBusy){
       clearInterval(timer);
       return;
     }
-    value=Math.min(88,value+(value<45?3:value<72?2:1));
-    percentEl.textContent=`${value}%`;
-    const nextIndex=Math.min(blocks.length-1,Math.floor(value/16));
-    while(blockIndex<=nextIndex){
-      blocks[blockIndex]?.classList.add('active');
-      blockIndex+=1;
-    }
+    percentEl.textContent=`等待正文 ${((performance.now()-started)/1000).toFixed(1)}s`;
   },520);
   lookupLoadingTimers.push(timer);
 }
 function setLookupStreamPercent(value){
   const percentEl=document.getElementById('lookup-progress-percent');
-  if(percentEl)percentEl.textContent=`${Math.max(1,Math.min(99,Math.round(value)))}%`;
+  if(percentEl)percentEl.textContent='接收正文';
 }
 function renderLookupRetry(query,error,nextAttempt,totalAttempts){
   clearLookupLoadingTimers();
@@ -3953,14 +3965,22 @@ async function askModalFollowup(){
   }
 }
 async function deleteFollowup(scope,id){
+  const historyId=scope==='modal'?modalHistoryId:currentHistoryId;
   if(!await askConfirm('确认删除这条追问？','删除追问'))return;
+  if(historyId!==(scope==='modal'?modalHistoryId:currentHistoryId))return;
+  const deleted=getHistory().find(row=>Number(row.id)===Number(historyId))?.followups?.find(row=>Number(row.id)===Number(id));
+  let persisted=false;
   if(scope==='modal'){
     const item=getHistory().find(row=>Number(row.id)===Number(modalHistoryId));
-    saveFollowupsForModal((item?.followups||[]).filter(row=>Number(row.id)!==Number(id)));
+    persisted=saveFollowupsForModal((item?.followups||[]).filter(row=>Number(row.id)!==Number(id)));
   }else{
-    saveFollowupsForCurrent((currentFollowups||[]).filter(row=>Number(row.id)!==Number(id)));
+    persisted=saveFollowupsForCurrent((currentFollowups||[]).filter(row=>Number(row.id)!==Number(id)));
   }
-  notify('追问已删除。','good','追问');
+  if(!persisted)return;
+  notify('追问已删除。','good','追问',true,{label:'撤销',run:()=>{
+    if(!deleted)return;const now=new Date().toISOString();
+    if(setHistory(getHistory().map(item=>Number(item.id)===Number(historyId)&&!item.followups?.some(row=>Number(row.id)===Number(id))?{...item,followups:[...(item.followups||[]),{...deleted,updatedAt:now}],updatedAt:now}:item)))refreshFragmentPinViews(historyId);
+  }});
 }
 function editFollowup(scope,id){
   editingFollowup={scope,id};
@@ -4077,12 +4097,12 @@ function scheduleRecoveredLookups(){
   notify(`已恢复 ${count} 个未完成查询，将从中断处继续。`,'info','恢复查询');
   setTimeout(processNextLookup,80);
 }
-function enqueueLookup(request){
+function enqueueLookup(request,{silent=false}={}){
   const item={...request,id:++lookupQueueId,queuedAt:new Date().toISOString(),signature:lookupRequestSignature(request)};
   lookupQueue.push(item);
   persistLookupTasks();
   renderLookupQueue();
-  notify(`“${item.query}” 已加入查询队列。`,'info','已排队');
+  if(!silent)notify(`“${item.query}” 已加入查询队列。`,'info','已排队');
 }
 function renderLookupQueue(){
   if(!els.lookupQueue)return;
@@ -4148,17 +4168,19 @@ function applyLookupRequestToEditor(request){
   renderLookupFolderPicker();
   updateEditorState();
 }
-async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,folderIds=[],recovered=false}){
-  const request={query,existingId,sourceItem,direction,note,folderIds:normalizeSelectableFolderIds(folderIds),recovered};
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,folderIds=[],recovered=false,sceneGroupId=''}){
+  const request={query,existingId,sourceItem,direction,note,folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId};
   const settings=currentApiSettings();
   lookupBusy=true;
+  globalThis.SceneUI?.taskResult(request,'running');
   activeLookupSignature=lookupRequestSignature(request);
   activeLookupRequest=storableLookupRequest(request,{startedAt:new Date().toISOString()});
   persistLookupTasks();
   const runId=++lookupRunId;
+  globalThis.RequestUI?.start();
   document.body.classList.add('lookup-busy');
   renderLookupLoading(query,settings,runId);
-  if(!recovered)notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
+  if(!recovered&&!request.sceneGroupId)notify('正在发送请求，模型返回后会自动校验 JSON。','info','查询中');
   const hasLocalEndpoint=Boolean(settings.apiUrl&&settings.apiKey);
   const modelInfo=lookupModelInfo(settings,hasLocalEndpoint);
   const payload={
@@ -4173,16 +4195,21 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
   try{
     const {result:data}=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
+    globalThis.RequestUI?.mark('validate');
     const {item:saved,persisted}=saveLookupResult({query,result:data,existingId,sourceItem,modelInfo,folderIds:request.folderIds,lookupSignature:activeLookupSignature});
     currentHistoryId=persisted?saved.id:null;
     currentFollowups=persisted?saved.followups||[]:[];
-    if(persisted)await SceneUI.attachPending(saved.id,query);
+    const linked=persisted?await SceneUI.attachPending(saved.id,query,request.sceneGroupId):false;
+    globalThis.SceneUI?.taskResult(request,persisted&&linked?'complete':'error',persisted&&linked?'':persisted?'场景关联尚未完成':'结果未能保存');
     renderResult(saved?.result||data,{animate:false,modelInfo});
-    if(persisted)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
-    else notify('模型结果已生成并保留在当前页面，但没有写入历史。请先用结果区的保存按钮导出 JSON。','warn','结果尚未保存',false);
+    globalThis.RequestUI?.finish(persisted&&(!request.sceneGroupId||linked));
+    if(persisted&&!request.sceneGroupId)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');
+    else if(!persisted)notify('模型结果已生成并保留在当前页面，但没有写入历史。请先用结果区的保存按钮导出 JSON。','warn','结果尚未保存',false);
   }catch(error){
     if(isStaleLookup(runId,query))return;
     renderLookupError(query,error);
+    globalThis.SceneUI?.taskResult(request,'error',error.message);
+    globalThis.RequestUI?.finish(false);
     notify(error.message||'查询失败。','bad','查询失败');
   }finally{
     if(runId===lookupRunId){
@@ -4200,31 +4227,36 @@ async function fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId}){
   for(let attempt=1;attempt<=LOOKUP_MAX_ATTEMPTS;attempt+=1){
     const timing=streamTiming('lookup');
     try{
+      const headers=await analyzeHeaders(hasLocalEndpoint);
+      globalThis.RequestUI?.mark('request');
       const response=await fetch('/api/analyze',{
         method:'POST',
-        headers:await analyzeHeaders(hasLocalEndpoint),
+        headers,
         body:JSON.stringify({...payload,stream:true}),
       });
       const contentType=response.headers.get('content-type')||'';
       timing.headers(contentType.includes('text/event-stream')?'live':'buffered');
+      globalThis.RequestUI?.mark('headers');
       let streamed=false;
       const data=response.ok&&response.body&&contentType.includes('text/event-stream')
-        ? await readLookupStream(response,{query,runId,onProgress:()=>{streamed=true;timing.content()},onStatus:status=>{
+        ? await readLookupStream(response,{query,runId,onProgress:()=>{streamed=true;timing.content();globalThis.RequestUI?.mark('first')},onStatus:status=>{
           if(status==='thinking'){
             timing.thinking();
+            globalThis.RequestUI?.mark('thinking');
             const label=els.resultCard.querySelector('.entry-kicker');
             if(label)label.textContent='模型正在思考，等待正文…';
           }
         }})
         : await parseLookupResponse(response);
       if(!response.ok)throw lookupHttpError(response,data);
-      if(!streamed)timing.content();
+      if(!streamed){timing.content();globalThis.RequestUI?.mark('buffered')}
       return {result:data,streamed};
     }catch(error){
       lastError=normalizeLookupError(error);
       if(isStaleLookup(runId,query))throw lastError;
       if(attempt<LOOKUP_MAX_ATTEMPTS&&isRetryableLookupError(lastError)){
         renderLookupRetry(query,lastError,attempt+1,LOOKUP_MAX_ATTEMPTS);
+        globalThis.RequestUI?.mark('retry');
         notify(`查询遇到可恢复错误，准备第 ${attempt+1} 次尝试。`,'info','自动重试');
         await sleep(900+attempt*450);
         continue;
@@ -4249,6 +4281,7 @@ async function readLookupStream(response,{query,runId,onProgress=null,onStatus=n
   const handleEvent=data=>{
     if(data.status)onStatus?.(data.status);
     if(data.delta){
+      globalThis.RequestUI?.mark('first');
       if(!streamStarted){
         streamStarted=true;
         clearLookupLoadingTimers();
@@ -4455,7 +4488,7 @@ function renderLookupStreamHTML(partial,raw,done=false){
     <div class="lookup-stream live">
       <div class="lookup-progress-badge" aria-live="polite">
         <i aria-hidden="true"></i>
-        <span id="lookup-progress-percent">${Math.round(lookupStreamProgress(partial,raw,done))}%</span>
+        <span id="lookup-progress-percent">接收正文</span>
       </div>
       <div class="entry-head lookup-live-head">
         <div class="entry-kicker">模型正在生成 · ${streamValue(meta.language||head.languageTag,'语言识别中')}</div>
@@ -5773,6 +5806,7 @@ async function deleteFavoriteFolder(folderId){
   if(!mode)return;
   const now=new Date().toISOString();
   const currentHistory=getHistory();
+  const memberKeys=new Set(currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)).map(historyIdentityKey));
   const deletedItems=mode==='records'?currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)):[];
   const history=mode==='records'
     ? currentHistory.filter(item=>!itemFolderIds(item).includes(folder.id))
@@ -5795,7 +5829,15 @@ async function deleteFavoriteFolder(folderId){
   if(folderState.activeId===folder.id)folderState.activeId=FOLDER_LIKED_ID;
   renderFolderManager();
   renderFoldersView();
-  notify(mode==='records'?`已删除「${folder.name}」及其中 ${count} 条记录。`:`已移除收藏夹「${folder.name}」，记录已保留。`,'good','收藏夹');
+  notify(mode==='records'?`已删除「${folder.name}」及其中 ${count} 条记录。`:`已移除收藏夹「${folder.name}」，记录已保留。`,'good','收藏夹',true,{label:'撤销',run:()=>{
+    const live=getSettings(),clock=new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString();
+    if(live.favoriteFolders.some(row=>row.id===folder.id))return notify('收藏夹已有新修改，未覆盖。','info','撤销');
+    const members=memberKeys;
+    const current=getHistory(),present=new Set(current.map(historyIdentityKey));
+    const restored=current.map(item=>members.has(historyIdentityKey(item))?{...item,folderIds:[...new Set([...(item.folderIds||[]),folder.id])],foldersUpdatedAt:clock,updatedAt:clock}:item);
+    restored.push(...deletedItems.filter(item=>!present.has(historyIdentityKey(item))).map(item=>({...item,updatedAt:clock})));
+    if(setHistoryAndSettings(restored,{...live,favoriteFolders:[...live.favoriteFolders,{...folder,updatedAt:clock}],favoriteFolderTombstones:live.favoriteFolderTombstones.filter(row=>row.key!==folder.id),updatedAt:clock},{revive:true})){renderFolderManager();renderFoldersView()}
+  }});
 }
 function askFolderDeleteMode(folder,count=0){
   if(!els.confirmLayer)return Promise.resolve(window.confirm(`删除收藏夹「${folder.name}」？确认=连同记录删除，取消=不删除。`)?'records':null);
@@ -6207,11 +6249,19 @@ function addVisualItem(kind){
   renderVisualEditor(data);
   visualOpenTarget='';
 }
-function removeVisualItem(kind,index){
+async function removeVisualItem(kind,index){
+  const historyId=modalHistoryId,rollId=modalRollId;
+  if(!await askConfirm('从当前编辑草稿移除这一项？保存修改后才会写入词条。','移除内容'))return;
+  if(historyId!==modalHistoryId||rollId!==modalRollId)return;
   const data=collectVisualResult();
+  const removed=data[kind]?.[index];if(!removed)return;
   if(Array.isArray(data[kind]))data[kind].splice(index,1);
   modalResult=data;
   renderVisualEditor(data);
+  notify('已从草稿移除。','good','编辑',true,{label:'撤销',run:()=>{
+    if(historyId!==modalHistoryId||rollId!==modalRollId||activeModalTab!=='visual')return notify('请回到原编辑草稿后撤销。','info','编辑');
+    const live=collectVisualResult();live[kind].splice(Math.min(index,live[kind].length),0,removed);modalResult=live;renderVisualEditor(live);
+  }});
 }
 function scrollVisualEditorSection(targetId){
   const target=document.getElementById(targetId);
@@ -6866,7 +6916,7 @@ function persistModalRollOrder(keys=[]){
 function modalVersionItem(){return getHistory().find(item=>Number(item.id)===Number(modalHistoryId))}
 function openVersionManager(){
   if(historyModalHasDraft())return notify('请先保存当前编辑，再管理版本。','info','保留修改');
-  versionSelection=new Set([String(getHistoryRolls(modalVersionItem()).find(roll=>historyRollViewKey(roll)===String(modalRollId))?.id||'')]);
+  versionSelection=new Set(getHistoryRolls(modalVersionItem()).map(roll=>String(roll.id)));
   versionMergeDraft=null;
   showVersionManager();
 }
@@ -6884,17 +6934,29 @@ function toggleVersionSelection(id){
   renderVersionManager();
 }
 function versionSummaryHTML(result={}){
-  const head=result.headword||{};
-  const fields=[['语言',head.languageTag||result.meta?.language],['词性',head.basicPartOfSpeech],['方向',result.meta?.defaultDirection||result.meta?.direction],['语体',result.register?.style],['语气',result.register?.tone],['环境',result.register?.environment]];
-  const metadata=fields.filter(([,value])=>value).map(([label,value])=>`<p><b>${label}</b> ${escapeHTML(value)}</p>`).join('');
-  return `<h3>${escapeHTML(head.title||'未命名')}</h3><p>${escapeHTML(head.coreMeaning||'')}</p><p>${escapeHTML(head.summary||'')}</p>${metadata}${[['义项','senses'],['搭配','collocations'],['辨析','confusions']].map(([label,key])=>`<h4>${label} · ${result[key]?.length||0}</h4><ul>${(result[key]||[]).map(row=>`<li><b>${escapeHTML(row.shortestLabel||row.phrase||row.term||'')}</b><p>${escapeHTML(row.meaning||row.difference||'')}</p><p>${escapeHTML(row.example||row.usage||'')}</p><p>${escapeHTML(row.translation||'')}</p></li>`).join('')}</ul>`).join('')}`;
+  return renderResultHTML(result,[],'comparison',null);
 }
 function renderVersionManager(){
   const item=modalVersionItem();
   if(!item)return;
   const rolls=getHistoryRolls(item);
-  const selected=rolls.filter(roll=>versionSelection.has(String(roll.id)));
-  document.getElementById('modal-versions-page').innerHTML=`<div class="version-manager-head"><h3>版本管理 <small>${rolls.length}</small></h3><div class="version-actions"><label class="plain-btn version-import">${icon('plus')}<span>导入 JSON</span><input type="file" accept=".json,application/json" onchange="importModalVersion(this)"></label></div></div><div class="version-list">${rolls.map((roll,index)=>`<div class="version-row"><input type="checkbox" aria-label="选择${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" ${versionSelection.has(String(roll.id))?'checked':''} onchange="toggleVersionSelection(${jsArg(roll.id)})"><div class="version-row-info"><input class="version-name" aria-label="版本名称" value="${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" maxlength="60" onchange="renameModalVersion(${jsArg(roll.id)},this.value)"><small>${index===0?'默认展示 · ':''}${escapeHTML(roll.model||'未记录')} · ${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN'))}</small></div><button class="icon-btn" aria-label="打开版本" data-tip="打开版本" onclick="setModalRoll(${jsArg(historyRollViewKey(roll))})">${icon('arrow-up-right')}</button><button class="icon-btn" aria-label="设为默认" data-tip="设为默认" onclick="setDefaultModalVersion(${jsArg(roll.id)})" ${index===0?'disabled':''}>${icon('star')}</button><button class="icon-btn danger-icon" aria-label="删除版本" data-tip="删除版本" onclick="deleteModalVersions([${jsArg(roll.id)}])" ${rolls.length<2?'disabled':''}>${icon('trash-2')}</button></div>`).join('')}</div><div class="version-selection-actions"><span>已选 ${selected.length}</span><button class="plain-btn" onclick="previewVersionIntegration()" ${selected.length<2?'disabled':''}>对比与整合</button><button class="icon-btn danger-icon" aria-label="删除所选版本" data-tip="删除所选版本" onclick="deleteModalVersions([...versionSelection])" ${!selected.length||selected.length===rolls.length?'disabled':''}>${icon('trash-2')}</button></div><div id="version-integration"></div>`;
+  document.getElementById('modal-versions-page').innerHTML=`<div class="version-manager-head"><h3>版本 <small>${rolls.length}</small></h3><div class="version-actions"><button type="button" class="plain-btn primary-btn" onclick="autoIntegrateVersions()" ${rolls.length<2?'disabled':''}>${icon('layers')}自动整合全部</button><label class="icon-btn version-import" data-tip="导入 JSON" aria-label="导入 JSON">${icon('plus')}<input type="file" accept=".json,application/json" onchange="importModalVersion(this)"></label></div></div><div class="version-list">${rolls.map((roll,index)=>`<div class="version-row compact-version-row" data-version-id="${escapeAttr(roll.id)}"><div class="version-row-info"><button type="button" class="version-open" onclick="setModalRoll(${jsArg(historyRollViewKey(roll))})">${escapeHTML(roll.name||`版本 ${rolls.length-index}`)}${index===0?'<small>默认</small>':''}</button><input class="version-name" hidden aria-label="版本名称" value="${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" maxlength="60" onchange="renameModalVersion(${jsArg(roll.id)},this.value)"><small>${escapeHTML(roll.model||'未记录')} · ${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN'))} · ${roll.result?.senses?.length||0} 义项</small></div><button type="button" class="icon-btn" aria-label="更多版本操作" data-tip="更多版本操作" onclick="openVersionOptions(this,${jsArg(roll.id)})">${icon('ellipsis')}</button></div>`).join('')}</div><div id="version-integration"></div>`;
+}
+function openVersionOptions(anchor,id){
+  let menu=document.getElementById('version-options');if(!menu){menu=document.createElement('div');menu.id='version-options';menu.className='version-options';menu.setAttribute('popover','auto');document.body.append(menu)}
+  const rolls=getHistoryRolls(modalVersionItem());
+  menu.innerHTML=`<button type="button" onclick="document.getElementById('version-options').hidePopover();editModalVersionName(${jsArg(id)})">${icon('pencil')}重命名</button><button type="button" onclick="document.getElementById('version-options').hidePopover();setDefaultModalVersion(${jsArg(id)})" ${String(rolls[0]?.id)===String(id)?'disabled':''}>${icon('star')}设为默认</button><button type="button" class="danger-row" onclick="document.getElementById('version-options').hidePopover();deleteModalVersions([${jsArg(id)}])" ${rolls.length<2?'disabled':''}>${icon('trash-2')}删除版本</button>`;
+  menu.showPopover();const rect=anchor.getBoundingClientRect();menu.style.left=`${Math.max(12,Math.min(innerWidth-menu.offsetWidth-12,rect.right-menu.offsetWidth))}px`;menu.style.top=`${Math.max(12,rect.bottom+menu.offsetHeight<innerHeight?rect.bottom+6:rect.top-menu.offsetHeight-6)}px`;
+}
+function editModalVersionName(id){
+  const row=[...document.querySelectorAll('[data-version-id]')].find(node=>node.dataset.versionId===String(id));if(!row)return;
+  const input=row.querySelector('.version-name');row.querySelector('.version-open').hidden=true;input.hidden=false;input.focus();input.select();
+  input.onkeydown=event=>{if(event.key==='Enter')input.blur();if(event.key==='Escape'){input.value=input.defaultValue;input.hidden=true;row.querySelector('.version-open').hidden=false}};
+}
+function autoIntegrateVersions(){
+  const item=modalVersionItem();if(!item)return;
+  const rolls=getHistoryRolls(item);if(rolls.length<2)return;
+  appendModalVersion(HistoryData.integrateResults(rolls.map(roll=>roll.result)),{name:`整合 · ${rolls.length} 个版本`,model:'本机自动整合',mergedFrom:rolls.map(roll=>String(roll.id))});
 }
 function saveModalVersions(item,rolls,extra={}){
   const now=new Date().toISOString();
@@ -7028,14 +7090,22 @@ async function deleteHistory(id){
   const history=getHistory();
   const deletedItems=history.filter(item=>Number(item.id)===Number(id));
   if(!setHistory(history.filter(item=>Number(item.id)!==Number(id)),{deletedItems}))return;
-  notify('记录已删除。','good','历史记录');
+  notify('记录已删除。','good','历史记录',true,{label:'撤销',run:()=>restoreDeletedRecords(deletedItems)});
+}
+function restoreDeletedRecords(items){
+  const history=getHistory(),keys=new Set(history.map(historyIdentityKey)),now=new Date().toISOString();
+  return setHistory([...history,...items.filter(item=>!keys.has(historyIdentityKey(item))).map(item=>({...item,updatedAt:now}))],{revive:true});
+}
+function openSettingsData(){
+  closeAccountPanel();showView('settings');requestAnimationFrame(()=>scrollToSettingsSection('settings-data',document.querySelector('[data-settings-target="settings-data"]')));
 }
 async function clearHistory(){
   const history=getHistory();
   const count=history.length;
   if(!await askConfirm(`确认清空全部 ${count} 条历史记录？这会同步到云端，所有设备都会清空。`,'危险操作：清空历史'))return;
-  if(!setHistory([],{deletedItems:history}))return;
-  notify('历史记录已清空。','good','历史记录');
+  const live=getHistory();
+  if(!setHistory([],{deletedItems:live}))return;
+  notify('历史记录已清空。','good','历史记录',true,{label:'撤销',run:()=>restoreDeletedRecords(live)});
 }
 function exportHistory(){
   downloadText('ai-vocab-tool-history.json',JSON.stringify(getHistory(),null,2));
@@ -7556,6 +7626,8 @@ function clearEditor(){
   updateEditorState();
 }
 function hydrateSettings(){
+  globalThis.ExperienceUI?.apply(getSettings());
+  if(activeView==='scenes')globalThis.SceneUI?.renderHub();
   const settings=getSettings();
   const profile=activeApiProfile(settings);
   renderApiProfilePicker(settings,profile);
@@ -8064,9 +8136,10 @@ function newApiProfile(){
   openApiProfileModal('new');
 }
 async function deleteApiProfile(id=null){
-  const settings=getSettings();
-  const current=settings.apiProfiles.find(profile=>profile.id===id)||activeApiProfile(settings);
+  let settings=getSettings();
+  let current=settings.apiProfiles.find(profile=>profile.id===id)||activeApiProfile(settings);
   if(!await askConfirm(`确认删除「${current.name}」？`,'删除 API 配置'))return;
+  settings=getSettings();current=settings.apiProfiles.find(profile=>profile.id===current.id);if(!current)return;
   const profiles=settings.apiProfiles.filter(profile=>profile.id!==current.id);
   const nextProfiles=profiles.length?profiles:[DEFAULT_API_PROFILE];
   const activeId=current.id===settings.activeApiProfileId?nextProfiles[0].id:settings.activeApiProfileId;
@@ -8075,7 +8148,13 @@ async function deleteApiProfile(id=null){
   if(!setSettings({...settings,apiProfiles:nextProfiles,apiProfileTombstones,apiProfileOrder:nextProfiles.map(profile=>profile.id),apiProfileOrderUpdatedAt:now,activeApiProfileId:activeId,updatedAt:now}))return;
   hydrateSettings();
   closeApiProfileMenu();
-  notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置');
+  const replacement=getSettings().apiProfiles.find(row=>row.id===current.id);
+  notify(profiles.length?'当前 API 配置组已删除。':'最后一组已清空为默认配置。','good','设置',true,{label:'撤销',run:()=>{
+    const live=getSettings(),existing=live.apiProfiles.find(row=>row.id===current.id);
+    if(existing&&JSON.stringify(existing)!==JSON.stringify(replacement))return notify('同名配置已有新修改，未覆盖。','info','撤销');
+    const clock=new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString();
+    if(setSettings({...live,apiProfiles:[...live.apiProfiles.filter(row=>row.id!==current.id),{...current,updatedAt:clock}],apiProfileTombstones:live.apiProfileTombstones.filter(row=>row.key!==current.id),updatedAt:clock}))hydrateSettings();
+  }});
 }
 async function factoryReset(){
   if(!await askConfirm('这会清空本机历史、接口配置、主题、布局和日志。','恢复出厂设置'))return;

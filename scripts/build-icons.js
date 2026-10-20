@@ -6,7 +6,7 @@ const iconNames=[
   'bookmark','bookmark-x','circle-alert','circle-check','circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical','info',
   'history','house','list','monitor','moon','plus','quote','refresh-cw','scan-search','search',
   'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','user-round','x',
-  'volume-2','square','square-check','layers','file-text','shuffle','skip-forward','save',
+  'volume-2','square','square-check','layers','file-text','shuffle','skip-forward','save','ellipsis',
 ];
 
 const toExportName=name=>name.split('-').map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join('');

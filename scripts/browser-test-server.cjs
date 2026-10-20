@@ -9,7 +9,7 @@ function createServer(){
     let pathname;
     try{pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}
     catch{res.writeHead(400).end();return}
-    const route=pathname==='/'||/^\/(history|favorites|settings|about|account)(\/.*)?$/.test(pathname)?'/index.html':pathname;
+    const route=pathname==='/'||/^\/(history|favorites|scenes|settings|about|account)(\/.*)?$/.test(pathname)?'/index.html':pathname;
     const file=path.resolve(root,'.'+route);
     if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return}
     fs.readFile(file,(error,data)=>{

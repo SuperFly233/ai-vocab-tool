@@ -17,6 +17,8 @@ const files = [
   'scene-media.js',
   'ui-overlays.js',
   'scene-ui.js',
+  'experience-ui.js',
+  'request-ui.js',
   'styles.css',
   'favicon.svg',
   'site.webmanifest',

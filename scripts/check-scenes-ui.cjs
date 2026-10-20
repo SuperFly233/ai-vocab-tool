@@ -112,6 +112,7 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal page overflow');
    if(process.env.QA_SCREENSHOTS)await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`scene-reader-${width}-${theme}.png`)});
    await page.locator('.scene-record [data-scene-action="remove"]').click();
+   await page.locator('#confirm-ok').click();
    assert.equal(await page.locator('.scene-record').count(),0);
    assert.equal(await page.evaluate(()=>getHistory()[0].sceneTombstones.length),1);
    const merge=await page.evaluate(stale=>mergeHistoryItems(getHistory(),[stale])[0].scenes.length,saved);

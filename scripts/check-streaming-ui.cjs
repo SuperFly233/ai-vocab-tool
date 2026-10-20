@@ -27,6 +27,13 @@ const server=require('./browser-test-server.cjs').createServer();
     escaped:partialStringValue('{"title":"A\\"B','title'),
    }));
    assert.deepEqual(partial,{meaning:'正在增加',incompleteUnicode:'A',unicode:'A你',escaped:'A"B'});
+   const partialLayout=await page.evaluate(()=>{
+    const partial={headword:{title:'clock'},confusions:[{term:'notice',difference:'Notice a small detail. '.repeat(30),usage:'Usage in context'}]};
+    els.resultCard.innerHTML=renderLookupStreamHTML(partial,'',false);
+    const item=els.resultCard.querySelector('.stream-item'),body=item.querySelector('.item-body');
+    return {width:body.getBoundingClientRect().width,itemWidth:item.clientWidth,height:item.offsetHeight,overflow:els.resultCard.scrollWidth>els.resultCard.clientWidth};
+   });
+   assert.ok(partialLayout.width>partialLayout.itemWidth*.7&&partialLayout.height<1500&&!partialLayout.overflow,JSON.stringify(partialLayout));
    assert.ok(await page.evaluate(()=>renderResultProvenance(__result,'current',null).includes('来源 <b>未记录</b>')),'Unknown provenance does not use the configured model');
    await page.evaluate(()=>{
     const runId=++lookupRunId;
