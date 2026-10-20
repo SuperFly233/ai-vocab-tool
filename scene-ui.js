@@ -14,14 +14,17 @@
   }
   function renderCard(scene,item){
     const source=[scene.sourceTitle,scene.chapter,scene.timeRange].filter(Boolean).join(' · ');
-    const quote=highlightText(scene.quote,resultQueryHighlightTerms(displayedResultForHistory(item.id,item)));
+    const result=displayedResultForHistory(item.id,item);
+    // Explicit selections take precedence over automatic headword/core-meaning matches.
+    const quote=highlightText(scene.quote,exampleHighlightTermsForItem(scene,scene.exampleHighlights.length?[]:resultQueryHighlightTerms(result)));
+    const translation=highlightText(scene.translation,translationHighlightTermsForItem(scene,{}));
     const hero=scene.media.filter(ref=>scene.heroMedia.includes(ref.id));
     return `<article class="scene-record ${hero.length?'scene-illustrated':''}" data-scene-id="${esc(scene.id)}" data-history-id="${esc(item.id)}">
       <header><div>${scene.title?`<h4>${esc(scene.title)}</h4>`:''}${scene.targetLabel?`<small>${esc(scene.targetLabel)}</small>`:''}${scene.media.length?'<small data-scene-sync-status>素材按需加载</small>':''}</div><div class="scene-actions"><button class="icon-btn scene-order-handle" type="button" aria-label="拖动场景排序" data-tip="拖动场景排序">${icon('grip-vertical')}</button>${action('feature',scene.featured?'取消主场景':'设为主场景',`aria-pressed="${scene.featured}"`)}${scene.media.length?action('sync','同步场景素材'):''}${action('edit','编辑场景')}${action('remove','删除场景')}</div></header>
       <div class="scene-context">
-      ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${esc(scene.translation)}</p>`:''}
+      ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${translation}</p>`:''}
       ${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}
-      ${source||scene.sourceUrl?`<details class="scene-source"><summary>${icon('chevron-down')}来源与备注</summary>${source?`<p>${esc(source)}</p>`:''}${scene.sourceUrl?`<a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</details>`:''}</div>
+      ${source||scene.sourceUrl?`<details class="scene-source" open><summary>${icon('chevron-down')}来源与备注</summary>${source?`<p>${esc(source)}</p>`:''}${scene.sourceUrl?`<a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</details>`:''}</div>
       ${hero.length?`<div class="scene-media">${assets(hero)}</div>`:''}
       ${scene.media.some(ref=>!hero.includes(ref))?`<details class="scene-more-media"><summary>其他素材 · ${scene.media.length-hero.length}</summary><div class="scene-media">${assets(scene.media.filter(ref=>!hero.includes(ref)))}</div></details>`:''}
     </article>`;
@@ -42,7 +45,18 @@
     const form=document.querySelector('#scene-editor-form');
     if(!editor||!form)return null;
     const data=Object.fromEntries(new FormData(form));
-    return SceneData.normalizeScene({...editor.scene,...data,featured:form.elements.featured.checked,media:editor.scene.media});
+    return SceneData.normalizeScene({...editor.scene,...data,exampleHighlights:splitVisualList(data.exampleHighlights),translationHighlights:splitVisualList(data.translationHighlights),featured:form.elements.featured.checked,media:editor.scene.media});
+  }
+  function recentSources(){
+    const unique=new Map();
+    for(const scene of getHistory().flatMap(scenes).sort((a,b)=>(Date.parse(b.updatedAt)||0)-(Date.parse(a.updatedAt)||0))){
+      const source=Object.fromEntries(['sourceTitle','chapter','timeRange','sourceUrl'].map(key=>[key,scene[key]]));
+      if(!Object.values(source).some(Boolean))continue;
+      const key=JSON.stringify([source.sourceTitle,source.chapter,source.sourceUrl]);
+      if(!unique.has(key))unique.set(key,source);
+      if(unique.size===8)break;
+    }
+    return [...unique.values()];
   }
   async function open(id=null,targetKey='',sceneId=''){
     if(editor)return;
@@ -63,17 +77,24 @@
       }
     }
     scene=SceneData.normalizeScene(scene||{id:crypto.randomUUID(),targetKey,targetLabel,createdAt:now,updatedAt:now,media:[]});
+    const sources=recentSources();
     editor={historyId:item?.id||null,query,scene,initial:JSON.stringify(scene),newScene:!sceneId};
     const layer=document.createElement('div');layer.id='scene-editor';layer.className='scene-editor-layer modal-layer open';
     layer.innerHTML=`<section class="scene-editor" role="dialog" aria-modal="true" aria-labelledby="scene-editor-title"><header><div><h2 id="scene-editor-title">${sceneId?'编辑':'添加'}场景</h2><p>${esc(targetLabel||scene.targetLabel||query||'独立记录')}</p></div>${action('close','关闭场景编辑')}</header>
       <form id="scene-editor-form"><div class="scene-editor-body">
       ${!item?field('entryTitle','词条',query):''}${field('title','场景标题（可选）',scene.title)}<label class="scene-feature-switch"><input type="checkbox" name="featured" ${scene.featured?'checked':''}><span>在词条开头展示</span></label>
       ${field('quote','原句 / 场景内容',scene.quote,true)}${field('translation','译文（可选）',scene.translation,true)}
+      <div class="scene-field-grid scene-highlights">${field('exampleHighlights','原句高亮（可选）',scene.exampleHighlights.join('、'))}${field('translationHighlights','译文高亮（可选）',scene.translationHighlights.join('、'))}</div>
       <div class="scene-drop" tabindex="0" role="group" aria-label="场景素材"><button type="button" class="plain-btn" data-scene-action="pick">${icon('plus')}添加图片、GIF 或视频</button><small>PNG / JPEG / GIF / WebP · MP4 / WebM · 每文件 20 MB</small><input id="scene-file-picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" multiple hidden><div id="scene-file-list"></div></div>
-      ${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" ${scene.sourceTitle||scene.sourceUrl||scene.chapter||scene.timeRange?'open':''}><summary>${icon('chevron-down')}来源信息</summary><div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details>
+      ${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" open><summary>${icon('chevron-down')}来源信息</summary>${sources.length?`<label class="scene-field"><span>最近来源</span><select id="scene-source-recent"><option value="">选择已用来源</option>${sources.map((source,index)=>`<option value="${index}">${esc([source.sourceTitle||source.sourceUrl||'来源',source.chapter,source.timeRange].filter(Boolean).join(' · ').slice(0,160))}</option>`).join('')}</select></label>`:''}<div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details>
       </div><p id="scene-editor-status" role="status"></p><footer>${!item?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item?'保存场景':'随查词保存'}</button></footer></form></section>`;
     document.body.append(layer);document.body.classList.add('modal-open');
     layer.addEventListener('backdrop-dismiss',()=>close());
+    layer.querySelector('#scene-source-recent')?.addEventListener('change',event=>{
+      if(event.target.value==='')return;
+      const source=sources[Number(event.target.value)];if(!source)return;
+      for(const [key,value] of Object.entries(source))layer.querySelector(`[name="${key}"]`).value=value;
+    });
     layer.querySelector('#scene-file-picker').addEventListener('change',event=>{addFiles(event.target.files);event.target.value=''});
     layer.addEventListener('paste',event=>{const files=[...event.clipboardData.files];if(files.length){event.preventDefault();addFiles(files)}});
     layer.addEventListener('dragover',event=>{if([...event.dataTransfer.types].includes('Files')){event.preventDefault();layer.classList.add('dragging')}});

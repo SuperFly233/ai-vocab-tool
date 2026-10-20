@@ -1,6 +1,6 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.24.1",
+  "version": "0.25.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,6 +19,8 @@
     "check:scenes-ui": "node scripts/check-scenes-ui.cjs && node scripts/check-scene-media-ui.cjs",
     "check:workbench-ui": "node scripts/check-scene-workbench.cjs",
     "check:overlays-ui": "node scripts/check-overlay-intent.cjs",
+    "check:scene-authoring-ui": "node scripts/check-scene-authoring.cjs",
+    "check:mobile-notices-ui": "node scripts/check-mobile-notices.cjs",
     "check:responsive": "node scripts/check-responsive.cjs",
     "build:icons": "node scripts/build-icons.js",
     "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",

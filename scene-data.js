@@ -5,6 +5,10 @@
   const time=value=>Number.isFinite(Date.parse(value))?Date.parse(value):0;
   const hashId=value=>/^[a-f0-9]{64}$/.test(String(value||''));
   const mimeTypes=new Set(['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm']);
+  function highlights(value){
+    const items=Array.isArray(value)?value:String(value||'').split(/[\n,，、;；]+/);
+    return [...new Set(items.filter(item=>typeof item==='string').map(item=>text(item,4000)).filter(Boolean))].slice(0,40);
+  }
   function sourceUrl(value){
     try{const url=new URL(text(value,2048));return ['https:','http:'].includes(url.protocol)&&!url.username&&!url.password?url.href:''}catch{return ''}
   }
@@ -23,6 +27,7 @@
     const media=normalizeMedia(item.media);
     const heroMedia=Array.isArray(item.heroMedia)?item.heroMedia.filter(id=>media.some(ref=>ref.id===id)):media.slice(0,1).map(ref=>ref.id);
     return {id,...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
+      exampleHighlights:highlights(item.exampleHighlights),translationHighlights:highlights(item.translationHighlights),
       order:Number.isFinite(item.order)?item.order:time(item.createdAt),featured:typeof item.featured==='boolean'?item.featured:!item.targetKey,heroMedia:[...new Set(heroMedia)],
       sourceUrl:sourceUrl(item.sourceUrl),targetKey:text(item.targetKey,120),media:normalizeMedia(item.media),
       createdAt:time(item.createdAt)?item.createdAt:'',updatedAt:time(item.updatedAt)?item.updatedAt:time(item.createdAt)?item.createdAt:''};

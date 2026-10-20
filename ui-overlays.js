@@ -3,18 +3,24 @@
   hint.id='ui-tooltip';hint.className='ui-tooltip';hint.setAttribute('popover','manual');hint.setAttribute('role','tooltip');
   const hintText=document.createElement('span');hintText.className='ui-tooltip-text';hint.append(hintText);
   document.body.append(hint);
-  let owner=null,previousDescription=null;
-  function hide(){
-    if(hint.matches(':popover-open'))hint.hidePopover();
+  let owner=null,previousDescription=null,motion=null;
+  const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function hide(immediate=false){
+    motion?.cancel();motion=null;
     if(owner){
       if(previousDescription===null)owner.removeAttribute('aria-describedby');
       else owner.setAttribute('aria-describedby',previousDescription);
     }
     owner=null;
+    if(!hint.matches(':popover-open'))return;
+    if(immediate===true||reducedMotion()){hint.hidePopover();return}
+    const animation=hint.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:`translateY(${hint.dataset.side==='above'?4:-4}px)`}],{duration:100,easing:'ease',fill:'forwards'});
+    motion=animation;
+    animation.onfinish=()=>{if(motion===animation){hint.hidePopover();animation.cancel();motion=null}};
   }
   function show(button){
     if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active'))return;
-    hide();owner=button;previousDescription=button.getAttribute('aria-describedby');
+    hide(true);owner=button;previousDescription=button.getAttribute('aria-describedby');
     hintText.textContent=button.dataset.tip;
     button.setAttribute('aria-describedby',[previousDescription,hint.id].filter(Boolean).join(' '));
     hint.showPopover();
@@ -30,6 +36,10 @@
     hint.style.setProperty('--tip-arrow-x',`${Math.max(12,Math.min(rect.width-12,anchor.left+anchor.width/2-x))}px`);
     hint.style.left=`${x}px`;
     hint.style.top=`${Math.max(top+12,Math.min(top+height-rect.height-12,placeAbove?above:anchor.bottom+10))}px`;
+    if(!reducedMotion()){
+      const animation=hint.animate([{opacity:0,transform:`translateY(${placeAbove?4:-4}px)`},{opacity:1,transform:'translateY(0)'}],{duration:140,easing:'ease'});
+      motion=animation;animation.onfinish=()=>{if(motion===animation)motion=null};
+    }
   }
   document.addEventListener('pointerover',event=>{
     if(event.pointerType==='touch')return;
@@ -43,10 +53,10 @@
   });
   document.addEventListener('focusin',event=>{if(event.target.matches('[data-tip]:focus-visible'))show(event.target)});
   document.addEventListener('focusout',hide);
-  document.addEventListener('pointerdown',hide,true);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape')hide()},true);
-  document.addEventListener('scroll',hide,true);
-  addEventListener('resize',hide);window.visualViewport?.addEventListener('resize',hide);
+  document.addEventListener('pointerdown',()=>hide(true),true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')hide(true)},true);
+  document.addEventListener('scroll',()=>hide(true),true);
+  addEventListener('resize',()=>hide(true));window.visualViewport?.addEventListener('resize',()=>hide(true));
   const editorBackdrops='#history-modal,#api-profile-modal,#scene-editor';
   let press=null,release=null;
   document.addEventListener('pointerdown',event=>{

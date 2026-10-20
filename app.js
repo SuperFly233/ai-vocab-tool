@@ -180,12 +180,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.24.1',
-  releaseDate:'2026-10-19',
+  version:'0.25.0',
+  releaseDate:'2026-10-20',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.25.0',date:'2026-10-20',title:'场景高亮与来源复用，修正手机阅读边界',
+    items:['场景原句和译文支持手动高亮，沿用 exampleHighlights、translationHighlights JSON 字段；手动选择优先，保存、同步与备份保留。','来源与备注在阅读和编辑时默认展开，最近来源可快捷填入，再单独修改章节和时间。','核心义取消内容撑宽布局，长中文与连续英文在手机首页和详情内换行；通知容器取消网格拉伸和 fit-content 高度依赖，按内容排布。','提示文字内层取消圆角裁切，恢复早期 140ms、4px 的整体浮入动效和退出渐隐，尊重减少动态效果设置。'],
+  },
   {
     version:'0.24.1',date:'2026-10-19',title:'恢复有意的遮罩关闭与指向提示',
     items:['恢复主动点击弹窗两侧空白关闭；只有按下、松开均在同一遮罩且没有明显拖动时才触发，拖出编辑区不会误关。','未保存场景、历史编辑与 API 配置的遮罩关闭会先确认，取消后保留草稿。','按钮提示移除 300ms 等待，恢复圆润气泡和指向按钮的上下尖角，保留原生顶层、换行与视口避让。'],
@@ -1196,9 +1200,10 @@ function restartToastProgress(toast){
 }
 function armToastTimer(key,state,duration=state.action?6500:3200){
   clearTimeout(state.timer);
+  if(activeToasts.get(key)!==state||state.element.classList.contains('leaving'))return;
   restartToastProgress(state.element);
   state.element.querySelector('.toast-progress')?.style.setProperty('animation-duration',`${duration}ms`);
-  state.timer=setTimeout(()=>dismissToast(key),duration);
+  state.timer=setTimeout(()=>{if(activeToasts.get(key)===state)dismissToast(key)},duration);
 }
 function toastIcon(type){
   if(type==='good')return icon('circle-check');
@@ -1212,10 +1217,14 @@ function dismissToast(key){
   if(toast.classList.contains('leaving'))return;
   clearTimeout(toastState.timer);
   toast.classList.add('leaving');
-  toast.addEventListener('animationend',()=>{
+  const remove=()=>{
+    clearTimeout(fallback);
     toast.remove();
-    activeToasts.delete(key);
-  },{once:true});
+    if(activeToasts.get(key)===toastState)activeToasts.delete(key);
+  };
+  // Safari or reduced-motion styles may skip the exit animation event.
+  const fallback=setTimeout(remove,320);
+  toast.addEventListener('animationend',event=>{if(event.target===toast)remove()});
 }
 function askConfirm(message,title='确认操作'){
   if(!els.confirmLayer)return Promise.resolve(false);

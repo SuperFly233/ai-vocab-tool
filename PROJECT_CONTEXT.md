@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.25.0: scene `exampleHighlights`/`translationHighlights` use the existing shared safe highlight helpers. Explicit quote terms suppress automatic headword fallback; translation highlights are explicit only. Source details always open; recent-source select derives up to eight deduplicated saved snapshots and fills editable fields without implicit default overwrite. Tooltip text must not inherit rounded clipping; animate entire hint/arrow with original 140ms/4px motion and cancel exit animations before rehover. Core meaning uses a shrinkable grid column and auto-width wrapping mark, never intrinsic max-content width. Notification stack is flex-column with auto height and non-stretching toast height, avoiding Safari intrinsic-height issues. `check:scene-authoring-ui`, `check:mobile-notices-ui` and `check:overlays-ui` cover these regressions in Chromium/WebKit, not a physical iPhone.
 
 - v0.24.1 correction: backdrop dismissal must remain available. Only matching primary pointer-down/up on the same editor backdrop with <=8px movement emits `backdrop-dismiss`; a release outside after starting inside never closes or prompts. Scene/history/API draft checks run on intentional dismissal. Do not revert to blanket blocking of every backdrop click. Tooltips show immediately with native top-layer placement and above/below arrow anchored to the button; no 300ms hover timer. `check-overlay-intent.cjs` covers both paths and arrow geometry.
 

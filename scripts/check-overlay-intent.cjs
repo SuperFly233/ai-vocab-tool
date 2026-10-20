@@ -35,10 +35,16 @@ const server=require('./browser-test-server.cjs').createServer();
     await layer.waitFor({state:'hidden'});
    }
    await page.evaluate(()=>{
-    const button=document.createElement('button');button.id='hint-probe';button.dataset.tip='按钮解释';button.style.cssText='position:fixed;z-index:2000;left:20px;top:4px;width:40px;height:32px';button.textContent='Probe';document.body.append(button);
+    const button=document.createElement('button');button.id='hint-probe';button.dataset.tip='批量选择';button.style.cssText='position:fixed;z-index:2000;left:20px;top:4px;width:40px;height:32px';button.textContent='Probe';document.body.append(button);
    });
    for(const side of ['below','above']){
     await page.locator('#hint-probe').evaluate((node,side)=>node.style.top=side==='below'?'4px':'400px',side);
+    const motion=await page.locator('#hint-probe').evaluate(node=>{
+     node.dispatchEvent(new PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}));
+     const hint=document.querySelector('#ui-tooltip'),animation=hint.getAnimations()[0];
+     return {open:hint.matches(':popover-open'),duration:animation?.effect.getTiming().duration,frames:animation?.effect.getKeyframes().map(frame=>({opacity:frame.opacity,transform:frame.transform})),radius:getComputedStyle(hint.querySelector('span')).borderRadius};
+    });
+    assert.ok(motion.open,'Motion begins immediately, without a hover timer');assert.equal(motion.duration,140);assert.equal(motion.frames[0].opacity,'0');assert.equal(motion.frames[1].opacity,'1');assert.equal(motion.frames[0].transform,`translateY(${side==='above'?4:-4}px)`);assert.equal(motion.radius,'0px','Text layer must not inherit rounded clipping');
     await page.locator('#hint-probe').hover();
     const result=await page.evaluate(()=>{
      const hint=document.querySelector('#ui-tooltip'),rect=hint.getBoundingClientRect(),button=document.querySelector('#hint-probe').getBoundingClientRect(),arrow=getComputedStyle(hint,'::before');
@@ -47,7 +53,12 @@ const server=require('./browser-test-server.cjs').createServer();
     assert.ok(result.open&&result.inside,'Hint appears immediately and stays bounded');assert.equal(result.side,side);assert.ok(Math.abs(result.arrowX-result.center)<1,'Arrow points to button center');assert.notEqual(result.arrow,'none');
     await page.mouse.move(width-2,850);
    }
-   if(process.env.QA_SCREENSHOTS){await page.locator('#hint-probe').hover();await page.screenshot({path:require('node:path').join(process.env.QA_SCREENSHOTS,`overlay-arrow-${width}.png`)})}
+   if(process.env.QA_SCREENSHOTS){await page.locator('#hint-probe').hover();await page.waitForTimeout(170);await page.screenshot({path:require('node:path').join(process.env.QA_SCREENSHOTS,`overlay-arrow-${width}.png`)})}
+   await page.mouse.move(width-2,850);await page.waitForTimeout(140);
+   await page.locator('#hint-probe').hover();await page.waitForTimeout(170);
+   assert.equal(await page.locator('#ui-tooltip').evaluate(node=>getComputedStyle(node).opacity),'1','Completed exit motion must not hide the next tooltip');
+   await page.mouse.move(width-2,850);await page.emulateMedia({reducedMotion:'reduce'});
+   assert.equal(await page.locator('#hint-probe').evaluate(node=>{node.dispatchEvent(new PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}));return document.querySelector('#ui-tooltip').getAnimations().length}),0,'Reduced-motion preference disables floating animation');
    console.log(`Overlay intent ${width}px passed: deliberate backdrop clicks, safe outside release, immediate bidirectional arrow hints.`);
    await context.close();
   }

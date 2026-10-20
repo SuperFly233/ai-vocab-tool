@@ -17,6 +17,8 @@ assert.equal(S.normalizeScene({...a,html:'<script>alert(1)</script>'}).html,unde
 assert.deepEqual(S.reconcile([{...a,order:2},{...b,order:1}]).items.map(row=>row.id),['two','one'],'Explicit scene order survives reconciliation');
 assert.equal(S.normalizeScene({...a,featured:false}).featured,false);
 assert.deepEqual(S.normalizeScene({...a,heroMedia:['missing']}).heroMedia,[],'Hero selection cannot reference missing media');
+assert.deepEqual(S.normalizeScene({...a,exampleHighlights:['went','went','have gone'],translationHighlights:'注意到、看见'}).exampleHighlights,['went','have gone']);
+assert.deepEqual(S.normalizeScene({...a,translationHighlights:'注意到、看见'}).translationHighlights,['注意到','看见']);
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a+yQAAAAASUVORK5CYII=','base64');
 const file=new Blob([png],{type:'text/plain'});file.name='safe.png';
 const inspected=await S.inspectFile(file);

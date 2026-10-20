@@ -68,7 +68,7 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
    assert.equal(await page.locator('.scene-file-row').count(),2,'Drop duplicate is deduplicated by content');
    await page.locator('.scene-file-row').nth(1).locator('[data-scene-action="hero"]').click();
    await page.locator('.scene-file-grip').first().press('ArrowDown');
-   await page.locator('.scene-source-fields summary').click();
+   assert.ok(await page.locator('.scene-source-fields').evaluate(node=>node.open),'Source fields are expanded by default');
    await page.locator('[name="sourceTitle"]').fill('Episode 02');
    await page.locator('[name="timeRange"]').fill('00:07:18 – 00:07:20');
    await page.locator('[name="sourceUrl"]').fill('https://example.com/watch?t=438');
