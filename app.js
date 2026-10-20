@@ -180,12 +180,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.25.1',
+  version:'0.26.0',
   releaseDate:'2026-10-20',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.26.0',date:'2026-10-20',title:'核心义优先阅读，场景与设置减负',
+    items:['核心义和基本信息先于场景展示；场景配图以完整比例紧凑预览，仍可放大查看原件。','打开词条自动加载可见素材，后台自动同步；移除常驻同步按钮和正常状态文字，只有失败才显示原因和重试。联网恢复后自动补传。','设置说明使用剩余宽度，选项不再拆字；常驻填写提示和主场景开关共用胶囊样式及键盘交互，多选仍保留勾选框。'],
+  },
   {
     version:'0.25.1',date:'2026-10-20',title:'限制长通知占屏，压缩通知空占位',
     items:['长通知正文支持内部滚动，长链接自动换行，关闭操作保持可见；正文最多占 180px 或视口高度的 30%。','多行简洁通知使用稳定圆角，避免大胶囊边缘挤压文字；单次通知隐藏重复计数占位。'],
@@ -3156,7 +3160,6 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null,m
       <div class="entry-kicker">${escapeHTML([displayLanguageLabel(head.languageTag||meta.language),displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query))].filter(Boolean).join(' · ')||'词条')}</div>
       <div class="entry-title-row"><div class="entry-title">${escapeHTML(head.title||meta.query||'')}</div>${renderSpeechButton(head.title||meta.query,head.languageTag||meta.language,'朗读词条')}</div>
       ${renderResultProvenance(result,scope,historyItem,modelInfo)}
-      ${SceneUI.render(historyItem)}
       ${head.coreMeaning?`<div class="entry-core"><b>核心义</b><mark>${escapeHTML(head.coreMeaning)}</mark></div>`:''}
       <div class="entry-meta-grid">
         <span><b>类型</b>${escapeHTML(displayEntryTypeLabel(entryTypeForResult(result,historyItem?.query)))}</span>
@@ -3165,6 +3168,7 @@ function renderResultHTML(result,followups=[],scope='current',historyItem=null,m
       </div>
       ${head.summary?`<div class="entry-meta">${escapeHTML(head.summary)}</div>`:''}
     </div>
+    ${SceneUI.render(historyItem)}
     ${!meta.authored||senses.length?renderSenseGroups(senses,result,historyItem):''}
     ${!meta.authored||collocations.length?renderCollocations(collocations,result,historyItem,queryTerms):''}
     ${!meta.authored||Object.values(register).some(Boolean)?`<div class="block">

@@ -1,17 +1,20 @@
 (function attachSceneUI(root){
   let editor=null,busy=false,returnFocus=null;
   const urls=new Map();
+  const syncErrors=new Map();
+  const syncKey=sceneId=>`${cloudUser?.id||''}:${sceneId}`;
   let cleanupTimer=null;
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const historyItem=id=>getHistory().find(item=>String(item.id)===String(id));
   const scenes=item=>SceneData.reconcile(item?.scenes,item?.sceneTombstones).items;
   function action(name,label,attributes=''){
-    const glyph={edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'x',sync:'cloud',import:'folder',feature:'star',hero:'star',enlarge:'maximize-2','viewer-close':'x'}[name]||'plus';
+    const glyph={edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'x',sync:'refresh-cw',import:'folder',feature:'star',hero:'star',enlarge:'maximize-2','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
   }
   function assets(items=[]){
-    return items.map(ref=>`<figure class="scene-asset" data-scene-asset="${esc(ref.id)}" data-scene-mime="${esc(ref.mime)}"><button type="button" class="plain-btn" data-scene-action="load" data-id="${esc(ref.id)}">加载 ${esc(ref.name)}</button></figure>`).join('');
+    return items.map(ref=>`<figure class="scene-asset" data-scene-asset="${esc(ref.id)}" data-scene-mime="${esc(ref.mime)}" aria-label="${esc(ref.name)}"><span class="scene-asset-loading" aria-hidden="true"></span></figure>`).join('');
   }
+  const syncErrorHTML=message=>message?`<span>${esc(message)}</span>${action('sync','重试同步素材')}`:'';
   function renderCard(scene,item){
     const source=[scene.sourceTitle,scene.chapter,scene.timeRange].filter(Boolean).join(' · ');
     const result=displayedResultForHistory(item.id,item);
@@ -19,8 +22,10 @@
     const quote=highlightText(scene.quote,exampleHighlightTermsForItem(scene,scene.exampleHighlights.length?[]:resultQueryHighlightTerms(result)));
     const translation=highlightText(scene.translation,translationHighlightTermsForItem(scene,{}));
     const hero=scene.media.filter(ref=>scene.heroMedia.includes(ref.id));
+    const syncError=syncErrors.get(syncKey(scene.id));
     return `<article class="scene-record ${hero.length?'scene-illustrated':''}" data-scene-id="${esc(scene.id)}" data-history-id="${esc(item.id)}">
-      <header><div>${scene.title?`<h4>${esc(scene.title)}</h4>`:''}${scene.targetLabel?`<small>${esc(scene.targetLabel)}</small>`:''}${scene.media.length?'<small data-scene-sync-status>素材按需加载</small>':''}</div><div class="scene-actions"><button class="icon-btn scene-order-handle" type="button" aria-label="拖动场景排序" data-tip="拖动场景排序">${icon('grip-vertical')}</button>${action('feature',scene.featured?'取消主场景':'设为主场景',`aria-pressed="${scene.featured}"`)}${scene.media.length?action('sync','同步场景素材'):''}${action('edit','编辑场景')}${action('remove','删除场景')}</div></header>
+      <header><div>${scene.title?`<h4>${esc(scene.title)}</h4>`:''}${scene.targetLabel?`<small>${esc(scene.targetLabel)}</small>`:''}</div><div class="scene-actions"><button class="icon-btn scene-order-handle" type="button" aria-label="拖动场景排序" data-tip="拖动场景排序">${icon('grip-vertical')}</button>${action('feature',scene.featured?'取消主场景':'设为主场景',`aria-pressed="${scene.featured}"`)}${action('edit','编辑场景')}${action('remove','删除场景')}</div></header>
+      <div class="scene-sync-error" data-scene-sync-status role="status" ${syncError?'':'hidden'}>${syncErrorHTML(syncError)}</div>
       <div class="scene-context">
       ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${translation}</p>`:''}
       ${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}
@@ -82,7 +87,7 @@
     const layer=document.createElement('div');layer.id='scene-editor';layer.className='scene-editor-layer modal-layer open';
     layer.innerHTML=`<section class="scene-editor" role="dialog" aria-modal="true" aria-labelledby="scene-editor-title"><header><div><h2 id="scene-editor-title">${sceneId?'编辑':'添加'}场景</h2><p>${esc(targetLabel||scene.targetLabel||query||'独立记录')}</p></div>${action('close','关闭场景编辑')}</header>
       <form id="scene-editor-form"><div class="scene-editor-body">
-      ${!item?field('entryTitle','词条',query):''}${field('title','场景标题（可选）',scene.title)}<label class="scene-feature-switch"><input type="checkbox" name="featured" ${scene.featured?'checked':''}><span>在词条开头展示</span></label>
+      ${!item?field('entryTitle','词条',query):''}${field('title','场景标题（可选）',scene.title)}<label class="scene-feature-switch"><input type="checkbox" role="switch" name="featured" ${scene.featured?'checked':''}><span>在词条开头展示</span></label>
       ${field('quote','原句 / 场景内容',scene.quote,true)}${field('translation','译文（可选）',scene.translation,true)}
       <div class="scene-field-grid scene-highlights">${field('exampleHighlights','原句高亮（可选）',scene.exampleHighlights.join('、'))}${field('translationHighlights','译文高亮（可选）',scene.translationHighlights.join('、'))}</div>
       <div class="scene-drop" tabindex="0" role="group" aria-label="场景素材"><button type="button" class="plain-btn" data-scene-action="pick">${icon('plus')}添加图片、GIF 或视频</button><small>PNG / JPEG / GIF / WebP · MP4 / WebM · 每文件 20 MB</small><input id="scene-file-picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" multiple hidden><div id="scene-file-list"></div></div>
@@ -238,10 +243,11 @@
   }
   async function loadAsset(node){
     const id=node.dataset.sceneAsset;if(!id||node.dataset.loading)return;
-    node.dataset.loading='true';
+    node.dataset.loading='true';node.setAttribute('aria-busy','true');
     try{
       const ref=getHistory().flatMap(item=>scenes(item)).flatMap(scene=>scene.media).find(item=>item.id===id);
       const file=ref?await SceneMedia.resolve(ref):await SceneData.getFile(id);if(!file?.blob)throw new Error('本机尚无此素材');
+      node.removeAttribute('title');
       let url=urls.get(id);if(!url){url=URL.createObjectURL(file.blob);urls.set(id,url)}
       const video=file.ref.mime.startsWith('video/');
       node.innerHTML=video?`<video controls playsinline preload="metadata" src="${url}"></video>`:`<img loading="lazy" src="${url}" alt="${esc(file.ref.name)}">`;
@@ -254,7 +260,7 @@
       const enlarge=document.createElement('button');enlarge.type='button';enlarge.className='icon-btn scene-enlarge';enlarge.dataset.sceneAction='enlarge';enlarge.dataset.id=id;enlarge.setAttribute('aria-label','放大素材');enlarge.setAttribute('data-tip','放大素材');enlarge.innerHTML=icon('maximize-2');node.append(enlarge);
       if(!video)node.querySelector('img').addEventListener('click',()=>openViewer(id));
     }catch(error){node.innerHTML=`<p class="scene-asset-error">${esc(error.message)}</p><button class="plain-btn" type="button" data-scene-action="load" data-id="${esc(id)}">重试加载</button>`;node.title=error.message}
-    finally{delete node.dataset.loading}
+    finally{delete node.dataset.loading;node.removeAttribute('aria-busy')}
   }
   const observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){observer.unobserve(entry.target);loadAsset(entry.target)}},{rootMargin:'200px'});
   async function openViewer(id){
@@ -363,16 +369,22 @@
   }
   async function syncScene(id,sceneId,announce=false){
     const scene=scenes(historyItem(id)).find(item=>item.id===sceneId);if(!scene)return;
-    const label=message=>document.querySelectorAll(`[data-scene-id="${scene.id}"] [data-scene-sync-status]`).forEach(node=>{node.textContent=message});
-    if(!cloudUser){label('仅本机');if(announce)notify('素材已在本机保存，登录后可同步。','info','场景素材');return}
+    if(!cloudUser){if(announce)notify('素材已在本机保存，登录后自动同步。','info','场景素材');return}
+    const owner=cloudUser.id,key=syncKey(scene.id);
+    const showError=message=>{
+      if(cloudUser?.id!==owner)return;
+      if(message)syncErrors.set(key,message);else syncErrors.delete(key);
+      document.querySelectorAll(`[data-scene-id="${scene.id}"] [data-scene-sync-status]`).forEach(node=>{node.hidden=!message;node.innerHTML=syncErrorHTML(message)});
+    };
     try{
+      showError('');
       for(const ref of scene.media){
-        label('正在同步素材…');await SceneMedia.upload(ref,value=>label(`正在同步 ${value}%`));
-        if(announce){label('正在校验云端副本…');await SceneMedia.resolve(ref,{refresh:true})}
+        if(cloudUser?.id!==owner)return;
+        await SceneMedia.upload(ref);
       }
-      label(announce?'云端副本校验通过':'素材已同步');if(announce)notify('场景素材已同步，云端副本校验通过。','good','场景记忆');
+      showError('');if(announce&&cloudUser?.id===owner)notify('场景素材已同步。','good','场景记忆');
     }
-    catch(error){label('仅本机 · 可重试同步');if(announce)notify(error.message,'warn','素材尚未同步');else pushLog(error.message,'warn','素材尚未同步')}
+    catch(error){showError(`素材同步失败：${error.message}`);if(announce)notify(error.message,'warn','素材尚未同步');else pushLog(error.message,'warn','素材尚未同步')}
   }
   let syncJob=null;
   function syncPending(){
@@ -381,19 +393,17 @@
     syncJob=(async()=>{
       for(const item of getHistory())for(const scene of scenes(item)){
         if(!scene.media.length||cloudUser?.id!==owner)continue;
-        let pending=false,allLocal=true;
+        let pending=false;
         for(const ref of scene.media){
-          const record=await SceneData.getFile(ref.id);if(!record?.blob)allLocal=false;
+          const record=await SceneData.getFile(ref.id);
           if(record?.blob&&!record.uploadedFor?.includes(owner))pending=true;
         }
         if(pending)await syncScene(item.id,scene.id,false);
-        else document.querySelectorAll(`[data-scene-id="${scene.id}"] [data-scene-sync-status]`).forEach(node=>{
-          if(node.textContent==='素材按需加载')node.textContent=allLocal?'素材已同步':'云端素材 · 按需加载';
-        });
       }
     })().catch(error=>pushLog(error.message,'warn','素材同步')).finally(()=>{syncJob=null});
     return syncJob;
   }
+  addEventListener('online',()=>syncPending());
   function renderReview(card){
     const item=historyItem(card.historyId);if(!item)return '';
     return scenes(item).filter(scene=>card.fragmentKey?scene.targetKey===card.fragmentKey:!scene.targetKey).map(scene=>renderCard(scene,item)).join('');
