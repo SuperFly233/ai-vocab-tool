@@ -73,6 +73,23 @@ const server=require('./browser-test-server.cjs').createServer();
     const toast=document.querySelector('.toast');toast.style.animation='none';toast.querySelector('.toast-close').click();
    });
    await page.locator('.toast').waitFor({state:'detached'});
+   for(const mode of ['snackbar','detail']){
+    await page.evaluate(mode=>{
+     const settings=getSettings();settings.toastMode=mode;saveSettingsLocal(settings);document.body.dataset.toastMode=mode;
+     notify('很长的错误信息。'.repeat(100)+' https://example.com/'+ 'unbroken'.repeat(90),'bad','长文本测试');
+     activeToasts.forEach(state=>clearTimeout(state.timer));
+    },mode);
+    await page.locator('.toast').evaluate(node=>node.getAnimations().forEach(animation=>animation.finish()));
+    const long=await page.locator('.toast').evaluate(node=>{
+     const box=node.getBoundingClientRect(),message=node.querySelector('.toast-msg'),close=node.querySelector('.toast-close').getBoundingClientRect();
+     return {height:box.height,scrollable:message.scrollHeight>message.clientHeight,inside:box.left>=0&&box.right<=innerWidth,closeVisible:close.top>=box.top&&close.bottom<=box.bottom};
+    });
+    assert.ok(long.height<300&&long.scrollable&&long.inside&&long.closeVisible,'Long notifications must scroll internally and keep their close control visible');
+    assert.equal(await page.locator('.toast-count').evaluate(node=>getComputedStyle(node).display),'none','Single notice reserves no counter space');
+    if(process.env.QA_SCREENSHOTS&&mode==='snackbar')await page.screenshot({animations:'disabled',path:path.join(process.env.QA_SCREENSHOTS,`notice-long-${engine}-${width}-${theme}.png`)});
+    await page.locator('.toast-close').evaluate(node=>node.click());
+    await page.locator('.toast').waitFor({state:'detached'});
+   }
    console.log(`${engine} ${width}px ${theme}: native dialog, viewport resize and notification close passed.`);
    await context.close();
   }

@@ -180,12 +180,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.25.0',
+  version:'0.25.1',
   releaseDate:'2026-10-20',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.25.1',date:'2026-10-20',title:'限制长通知占屏，压缩通知空占位',
+    items:['长通知正文支持内部滚动，长链接自动换行，关闭操作保持可见；正文最多占 180px 或视口高度的 30%。','多行简洁通知使用稳定圆角，避免大胶囊边缘挤压文字；单次通知隐藏重复计数占位。'],
+  },
   {
     version:'0.25.0',date:'2026-10-20',title:'场景高亮与来源复用，修正手机阅读边界',
     items:['场景原句和译文支持手动高亮，沿用 exampleHighlights、translationHighlights JSON 字段；手动选择优先，保存、同步与备份保留。','来源与备注在阅读和编辑时默认展开，最近来源可快捷填入，再单独修改章节和时间。','核心义取消内容撑宽布局，长中文与连续英文在手机首页和详情内换行；通知容器取消网格拉伸和 fit-content 高度依赖，按内容排布。','提示文字内层取消圆角裁切，恢复早期 140ms、4px 的整体浮入动效和退出渐隐，尊重减少动态效果设置。'],
