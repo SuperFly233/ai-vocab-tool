@@ -15,7 +15,8 @@
     finish(ok){if(!state)return;this.mark(ok?'complete':'error');state.end=performance.now();clearInterval(timer);host.open=!ok;render()},
     snapshot(){return state?{...state,events:state.events.map(event=>({...event}))}:null},
   };
-  const dot=document.createElement('button');dot.className='network-indicator';dot.type='button';dot.setAttribute('aria-label','网络状态');dot.dataset.state='checking';dot.dataset.tip='正在检测站点连接';document.body.append(dot);
+  const dot=document.createElement('button');dot.className='network-indicator';dot.type='button';dot.setAttribute('aria-label','网络状态');dot.dataset.state='checking';dot.dataset.tip='正在检测站点连接';dot.innerHTML='<span class="network-light" aria-hidden="true"></span>';
+  const account=document.getElementById('account-toggle'),wrap=document.createElement('div');wrap.className='account-status-wrap';account.before(wrap);wrap.append(account,dot);
   const panel=document.createElement('div');panel.className='network-status-panel';panel.setAttribute('popover','auto');document.body.append(panel);
   let reachable=null,lastCheck=0,busy=false,cloudMessage='',cloudBad=false;
   function paint(){
@@ -33,7 +34,7 @@
     try{const response=await fetch('/favicon.svg?connection-check',{method:'HEAD',cache:'no-store',credentials:'omit',signal:controller.signal});reachable=response.ok}
     catch{reachable=false}finally{clearTimeout(timeout);busy=false;lastCheck=Date.now();paint()}
   }
-  dot.onclick=()=>{paint();panel.showPopover();const rect=dot.getBoundingClientRect();panel.style.left=`${Math.max(12,Math.min(innerWidth-panel.offsetWidth-12,rect.right-panel.offsetWidth))}px`;panel.style.top=`${Math.max(12,rect.top-panel.offsetHeight-10)}px`};
+  dot.onclick=()=>{paint();panel.showPopover();const rect=account.getBoundingClientRect();panel.style.left=`${Math.max(12,Math.min(innerWidth-panel.offsetWidth-12,rect.right-panel.offsetWidth))}px`;panel.style.top=`${Math.min(innerHeight-panel.offsetHeight-12,rect.bottom+10)}px`};
   root.NetworkUI={cloudStatus(message,type){cloudMessage=message;cloudBad=type==='bad';paint()},check};
   addEventListener('online',check);addEventListener('offline',paint);document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
   setInterval(()=>{if(!document.hidden)check()},60000);check();

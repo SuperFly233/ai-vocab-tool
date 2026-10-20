@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.27.0" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.27.0" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.27.0">
-<link rel="stylesheet" href="/styles.css?v=0.27.0-20261020.4">
+<link rel="icon" href="/favicon.svg?v=0.28.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.28.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.28.0">
+<link rel="stylesheet" href="/styles.css?v=0.28.0-20261021.1">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,13 +36,15 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.27.0" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.28.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
     <button class="nav-item active" data-view="home" id="nav-home" onclick="goHomeAndFocus()"><i data-lucide="house"></i><span>首页</span></button>
     <button class="nav-item" data-view="history" id="nav-history" onclick="showView('history',this)"><i data-lucide="history"></i><span>历史记录</span></button>
     <button class="nav-item" data-view="folders" id="nav-folders" onclick="openFoldersRoot(this)"><i data-lucide="folder-heart"></i><span>收藏夹</span></button>
+    <button class="nav-item" data-view="scenes" id="nav-scenes" onclick="showView('scenes',this)"><i data-lucide="images"></i><span>场景</span></button>
+    <button class="nav-item" data-view="batch" id="nav-batch" onclick="showView('batch',this)"><i data-lucide="list-plus"></i><span>批量查词</span></button>
     <button class="nav-item mobile-utility-nav" data-view="settings" id="nav-settings" onclick="showView('settings',this)"><i data-lucide="settings-2"></i><span>设置</span></button>
     <button class="nav-item mobile-utility-nav" data-view="about" id="nav-about" onclick="showView('about',this)"><i data-lucide="circle-help"></i><span>关于</span></button>
   </nav>
@@ -52,7 +54,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.27.0" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.28.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -103,7 +105,7 @@
           </div>
           <div class="lookup-folder-strip" id="lookup-folder-strip"></div>
           <div class="query-actions">
-            <button class="icon-btn scene-menu-toggle" type="button" data-scene-action="menu" data-tip="添加场景或词条" aria-label="添加场景或词条" aria-expanded="false" aria-controls="scene-query-menu"><i data-lucide="plus"></i></button>
+            <button class="icon-btn scene-menu-toggle" type="button" data-scene-action="menu" data-tip="添加场景或词条" aria-label="添加场景或词条" aria-expanded="false" aria-controls="scene-query-menu"><i data-lucide="image-plus"></i></button>
             <button class="icon-btn lookup-options-toggle" id="lookup-options-toggle" data-tip="查询选项" onclick="toggleLookupOptions()" type="button" aria-label="收起查询选项" aria-expanded="true"><i data-lucide="sliders-horizontal"></i></button>
             <button class="icon-btn primary-icon" data-tip="查询" onclick="runLookup()" aria-label="查询"><i data-lucide="search"></i></button>
           </div>
@@ -131,6 +133,7 @@
   </section>
 
   <section class="view" id="view-scenes"><div id="scene-hub"></div></section>
+  <section class="view" id="view-batch"><div id="batch-workspace"></div></section>
   <section class="view" id="view-history">
     <div class="panel history-panel">
       <div class="section-head">
@@ -615,20 +618,20 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.27.0"></script>
-<script src="/icons.js?v=0.27.0"></script>
-<script src="/history-data.js?v=0.27.0"></script>
-<script src="/settings-data.js?v=0.27.0"></script>
-<script src="/storage-state.js?v=0.27.0"></script>
-<script src="/lookup-tasks.js?v=0.27.0"></script>
-<script src="/sync-state.js?v=0.27.0"></script>
-<script src="/learning-tools.js?v=0.27.0"></script>
-<script src="/scene-data.js?v=0.27.0-20261020.4"></script>
-<script src="/scene-media.js?v=0.27.0-20261020.4"></script>
-<script src="/ui-overlays.js?v=0.27.0-20261020.4"></script>
-<script src="/scene-ui.js?v=0.27.0-20261020.4"></script>
-<script src="/app.js?v=0.27.0-20261020.4"></script>
-<script src="/experience-ui.js?v=0.27.0-20261020.4"></script>
-<script src="/request-ui.js?v=0.27.0-20261020.4"></script>
+<script src="/vendor/supabase.js?v=0.28.0"></script>
+<script src="/icons.js?v=0.28.0"></script>
+<script src="/history-data.js?v=0.28.0"></script>
+<script src="/settings-data.js?v=0.28.0"></script>
+<script src="/storage-state.js?v=0.28.0"></script>
+<script src="/lookup-tasks.js?v=0.28.0"></script>
+<script src="/sync-state.js?v=0.28.0"></script>
+<script src="/learning-tools.js?v=0.28.0"></script>
+<script src="/scene-data.js?v=0.28.0-20261021.1"></script>
+<script src="/scene-media.js?v=0.28.0-20261021.1"></script>
+<script src="/ui-overlays.js?v=0.28.0-20261021.1"></script>
+<script src="/scene-ui.js?v=0.28.0-20261021.1"></script>
+<script src="/app.js?v=0.28.0-20261021.1"></script>
+<script src="/experience-ui.js?v=0.28.0-20261021.1"></script>
+<script src="/request-ui.js?v=0.28.0-20261021.1"></script>
 </body>
 </html>

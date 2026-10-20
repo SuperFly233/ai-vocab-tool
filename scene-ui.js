@@ -15,7 +15,7 @@
     if(activeView==='scenes')renderHub();
   }
   function action(name,label,attributes=''){
-    const glyph={edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'x',sync:'refresh-cw',import:'folder',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
+    const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'x',sync:'refresh-cw',import:'folder',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
   }
   function assets(items=[]){
@@ -37,16 +37,16 @@
       ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${translation}</p>`:''}
       ${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}
       ${source||scene.sourceUrl?`<details class="scene-source" open><summary>${icon('chevron-down')}来源与备注</summary>${source?`<p>${esc(source)}</p>`:''}${scene.sourceUrl?`<a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</details>`:''}</div>
-      ${hero.length?`<button type="button" class="scene-splitter" role="separator" aria-orientation="vertical" aria-label="调整文字与素材宽度，双击复位" aria-valuemin="25" aria-valuemax="65" aria-valuenow="38" data-tip="拖动调整宽度，双击复位"></button><div class="scene-media">${assets(hero)}</div>`:''}
+      ${hero.length?`<button type="button" class="scene-splitter" role="separator" aria-orientation="vertical" aria-label="调整文字与素材宽度，双击复位" aria-valuemin="25" aria-valuemax="65" aria-valuenow="38" data-tip="拖动调整宽度，双击复位"><span class="scene-splitter-rail"></span>${icon('grip-vertical')}</button><div class="scene-media">${assets(hero)}</div>`:''}
       ${scene.media.some(ref=>!hero.includes(ref))?`<details class="scene-more-media"><summary>其他素材 · ${scene.media.length-hero.length}</summary><div class="scene-media">${assets(scene.media.filter(ref=>!hero.includes(ref)))}</div></details>`:''}
     </article>`;
   }
   function render(item,targetKey=''){
     if(!item?.id)return '';
     const all=scenes(item);
-    if(!targetKey&&!all.length)return `<div class="scene-empty-entry" data-history-id="${esc(item.id)}"><button class="scene-link" type="button" data-scene-action="add">${icon('plus')}<span>添加场景</span></button></div>`;
+    if(!targetKey&&!all.length)return `<div class="scene-empty-entry" data-history-id="${esc(item.id)}"><button class="scene-link" type="button" data-scene-action="add">${icon('image-plus')}<span>添加场景</span></button></div>`;
     const selected=targetKey?all.filter(scene=>scene.targetKey===targetKey):all.filter(scene=>scene.featured);
-    if(targetKey)return `<div class="scene-fragment" data-history-id="${esc(item.id)}" data-scene-target="${esc(targetKey)}"><button type="button" class="scene-link" data-scene-action="add">${icon('plus')}<span>场景${selected.length?` · ${selected.length}`:''}</span></button>${selected.map(scene=>renderCard(scene,item)).join('')}</div>`;
+    if(targetKey)return `<div class="scene-fragment" data-history-id="${esc(item.id)}" data-scene-target="${esc(targetKey)}"><button type="button" class="scene-link" data-scene-action="add">${icon('image-plus')}<span>场景${selected.length?` · ${selected.length}`:''}</span></button>${selected.map(scene=>renderCard(scene,item)).join('')}</div>`;
     const other=all.filter(scene=>!scene.featured&&!scene.targetKey);
     return `<section class="block scene-section" data-history-id="${esc(item.id)}"><div class="scene-section-head"><h3><button class="scene-hub-link" data-scene-action="hub" data-tip="打开场景库">场景记忆${all.length?` <small>${all.length}</small>`:''}</button></h3><div class="scene-actions">${all.length?action('backup','导出场景备份（含素材）'):''}${action('add','添加场景')}</div></div><div class="scene-record-list">${selected.map(scene=>renderCard(scene,item)).join('')}</div>${other.length?`<details class="scene-library"><summary>其他场景 · ${other.length}</summary><div class="scene-record-list">${other.map(scene=>renderCard(scene,item)).join('')}</div></details>`:''}</section>`;
   }
@@ -512,8 +512,39 @@
   const hubFilter={query:'',source:'',media:''};
   const tasks=new Map();
   function taskResult(request,status,message=''){
-    if(!request.sceneGroupId)return;
-    tasks.set(`${request.sceneGroupId}:${normalizeSearch(request.query)}`,{request,status,message});if(activeView==='scenes')renderHub();
+    if(!request.sceneGroupId&&!request.batchId)return;
+    tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request,status,message});if(activeView==='scenes')renderHub();if(activeView==='batch')renderBatch();
+  }
+  const batchDraft={text:'',groupId:''};
+  function renderBatch(){
+    const host=document.getElementById('batch-workspace');if(!host)return;
+    if(!host.querySelector('form')){
+      host.innerHTML=`<header class="section-head"><h1>批量查词</h1></header><form class="batch-form"><label class="scene-field"><span>关联场景</span><select name="scene" aria-label="关联场景"><option value="">不关联场景</option></select></label><label class="scene-field"><span>词条 · 每行一个，最多 20 个</span><textarea name="queries" rows="6" required></textarea></label><footer><span class="batch-status" role="status"></span><button class="icon-btn primary-icon" type="submit" aria-label="开始批量查询" data-tip="开始批量查询">${icon('play')}</button></footer></form><div class="batch-results"></div>`;
+      host.querySelector('textarea').value=batchDraft.text;
+      host.querySelector('textarea').oninput=event=>batchDraft.text=event.target.value;
+      host.querySelector('select').onchange=event=>batchDraft.groupId=event.target.value;
+      host.querySelector('form').onsubmit=event=>{
+        event.preventDefault();const queries=[...new Map(batchDraft.text.split(/\n/).map(value=>value.trim()).filter(Boolean).map(query=>[normalizeSearch(query),query])).values()];
+        if(!queries.length||queries.length>20||queries.some(query=>query.length>200)){host.querySelector('.batch-status').textContent='每次 1–20 个词条，每个最多 200 字。';return}
+        const scene=[...library(),...getHistory().flatMap(scenes)].find(row=>row.groupId===batchDraft.groupId),batchId=crypto.randomUUID();
+        if(scene)saveLibrary(scene);
+        for(const query of queries){
+          const request={query,batchId,sceneGroupId:scene?.groupId||'',direction:els.direction.value,note:scene?`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义。`:'',folderIds:lookupFolderIds};
+          const existing=findHistoryByQuery(query);
+          if(existing){if(scene&&!scenes(existing).some(row=>row.groupId===scene.groupId))saveToHistory(existing.id,{...scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:true});taskResult(request,'complete');continue}
+          if(lookupQueue.some(row=>lookupRequestSignature(row)===lookupRequestSignature(request))||activeLookupSignature===lookupRequestSignature(request))continue;
+          taskResult(request,'queued');enqueueLookup(request,{silent:true});
+        }
+        host.querySelector('.batch-status').textContent=`已提交 ${queries.length} 个词条`;processNextLookup();renderBatch();
+      };
+    }
+    const select=host.querySelector('select'),available=[...new Map([...library(),...getHistory().flatMap(scenes)].map(scene=>[scene.groupId,scene])).values()];
+    select.innerHTML='<option value="">不关联场景</option>'+available.map(scene=>`<option value="${esc(scene.groupId)}">${esc((scene.title||scene.quote||scene.sourceTitle||'场景').slice(0,60))}</option>`).join('');select.value=batchDraft.groupId;
+    for(const request of lookupQueue)if(request.batchId||request.sceneGroupId)tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request,status:'queued',message:''});
+    const target=host.querySelector('.batch-results');
+    target.innerHTML=[...tasks.entries()].map(([key,task])=>`<article class="batch-result"><div><strong>${esc(task.request.query)}</strong><small>${esc(({queued:'等待查询',running:'查询中',complete:'已完成',error:'失败'})[task.status]||task.status)}${task.message?' · '+esc(task.message):''}</small></div>${task.status==='error'?`<button class="icon-btn" data-batch-retry="${esc(key)}" aria-label="重试 ${esc(task.request.query)}" data-tip="重试">${icon('refresh-cw')}</button>`:task.status==='complete'?`<button class="icon-btn" data-batch-open="${esc(task.request.query)}" aria-label="打开 ${esc(task.request.query)}" data-tip="打开词条">${icon('arrow-up-right')}</button>`:''}</article>`).join('');
+    target.querySelectorAll('[data-batch-retry]').forEach(button=>button.onclick=()=>{const task=tasks.get(button.dataset.batchRetry);taskResult(task.request,'queued');submitLookup(task.request)});
+    target.querySelectorAll('[data-batch-open]').forEach(button=>button.onclick=()=>{const item=findHistoryByQuery(button.dataset.batchOpen);if(item)openHistoryModal(item.id)});
   }
   function renderHub(){
     const rootNode=document.getElementById('scene-hub');if(!rootNode)return;
@@ -567,6 +598,7 @@
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,attachPending,syncPending,renderReview,renderHub,queryFromScene,taskResult};
-  if(activeView==='scenes')renderHub();
+  root.SceneUI={render,open,attachPending,syncPending,renderReview,renderHub,renderBatch,queryFromScene,taskResult};
+  if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
+  if(typeof activeView!=='undefined'&&activeView==='batch')renderBatch();
 })(globalThis);

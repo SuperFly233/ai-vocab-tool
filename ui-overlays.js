@@ -22,6 +22,7 @@
     if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active'))return;
     hide(true);owner=button;previousDescription=button.getAttribute('aria-describedby');
     hintText.textContent=button.dataset.tip;
+    hint.dataset.kind=button.dataset.tipKind||'';
     button.setAttribute('aria-describedby',[previousDescription,hint.id].filter(Boolean).join(' '));
     hint.showPopover();
     const viewport=window.visualViewport;

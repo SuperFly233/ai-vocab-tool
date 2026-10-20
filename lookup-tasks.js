@@ -31,6 +31,7 @@
       queuedAt:text(request.queuedAt),
       startedAt:text(request.startedAt),
       ...(text(request.sceneGroupId)?{sceneGroupId:text(request.sceneGroupId)}:{}),
+      ...(text(request.batchId)?{batchId:text(request.batchId)}:{}),
     };
     normalized.signature=requestSignature(normalized);
     return normalized;

@@ -30,8 +30,8 @@ const server=require('./browser-test-server.cjs').createServer();
   assert.ok(await page.evaluate(()=>getSettings().favoriteFolders.some(row=>row.id==='folder_qa')));
   assert.ok(await page.evaluate(()=>getHistory().find(row=>row.id===1).folderIds.includes('folder_qa')));
   await page.waitForFunction(()=>document.querySelector('.network-indicator').dataset.state==='good');
-  const dot=await page.locator('.network-indicator').evaluate(node=>{const style=getComputedStyle(node,'::before');return {width:style.width,color:style.backgroundColor}});
-  assert.equal(dot.width,'8px');assert.equal(dot.color,'rgb(55, 168, 116)');
+  const dot=await page.locator('.network-light').evaluate(node=>{const style=getComputedStyle(node);return {width:style.width,color:style.backgroundColor}});
+  assert.equal(dot.width,'12px');assert.equal(dot.color,'rgb(35, 182, 108)');
   await page.locator('.network-indicator').click();assert.ok(await page.locator('.network-status-panel').isVisible());
   console.log('Deletion safety passed: cancel, history undo preserving concurrent additions, followup, API profile, folder membership and honest visible network indicator.');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}

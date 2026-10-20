@@ -52,6 +52,8 @@ const server=require('./browser-test-server.cjs').createServer();
      await page.keyboard.press('ArrowLeft');assert.equal(await divider.getAttribute('aria-valuenow'),'41');
      await divider.press('Home');assert.equal(await divider.getAttribute('aria-valuenow'),'38');
      const box=await divider.boundingBox();assert.ok(box.width>=10&&box.height>50,'Divider has a stable pointer target');
+     const rail=await divider.locator('.scene-splitter-rail').evaluate(node=>({width:node.getBoundingClientRect().width,opacity:getComputedStyle(node).opacity,color:getComputedStyle(node).backgroundColor}));
+     assert.ok(rail.width>=2&&Number(rail.opacity)>=.6&&rail.color!=='rgba(0, 0, 0, 0)','Actual rail must be visible in both themes');
      await page.mouse.move(box.x+box.width/2,box.y+20);await page.mouse.down();await page.mouse.move(box.x-40,box.y+20,{steps:5});await page.mouse.up();
      assert.ok(Number(await divider.getAttribute('aria-valuenow'))>38,'Pointer dragging adjusts media ratio');
      await divider.dblclick();assert.equal(await divider.getAttribute('aria-valuenow'),'38');

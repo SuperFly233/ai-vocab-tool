@@ -66,6 +66,16 @@ const server=require('./browser-test-server.cjs').createServer();
   assert.ok(await first.page.locator('#scene-viewer video').evaluate(video=>video.currentTime>=.2),'Viewer inherits playback position');
   await first.page.locator('[data-scene-action="viewer-close"]').click();
   assert.ok(await first.page.locator('.scene-record video').evaluate(video=>video.paused),'Closing never unexpectedly resumes inline sound');
+  await first.page.locator('.scene-record video').evaluate(video=>{
+   window.__videoPlay=video.play.bind(video);video.play=()=>video.muted?__videoPlay():Promise.reject(new DOMException('Fixture autoplay restriction','NotAllowedError'));
+   const settings={...getSettings(),mediaAutoplay:true,mediaControls:false,mediaTools:'hidden'};setSettings(settings);ExperienceUI.apply(settings);
+  });
+  await first.page.waitForFunction(()=>document.querySelector('.scene-record video').dataset.soundBlocked==='true');
+  assert.ok(await first.page.locator('.scene-record .scene-sound').isVisible(),'Sound control remains visible without native or media tools');
+  await first.page.locator('.scene-record video').evaluate(video=>video.play=__videoPlay);
+  await first.page.locator('.scene-record .scene-sound').click();
+  assert.equal(await first.page.locator('.scene-record video').evaluate(video=>video.muted),false,'Explicit activation enables sound');
+  await first.page.evaluate(()=>{const settings={...getSettings(),mediaAutoplay:false,mediaControls:true,mediaTools:'auto'};setSettings(settings);ExperienceUI.apply(settings)});
   const downloadPromise=first.page.waitForEvent('download');
   await first.page.locator('[data-scene-action="backup"]').click();
   const download=await downloadPromise,archive=JSON.parse(require('node:fs').readFileSync(await download.path(),'utf8'));
