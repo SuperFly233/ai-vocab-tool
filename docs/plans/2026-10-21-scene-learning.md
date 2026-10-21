@@ -54,6 +54,7 @@
 实体 iPhone 未实测。浏览器模拟不能证明 iOS 键盘、媒体解码与缩放行为完全一致。
 本轮云同步/素材传输使用隔离测试夹具，未改动真实用户词条；没有宣称进行了第二台真实手机的云端验收。
 音视频格式仍取决于浏览器解码支持。学习状态并非间隔重复计划。
-测试通过后发布 v0.30.0，生产静态资源需与 dist 核对；具体提交和部署地址在交付消息中记录。
+已发布 v0.30.0。代码提交 `0880fd1` 已推送 main；Cloudflare 部署：<https://46204ff2.ai-vocab-tool.pages.dev>，生产入口：<https://ai-vocab-tool.pages.dev/scenes>。
+生产 index、app、styles、scene-data、scene-ui、scene-preview、scene-workspace、scene-study 和 manifest 共 9 个资源与 dist 逐字核对一致（仅归一化换行）。隔离浏览器验证生产版本 0.30.0、场景工作台启动与 `/batch` 替换跳转 `/scenes`，未登录或修改真实记录。
 
 统计：修复/加固 6，优化 6，新增 6，共 18 项。发布后仅调查 fushi/Anki 环境并形成独立方案，不自动进入实现。
