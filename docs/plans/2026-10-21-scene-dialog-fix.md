@@ -13,3 +13,9 @@
 - 保存并查看桌面浅色与手机深色截图：`tmp/dialog-qa/`（本机忽略目录，不发布测试数据）。
 - `npm run check` 与 Anki 界面回归通过；场景学习端到端回归检查关联、高亮、查询、重试、撤销及返回流程。
 - 实体 iPhone 与软键盘未实测，浏览器窄屏和矮屏不能替代实体设备验收。
+
+## 发布
+
+- 实现提交：`312412d`，已推送 main。
+- Cloudflare 部署：https://6598fc8a.ai-vocab-tool.pages.dev 。生产 https://ai-vocab-tool.pages.dev 的 HTML、JS、CSS 与本地构建逐字一致。
+- 隔离生产浏览器检查不登录用户账号，不创建或修改正式记录。

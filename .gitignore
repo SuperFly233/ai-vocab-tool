@@ -3,6 +3,7 @@ dist/
 node_modules/
 npm-debug.log*
 tmp/scene-qa/
+tmp/dialog-qa/
 tmp/anki-bridge-venv/
 tmp/anki-bridge-build/
 tmp/anki-bridge-qa/
