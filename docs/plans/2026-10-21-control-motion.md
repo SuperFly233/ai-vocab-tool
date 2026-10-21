@@ -22,3 +22,9 @@
 - 桌面深色及手机浅色实际悬停截图已检查，位于忽略目录 `tmp/dialog-qa/motion/`。
 - 实体 iPhone 未实测，鼠标窄屏测试不等同于触屏设备验收。
 - `npm run check`、场景工作台 320/390/768/1024/1440 明暗主题、版本 UI 320/390/1440 明暗主题及遮罩/气泡检查通过；版本顺序、草稿、撤销与队列交互不受影响。
+
+## 发布验收
+
+- 实现提交 `308a5cf` 已推送 main；Cloudflare 部署 https://0d1defbc.ai-vocab-tool.pages.dev ，生产 https://ai-vocab-tool.pages.dev/scenes 。
+- 生产 HTML、app 与 CSS 和本地构建一致；实际浏览器确认版本 v0.32.2，素材切换按钮悬停前后 x/y/width/height 均不变，无页面脚本错误。
+- 生产检查仅用隔离浏览器的本地临时场景，不改用户正式记录。
