@@ -32,4 +32,8 @@ One category metadata list supplies seven concise labels, icons, headings, descr
 
 ## Release
 
-Production verification and deployment identity are recorded after publication. Anki cloud migration/real-deck acceptance remain blocked independently; production gate stays closed.
+- Implementation: 258b6fa, pushed to origin/main.
+- Cloudflare deployment: https://44fce65b.ai-vocab-tool.pages.dev ; production: https://ai-vocab-tool.pages.dev/settings .
+- check-settings-production.cjs passed against production: index.html/app.js/experience-ui.js/styles.css/icons.js/site.webmanifest match dist after line-ending normalization; 390/1440px isolated offline browser profiles report v0.33.0, seven categories, working search/navigation and no page overflow.
+- Production screenshots: tmp/dialog-qa/settings/production-{390,1440}-dark.png; mobile scrolled screenshot inspected after deployment. No real account session or user records used.
+- Anki cloud migration/real-deck acceptance remain blocked independently; production gate stays closed.
