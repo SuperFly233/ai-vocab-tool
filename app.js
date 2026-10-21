@@ -34,7 +34,6 @@ const VIEW_ROUTES={
   history:'/history',
   folders:'/favorites',
   scenes:'/scenes',
-  batch:'/batch',
   settings:'/settings',
   about:'/about',
   account:'/account',
@@ -182,12 +181,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.28.0',
+  version:'0.29.0',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.29.0',date:'2026-10-21',title:'场景学习工作台与移动端修复',
+    items:['场景与批量查词合并，桌面列表与工作台并排，手机点入详情；支持选中文本、多行添加词组、会话词篮、队列进度和失败重试。','统一非首页搜索样式并保留中文输入状态；设置与详情目录自动保持当前分类可见，文字导航不再弹出重复提示。','场景可通过链接直达，返回保留筛选和滚动；旧批量地址兼容跳转，既有任务和素材继续复用。','手机可编辑控件至少 16px，浏览页面不再自动聚焦首页输入框；不禁用用户缩放，实体 iPhone 缩放表现仍需实机确认。'],
+  },
   {
     version:'0.28.0',date:'2026-10-21',title:'修正阅读与媒体交互，场景和批量查询成为主入口',
     items:['视频优先尝试有声自动播放，浏览器拦截时保留独立声音按钮；实体拖动分隔轨道在明暗主题均可见，添加场景改为专用图片图标。','阅读目录仅保留顶层章节，悬停预览展示清理后的分条摘要；设置目录统一层级与顺序，新增实时设置搜索。','场景与批量查词加入主导航；网络状态合入账号头像附近，以明确色点展示连接与同步状态。','版本管理共用排序，整合先预览、确认后才保存并支持撤销；可用当前模型执行 AI 语义整合，失败保留原预览和来源版本。'],
@@ -2689,6 +2692,7 @@ async function loadConfigInfo(){
 
 function viewFromPath(pathname=location.pathname){
   const path=`/${String(pathname||'').split('/').filter(Boolean).join('/')}`.replace(/\/$/,'')||'/';
+  if(path==='/batch')return 'scenes';
   if(path==='/folders'||path.startsWith(`${VIEW_ROUTES.folders}/`))return 'folders';
   return Object.entries(VIEW_ROUTES).find(([,route])=>route===path)?.[0]||'home';
 }
@@ -2716,7 +2720,6 @@ function showView(id,button,options={}){
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
   if(next==='scenes')globalThis.SceneUI?.renderHub();
-  if(next==='batch')globalThis.SceneUI?.renderBatch();
   if(next==='settings')renderSettings();
   if(next==='about')renderAbout();
   if(next==='account')renderAuthGate();
@@ -2737,7 +2740,7 @@ function restoreViewFromLocation({replace=false,focus=true}={}){
   }
   const canonical=view==='folders'&&folderState.detailOpen?`${VIEW_ROUTES.folders}/${encodeURIComponent(folderState.activeId)}`:VIEW_ROUTES[view];
   showView(view,document.getElementById(`nav-${view}`),{route:'none',scroll:false,focus});
-  if(replace){
+  if(replace||location.pathname==='/batch'){
     const state={view};
     if(view==='folders'&&folderState.detailOpen){
       state.folderId=folderState.activeId;
@@ -2752,6 +2755,7 @@ function goHomeAndFocus(){
 }
 function focusQueryInput(){
   requestAnimationFrame(()=>{
+    if(matchMedia('(pointer:coarse)').matches)return;
     if(!canEnterApp()||activeView!=='home'||document.body.classList.contains('modal-open'))return;
     els.query?.focus({preventScroll:true});
     const length=els.query?.value.length||0;
@@ -4216,7 +4220,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     renderLookupError(query,error);
     globalThis.SceneUI?.taskResult(request,'error',error.message);
     globalThis.RequestUI?.finish(false);
-    notify(error.message||'查询失败。','bad','查询失败');
+    if(!request.sceneGroupId)notify(error.message||'查询失败。','bad','查询失败');
   }finally{
     if(runId===lookupRunId){
       lookupBusy=false;
@@ -7864,21 +7868,28 @@ function setupSettingsNavigation(){
 function updateSettingsNavActive(){
   const sections=[...document.querySelectorAll('.settings-content .setting-group[id]')].filter(section=>!section.hidden);
   if(!sections.length)return;
-  const guideTop=window.matchMedia('(max-width:900px)').matches?132:118;
+  const nav=document.querySelector('.settings-nav'),mobile=window.matchMedia('(max-width:900px)').matches;
+  const guideTop=(mobile?nav.getBoundingClientRect().bottom:document.querySelector('.topbar').getBoundingClientRect().bottom)+24;
   let current=sections[0];
   sections.forEach(section=>{if(section.getBoundingClientRect().top<=guideTop)current=section});
+  if(settingsNavLock&&performance.now()<settingsNavLock.until)current=sections.find(section=>section.id===settingsNavLock.id)||current;
   document.querySelectorAll('.settings-nav-item').forEach(button=>{
     const active=button.dataset.settingsTarget===current.id;
     button.classList.toggle('active',active);
     button.setAttribute('aria-current',active?'true':'false');
   });
+  globalThis.ExperienceUI?.revealNavItem(nav,nav.querySelector('.active'));
 }
+let settingsNavLock=null;
 function scrollToSettingsSection(id,button){
   const section=document.getElementById(id);
   if(!section)return;
   if(section.classList.contains('collapsed'))section.querySelector('.setting-collapse-btn')?.click();
   document.querySelectorAll('.settings-nav-item').forEach(item=>item.classList.toggle('active',item===button));
-  section.scrollIntoView({behavior:'smooth',block:'start'});
+  settingsNavLock={id,until:performance.now()+1200};
+  const nav=document.querySelector('.settings-nav'),offset=(innerWidth<=900?nav.getBoundingClientRect().height:0)+document.querySelector('.topbar').getBoundingClientRect().bottom+16;
+  globalThis.ExperienceUI?.revealNavItem(nav,button);
+  window.scrollTo({top:scrollY+section.getBoundingClientRect().top-offset,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
 }
 function scrollSettingsToTop(){
   document.querySelector('.settings-page-head')?.scrollIntoView({behavior:'smooth',block:'start'});

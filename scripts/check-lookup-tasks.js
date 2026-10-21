@@ -5,6 +5,8 @@ const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 
 expect(typeof recoverRequests==='function','LookupTasks production module did not load');
+const legacyBatch=recoverRequests({queue:[{query:'legacy phrase',batchId:'v28-batch',queuedAt:'2026-10-21T00:00:00.000Z'}]},[]);
+expect(legacyBatch.length===1&&legacyBatch[0].batchId==='v28-batch','Removing the batch page must not discard old queued requests');
 
 const interrupted={
   active:{query:'alpha',direction:'en-zh',startedAt:'2026-07-26T01:00:00.000Z'},

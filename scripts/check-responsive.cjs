@@ -39,6 +39,7 @@ const server = require('./browser-test-server.cjs').createServer();
           width: document.documentElement.clientWidth,
           scroll: document.documentElement.scrollWidth,
           result: document.querySelector('#result-card').getBoundingClientRect().width,
+          resultRight: document.querySelector('#result-card').getBoundingClientRect().right,
           resultScroll: document.querySelector('#result-card').scrollWidth,
           tables: [...document.querySelectorAll('#result-card .table-scroll')].map(el => ({ width: el.clientWidth, scroll: el.scrollWidth })),
         }));
@@ -48,6 +49,7 @@ const server = require('./browser-test-server.cjs').createServer();
           return [...card.querySelectorAll('*')].filter(el=>el.getBoundingClientRect().right>rect.right||el.scrollWidth>el.clientWidth+1).map(el=>({tag:el.tagName,class:el.className,right:el.getBoundingClientRect().right,width:el.clientWidth,scroll:el.scrollWidth}));
         }));
         assert.ok(measure.scroll <= measure.width, `Page overflow at ${width}px (${long ? 'long' : 'normal'}): ${measure.scroll}`);
+        assert.ok(measure.resultRight<=measure.width+1,`Result clipped outside viewport at ${width}px: ${measure.resultRight}`);
         assert.ok(measure.resultScroll <= Math.ceil(measure.result), `Result content overflow at ${width}px: ${measure.resultScroll}`);
         if (process.env.QA_SCREENSHOTS) {
           fs.mkdirSync(process.env.QA_SCREENSHOTS, { recursive: true });

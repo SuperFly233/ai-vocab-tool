@@ -20,6 +20,8 @@
   }
   function show(button){
     if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active'))return;
+    const label=button.matches('.nav-item')?button.querySelector('span'):null;
+    if(label?.getBoundingClientRect().width&&label.textContent.trim()===button.dataset.tip.trim())return;
     hide(true);owner=button;previousDescription=button.getAttribute('aria-describedby');
     hintText.textContent=button.dataset.tip;
     hint.dataset.kind=button.dataset.tipKind||'';

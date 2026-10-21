@@ -223,10 +223,10 @@ expect(app.includes("renderHistoryFilterGroup('time','时间'")&&app.includes('h
 expect(!app.includes('data-tip="查看" aria-label="查看"'), 'History rows must not duplicate the row-level open action');
 
 const requiredRoutes = ['/history', '/favorites', '/scenes', '/batch', '/settings', '/about'];
-for(const module of ['experience-ui.js','request-ui.js'])expect(html.includes(`src="/${module}?v=${packageInfo.version}`),`Missing versioned reading module ${module}`);
+for(const module of ['experience-ui.js','request-ui.js','scene-workspace.js'])expect(html.includes(`src="/${module}?v=${packageInfo.version}`),`Missing versioned reading module ${module}`);
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));
 for (const route of requiredRoutes) {
-  expect(app.includes(`:'${route}'`), `VIEW_ROUTES 缺少 ${route}`);
+  expect(route==='/batch'?app.includes("if(path==='/batch')return 'scenes'"):app.includes(`:'${route}'`), `VIEW_ROUTES or legacy alias missing ${route}`);
   expect(rewriteSources.has(route), `vercel.json 缺少 ${route} rewrite`);
 }
 

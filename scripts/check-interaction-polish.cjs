@@ -24,15 +24,14 @@ const server=require('./browser-test-server.cjs').createServer();
     setHistory([{id:1,query:'as of today',rolls,result:rolls[0].result,scenes:[scene],createdAt:now}]);
     setSettings({...getSettings(),apiProfiles:[{id:'qa',name:'QA',apiUrl:'https://example.com/v1',apiKey:'test-only',model:'qa-model'}],activeApiProfileId:'qa'});
    });
-   assert.equal(await page.locator('.sidebar .nav-item:visible').count(),5);
+   assert.equal(await page.locator('.sidebar .nav-item:visible').count(),4);
    const shell=await page.evaluate(()=>{
     const nodes=[...document.querySelectorAll('.sidebar .nav-item,.topbar-actions>.theme-switch,.topbar-actions>.utility-nav,.account-status-wrap')].filter(node=>node.getBoundingClientRect().width>0).map(node=>{const r=node.getBoundingClientRect();return {label:node.textContent.trim(),x:r.left,y:r.top,right:r.right,bottom:r.bottom}});
     return {overflow:document.documentElement.scrollWidth>innerWidth,nodes};
    });assert.equal(shell.overflow,false,JSON.stringify(shell));
    for(const a of shell.nodes)for(const b of shell.nodes)if(a!==b)assert.ok(a.right<=b.x+1||b.right<=a.x+1||a.bottom<=b.y+1||b.bottom<=a.y+1,'Navigation overlap '+JSON.stringify({width,a,b}));
    await page.locator('#nav-scenes').click();assert.equal(await page.locator('#scene-hub h1').textContent(),'场景');
-   await page.locator('#nav-batch').click();await page.locator('.batch-form textarea').fill('batch one\nbatch two\nbatch one');await page.getByRole('button',{name:'开始批量查询',exact:true}).click();
-   await page.waitForFunction(()=>getHistory().length===3&&!lookupBusy);assert.equal(await page.locator('.batch-result').count(),2);
+   assert.equal(await page.locator('#nav-batch').count(),0);
    await page.evaluate(()=>showView('settings'));
    assert.deepEqual(await page.locator('.settings-nav-item b').allTextContents(),['模型与生成','外观与布局','阅读','场景与媒体','通知','数据与同步','维护与诊断']);
    assert.equal(await page.locator('.settings-nav-item small').count(),0);

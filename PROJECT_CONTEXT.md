@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.29.0 replaces the separate batch destination with a unified /scenes master/detail workspace; /batch is a replace-state compatibility alias. scene-workspace.js owns scene selection via ?scene=groupId, stable filters, per-account sessionStorage query baskets, media thumbnails and incremental task results. It delegates metadata, assets and queue submission to SceneUI; no new backend schema or API. Shared secondary searches live in experience-ui.js, which also reveals active settings/reading nav items without scrolling ancestors. Mobile input minimum is 16px and coarse-pointer browsing no longer autofocuses home. Acceptance: docs/plans/2026-10-21-scene-workspace.md.
 
 - v0.28.0 supersedes prior autoplay and version-merge behavior: attempt audible autoplay, policy fallback remains muted with an always-visible dedicated sound button. Top-level reading sections exclude scene records; summaries are cleaned lists. Scene and /batch are primary destinations, mobile utility icons move to topbar, network status is an avatar-adjacent colored DOM element. Settings share one category density/order and search. Version integration previews locally first; explicit AI optimization uses current model through existing analyze API; confirmation is required and undo protects subsequently edited integrated content. Details: docs/plans/2026-10-21-interaction-polish.md.
 
