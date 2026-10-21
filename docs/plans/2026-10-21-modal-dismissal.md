@@ -17,3 +17,10 @@
 - `check-editor-draft-safety.cjs`、`check-overlay-intent.cjs` 回归通过。原生确认对话框保留/放弃及账号、版本恢复保护不变。
 - 截图保存在忽略目录 `tmp/dialog-qa/dismiss/`，已查看桌面深色嵌套状态。实体 iPhone 与其系统返回手势未实测。
 - `check-scene-title.cjs`：320/390/768/1440px 明暗主题，完整长标题不丢字符；列表单行省略、详情两行省略，全文悬停提示完整且无横向溢出。已查看桌面深色及手机浅色截图。
+
+## 发布验收
+
+- 实现提交：`a449954`，已推送 main；部署 https://38baa578.ai-vocab-tool.pages.dev ，生产 https://ai-vocab-tool.pages.dev/scenes 。
+- 生产 HTML、app、CSS、overlays、scene UI 和 workspace 六个资源与本地构建一致。
+- 生产隔离浏览器实际验证 v0.32.1：长标题完整保留并两行省略，编辑器上放大图片后 Esc 和外侧点击均仅关闭预览，编辑器仍在；无页面脚本错误。
+- 生产测试只写隔离浏览器的本地临时场景，不修改账号正式记录。
