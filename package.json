@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.31.1",
+  "version": "0.32.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:scene-authoring-polish": "node scripts/check-scene-authoring-polish.cjs",
     "check:scene-dialogs": "node scripts/check-scene-dialogs.cjs",
     "check:anki-cloud": "node --check api/anki-jobs.js && node scripts/check-anki-jobs.cjs",
     "check:anki-ui": "node --check anki-bridge-ui.js && node scripts/check-anki-ui.cjs",

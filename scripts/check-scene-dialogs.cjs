@@ -31,7 +31,7 @@ const server=require('./browser-test-server.cjs').createServer();
   assert.ok(await search.isVisible());await page.locator('.scene-picker-row input').last().check();
   const button=await page.locator('[data-associate-confirm]').boundingBox();assert.ok(button.y+button.height<height-10,'Confirm remains in viewport');
   if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`dialog-${width}-${height}-${theme}.png`)})}
-  await page.locator('dialog header button').click();
+  await page.locator('.scene-picker-row input').last().uncheck();await page.locator('dialog header button').click();
   await page.evaluate(async()=>{const item=getHistory()[0];await SceneStudy.associate('modal-test',[item.id]);SceneStudy.openHighlights(item.id,'modal-test')});await check('highlight');await page.locator('dialog header button').click();
   if(width<=900)await page.locator('.scene-back').click();
   await page.locator('[data-scene-export]').click();await check('export');await page.locator('dialog header button').click();

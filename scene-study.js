@@ -36,7 +36,7 @@
     const history=getHistory().map(item=>{
       if(!chosen.has(String(item.id))||link(item,gid))return item;
       const baseline=SceneData.reconcile(getSettings().sceneLibrary,getSettings().sceneLibraryTombstones).items.find(scene=>scene.groupId===gid);
-      const scene=SceneData.normalizeScene({...group.scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:true,exampleHighlights:baseline?.exampleHighlights||[],translationHighlights:baseline?.translationHighlights||[],studyState:'new',studyUpdatedAt:'',createdAt:group.scene.createdAt||clock,updatedAt:group.scene.updatedAt||clock});
+      const scene=SceneData.normalizeScene({...group.scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:group.scene.featured,exampleHighlights:baseline?.exampleHighlights||[],translationHighlights:baseline?.translationHighlights||[],studyState:'new',studyUpdatedAt:'',createdAt:group.scene.createdAt||clock,updatedAt:group.scene.updatedAt||clock});
       added.push({id:item.id,scene});return {...item,scenes:[...records(item),scene],updatedAt:clock};
     });
     if(!added.length)return 0;
@@ -53,10 +53,12 @@
       if(!setHistory(next))return notify('撤销未能保存。','warn','撤销');added.forEach(row=>refreshFragmentPinViews(row.id));refresh();if(skipped)notify('已保留有后续修改的关联。','info','撤销');
     }});return added.length;
   }
-  function openPicker(gid){
+  function openPicker(gid,draft=[]){
     const node=dialog('关联已有词条'),account=owner(),chosen=new Set();
     node.id='scene-association-picker';node.querySelector('.scene-dialog-body').innerHTML=`<label class="history-search search-field"><span>${icon('search')}</span><input type="search" placeholder="搜索词条或核心义" aria-label="搜索已有词条" autocomplete="off"></label><div class="scene-picker-list"></div><footer><span data-chosen-count>已选 0 个</span><button class="plain-btn primary-btn" data-associate-confirm disabled>确认关联</button></footer>`;
     const input=node.querySelector('input'),list=node.querySelector('.scene-picker-list'),confirm=node.querySelector('[data-associate-confirm]');
+    draft.forEach(id=>chosen.add(String(id)));confirm.disabled=!chosen.size;node.querySelector('[data-chosen-count]').textContent=`已选 ${chosen.size} 个`;
+    UIOverlays.guardDialog(node,{getState:()=>[...chosen].sort(),initialState:[],canRestore:()=>SceneUI.sceneGroups().some(row=>row.scene.groupId===gid),restore:values=>openPicker(gid,values)});
     function render(){
       const query=normalizeSearch(input.value),rows=getHistory().filter(item=>normalizeSearch(`${historyDisplayTitle(item)} ${meaning(item)}`).includes(query));
       list.innerHTML=rows.map(item=>{const linked=Boolean(link(item,gid));return `<label class="scene-picker-row"><input type="checkbox" value="${esc(item.id)}" ${linked||chosen.has(String(item.id))?'checked':''} ${linked?'disabled':''}><span><strong>${esc(historyDisplayTitle(item))}</strong><small>${esc(meaning(item))}</small></span>${linked?'<small>已关联</small>':''}</label>`}).join('')||'<p>没有匹配的词条</p>';
@@ -65,11 +67,19 @@
     input.addEventListener('input',event=>{if(!event.isComposing)render()});input.addEventListener('compositionend',render);render();
     confirm.onclick=async()=>{confirm.disabled=true;try{if(owner()!==account)throw new Error('账号已切换，请重新打开。');await associate(gid,[...chosen]);node.close()}catch(error){node.querySelector('[role="status"]').textContent=error.message;confirm.disabled=false}};
   }
-  function openHighlights(id,gid){
+  function openHighlights(id,gid,draft=null){
     const item=entry(id),scene=link(item,gid);if(!scene)return;
     const expected=JSON.stringify(records(item).filter(row=>row.groupId===gid)),account=owner(),node=dialog(`高亮 · ${historyDisplayTitle(item)}`);node.id='scene-highlight-editor';
     node.querySelector('.scene-dialog-body').innerHTML=`<form><label class="scene-field"><span>原句高亮</span><input name="quote" value="${esc(scene.exampleHighlights.join('、'))}" placeholder="多个片段用顿号分隔"></label><label class="scene-field"><span>译文高亮</span><input name="translation" value="${esc(scene.translationHighlights.join('、'))}"></label><div class="scene-highlight-preview"></div><footer><button class="plain-btn primary-btn" type="submit">保存高亮</button></footer></form>`;
-    const form=node.querySelector('form');const preview=()=>{node.querySelector('.scene-highlight-preview').innerHTML=`<blockquote>${highlightText(scene.quote,splitVisualList(form.elements.quote.value))}</blockquote><p>${highlightText(scene.translation,splitVisualList(form.elements.translation.value))}</p>`};form.oninput=preview;preview();
+    const form=node.querySelector('form');
+    for(const [key,label] of [['quote','原句高亮（可选）'],['translation','译文高亮（可选）']]){
+      const control=form.elements[key],field=control.closest('label');field.classList.add('visual-field-hinted');
+      field.insertAdjacentHTML('beforeend',visualHintHTML(key,{[key]:[label,'复制对应原文中实际出现的片段；多个用顿号或换行分隔。',key==='quote'?'clocked、the detail':'注意到、细节']}));
+      if(draft)control.value=draft[key];
+    }
+    node.classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
+    const preview=()=>{node.querySelector('.scene-highlight-preview').innerHTML=`<blockquote>${highlightText(scene.quote,splitVisualList(form.elements.quote.value))}</blockquote><p>${highlightText(scene.translation,splitVisualList(form.elements.translation.value))}</p>`};form.oninput=preview;preview();
+    UIOverlays.guardDialog(node,{getState:()=>({quote:form.elements.quote.value,translation:form.elements.translation.value}),initialState:{quote:scene.exampleHighlights.join('、'),translation:scene.translationHighlights.join('、')},canRestore:()=>JSON.stringify(records(entry(id)).filter(row=>row.groupId===gid))===expected,restore:values=>openHighlights(id,gid,values)});
     form.onsubmit=event=>{event.preventDefault();try{if(account!==owner())throw new Error('账号已切换，请重新打开。');update(id,gid,{exampleHighlights:splitVisualList(form.elements.quote.value),translationHighlights:splitVisualList(form.elements.translation.value)},{expected});node.close()}catch(error){node.querySelector('[role="status"]').textContent=error.message}};
   }
   function exportData(groups){

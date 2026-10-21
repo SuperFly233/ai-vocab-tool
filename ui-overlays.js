@@ -80,6 +80,32 @@
       if(accepted)event.target.dispatchEvent(new Event('backdrop-dismiss'));
     }
   },true);
+  let fieldHint=null,fieldAnchor=null;
+  function hideFieldHint(){if(fieldHint?.matches(':popover-open'))fieldHint.hidePopover();fieldHint=null;fieldAnchor=null}
+  function positionFieldHint(){
+    if(!fieldHint?.isConnected||!fieldAnchor?.isConnected)return hideFieldHint();
+    const viewport=visualViewport,left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||innerWidth,height=viewport?.height||innerHeight;
+    const anchor=fieldAnchor.getBoundingClientRect();
+    if(anchor.bottom<top||anchor.top>top+height)return hideFieldHint();
+    fieldHint.style.maxWidth=`${Math.min(360,width-24)}px`;fieldHint.style.maxHeight=`${Math.max(40,height-24)}px`;fieldHint.style.setProperty('--hint-height',`${Math.max(40,height-24)}px`);
+    const header=fieldAnchor.closest('dialog,.scene-editor,.modal-card')?.querySelector(':scope>header,:scope>.modal-head'),safeTop=Math.max(top+12,(header?.getBoundingClientRect().bottom||0)+8);
+    const rect=fieldHint.getBoundingClientRect(),above=anchor.top-rect.height-10>=safeTop;
+    const x=Math.max(left+12,Math.min(left+width-rect.width-12,anchor.left));
+    fieldHint.style.left=`${x}px`;fieldHint.style.top=`${Math.max(top+12,Math.min(top+height-rect.height-12,above?anchor.top-rect.height-10:anchor.bottom+10))}px`;
+    const dialog=fieldAnchor.closest('dialog'),footer=dialog?.querySelector('footer')?.getBoundingClientRect(),frame=dialog?.getBoundingClientRect();
+    if(!above&&footer&&anchor.bottom+10+rect.height>footer.top&&frame.bottom+10+rect.height<top+height-12)fieldHint.style.top=`${frame.bottom+10}px`;
+    fieldHint.dataset.side=above?'above':'below';fieldHint.style.setProperty('--field-arrow-x',`${Math.max(14,Math.min(rect.width-20,anchor.left+Math.min(anchor.width/2,40)-x))}px`);
+  }
+  document.addEventListener('focusin',event=>{
+    const field=event.target.closest('.visual-field-hinted');if(event.target.closest('.visual-hint-bubble'))return;
+    hideFieldHint();if(!field||field.closest('.hints-pinned'))return;
+    field.classList.remove('hint-dismissed');const bubble=field.querySelector('.visual-hint-bubble');if(!bubble)return;
+    fieldHint=bubble;fieldAnchor=event.target;bubble.setAttribute('popover','manual');bubble.showPopover();positionFieldHint();
+    if(!reducedMotion())bubble.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:140,easing:'ease'});
+  });
+  document.addEventListener('focusout',event=>{if(!event.relatedTarget?.closest?.('.visual-hint-bubble'))hideFieldHint()});
+  document.addEventListener('click',event=>{const close=event.target.closest('.visual-hint-close');if(!close)return;event.preventDefault();close.closest('.visual-field-hinted')?.classList.add('hint-dismissed');hideFieldHint()},true);
+  document.addEventListener('scroll',positionFieldHint,true);addEventListener('resize',positionFieldHint);visualViewport?.addEventListener('resize',positionFieldHint);
   const notifications=document.getElementById('toast-stack');
   notifications.setAttribute('popover','manual');
   function raiseNotifications(){
@@ -89,7 +115,39 @@
     if(notifications.matches(':popover-open'))notifications.hidePopover();
     notifications.showPopover();
   }
-  globalThis.UIOverlays={raiseNotifications};
+  async function confirmDiscard(message){
+    if(!document.querySelector('dialog:modal'))return askConfirm(message,'放弃修改');
+    return new Promise(resolve=>{
+      const node=document.createElement('dialog');node.className='scene-study-dialog draft-confirm';
+      node.innerHTML='<header><h2>放弃修改？</h2></header><div class="scene-dialog-body"><p></p><footer><button class="plain-btn" data-keep>继续编辑</button><button class="plain-btn primary-btn" data-discard>放弃修改</button></footer></div>';
+      node.querySelector('p').textContent=message;node.querySelector('[data-keep]').onclick=()=>node.close('keep');node.querySelector('[data-discard]').onclick=()=>node.close('discard');
+      node.onclose=()=>{const result=node.returnValue==='discard';node.remove();resolve(result)};document.body.append(node);node.showModal();
+    });
+  }
+  function guardDialog(node,{getState,restore,canRestore=()=>true,initialState=getState()}){
+    const baseline=JSON.stringify(initialState),account=cloudUser?.id||'local';let closing=false,down=null;
+    node.requestClose=async()=>{
+      if(closing)return;closing=true;
+      try{
+        const snapshot=structuredClone(getState()),changed=JSON.stringify(snapshot)!==baseline;
+        if(changed&&!await confirmDiscard('未保存的修改将被放弃，关闭后可以撤销恢复。'))return;
+        if(!node.isConnected)return;node.close();
+        const recover=()=>{
+          if(account!==(cloudUser?.id||'local')||!canRestore())return notify('账号或原内容已有变化，未恢复过期草稿。','warn','恢复草稿');
+          if(document.querySelector('dialog:modal'))return notify('请先关闭当前弹窗再恢复草稿。','info','恢复草稿',true,{label:'撤销',run:recover});
+          restore(snapshot);
+        };
+        if(changed)notify('已放弃未保存的修改。','info','编辑',true,{label:'撤销',run:recover});
+      }finally{closing=false}
+    };
+    node.querySelector('header button')?.addEventListener('click',event=>{event.stopImmediatePropagation();node.requestClose()},true);
+    node.addEventListener('cancel',event=>{event.preventDefault();node.requestClose()});
+    const outside=event=>{const r=node.getBoundingClientRect();return event.target===node&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)};
+    node.addEventListener('pointerdown',event=>{down=event.button===0&&outside(event)?{x:event.clientX,y:event.clientY,id:event.pointerId}:null});
+    node.addEventListener('pointerup',event=>{if(down&&event.pointerId===down.id&&outside(event)&&Math.hypot(event.clientX-down.x,event.clientY-down.y)<=8)node.requestClose();down=null});
+    node.addEventListener('pointercancel',()=>down=null);
+  }
+  globalThis.UIOverlays={raiseNotifications,guardDialog,confirmDiscard};
   document.addEventListener('close',event=>{
     if(event.target.tagName==='DIALOG'&&event.target.contains(notifications)){document.body.append(notifications);raiseNotifications()}
   },true);

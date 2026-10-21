@@ -15,7 +15,7 @@
     if(activeView==='scenes')renderHub();
   }
   function action(name,label,attributes=''){
-    const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'x',sync:'refresh-cw',import:'folder',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
+    const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
   }
   function assets(items=[]){
@@ -31,7 +31,7 @@
     const hero=scene.media.filter(ref=>scene.heroMedia.includes(ref.id));
     const syncError=syncErrors.get(syncKey(scene.id));
     return `<article class="scene-record ${hero.length?'scene-illustrated':''}" data-scene-id="${esc(scene.id)}" data-history-id="${esc(item.id)}">
-      <header><div>${scene.title?`<h4>${esc(scene.title)}</h4>`:''}${scene.targetLabel?`<small>${esc(scene.targetLabel)}</small>`:''}</div><div class="scene-actions"><button class="icon-btn scene-order-handle" type="button" aria-label="拖动场景排序" data-tip="拖动场景排序">${icon('grip-vertical')}</button>${action('query','从场景查另一个词条')}${action('feature',scene.featured?'取消主场景':'设为主场景',`aria-pressed="${scene.featured}"`)}${action('edit','编辑场景')}${action('remove','删除场景')}</div></header>
+      <header><div>${scene.title?`<h4>${esc(scene.title)}</h4>`:''}${scene.targetLabel?`<small>${esc(scene.targetLabel)}</small>`:''}${timeMeta(scene)}</div><div class="scene-actions"><button class="icon-btn scene-order-handle" type="button" aria-label="拖动场景排序" data-tip="拖动场景排序">${icon('grip-vertical')}</button>${action('query','从场景查另一个词条')}${action('feature',scene.featured?'取消主场景':'设为主场景',`aria-pressed="${scene.featured}"`)}${action('edit','编辑场景')}${action('remove','删除场景')}</div></header>
       <div class="scene-sync-error" data-scene-sync-status role="status" ${syncError?'':'hidden'}>${syncErrorHTML(syncError)}</div>
       <div class="scene-context">
       ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${translation}</p>`:''}
@@ -50,8 +50,27 @@
     const other=all.filter(scene=>!scene.featured&&!scene.targetKey);
     return `<section class="block scene-section" data-history-id="${esc(item.id)}"><div class="scene-section-head"><h3><button class="scene-hub-link" data-scene-action="hub" data-tip="打开场景库">场景记忆${all.length?` <small>${all.length}</small>`:''}</button></h3><div class="scene-actions">${all.length?action('backup','导出场景备份（含素材）'):''}${action('add','添加场景')}</div></div><div class="scene-record-list">${selected.map(scene=>renderCard(scene,item)).join('')}</div>${other.length?`<details class="scene-library"><summary>其他场景 · ${other.length}</summary><div class="scene-record-list">${other.map(scene=>renderCard(scene,item)).join('')}</div></details>`:''}</section>`;
   }
+  const fieldHints={
+    title:['场景名称 · 可选','仅用于识别场景，不会修改词条标题；留空时显示原句摘要。','原神 · 冬夜对白'],
+    entryTitle:['词条标题','自建词条时填写要学习的单词或词组；不是场景名称。','clock'],
+    quote:['原句 / 场景内容','填写看到的完整句子或简短上下文；也可以只添加素材。','I clocked the detail.'],
+    translation:['译文 · 可选','填写对应原句的译文，不是词条的通用释义。','我注意到了这个细节。'],
+    exampleHighlights:['原句高亮 · 可选','复制原句中实际出现的片段；多个用顿号或换行分隔，留空沿用词条自动匹配。','clocked、the detail'],
+    translationHighlights:['译文高亮 · 可选','复制译文中实际出现的片段；多个用顿号或换行分隔，留空不强制高亮。','注意到、细节'],
+    featured:['在词条中优先展示','开启后直接显示在词条的场景记忆区（位于核心义之后），不是覆盖词条标题；关闭仍在其他场景或绑定义项下查看。','用于优先回顾的场景开启，其余场景关闭。'],
+    note:['我的笔记 · 可选','记录自己的联想或学习心得，不会作为 AI 释义。','clock 在这里不是时钟，而是“注意到”。'],
+    sourceTitle:['作品 / 来源标题 · 可选','填写作品、课程、视频或网站名称；最近来源可快速填入后再修改。','原神'],
+    chapter:['章节 / 集数 · 可选','填写可再次找到场景的位置。','第七章 · 第四幕'],
+    timeRange:['素材时间段 · 可选','这是来源视频中的位置，不是场景的创建或修改时间。','00:07:18–00:07:21'],
+    sourceUrl:['来源网址 · 可选','使用完整 http:// 或 https:// 链接，不允许脚本地址。','https://example.com/watch?t=438'],
+    mediaName:['素材文件名','修改显示与下载文件名，不改素材内容、格式或哈希；保存场景后生效。','冬夜对白.png'],
+  };
   function field(key,label,value='',multiline=false){
-    return `<label class="scene-field"><span>${label}</span>${multiline?`<textarea name="${key}" rows="${key==='note'?3:2}">${esc(value)}</textarea>`:`<input name="${key}" value="${esc(value)}" ${key==='sourceUrl'?'type="url"':'type="text"'}>`}</label>`;
+    return `<label class="scene-field visual-field-hinted"><span>${label}</span>${multiline?`<textarea name="${key}" rows="${key==='note'?3:2}" maxlength="${key==='note'?12000:4000}">${esc(value)}</textarea>`:`<input name="${key}" value="${esc(value)}" maxlength="${key==='sourceUrl'?2048:4000}" ${key==='sourceUrl'?'type="url"':'type="text"'}>`}${visualHintHTML(key,fieldHints)}</label>`;
+  }
+  function timeMeta(scene,mode='both'){
+    const keys=mode==='created'?['createdAt']:mode==='updated'?['updatedAt']:['createdAt','updatedAt'];
+    return `<div class="scene-time-meta">${keys.filter(key=>formatHistoryTime(scene[key])).map(key=>`<span>${key==='createdAt'?'创建':'修改'} <time datetime="${esc(scene[key])}">${esc(formatHistoryTime(scene[key]))}</time></span>`).join('')}</div>`;
   }
   function readForm(){
     const form=document.querySelector('#scene-editor-form');
@@ -92,22 +111,27 @@
     }
     scene=SceneData.normalizeScene(scene||{id:crypto.randomUUID(),targetKey,targetLabel,createdAt:now,updatedAt:now,media:[]});
     const sources=recentSources();
+    const featuredHints=standalone?{featured:['新关联词条时优先展示','这是新关联词条的展示默认值，不会批量改动已有词条。已有词条可在各自场景中单独调整。','常用场景开启；补充材料关闭。']}:fieldHints;
     editor={historyId:item?.id||null,standalone,query,scene,newScene:!sceneId,owner:cloudUser?.id||'local',base:sceneId?JSON.stringify(scene):null};
     const layer=document.createElement('div');layer.id='scene-editor';layer.className='scene-editor-layer modal-layer open';
     layer.innerHTML=`<section class="scene-editor" role="dialog" aria-modal="true" aria-labelledby="scene-editor-title"><header><div><h2 id="scene-editor-title">${sceneId?'编辑':'添加'}场景</h2><p>${esc(targetLabel||scene.targetLabel||query||'独立记录')}</p></div>${action('close','关闭场景编辑')}</header>
       <form id="scene-editor-form"><div class="scene-editor-body">
-      ${!item&&!standalone?field('entryTitle','词条',query):''}${field('title','场景标题（可选）',scene.title)}<label class="scene-feature-switch"><input type="checkbox" role="switch" name="featured" ${scene.featured?'checked':''}><span>在词条开头展示</span></label>
+      ${!item&&!standalone?field('entryTitle','词条',query):''}${field('title','场景名称（可选）',scene.title)}<label class="scene-feature-switch visual-field-hinted"><input type="checkbox" role="switch" name="featured" ${scene.featured?'checked':''}><span>${standalone?'新关联词条时优先展示':'在词条中优先展示'}</span>${visualHintHTML('featured',featuredHints)}</label>
       ${field('quote','原句 / 场景内容',scene.quote,true)}${field('translation','译文（可选）',scene.translation,true)}
       <div class="scene-field-grid scene-highlights">${field('exampleHighlights','原句高亮（可选）',scene.exampleHighlights.join('、'))}${field('translationHighlights','译文高亮（可选）',scene.translationHighlights.join('、'))}</div>
-      <div class="scene-drop" tabindex="0" role="group" aria-label="场景素材"><button type="button" class="plain-btn" data-scene-action="pick">${icon('plus')}添加图片、GIF 或视频</button><small>PNG / JPEG / GIF / WebP · MP4 / WebM · 每文件 20 MB</small><input id="scene-file-picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" multiple hidden><div id="scene-file-list"></div></div>
+      <div class="scene-drop" tabindex="0" role="group" aria-label="场景素材"><button type="button" class="plain-btn" data-scene-action="pick">${icon('image-plus')}添加图片、GIF 或视频</button><small>PNG / JPEG / GIF / WebP · MP4 / WebM · 每文件 20 MB</small><input id="scene-file-picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" multiple hidden><div id="scene-file-list"></div></div>
       ${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" open><summary>${icon('chevron-down')}来源信息</summary>${sources.length?`<label class="scene-field"><span>最近来源</span><select id="scene-source-recent"><option value="">选择已用来源</option>${sources.map((source,index)=>`<option value="${index}">${esc([source.sourceTitle||source.sourceUrl||'来源',source.chapter,source.timeRange].filter(Boolean).join(' · ').slice(0,160))}</option>`).join('')}</select></label>`:''}<div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details>
       </div><p id="scene-editor-status" role="status"></p><footer>${!item&&!standalone?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button><button type="button" class="plain-btn" data-scene-action="standalone">独立保存场景</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item||standalone?'保存场景':'随查词保存'}</button></footer></form></section>`;
     document.body.append(layer);document.body.classList.add('modal-open');
     const body=layer.querySelector('.scene-editor-body'),primary=document.createElement('section'),secondary=document.createElement('section');
     primary.className='scene-editor-section';secondary.className='scene-editor-section';
-    primary.innerHTML='<h3>场景内容</h3>';secondary.innerHTML='<h3>补充信息</h3>';
-    for(const node of [body.querySelector('.scene-drop'),body.querySelector('[name="quote"]').closest('label'),body.querySelector('[name="translation"]').closest('label')])primary.append(node);
+    primary.innerHTML='<h3>素材与原句</h3>';secondary.innerHTML='<h3>场景信息</h3>';
+    for(const node of [body.querySelector('.scene-drop'),body.querySelector('[name="quote"]').closest('label'),body.querySelector('[name="exampleHighlights"]').closest('label'),body.querySelector('[name="translation"]').closest('label'),body.querySelector('[name="translationHighlights"]').closest('label')])primary.append(node);
+    body.querySelector('.scene-highlights').remove();
+    primary.querySelector('[name="exampleHighlights"]').closest('label').classList.add('scene-highlight-field');primary.querySelector('[name="translationHighlights"]').closest('label').classList.add('scene-highlight-field');
     while(body.firstChild)secondary.append(body.firstChild);body.append(primary,secondary);
+    layer.querySelector('.scene-editor').classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
+    if(!editor.newScene)layer.querySelector('.scene-editor>header>div').insertAdjacentHTML('beforeend',timeMeta(scene));
     layer.addEventListener('backdrop-dismiss',()=>close());
     layer.querySelector('#scene-source-recent')?.addEventListener('change',event=>{
       if(event.target.value==='')return;
@@ -142,7 +166,8 @@
   function status(message,bad=false){const node=document.querySelector('#scene-editor-status');if(node){node.textContent=message;node.classList.toggle('bad',bad)}}
   function renderFiles(){
     const list=document.querySelector('#scene-file-list');if(!list||!editor)return;
-    list.innerHTML=editor.scene.media.map(ref=>`<div class="scene-file-row" data-media-id="${ref.id}"><button type="button" class="icon-btn scene-file-grip" aria-label="拖动素材排序" data-tip="拖动素材排序">${icon('grip-vertical')}</button>${assets([ref])}<span>${esc(ref.name)} <small>${ref.size<1024*1024?`${Math.ceil(ref.size/1024)} KB`:`${(ref.size/1024/1024).toFixed(2)} MB`}</small></span>${action('hero',editor.scene.heroMedia.includes(ref.id)?'取消主素材':'设为主素材',`data-id="${ref.id}" aria-pressed="${editor.scene.heroMedia.includes(ref.id)}"`)}${action('detach','移除素材',`data-id="${ref.id}"`)}</div>`).join('');
+    list.innerHTML=editor.scene.media.map(ref=>`<div class="scene-file-row" data-media-id="${ref.id}"><button type="button" class="icon-btn scene-file-grip" aria-label="拖动素材排序" data-tip="拖动素材排序">${icon('grip-vertical')}</button>${assets([ref])}<label class="scene-file-name visual-field-hinted"><span>素材文件名</span><input type="text" name="mediaName_${ref.id}" data-media-name="${ref.id}" value="${esc(ref.name)}" maxlength="180" aria-label="素材文件名"><small>${ref.mime.split('/')[1].toUpperCase()} · ${ref.size<1024*1024?`${Math.ceil(ref.size/1024)} KB`:`${(ref.size/1024/1024).toFixed(2)} MB`}</small>${visualHintHTML('mediaName',fieldHints)}</label><div class="scene-file-actions">${action('hero',editor.scene.heroMedia.includes(ref.id)?'取消主素材':'设为主素材',`data-id="${ref.id}" aria-pressed="${editor.scene.heroMedia.includes(ref.id)}"`)}${action('detach','移除素材',`data-id="${ref.id}"`)}</div></div>`).join('');
+    list.querySelectorAll('[data-media-name]').forEach(input=>input.oninput=()=>{const ref=editor.scene.media.find(ref=>ref.id===input.dataset.mediaName);if(ref)ref.name=input.value.trim().replace(/[\\/\x00-\x1f]/g,'_').slice(0,180)||'素材'});
   }
   function setBusy(value){busy=value;document.querySelectorAll('#scene-editor button').forEach(button=>button.disabled=value)}
   async function addFiles(fileList){
@@ -284,7 +309,7 @@
     }catch(error){status(error.message,true)}finally{setBusy(false)}
   }
   async function attachPending(id,query,groupId=''){
-    try{const key=`pending:${normalizeSearch(query)}`,scene=groupId?[...library(),...getHistory().flatMap(scenes)].find(row=>row.groupId===groupId):await SceneData.getDraft(key);if(groupId&&!scene)throw new Error('原场景已不存在');if(scene){if(!scenes(historyItem(id)).some(row=>row.groupId===scene.groupId))saveToHistory(id,groupId?{...scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:true}:scene);if(!groupId)await SceneData.deleteDraft(key)}return true}
+    try{const key=`pending:${normalizeSearch(query)}`,scene=groupId?[...library(),...getHistory().flatMap(scenes)].find(row=>row.groupId===groupId):await SceneData.getDraft(key);if(groupId&&!scene)throw new Error('原场景已不存在');if(scene){if(!scenes(historyItem(id)).some(row=>row.groupId===scene.groupId))saveToHistory(id,groupId?{...scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:scene.featured}:scene);if(!groupId)await SceneData.deleteDraft(key)}return true}
     catch(error){notify(`词条已保存，但场景尚未关联：${error.message}`,'warn','场景记忆');return false}
   }
   async function remove(id,sceneId){
@@ -322,27 +347,27 @@
       const file=ref?await SceneMedia.resolve(ref):await SceneData.getFile(id);if(!file?.blob)throw new Error('本机尚无此素材');
       node.removeAttribute('title');
       let url=urls.get(id);if(!url){url=URL.createObjectURL(file.blob);urls.set(id,url)}
-      const video=file.ref.mime.startsWith('video/');
-      node.innerHTML=video?`<video ${getSettings().mediaControls===false?'':'controls'} playsinline preload="metadata" src="${url}"></video>`:`<img loading="lazy" src="${url}" alt="${esc(file.ref.name)}">`;
+      const video=file.ref.mime.startsWith('video/'),displayName=node.getAttribute('aria-label')||ref?.name||file.ref.name;
+      node.innerHTML=video?`<video ${getSettings().mediaControls===false?'':'controls'} playsinline preload="metadata" src="${url}"></video>`:`<img loading="lazy" src="${url}" alt="${esc(displayName)}">`;
       node.querySelector('video,img').addEventListener('error',()=>{
         if(node.querySelector('.scene-asset-error'))return;
         const message=document.createElement('p');message.className='scene-asset-error';message.textContent=video?'当前浏览器无法播放此编码，可下载原文件后打开。':'图片无法显示，可下载原文件检查。';node.append(message);
       },{once:true});
-      const caption=document.createElement('figcaption');caption.innerHTML=`<span>${esc(file.ref.name)}</span><div class="scene-media-tools">${action('enlarge','放大素材',`data-id="${esc(id)}"`)}${action('download','下载原始素材',`data-id="${esc(id)}"`)}${video?action('controls','显示或隐藏视频控件'):''}</div>${action('tools','显示或隐藏素材工具')}`;node.append(caption);
-      if(!video)node.querySelector('img').addEventListener('click',()=>openViewer(id));
+      const caption=document.createElement('figcaption');caption.innerHTML=`<span>${esc(displayName)}</span><div class="scene-media-tools">${action('enlarge','放大素材',`data-id="${esc(id)}" data-name="${esc(displayName)}"`)}${action('download','下载原始素材',`data-id="${esc(id)}" data-name="${esc(displayName)}"`)}${video?action('controls','显示或隐藏视频控件'):''}</div>${action('tools','显示或隐藏素材工具')}`;node.append(caption);
+      if(!video)node.querySelector('img').addEventListener('click',()=>openViewer(id,displayName));
       root.ExperienceUI?.mediaReady(node,node.querySelector('video,img'));
       root.ScenePreview?.fromLoaded(id,node.querySelector('video,img'));
     }catch(error){node.innerHTML=`<p class="scene-asset-error">${esc(error.message)}</p><button class="plain-btn" type="button" data-scene-action="load" data-id="${esc(id)}">重试加载</button>`;node.title=error.message}
     finally{delete node.dataset.loading;node.removeAttribute('aria-busy')}
   }
   const observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){observer.unobserve(entry.target);loadAsset(entry.target)}},{rootMargin:'200px'});
-  async function openViewer(id){
+  async function openViewer(id,name='素材'){
     const origin=[...document.querySelectorAll('[data-scene-asset]')].find(node=>node.dataset.sceneAsset===id&&node.querySelector('video'))?.querySelector('video');
     const position=origin?.currentTime||0,playing=origin&&!origin.paused,muted=origin?.muted??true;
     document.querySelectorAll('.scene-asset video').forEach(video=>video.pause());
     document.querySelector('#scene-viewer')?.close();document.querySelector('#scene-viewer')?.remove();
     const dialog=document.createElement('dialog');dialog.id='scene-viewer';dialog.className='scene-viewer';dialog.setAttribute('aria-label','场景素材预览');
-    dialog.innerHTML=`<header><span>场景素材</span>${action('viewer-close','关闭素材预览')}</header><div class="scene-viewer-content">${assets([{id,mime:'',name:'素材'}])}</div>`;
+    dialog.innerHTML=`<header><span>场景素材</span>${action('viewer-close','关闭素材预览')}</header><div class="scene-viewer-content">${assets([{id,mime:'',name}])}</div>`;
     dialog.addEventListener('close',()=>{const video=dialog.querySelector('video');if(video){video.pause();if(origin?.isConnected)try{origin.currentTime=video.currentTime}catch{}}dialog.remove();document.body.classList.remove('scene-viewing')});document.body.append(dialog);dialog.showModal();document.body.classList.add('scene-viewing');
     await loadAsset(dialog.querySelector('[data-scene-asset]'));
     const preview=dialog.querySelector('video');
@@ -398,8 +423,8 @@
     else if(name==='save'||name==='manual')save(name==='manual');
     else if(name==='standalone')save(false,true);
     else if(name==='load')loadAsset(button.closest('[data-scene-asset]'));
-    else if(name==='download')downloadAsset(button.dataset.id);
-    else if(name==='enlarge')openViewer(button.dataset.id);
+    else if(name==='download')downloadAsset(button.dataset.id,button.dataset.name);
+    else if(name==='enlarge')openViewer(button.dataset.id,button.dataset.name);
     else if(name==='tools'){const asset=button.closest('.scene-asset'),style=getComputedStyle(asset.querySelector('.scene-media-tools'));asset.dataset.tools=style.display==='none'||Number(style.opacity)===0?'shown':'hidden'}
     else if(name==='controls'){const video=button.closest('.scene-asset').querySelector('video');if(video)video.controls=!video.controls}
     else if(name==='query')queryFromScene(parent?.dataset.historyId,card?.dataset.sceneId);
@@ -450,12 +475,12 @@
     if(!editor)receiveOutsideEditor(event,[...(event.dataTransfer?.files||[])]);
   },true);
   addEventListener('pagehide',event=>{if(!event.persisted){for(const url of urls.values())URL.revokeObjectURL(url);urls.clear()}});
-  async function downloadAsset(id){
+  async function downloadAsset(id,name=''){
     try{
       const ref=[...library(),...getHistory().flatMap(scenes)].flatMap(scene=>scene.media).find(item=>item.id===id);
       if(!ref)return;
       const record=await SceneMedia.resolve(ref),url=URL.createObjectURL(record.blob),link=document.createElement('a');
-      link.href=url;link.download=ref.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+      link.href=url;link.download=name||ref.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
     }catch(error){notify(error.message,'bad','素材下载')}
   }
   async function syncScene(id,sceneId,announce=false){
@@ -600,6 +625,6 @@
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,attachPending,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,field,timeMeta,attachPending,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

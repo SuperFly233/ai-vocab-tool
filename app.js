@@ -48,6 +48,8 @@ let modalRollId=null;
 let activeModalTab='card';
 let modalEditBaseline='';
 let editingApiProfileId=null;
+let apiProfileBaseline='';
+let historyClosePending=false,apiClosePending=false;
 let openHistoryFilterKey=null;
 let configInfo=null;
 let confirmResolver=null;
@@ -151,7 +153,7 @@ const HISTORY_SEARCH_SCOPE_OPTIONS=[
   {key:'other',label:'其他'},
 ];
 const VISUAL_FIELD_HINTS={
-  'visual-title':['词条标题','填写用户真正查询的词、短语、表达或句子；不要把词性、解释或例句塞进标题。'],
+  'visual-title':['词条标题','填写最终展示的规范词、短语或句子；原始输入保存在 Origin。不要把词性、释义或例句混入标题。'],
   'visual-core':['核心义','用最短中文抓住中心意思。优先写“可迁移的核心义”，不要写成长段例句翻译。'],
   'visual-entry-type':['类型','只填 word 或 phrase。单个词填 word；短语、固定表达、句子、惯用搭配填 phrase。'],
   'visual-pos':['词性','用固定词性或斜杠组合，例如 noun / verb / adjective / adverb / phrase；多词性用 / 分隔。'],
@@ -181,12 +183,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.31.1',
+  version:'0.32.0',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.32.0',date:'2026-10-21',title:'场景编辑、说明与阅读对齐',
+    items:['场景字段复用可视化编辑气泡，说明用途、要求和范例；原句与译文高亮分别紧跟对应文本，浏览区补齐译文高亮。','列表、详情、行内场景和编辑器补齐创建/修改时间；对齐筛选、回顾与操作栏，重新选择回顾、重置、导入图标并标明 Anki。','场景素材可修改显示与下载文件名，不改变原文件哈希或内容；已有素材继续复用。','场景、高亮、关联选择、词条和模型配置遵循无修改直接关闭、有修改确认并可撤销恢复草稿；恢复拒绝账号或后续版本冲突。','设计参考先由图像模型生成；工作约定写入 AGENTS.md、项目上下文及 UI SOP。Anki 生产开关保持关闭。'],
+  },
   {
     version:'0.31.1',date:'2026-10-21',title:'场景弹窗定位与滚动修复',
     items:['修复全局 margin 重置造成的原生弹窗左上角偏移，覆盖关联、高亮、导出、Anki 和查询确认。','关联列表独立滚动，搜索与确认区保持可见；弹窗正文限高滚动，兼容手机及横屏矮视口。'],
@@ -6219,9 +6225,12 @@ function visualInlineField(key,label,value){
 function visualInlineTextarea(key,label,value){
   return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" data-field="${key}">${escapeHTML(value)}</textarea>${visualHintHTML(key)}</label>`;
 }
-function visualHintHTML(key){
-  const hint=VISUAL_FIELD_HINTS[key]||['填写提示','按当前字段含义填写，保持简洁、准确，并能同步回 JSON。'];
-  return `<div class="visual-hint-pinned"><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div><div class="visual-hint-bubble" role="note"><button type="button" class="visual-hint-close" aria-label="关闭提示">${icon('x')}</button><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span></div>`;
+function visualHintHTML(key,hints=VISUAL_FIELD_HINTS){
+  const hint=hints[key]||['填写提示','按当前字段含义填写，保持简洁、准确，并能同步回 JSON。'];
+  const examples={'visual-title':'clock','visual-core':'注意到；察觉','visual-entry-type':'word','visual-pos':'noun / verb','visual-language':'en','visual-direction':'en-zh','visual-summary':'动词用法可表示注意到某个细节。',partOfSpeech:'verb',shortestLabel:'注意到',meaning:'察觉到某人或某事，常用于口语。',example:'I clocked the detail.',translation:'我注意到了这个细节。',exampleHighlights:'clocked、the detail',translationHighlights:'注意到、细节',phrase:'clock in',note:'口语常用',term:'notice',difference:'notice 更通用，clock 的这一用法更口语化。',usage:'非正式对话中使用。','visual-register-style':'非正式 / 口语','visual-register-tone':'中性、直接','visual-register-environment':'日常对话、观察描述'};
+  const value=hint[2]||(hints===VISUAL_FIELD_HINTS?examples[key]:'');
+  const example=value?`<span class="visual-hint-example">例如：${escapeHTML(value)}</span>`:'';
+  return `<div class="visual-hint-pinned"><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span>${example}</div><div class="visual-hint-bubble" role="note"><button type="button" class="visual-hint-close" aria-label="关闭提示">${icon('x')}</button><div class="visual-hint-content"><b>${escapeHTML(hint[0])}</b><span>${escapeHTML(hint[1])}</span>${example}</div></div>`;
 }
 function collectVisualResult(){
   const data=cloneResult(modalResult||{});
@@ -6771,8 +6780,26 @@ function closeHistoryModal(event){
   modalEditBaseline='';
 }
 async function requestCloseHistoryModal(){
-  if(historyModalHasDraft()&&!await askConfirm('当前修改尚未保存，确认放弃并关闭吗？','放弃修改'))return;
-  closeHistoryModal();
+  if(historyClosePending)return;historyClosePending=true;
+  try{
+    let snapshot=null;
+    if(historyModalHasDraft()){
+      snapshot={id:modalHistoryId,roll:modalRollId,account:cloudUser?.id||'local',base:JSON.stringify(getHistory().find(row=>String(row.id)===String(modalHistoryId))),tab:activeModalTab,result:cloneResult(modalResult),visual:modalVisualFieldValues(),json:els.modalJsonEdit.value,query:els.modalQueryEdit.value,note:els.modalNoteEdit.value};
+      if(!await askConfirm('当前修改尚未保存，确认放弃并关闭吗？','放弃修改'))return;
+      if(modalHistoryId!==snapshot.id||(cloudUser?.id||'local')!==snapshot.account)return;
+    }
+    closeHistoryModal();
+    if(snapshot)notify('已放弃未保存的词条修改。','info','词条编辑',true,{label:'撤销',run:async()=>{
+      if((cloudUser?.id||'local')!==snapshot.account||JSON.stringify(getHistory().find(row=>String(row.id)===String(snapshot.id)))!==snapshot.base)return notify('原词条已更新、删除或账号已切换，未恢复过期草稿。','warn','恢复草稿');
+      if(els.historyModal.classList.contains('open'))return notify('请先关闭当前词条再恢复草稿。','info','恢复草稿');
+      openHistoryModal(snapshot.id);if(modalRollId!==snapshot.roll)await setModalRoll(snapshot.roll);
+      modalResult=cloneResult(snapshot.result);renderVisualEditor(modalResult);
+      [...els.modalVisualEditor.querySelectorAll('input,textarea')].forEach((field,index)=>{if(snapshot.visual[index]!==undefined)field.value=snapshot.visual[index]});
+      els.modalJsonEdit.value=snapshot.json;els.modalQueryEdit.value=snapshot.query;els.modalNoteEdit.value=snapshot.note;
+      activeModalTab=snapshot.tab;document.querySelectorAll('.modal-page').forEach(page=>page.classList.toggle('active',page.id===`modal-${snapshot.tab}-page`));
+      document.querySelectorAll('.modal-head .tab-btn').forEach(button=>button.classList.toggle('active',button.id===`modal-${snapshot.tab}-tab`));els.historyModal.querySelector('.modal-card').classList.toggle('editing-mode',snapshot.tab!=='card');
+    }});
+  }finally{historyClosePending=false}
 }
 function saveHistoryEdit(){
   if(!modalHistoryId)return;
@@ -8046,6 +8073,7 @@ function openApiProfileModal(mode='edit',profileId=null){
   if(els.apiModalKey)els.apiModalKey.value=profile.apiKey||'';
   if(els.apiModalModel)els.apiModalModel.value=profile.model||'';
   if(els.apiModelList)els.apiModelList.innerHTML='';
+  apiProfileBaseline=JSON.stringify(apiProfileDraftFromModal());
   setApiProfileModalStatus('未保存','');
   els.apiProfileModal?.classList.add('open');
   document.body.classList.add('modal-open');
@@ -8077,13 +8105,23 @@ function apiProfileDraftFromModal(){
 }
 function apiProfileModalHasDraft(){
   if(!els.apiProfileModal?.classList.contains('open'))return false;
-  const draft=apiProfileDraftFromModal();
-  const settings=getSettings();
-  const current=settings.apiProfiles.find(item=>item.id===editingApiProfileId);
-  if(!current){
-    return Boolean(draft.name&&draft.name!=='未命名配置'||draft.apiUrl||draft.apiKey||draft.model);
-  }
-  return ['name','apiUrl','apiKey','model'].some(key=>String(draft[key]||'')!==String(current[key]||''));
+  return JSON.stringify(apiProfileDraftFromModal())!==apiProfileBaseline;
+}
+async function requestCloseApiProfileModal(){
+  if(apiClosePending)return;apiClosePending=true;
+  try{
+    const id=editingApiProfileId,account=cloudUser?.id||'local',base=JSON.stringify(getSettings().apiProfiles.find(row=>row.id===id));
+    const changed=apiProfileModalHasDraft(),draft=changed?{name:els.apiModalName.value,apiUrl:els.apiModalUrl.value,apiKey:els.apiModalKey.value,model:els.apiModalModel.value}:null;
+    if(changed&&!await askConfirm('当前配置尚未保存，确认放弃并关闭吗？','放弃修改'))return;
+    if(editingApiProfileId!==id||(cloudUser?.id||'local')!==account)return;
+    closeApiProfileModal();
+    if(draft)notify('已放弃未保存的配置修改。','info','模型配置',true,{label:'撤销',run:()=>{
+      if((cloudUser?.id||'local')!==account||JSON.stringify(getSettings().apiProfiles.find(row=>row.id===id))!==base)return notify('配置或账号已变化，未恢复过期草稿。','warn','恢复草稿');
+      if(els.apiProfileModal.classList.contains('open'))return notify('请先关闭当前配置编辑器。','info','恢复草稿');
+      openApiProfileModal(base?'edit':'new',id);editingApiProfileId=id;
+      els.apiModalName.value=draft.name;els.apiModalUrl.value=draft.apiUrl;els.apiModalKey.value=draft.apiKey;els.apiModalModel.value=draft.model;
+    }});
+  }finally{apiClosePending=false}
 }
 function saveApiProfileFromModal(){
   try{
@@ -8420,7 +8458,7 @@ function handleQueryInput(){
 }
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&els.confirmLayer?.classList.contains('open')){event.stopImmediatePropagation();closeConfirm(false);return}
-  if(event.key==='Escape'&&els.historyModal.classList.contains('open')){event.stopImmediatePropagation();requestCloseHistoryModal();return}
+  if(event.key==='Escape'&&els.historyModal.classList.contains('open')&&!document.querySelector('dialog:modal')){event.stopImmediatePropagation();requestCloseHistoryModal();return}
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
     event.preventDefault();
     showView('history',document.getElementById('nav-history'));
@@ -8563,13 +8601,10 @@ els.apiModelList?.addEventListener('click',event=>{
 els.apiModelFetchBtn?.addEventListener('click',fetchApiModels);
 els.apiProfileModalTest?.addEventListener('click',testApiProfileDraft);
 els.apiProfileModalSave?.addEventListener('click',saveApiProfileFromModal);
-els.apiProfileModalCancel?.addEventListener('click',()=>closeApiProfileModal());
-els.apiProfileModalClose?.addEventListener('click',()=>closeApiProfileModal());
+els.apiProfileModalCancel?.addEventListener('click',requestCloseApiProfileModal);
+els.apiProfileModalClose?.addEventListener('click',requestCloseApiProfileModal);
 els.historyModal?.addEventListener('backdrop-dismiss',requestCloseHistoryModal);
-els.apiProfileModal?.addEventListener('backdrop-dismiss',async()=>{
-  if(apiProfileModalHasDraft()&&!await askConfirm('当前配置尚未保存，确认放弃并关闭吗？','放弃修改'))return;
-  closeApiProfileModal();
-});
+els.apiProfileModal?.addEventListener('backdrop-dismiss',requestCloseApiProfileModal);
 document.addEventListener('click',event=>{
   if(!els.historyFilterbar?.contains(event.target))closeHistoryFilterMenus();
   if(!els.historySearchScope?.contains(event.target))closeHistorySearchScopeMenu();
@@ -8594,7 +8629,7 @@ document.addEventListener('keydown',event=>{
     closeHistoryFilterMenus();
     closeHistorySearchScopeMenu();
     if(els.folderSelectModal?.classList.contains('open'))closeFolderSelectModal();
-    if(els.apiProfileModal?.classList.contains('open'))closeApiProfileModal();
+    if(els.apiProfileModal?.classList.contains('open')&&!els.confirmLayer?.classList.contains('open')&&!document.querySelector('dialog:modal'))requestCloseApiProfileModal();
   }
 });
 window.addEventListener('pagehide',stopSpeech);
