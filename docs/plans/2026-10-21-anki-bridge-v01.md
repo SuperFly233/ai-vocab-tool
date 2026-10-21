@@ -61,3 +61,13 @@
 3. 启动真实 Anki 并验证现有插件接口。先在专用测试牌库用无私人内容的图片/GIF测试完整链路；真实牌库必须再明确确认。
 4. 满足以上验收后才设置 Cloudflare `ANKI_BRIDGE_ENABLED=true` 并重新部署；之前应稳定返回 503 / enabled:false。
 5. 手机确认真实回执后，才可称此路线可用；Anki 自身同步需独立验证，之后再进入 Fushi 接口适配。
+
+## 发布核对（2026-10-21）
+
+- 实现提交：`4ca990f`，已推送 `main`。
+- Cloudflare 部署：https://417f6dbd.ai-vocab-tool.pages.dev ；生产：https://ai-vocab-tool.pages.dev 。
+- 生产 `index.html`、`app.js`、`anki-bridge-ui.js`、`styles.css`、`icons.js` 与本地构建逐字核对通过。
+- 生产 `/api/config` 返回 `ankiBridgeEnabled:false`；任务接口返回 `503 / enabled:false`，没有把未迁移的云链路误标为上线可用。
+- 生产设置页面实际浏览器启动通过，Anki 模块已载入，无页面脚本错误。
+- 最终网页和伴侣界面回归再次通过；Windows 测试包为 `LexiAnkiBridge-0.1.0-Windows.zip`。
+- 测试包 SHA-256：`1d515babc397ee023a4ab9017dc480f7f9f2b4023314833e141f680e4e038196`。二进制在本机交付，未提交入源码仓库。
