@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.32.2: Shared hover/focus CSS no longer scales/translates outer controls (plain/danger/icon/tab/seg/nav/filters/version controls and cloud inputs). Use color/border/inset feedback; preserve anchored centering, drag transforms, inward press contraction and hint animations. Do not add per-widget hover padding patches or blanket transform:none!important. check-control-motion.cjs uses CSSOM and real geometry at 320/390/768/1440 in both themes; project SOP carries the invariant.
+
 - v0.32.1: UIOverlays owns native modal dismissal via topDialog and guarded per-dialog callbacks. Escape/cancel and deliberate outside press/release close only the top modal; repeated Escape never cascades. Scene/review/library underlying key handlers defer to native dialogs. Notifications attach to the top modal, not the first. Scene fallback titles retain complete text: no slice(60/80), detail uses two-line CSS ellipsis and full tooltip, list single-line ellipsis. Regressions: check-modal-dismissal.cjs and check-scene-title.cjs.
 
 - v0.32.0: Scene authoring hints share visualHintHTML and UIOverlays top-layer viewport positioning. Quote/translation highlights are adjacent and both render in the workspace. Media filenames change reference metadata only. Scene dates reuse formatHistoryTime (list follows history time preference, detail/editor show both). Native association/highlight dialogs and history/API editors protect modified drafts and offer guarded discard undo. New API defaults are clean. Scene/workspace toolbars use explicit alignment tracks; Anki action is labeled.

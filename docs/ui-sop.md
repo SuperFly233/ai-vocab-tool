@@ -6,6 +6,8 @@ User confirmed 2026-10-21: generate a bitmap UI reference with the image model b
 
 ## Consistency and Readability
 
+Interaction geometry is invariant on hover/focus: outer control rectangles must not enlarge or translate. Use color, border or inset shadows. Structural centering transforms may remain unchanged between states. Dragging and top-layer tooltip entry/exit are deliberate exceptions, not reasons to disable all transforms. CSSOM rules plus real hover/focus rectangle checks in check-control-motion.cjs enforce this across shared control families and scene media choices.
+
 - Inspect both themes and 320/390/768/1024/1440px, including long content and scrolled states.
 - Align headings, metadata, filters, toolbars and row actions on explicit layout tracks; SVGs use stable centered hit areas. No character icons.
 - Compare semantic candidates across established icon families, including Lucide and Phosphor. Match the existing style and licensing; do not bundle a new library just for variety. Reset is not close, review is not video playback, import is not browse-folder, opening a word is not generic sharing.

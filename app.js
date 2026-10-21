@@ -183,12 +183,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.32.1',
+  version:'0.32.2',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.32.2',date:'2026-10-21',title:'共用控件悬停边界修复',
+    items:['从共用规则移除按钮、标签页、分段选择及输入框悬停/聚焦时的外扩和位移，覆盖场景素材切换、版本、筛选等控件。','悬停改用颜色、边线及内阴影反馈，保留拖拽、向内按压、提示气泡浮出等必要动效。','增加 CSSOM 动效约束和控件几何回归测试；将边界稳定规范写入项目 SOP。'],
+  },
   {
     version:'0.32.1',date:'2026-10-21',title:'顶层弹窗关闭规则统一',
     items:['素材放大、导出、Anki 等原生弹窗统一支持 Esc、关闭按钮与主动点击外侧空白；拖动后在外侧松手不会误关。','嵌套弹窗只关闭最上层，按住 Esc 不连续关闭底层编辑器；Tab 不再被底层编辑器或复习窗口截获。','高亮和关联选择保留修改确认与草稿撤销，关闭素材预览保留底层草稿及视频暂停/进度回写。','场景标题不再直接截取固定字符数：保留完整内容，详情超过两行以省略号收束，并可悬停查看全文；列表继续采用单行省略。'],

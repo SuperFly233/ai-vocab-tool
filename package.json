@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.32.1",
+  "version": "0.32.2",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:control-motion": "node scripts/check-control-motion.cjs",
     "check:modal-dismissal": "node scripts/check-modal-dismissal.cjs",
     "check:scene-authoring-polish": "node scripts/check-scene-authoring-polish.cjs",
     "check:scene-dialogs": "node scripts/check-scene-dialogs.cjs",
