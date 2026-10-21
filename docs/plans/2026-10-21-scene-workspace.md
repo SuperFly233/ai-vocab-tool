@@ -49,4 +49,9 @@
 - 没有实体 iPhone 实测；桌面 Chromium/WebKit 不替代真实 Safari 缩放、键盘和选区菜单验收。
 - Windows WebKit 的媒体布局夹具使用内存存储；真实 Blob 持久化由 Chromium 检查。
 - 本轮无需修改生产私人词条，也不宣称实际跨设备云账号验收通过。
-- 最终测试、构建、提交和生产核验信息在发布后补充；部署完成后暂停。
+- 最终 `npm run check`、`check:scene-workspace-ui`、`npm run build:pages` 与 `git diff --check` 通过。
+- 功能提交 `5c7ee16` 已 Push 到 `origin/main`；Cloudflare 发布成功：https://885576e5.ai-vocab-tool.pages.dev 。
+- 生产场景入口：https://ai-vocab-tool.pages.dev/scenes 。生产 `index.html`、`app.js`、`styles.css`、`scene-ui.js`、`scene-workspace.js`、`experience-ui.js`、`ui-overlays.js`、`icons.js` 均 HTTP 200，与本地 dist 逐项内容一致（统一 CRLF/LF 后比较）；静态资源版本为 `0.29.0-20261021.2`。
+- 生产 `/scenes` 与 `/batch` 均提供当前 HTML。干净离线 Chromium 手机上下文实测 `/batch` 最终地址为 `/scenes`、版本 0.29.0、主导航 4 项、搜索字号 16px，无横向溢出或页面异常；没有登录或修改生产词条。
+- 首次 PowerShell 静态比对遇到网络超时，后改用已连通的 Playwright 请求通道完成全部比对，不把超时计为成功。
+- 本轮已部署完成并暂停，不自动扩展后续版本。
