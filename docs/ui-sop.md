@@ -16,6 +16,8 @@ User confirmed 2026-10-21: generate a bitmap UI reference with the image model b
 
 ## Draft Safety
 
+Native dialogs share a single top-layer dismissal handler: Escape and deliberate backdrop clicks affect only the top modal. Held/repeated Escape must not cascade; a media viewer never discards the editor beneath it. Underlying editors/review/folder dialogs must not trap native-dialog Tab focus. Keep native fullscreen exit before closing its containing viewer.
+
 No change: close directly. Changed: confirm, then show discard Toast with undo. Undo restores editable fields, not committed data; reject account switches, deleted objects and newer saved revisions. Preserve invalid JSON drafts for recovery too. Cover close button, Escape and deliberate backdrop click. Do not treat save, cancel selection, or changing a help preference as an edit.
 
 ## Delivery

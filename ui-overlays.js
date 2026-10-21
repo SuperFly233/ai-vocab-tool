@@ -60,6 +60,33 @@
   document.addEventListener('keydown',event=>{if(event.key==='Escape')hide(true)},true);
   document.addEventListener('scroll',()=>hide(true),true);
   addEventListener('resize',()=>hide(true));window.visualViewport?.addEventListener('resize',()=>hide(true));
+  const dialogDismissers=new WeakMap();
+  function topDialog(){return [...document.querySelectorAll('dialog[open]')].filter(node=>node.matches(':modal')).at(-1)||null}
+  function dismissDialog(node){if(!node?.open)return;const dismiss=dialogDismissers.get(node);if(dismiss)dismiss();else node.close()}
+  document.addEventListener('keydown',event=>{
+    if(event.key!=='Escape'||document.fullscreenElement)return;
+    const dialog=topDialog();
+    if(event.repeat&&(dialog||document.querySelector('.modal-layer.open,.confirm-layer.open'))){event.preventDefault();event.stopImmediatePropagation();return}
+    if(!dialog)return;
+    event.preventDefault();event.stopImmediatePropagation();hideFieldHint();dismissDialog(dialog);
+  },true);
+  document.addEventListener('cancel',event=>{
+    if(event.target.tagName!=='DIALOG')return;
+    event.preventDefault();event.stopImmediatePropagation();dismissDialog(event.target);
+  },true);
+  let dialogPress=null,dialogRelease=null;
+  const onDialogBackdrop=(event,node)=>{if(event.target!==node)return false;const rect=node.getBoundingClientRect();return event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom};
+  document.addEventListener('pointerdown',event=>{
+    const node=topDialog();dialogPress=node&&event.button===0&&onDialogBackdrop(event,node)?{node,id:event.pointerId,x:event.clientX,y:event.clientY}:null;dialogRelease=null;
+  },true);
+  document.addEventListener('pointerup',event=>{
+    dialogRelease=dialogPress&&event.pointerId===dialogPress.id&&topDialog()===dialogPress.node&&onDialogBackdrop(event,dialogPress.node)&&Math.hypot(event.clientX-dialogPress.x,event.clientY-dialogPress.y)<=8?dialogPress.node:null;dialogPress=null;
+  },true);
+  document.addEventListener('click',event=>{
+    const node=topDialog();if(!node||!onDialogBackdrop(event,node))return;
+    event.preventDefault();event.stopImmediatePropagation();const accepted=dialogRelease===node;dialogRelease=null;if(accepted)dismissDialog(node);
+  },true);
+  document.addEventListener('pointercancel',()=>{dialogPress=null;dialogRelease=null},true);addEventListener('blur',()=>{dialogPress=null;dialogRelease=null});
   const editorBackdrops='#history-modal,#api-profile-modal,#scene-editor';
   let press=null,release=null;
   document.addEventListener('pointerdown',event=>{
@@ -110,7 +137,7 @@
   notifications.setAttribute('popover','manual');
   function raiseNotifications(){
     if(!notifications.children.length)return;
-    const modal=document.querySelector('dialog:modal'),parent=modal||document.body;
+    const modal=topDialog(),parent=modal||document.body;
     if(notifications.parentElement!==parent)parent.append(notifications);
     if(notifications.matches(':popover-open'))notifications.hidePopover();
     notifications.showPopover();
@@ -125,7 +152,7 @@
     });
   }
   function guardDialog(node,{getState,restore,canRestore=()=>true,initialState=getState()}){
-    const baseline=JSON.stringify(initialState),account=cloudUser?.id||'local';let closing=false,down=null;
+    const baseline=JSON.stringify(initialState),account=cloudUser?.id||'local';let closing=false;
     node.requestClose=async()=>{
       if(closing)return;closing=true;
       try{
@@ -141,13 +168,9 @@
       }finally{closing=false}
     };
     node.querySelector('header button')?.addEventListener('click',event=>{event.stopImmediatePropagation();node.requestClose()},true);
-    node.addEventListener('cancel',event=>{event.preventDefault();node.requestClose()});
-    const outside=event=>{const r=node.getBoundingClientRect();return event.target===node&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)};
-    node.addEventListener('pointerdown',event=>{down=event.button===0&&outside(event)?{x:event.clientX,y:event.clientY,id:event.pointerId}:null});
-    node.addEventListener('pointerup',event=>{if(down&&event.pointerId===down.id&&outside(event)&&Math.hypot(event.clientX-down.x,event.clientY-down.y)<=8)node.requestClose();down=null});
-    node.addEventListener('pointercancel',()=>down=null);
+    dialogDismissers.set(node,node.requestClose);
   }
-  globalThis.UIOverlays={raiseNotifications,guardDialog,confirmDiscard};
+  globalThis.UIOverlays={raiseNotifications,guardDialog,confirmDiscard,topDialog};
   document.addEventListener('close',event=>{
     if(event.target.tagName==='DIALOG'&&event.target.contains(notifications)){document.body.append(notifications);raiseNotifications()}
   },true);

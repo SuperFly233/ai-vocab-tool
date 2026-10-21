@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.32.1: UIOverlays owns native modal dismissal via topDialog and guarded per-dialog callbacks. Escape/cancel and deliberate outside press/release close only the top modal; repeated Escape never cascades. Scene/review/library underlying key handlers defer to native dialogs. Notifications attach to the top modal, not the first. Scene fallback titles retain complete text: no slice(60/80), detail uses two-line CSS ellipsis and full tooltip, list single-line ellipsis. Regressions: check-modal-dismissal.cjs and check-scene-title.cjs.
+
 - v0.32.0: Scene authoring hints share visualHintHTML and UIOverlays top-layer viewport positioning. Quote/translation highlights are adjacent and both render in the workspace. Media filenames change reference metadata only. Scene dates reuse formatHistoryTime (list follows history time preference, detail/editor show both). Native association/highlight dialogs and history/API editors protect modified drafts and offer guarded discard undo. New API defaults are clean. Scene/workspace toolbars use explicit alignment tracks; Anki action is labeled.
 - Persistent user UI preference: FIRST generate a bitmap design reference with image_gen for substantial UI redesign, THEN inspect/plan, implement actual components and verify screenshots before deployment. See AGENTS.md and docs/ui-sop.md. Compare multiple established SVG families for accurate semantics, while keeping consistent rendered stroke/size/hit areas. No character icons, nested-card proliferation or bare unstructured content. Do not invent global ChatGPT memory; these files are durable project memory.
 

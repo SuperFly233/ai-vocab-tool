@@ -444,8 +444,7 @@
     notify('素材已从草稿移除。','good','场景',true,{label:'撤销',run:()=>{if(editor!==owner)return notify('原编辑草稿已关闭。','info','撤销');if(!owner.scene.media.some(row=>row.id===id)){owner.scene.media.push(ref);if(featured)owner.scene.heroMedia.push(id);renderFiles()}}});
   }
   document.addEventListener('keydown',event=>{
-    const viewer=document.querySelector('#scene-viewer[open]');
-    if(viewer&&event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();viewer.close();return}
+    if(UIOverlays.topDialog())return;
     const layer=document.querySelector('#scene-editor');if(!layer||document.querySelector('.confirm-layer.open'))return;
     if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();close();return}
     if(event.key==='Tab'){
