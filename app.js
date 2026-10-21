@@ -181,12 +181,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.31.0',
+  version:'0.31.1',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.31.1',date:'2026-10-21',title:'场景弹窗定位与滚动修复',
+    items:['修复全局 margin 重置造成的原生弹窗左上角偏移，覆盖关联、高亮、导出、Anki 和查询确认。','关联列表独立滚动，搜索与确认区保持可见；弹窗正文限高滚动，兼容手机及横屏矮视口。'],
+  },
   {
     version:'0.31.0',date:'2026-10-21',title:'Anki Bridge 0.1 预备版',
     items:['新增场景与关联词条发送入口、制卡释义选择及任务回执界面，沿用原有素材同步；不新增主导航。','提供独立云任务迁移和 Windows 本地伴侣程序，电脑逐批预览确认后才写入专用模板，支持来源键去重和安全撤销。','生产发送默认关闭：数据库迁移与真实测试牌库验收尚未完成，不代表自动云同步已上线。Fushi 继续作为后续独立接入路线。'],

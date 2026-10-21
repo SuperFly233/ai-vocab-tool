@@ -1806,7 +1806,7 @@ body[data-media-tools="hidden"] .scene-media-tools,.scene-asset[data-tools="hidd
 .scene-library>summary::-webkit-details-marker,.scene-more-media>summary::-webkit-details-marker{display:none}
 .scene-library>summary svg,.scene-more-media>summary svg{width:14px;height:14px;transform:rotate(-90deg);transform-origin:center;transition:transform .18s}
 .scene-library[open]>summary svg,.scene-more-media[open]>summary svg{transform:rotate(0)}
-.scene-query-dialog{box-sizing:border-box;width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 32px);border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:22px;overflow:auto}
+.scene-query-dialog{box-sizing:border-box;margin:auto;width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 32px);border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:22px;overflow:auto}
 .scene-query-dialog::backdrop{background:rgba(0,0,0,.48)}
 .scene-query-dialog header{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .scene-query-dialog h2{font-size:21px;margin:0}
@@ -2012,7 +2012,15 @@ body[data-media-tools="hidden"] .scene-media-tools,.scene-asset[data-tools="hidd
 .scene-study-row .scene-linked-copy p{color:var(--muted);font-size:14px;line-height:1.5;margin:4px 0}.scene-study-row .scene-linked-copy>.scene-task-state{display:none}
 .scene-study-row select{font:inherit;font-size:14px;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:36px;max-width:150px;justify-self:end}
 .scene-study-row .scene-link-actions{display:flex;flex:none;justify-content:flex-end;gap:4px}.scene-link-actions .icon-btn{width:36px;height:36px;min-width:36px;min-height:36px;margin:0}
-.scene-study-dialog{width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);box-sizing:border-box;overscroll-behavior:contain}
+.scene-study-dialog{margin:auto;width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);box-sizing:border-box;overscroll-behavior:contain;overflow:hidden}
+.scene-study-dialog[open]{display:flex;flex-direction:column}
+.scene-study-dialog>header,.scene-study-dialog>.scene-dialog-status,.scene-study-dialog>.scene-export-options{flex:none}
+.scene-study-dialog>.scene-dialog-body{min-height:0;overflow:auto;overscroll-behavior:contain}
+.scene-dialog-status:empty{display:none}
+#scene-association-picker>.scene-dialog-body{display:flex;flex-direction:column;overflow:hidden}
+#scene-association-picker .search-field,#scene-association-picker footer{flex:none}
+#scene-association-picker .scene-picker-list{min-height:0;overscroll-behavior:contain}
+#scene-association-picker footer{border-top:1px solid var(--line);padding-top:12px}
 .scene-study-dialog::backdrop{background:rgba(0,0,0,.4)}.scene-study-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .scene-study-dialog h2{font-size:18px;margin:0;overflow-wrap:anywhere}.scene-dialog-body{padding:16px 18px;min-width:0}.scene-dialog-status{margin:0 18px 12px;color:var(--bad);overflow-wrap:anywhere}
 .scene-study-dialog footer{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:14px}.scene-study-dialog footer button{display:flex;align-items:center;gap:6px;white-space:nowrap}
