@@ -1,9 +1,11 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:anki-cloud": "node --check api/anki-jobs.js && node scripts/check-anki-jobs.cjs",
+    "check:anki-ui": "node --check anki-bridge-ui.js && node scripts/check-anki-ui.cjs",
     "check:scene-learning-ui": "node --check scene-study.js && node scripts/check-scene-learning.cjs && node scripts/check-scene-learning-safety.cjs",
     "precheck": "node --check experience-ui.js && node --check request-ui.js && node --check learning-tools.js && node scripts/check-learning-tools.js && node scripts/check-versions.js && npm run check:scenes",
     "check:versions-ui": "node scripts/check-versions-ui.cjs",

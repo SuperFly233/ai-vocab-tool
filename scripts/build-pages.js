@@ -20,6 +20,7 @@ const files = [
   'scene-preview.js',
   'scene-workspace.js',
   'scene-study.js',
+  'anki-bridge-ui.js',
   'experience-ui.js',
   'request-ui.js',
   'styles.css',

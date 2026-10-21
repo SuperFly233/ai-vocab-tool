@@ -1,0 +1,6 @@
+fastapi==0.156.5
+starlette==1.9.0
+uvicorn==0.54.0
+httpx==0.28.1
+keyring==25.7.0
+pyinstaller==6.13.0

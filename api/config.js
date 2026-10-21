@@ -8,5 +8,7 @@ export default function handler(_request, response) {
     adminRestricted: Boolean(process.env.ADMIN_EMAILS),
     hasIpv4Relay: Boolean(process.env.AI_IPV4_RELAY_BASE_URL || process.env.AI_RELAY_BASE_URL),
     defaultAnalyzePrompt: DEFAULT_SYSTEM_PROMPT,
+    ankiBridgeEnabled: process.env.ANKI_BRIDGE_ENABLED==='true',
+    ankiBridgeVersion: '0.1.0',
   });
 }

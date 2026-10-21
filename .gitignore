@@ -3,4 +3,10 @@ dist/
 node_modules/
 npm-debug.log*
 tmp/scene-qa/
+tmp/anki-bridge-venv/
+tmp/anki-bridge-build/
+tmp/anki-bridge-qa/
+integrations/anki-bridge/__pycache__/
+integrations/anki-bridge/bridge/__pycache__/
+integrations/anki-bridge/tests/__pycache__/
 
