@@ -30,21 +30,11 @@ const server=require('./browser-test-server.cjs').createServer();
     }
     assert.equal(await page.locator('.reorder-ghost').count(),0,'No detached capsule');
    }
-   await page.locator('.scene-menu-toggle').click();
-   await page.waitForSelector('#scene-query-menu:popover-open');
-   console.log(`${engine} ${width}: initial menu open`);
-   const menu=await page.locator('#scene-query-menu').evaluate(node=>({parent:node.parentElement.tagName,width:node.offsetWidth,height:node.offsetHeight}));
-   assert.equal(menu.parent,'BODY');assert.ok(menu.width<=240&&menu.height<=160,'Plus menu remains intrinsic, not full-screen');
+   await page.locator('.scene-menu-toggle').click();await page.waitForSelector('#scene-editor');
+   assert.equal(await page.locator('#scene-query-menu').count(),0,'Home opens only current-scene editing');
    await page.setViewportSize({width,height:420});
-   await page.locator('.scene-menu-toggle').scrollIntoViewIfNeeded();await page.waitForTimeout(350);
-   if(!await page.locator('#scene-query-menu').isVisible())await page.locator('.scene-menu-toggle').click();
-   await page.waitForSelector('#scene-query-menu:popover-open');
-   console.log(`${engine} ${width}: constrained menu open`);
-   const small=await page.locator('#scene-query-menu').boundingBox();assert.ok(small.height<=240&&small.y+small.height<=420,'Constrained viewport keeps menu bounded');
-   await page.setViewportSize({width,height:844});await page.locator('.scene-menu-toggle').scrollIntoViewIfNeeded();await page.waitForTimeout(350);
-   if(!await page.locator('#scene-query-menu').isVisible())await page.locator('.scene-menu-toggle').click();
-   await page.locator('[data-scene-action="open"]').click();
-   console.log(`${engine} ${width}: scene editor open`);
+   const small=await page.locator('.scene-editor').boundingBox();assert.ok(small.y>=0&&small.y+small.height<=421,'Editor remains bounded');
+   await page.setViewportSize({width,height:844});
    await page.locator('[name="entryTitle"]').fill('clock');
    await page.locator('[name="quote"]').fill('I clocked the detail.');
    await page.locator('#scene-editor').dispatchEvent('click');

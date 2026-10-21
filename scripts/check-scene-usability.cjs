@@ -1,0 +1,35 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
+const server=require('./browser-test-server.cjs').createServer();
+(async()=>{let browser;try{
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{})});
+ for(const width of [320,390,1440])for(const theme of ['light','dark']){
+  const context=await browser.newContext({viewport:{width,height:844},isMobile:width<900,hasTouch:width<900}),page=await context.newPage(),errors=[],calls=[];page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
+  await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',theme)},theme);await page.route('https://**/*',r=>r.abort());
+  await page.route('**/api/analyze',r=>{const {query}=r.request().postDataJSON();calls.push(query);return r.fulfill({json:{meta:{query},headword:{title:query,coreMeaning:'测试'},senses:[],collocations:[],register:{},confusions:[]}})});
+  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined');
+  await page.locator('.scene-menu-toggle').click();await page.locator('[data-scene-action="close"]').click();assert.equal(await page.locator('#scene-editor').count(),0);assert.equal(await page.locator('#confirm-modal.open').count(),0);assert.equal(await page.locator('#scene-query-menu').count(),0);
+  await page.evaluate(async()=>{
+   const now=new Date().toISOString(),rows=[];for(let i=0;i<24;i++){const canvas=document.createElement('canvas');canvas.width=400;canvas.height=225;const ctx=canvas.getContext('2d');ctx.fillStyle=`rgb(${40+i*5},120,150)`;ctx.fillRect(0,0,400,225);ctx.fillStyle='white';ctx.font='28px sans-serif';ctx.fillText(`Scene ${i}`,20,60);const blob=await new Promise(resolve=>canvas.toBlob(resolve));blob.name=`image-${i}.png`;const ref=await SceneData.putFile(blob);rows.push({id:`scene-${i}`,groupId:`scene-${i}`,quote:`A scene ${i} with a useful phrase.`,title:`场景 ${i}`,media:[ref],createdAt:now,updatedAt:now})}
+   window.__resolve=SceneMedia.resolve;window.__previewCalls=0;window.__activePreview=0;window.__maxPreview=0;
+   SceneMedia.resolve=async(...args)=>{__previewCalls++;__activePreview++;__maxPreview=Math.max(__maxPreview,__activePreview);await new Promise(r=>setTimeout(r,30));try{return await __resolve(...args)}finally{__activePreview--}};
+   setSettings({...getSettings(),apiProfiles:[{id:'qa',name:'QA',apiUrl:'https://example.com/v1',apiKey:'test-only',model:'qa'}],activeApiProfileId:'qa',sceneLibrary:rows});showView('scenes');
+  });
+  await page.locator('.scene-thumb img').first().waitFor();await page.waitForTimeout(500);
+  assert.equal(await page.locator('.scene-master video').count(),0);
+  const limits=await page.evaluate(()=>({calls:__previewCalls,max:__maxPreview}));assert.ok(limits.calls<24,JSON.stringify(limits));if(width<900)assert.equal(limits.max,1);
+  if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`usability-list-${width}-${theme}.png`)});await page.evaluate(()=>scrollTo(0,400));await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`usability-list-scrolled-${width}-${theme}.png`)});await page.evaluate(()=>scrollTo(0,0))}
+  await page.locator('[data-select-scene="scene-0"]').click();
+  await page.locator('.scene-detail [data-scene-action="edit"]').click();await page.locator('[data-scene-action="close"]').click();assert.equal(await page.locator('#scene-editor').count(),0,'Untouched standalone editor closes immediately');
+  await page.locator('.scene-detail [data-scene-action="edit"]').click();await page.locator('[name="quote"]').fill('Modified but unsaved');
+  await page.locator('[data-scene-action="close"]').click();await page.locator('#confirm-cancel').click();assert.equal(await page.locator('[name="quote"]').inputValue(),'Modified but unsaved');
+  await page.locator('[data-scene-action="close"]').click();await page.locator('#confirm-ok').click();await page.locator('.toast-action').last().click();
+  assert.equal(await page.locator('[name="quote"]').inputValue(),'Modified but unsaved');assert.equal(await page.evaluate(()=>getSettings().sceneLibrary.find(row=>row.id==='scene-0').quote),'A scene 0 with a useful phrase.');
+  await page.locator('[name="quote"]').fill('A scene 0 with a useful phrase.');await page.locator('[data-scene-action="close"]').click();assert.equal(await page.locator('#scene-editor').count(),0,'Reverting to original removes dirty state');
+  const input=page.getByRole('textbox',{name:'添加单词或词组'});await input.fill('useful phrase');await page.locator('[data-run-scene]').click();await page.waitForFunction(()=>!lookupBusy&&getHistory().length===1);assert.deepEqual(calls,['useful phrase'],'Direct query includes current text without adding to basket first');
+  await input.fill('another phrase');await input.press('Enter');await page.waitForFunction(()=>!lookupBusy&&getHistory().length===2);assert.deepEqual(calls,['useful phrase','another phrase']);
+  const layout=await page.locator('.scene-phrase-form').evaluate(node=>{const r=node.getBoundingClientRect(),button=node.querySelector('[data-run-scene]').getBoundingClientRect();return {inside:button.left>=r.left-1&&button.right<=r.right+1&&button.bottom<=r.bottom+1,form:r.toJSON(),button:button.toJSON(),width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth}});assert.ok(layout.inside&&!layout.overflow,JSON.stringify(layout));
+  if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.locator('.scene-query-workspace').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`usability-${width}-${theme}.png`)})}
+  await page.reload();await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined');assert.deepEqual(errors,[]);console.log(`Usability ${width}px ${theme}: visible-only bounded JPEG previews, direct/Enter lookup, aligned actions, clean/dirty/reverted editor close and draft undo passed.`);await context.close();
+ }
+}finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}})().catch(error=>{console.error(error);process.exitCode=1});

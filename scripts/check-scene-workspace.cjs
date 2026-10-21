@@ -26,12 +26,12 @@ const server=require('./browser-test-server.cjs').createServer();
    await page.locator('.scene-study-quote').evaluate(node=>window.__sceneQuote=node);
    await page.locator('.scene-study-quote').evaluate(node=>{const selection=getSelection(),range=document.createRange();range.selectNodeContents(node);selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'))});
    await page.locator('.selection-add').click();assert.equal(await page.locator('.scene-word-chip').count(),1);await page.locator('[data-remove-query]').click();
-   const input=page.getByRole('textbox',{name:'添加单词或词组'});await input.fill('connect the dots\nstart over\nconnect the dots\nretry phrase');await page.locator('.scene-phrase-form button').click();assert.equal(await page.locator('.scene-word-chip').count(),3);
-   await input.fill('草稿保留');
+   const input=page.getByRole('textbox',{name:'添加单词或词组'});await input.evaluate(node=>{const data=new DataTransfer();data.setData('text/plain','connect the dots\nstart over\nconnect the dots\nretry phrase');node.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}))});assert.equal(await page.locator('.scene-word-chip').count(),3);
+   await input.fill('start over');
    if(width<=900){await page.locator('.scene-back').click();await page.locator('[data-select-scene="two"]').click();await page.locator('.scene-back').click()}else await page.locator('[data-select-scene="two"]').click();
-   await page.locator('[data-select-scene="one"]').click();assert.equal(await input.inputValue(),'草稿保留');assert.equal(await page.locator('.scene-word-chip').count(),3);
+   await page.locator('[data-select-scene="one"]').click();assert.equal(await input.inputValue(),'start over');assert.equal(await page.locator('.scene-word-chip').count(),3);
    await page.locator('[data-run-scene]').click();await page.waitForFunction(()=>!lookupBusy&&getHistory().length===2);await page.waitForSelector('[data-retry-scene]');assert.equal(calls.length,3);
-   assert.equal(await input.inputValue(),'草稿保留','Task renders preserve input draft');
+   assert.equal(await input.inputValue(),'start over','Task renders preserve input draft');
    await page.locator('.scene-study-quote').evaluate(node=>window.__sceneQuote=node);
    await page.locator('[data-retry-scene]').click();await page.waitForFunction(()=>!lookupBusy&&getHistory().length===3);assert.equal(calls.length,4);
    assert.equal(await page.locator('.scene-task-state[data-status="complete"]').count(),3);
@@ -41,7 +41,7 @@ const server=require('./browser-test-server.cjs').createServer();
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    const image=page.locator('.scene-detail img');await image.waitFor();assert.ok(await image.evaluate(node=>node.complete&&node.naturalWidth===800));
    if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));await page.waitForTimeout(200);await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`workspace29-${width}-${theme}.png`)});await page.evaluate(()=>window.scrollTo({top:400,behavior:'instant'}));await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`workspace29-scrolled-${width}-${theme}.png`)})}
-   await page.reload();await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined');assert.equal(await page.locator('.scene-word-chip').count(),3);assert.equal(await input.inputValue(),'草稿保留');
+   await page.reload();await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined');assert.equal(await page.locator('.scene-word-chip').count(),3);assert.equal(await input.inputValue(),'start over');
    await page.evaluate(()=>{const url=new URL(location.href);url.searchParams.set('scene','missing-group');history.pushState(history.state,'',url);SceneWorkspace.render()});assert.equal(new URL(page.url()).searchParams.get('scene'),null);assert.ok(await page.locator('.scene-workspace-message').isVisible());
    await page.locator('[data-select-scene="one"]').click();assert.equal(await page.locator('.scene-workspace-message').isVisible(),false);
    if(width>900){const labelVisible=await page.locator('#nav-scenes span').isVisible();await page.locator('#nav-scenes').hover();assert.equal(await page.locator('#ui-tooltip:popover-open').count(),labelVisible?0:1);await page.mouse.move(0,0)}

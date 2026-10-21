@@ -90,7 +90,7 @@
     }
     scene=SceneData.normalizeScene(scene||{id:crypto.randomUUID(),targetKey,targetLabel,createdAt:now,updatedAt:now,media:[]});
     const sources=recentSources();
-    editor={historyId:item?.id||null,standalone,query,scene,initial:JSON.stringify(scene),newScene:!sceneId};
+    editor={historyId:item?.id||null,standalone,query,scene,newScene:!sceneId};
     const layer=document.createElement('div');layer.id='scene-editor';layer.className='scene-editor-layer modal-layer open';
     layer.innerHTML=`<section class="scene-editor" role="dialog" aria-modal="true" aria-labelledby="scene-editor-title"><header><div><h2 id="scene-editor-title">${sceneId?'编辑':'添加'}场景</h2><p>${esc(targetLabel||scene.targetLabel||query||'独立记录')}</p></div>${action('close','关闭场景编辑')}</header>
       <form id="scene-editor-form"><div class="scene-editor-body">
@@ -113,7 +113,22 @@
     layer.addEventListener('dragleave',event=>{if(!layer.contains(event.relatedTarget))layer.classList.remove('dragging')});
     layer.addEventListener('drop',event=>{event.preventDefault();layer.classList.remove('dragging');addFiles(event.dataTransfer.files)});
     layer.querySelector('form').addEventListener('submit',event=>{event.preventDefault();save()});
-    renderFiles();layer.querySelector('textarea')?.focus();
+    renderFiles();editor.initial=editorState();layer.querySelector('textarea')?.focus();
+  }
+  function editorState(){
+    const form=document.querySelector('#scene-editor-form');if(!form||!editor)return '';
+    const fields=[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value]);
+    return JSON.stringify({fields,media:editor.scene.media,heroMedia:editor.scene.heroMedia});
+  }
+  async function restoreEditor(snapshot){
+    if((cloudUser?.id||'local')!==snapshot.owner)return notify('账号已切换，未恢复其他账号的草稿。','info','恢复草稿');
+    if(editor)return notify('请先关闭当前编辑器，再恢复上一份草稿。','info','恢复草稿',true,{label:'恢复草稿',run:()=>restoreEditor(snapshot)});
+    await open(snapshot.standalone?'library':snapshot.historyId,snapshot.scene.targetKey,snapshot.newScene?'':snapshot.scene.id);
+    if(!editor)return;
+    editor.scene=structuredClone(snapshot.scene);
+    const form=document.querySelector('#scene-editor-form');
+    for(const [name,value] of snapshot.fields){const input=form.elements.namedItem(name);if(input){if(input.type==='checkbox')input.checked=value;else input.value=value}}
+    renderFiles();status('已恢复未保存的修改。');
   }
   function status(message,bad=false){const node=document.querySelector('#scene-editor-status');if(node){node.textContent=message;node.classList.toggle('bad',bad)}}
   function renderFiles(){
@@ -136,15 +151,19 @@
   }
   async function close(force=false){
     if(busy)return;
-    const value=readForm();if(!editor)return;
+    if(!editor)return;
     const form=document.querySelector('#scene-editor-form');
-    const otherChanges=form?.elements.sourceUrl?.value.trim()!==editor.scene.sourceUrl||(!editor.historyId&&form?.elements.entryTitle?.value.trim()!==editor.query);
-    if(!force&&(JSON.stringify(value)!==editor.initial||otherChanges)){
+    const changed=editorState()!==editor.initial,closing=editor;
+    let snapshot=null;
+    if(!force&&changed){
       if(!await askConfirm('尚未保存的文字和素材选择不会写入词条。确认放弃？','放弃场景修改'))return;
+      if(editor!==closing)return;
+      snapshot={historyId:editor.historyId,standalone:editor.standalone,newScene:editor.newScene,scene:structuredClone(editor.scene),owner:cloudUser?.id||'local',fields:[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value])};
     }
     document.querySelector('#scene-editor')?.remove();editor=null;
     if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
     if(returnFocus?.isConnected)returnFocus.focus();
+    if(snapshot)notify('已放弃未保存的场景修改。','info','场景',true,{label:'撤销',run:()=>restoreEditor(snapshot)});
   }
   function saveToHistory(id,scene,{share=false}={}){
     const item=historyItem(id);if(!item)throw new Error('词条已被删除，场景尚未保存。');
@@ -291,6 +310,7 @@
       const caption=document.createElement('figcaption');caption.innerHTML=`<span>${esc(file.ref.name)}</span><div class="scene-media-tools">${action('enlarge','放大素材',`data-id="${esc(id)}"`)}${action('download','下载原始素材',`data-id="${esc(id)}"`)}${video?action('controls','显示或隐藏视频控件'):''}</div>${action('tools','显示或隐藏素材工具')}`;node.append(caption);
       if(!video)node.querySelector('img').addEventListener('click',()=>openViewer(id));
       root.ExperienceUI?.mediaReady(node,node.querySelector('video,img'));
+      root.ScenePreview?.fromLoaded(id,node.querySelector('video,img'));
     }catch(error){node.innerHTML=`<p class="scene-asset-error">${esc(error.message)}</p><button class="plain-btn" type="button" data-scene-action="load" data-id="${esc(id)}">重试加载</button>`;node.title=error.message}
     finally{delete node.dataset.loading;node.removeAttribute('aria-busy')}
   }

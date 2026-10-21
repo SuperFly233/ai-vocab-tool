@@ -181,12 +181,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.29.0',
+  version:'0.29.1',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.29.1',date:'2026-10-21',title:'手机场景预览与查词交互修复',
+    items:['列表只加载可见素材的轻量缩略图，限制并发并缓存；不再为每条视频直接加载播放器。','场景内直接输入和回车查询，多个词组使用标签积累；修复手机按钮对齐与悬停越界。','未编辑直接关闭，真实修改放弃前确认，并可从通知撤销恢复草稿；首页添加按钮直达编辑器，导入和管理归入场景。'],
+  },
   {
     version:'0.29.0',date:'2026-10-21',title:'场景学习工作台与移动端修复',
     items:['场景与批量查词合并，桌面列表与工作台并排，手机点入详情；支持选中文本、多行添加词组、会话词篮、队列进度和失败重试。','统一非首页搜索样式并保留中文输入状态；设置与详情目录自动保持当前分类可见，文字导航不再弹出重复提示。','场景可通过链接直达，返回保留筛选和滚动；旧批量地址兼容跳转，既有任务和素材继续复用。','手机可编辑控件至少 16px，浏览页面不再自动聚焦首页输入框；不禁用用户缩放，实体 iPhone 缩放表现仍需实机确认。'],
