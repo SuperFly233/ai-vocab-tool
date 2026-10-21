@@ -181,12 +181,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.29.1',
+  version:'0.30.0',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.30.0',date:'2026-10-21',title:'从场景查词到场景学习',
+    items:['场景支持按来源分组、关联词条搜索与学习状态筛选；可直接关联已有词条，不调用模型。','每个场景与词条关联可独立设置高亮和未学习、待回顾、已掌握状态；支持回顾、撤销和 HTML / JSON 学习清单导出。','查询成功清空已接收词组，失败任务刷新后可重试；修复任务状态覆盖、独立场景删除标记及高亮串用。','编辑、删除和撤销检查账号与后续更新；缓存维护不删除原素材，旧数据默认未学习。'],
+  },
   {
     version:'0.29.1',date:'2026-10-21',title:'手机场景预览与查词交互修复',
     items:['列表只加载可见素材的轻量缩略图，限制并发并缓存；不再为每条视频直接加载播放器。','场景内直接输入和回车查询，多个词组使用标签积累；修复手机按钮对齐与悬停越界。','未编辑直接关闭，真实修改放弃前确认，并可从通知撤销恢复草稿；首页添加按钮直达编辑器，导入和管理归入场景。'],
@@ -2745,7 +2749,7 @@ function restoreViewFromLocation({replace=false,focus=true}={}){
   const canonical=view==='folders'&&folderState.detailOpen?`${VIEW_ROUTES.folders}/${encodeURIComponent(folderState.activeId)}`:VIEW_ROUTES[view];
   showView(view,document.getElementById(`nav-${view}`),{route:'none',scroll:false,focus});
   if(replace||location.pathname==='/batch'){
-    const state={view};
+    const state={...window.history.state,view};
     if(view==='folders'&&folderState.detailOpen){
       state.folderId=folderState.activeId;
       if(window.history.state?.fromFolderRoot)state.fromFolderRoot=true;
@@ -4231,6 +4235,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
       activeLookupSignature='';
       activeLookupRequest=null;
       persistLookupTasks();
+      if(activeView==='scenes')globalThis.SceneWorkspace?.render();
       document.body.classList.remove('lookup-busy');
       processNextLookup();
     }

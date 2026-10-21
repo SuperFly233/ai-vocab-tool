@@ -29,6 +29,7 @@
     const groupId=/^[\w-]{1,100}$/.test(String(item.groupId||''))?String(item.groupId):id;
     return {id,groupId,...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
       exampleHighlights:highlights(item.exampleHighlights),translationHighlights:highlights(item.translationHighlights),
+      studyState:['new','review','mastered'].includes(item.studyState)?item.studyState:'new',studyUpdatedAt:time(item.studyUpdatedAt)?item.studyUpdatedAt:'',
       order:Number.isFinite(item.order)?item.order:time(item.createdAt),featured:typeof item.featured==='boolean'?item.featured:!item.targetKey,heroMedia:[...new Set(heroMedia)],
       sourceUrl:sourceUrl(item.sourceUrl),targetKey:text(item.targetKey,120),media:normalizeMedia(item.media),
       createdAt:time(item.createdAt)?item.createdAt:'',updatedAt:time(item.updatedAt)?item.updatedAt:time(item.createdAt)?item.createdAt:''};
@@ -43,7 +44,9 @@
     for(const raw of Array.isArray(items)?items:[]){
       const item=normalizeScene(raw);if(!item)continue;
       const previous=found.get(item.id);
-      if(!previous||time(item.updatedAt)>time(previous.updatedAt)||(time(item.updatedAt)===time(previous.updatedAt)&&JSON.stringify(item)>JSON.stringify(previous)))found.set(item.id,item);
+      const preferred=!previous||time(item.updatedAt)>time(previous.updatedAt)||(time(item.updatedAt)===time(previous.updatedAt)&&JSON.stringify(item)>JSON.stringify(previous))?item:previous;
+      const study=!previous||time(item.studyUpdatedAt)>time(previous.studyUpdatedAt)||(time(item.studyUpdatedAt)===time(previous.studyUpdatedAt)&&item.studyState>previous.studyState)?item:previous;
+      found.set(item.id,{...preferred,studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
     }
     const kept=[];
     for(const item of found.values()){
@@ -108,5 +111,6 @@
   const getDraft=key=>transaction('drafts','readonly',store=>store.get(key));
   const putDraft=(key,value)=>transaction('drafts','readwrite',store=>store.put(value,key));
   const deleteDraft=key=>transaction('drafts','readwrite',store=>store.delete(key));
-  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,normalizeMedia,normalizeScene,reconcile,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft};
+  const clearPreviews=()=>transaction('drafts','readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(String(cursor.key).startsWith('thumbnail-v1:'))cursor.delete();cursor.continue()};return null});
+  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,normalizeMedia,normalizeScene,reconcile,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
 })(globalThis);

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.29.1" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.29.1" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.29.1">
-<link rel="stylesheet" href="/styles.css?v=0.29.1-20261021.3">
+<link rel="icon" href="/favicon.svg?v=0.30.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.30.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.30.0">
+<link rel="stylesheet" href="/styles.css?v=0.30.0-20261021.4">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.29.1" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.30.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -53,7 +53,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.29.1" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.30.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -394,6 +394,7 @@
 
       <div class="setting-group" id="settings-maintenance">
         <div class="setting-title">维护与诊断</div>
+        <div class="setting-row"><div><div class="setting-label">场景预览缓存</div><div class="setting-sub">仅清理缩略图，下次浏览重新生成，不删除原始素材。</div></div><button class="plain-btn" id="clear-scene-previews" type="button">清理缓存</button></div>
         <div class="setting-row"><div><div class="setting-label">清空历史</div><div class="setting-sub">清除本机历史记录，云端登录时也会同步为空。</div></div><button class="danger-btn" onclick="clearHistory()">清空</button></div>
         <div class="setting-row"><div><div class="setting-label">恢复出厂</div><div class="setting-sub">重置主题、布局、接口配置和本机历史记录。</div></div><button class="danger-btn" onclick="factoryReset()">恢复默认</button></div>
         <div class="setting-row stack-row log-setting-row">
@@ -615,22 +616,23 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.29.1"></script>
-<script src="/icons.js?v=0.29.1"></script>
-<script src="/history-data.js?v=0.29.1"></script>
-<script src="/settings-data.js?v=0.29.1"></script>
-<script src="/storage-state.js?v=0.29.1"></script>
-<script src="/lookup-tasks.js?v=0.29.1"></script>
-<script src="/sync-state.js?v=0.29.1"></script>
-<script src="/learning-tools.js?v=0.29.1"></script>
-<script src="/scene-data.js?v=0.29.1-20261021.3"></script>
-<script src="/scene-media.js?v=0.29.1-20261021.3"></script>
-<script src="/ui-overlays.js?v=0.29.1-20261021.3"></script>
-<script src="/scene-preview.js?v=0.29.1-20261021.3"></script>
-<script src="/scene-ui.js?v=0.29.1-20261021.3"></script>
-<script src="/app.js?v=0.29.1-20261021.3"></script>
-<script src="/scene-workspace.js?v=0.29.1-20261021.3"></script>
-<script src="/experience-ui.js?v=0.29.1-20261021.3"></script>
-<script src="/request-ui.js?v=0.29.1-20261021.3"></script>
+<script src="/vendor/supabase.js?v=0.30.0"></script>
+<script src="/icons.js?v=0.30.0"></script>
+<script src="/history-data.js?v=0.30.0"></script>
+<script src="/settings-data.js?v=0.30.0"></script>
+<script src="/storage-state.js?v=0.30.0"></script>
+<script src="/lookup-tasks.js?v=0.30.0"></script>
+<script src="/sync-state.js?v=0.30.0"></script>
+<script src="/learning-tools.js?v=0.30.0"></script>
+<script src="/scene-data.js?v=0.30.0-20261021.4"></script>
+<script src="/scene-media.js?v=0.30.0-20261021.4"></script>
+<script src="/ui-overlays.js?v=0.30.0-20261021.4"></script>
+<script src="/scene-preview.js?v=0.30.0-20261021.4"></script>
+<script src="/scene-ui.js?v=0.30.0-20261021.4"></script>
+<script src="/app.js?v=0.30.0-20261021.4"></script>
+<script src="/scene-study.js?v=0.30.0-20261021.4"></script>
+<script src="/scene-workspace.js?v=0.30.0-20261021.4"></script>
+<script src="/experience-ui.js?v=0.30.0-20261021.4"></script>
+<script src="/request-ui.js?v=0.30.0-20261021.4"></script>
 </body>
 </html>

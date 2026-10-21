@@ -28,4 +28,11 @@ await assert.rejects(()=>S.inspectFile(new Blob(['<svg></svg>'],{type:'image/png
 assert.equal(S.detectMime(new Uint8Array(Buffer.from('GIF89a'))),'image/gif');
 assert.equal(S.normalizeMedia([inspected.ref,inspected.ref]).length,1);
 assert.equal(a.note,'my scene');
+assert.equal(S.normalizeScene(a).studyState,'new','Old records default to unlearned');
+const contentNew={...a,note:'new content',updatedAt:later,studyState:'new',studyUpdatedAt:created};
+const stateNew={...a,studyState:'mastered',studyUpdatedAt:'2026-10-19T03:00:00Z'};
+const merged=S.reconcile([contentNew,stateNew]).items[0];
+assert.equal(merged.note,'new content');assert.equal(merged.studyState,'mastered');
+assert.deepEqual(S.reconcile([contentNew,stateNew]),S.reconcile([stateNew,contentNew]),'Independent study clock merge is commutative');
+assert.equal(S.reconcile(JSON.parse(JSON.stringify([merged]))).items[0].studyState,'mastered','Backup roundtrip preserves state');
 console.log('Scenes passed: merge/deletion/concurrency, URL and MIME safety, byte sniffing, hashing and deduplication.');

@@ -43,5 +43,5 @@
     if(media.tagName==='VIDEO'){if(media.readyState>=2&&media.currentTime>.05)ready();else media.addEventListener('timeupdate',function onFrame(){if(media.readyState>=2&&media.currentTime>.05){media.removeEventListener('timeupdate',onFrame);ready()}})}
     else if(media.complete&&media.naturalWidth)ready();else media.addEventListener('load',ready,{once:true});
   }
-  root.ScenePreview={get,fromLoaded};
+  root.ScenePreview={get,fromLoaded,clear:async()=>{await Promise.allSettled([...pending.values()]);cache.clear()}};
 })(globalThis);

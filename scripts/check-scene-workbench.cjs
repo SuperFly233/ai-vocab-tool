@@ -52,6 +52,7 @@ const server=require('./browser-test-server.cjs').createServer();
     return {before:!senses||section.getBoundingClientRect().top<senses.getBoundingClientRect().top,overflow:document.documentElement.scrollWidth>innerWidth};
    });assert.ok(layout.before&&!layout.overflow);
    const handles=page.locator('#result-card .scene-order-handle');
+   await handles.first().scrollIntoViewIfNeeded();await page.waitForTimeout(200);
    await page.evaluate(()=>window.__beforeSceneOrder=structuredClone(getHistory()));
    const first=await handles.first().boundingBox(),second=await handles.nth(1).boundingBox();
    await drag({x:first.x+first.width/2,y:first.y+first.height/2},{x:second.x+second.width/2,y:second.y+second.height+10});

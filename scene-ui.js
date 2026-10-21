@@ -72,15 +72,17 @@
   }
   async function open(id=null,targetKey='',sceneId=''){
     if(editor)return;
+    const account=cloudUser?.id||'local';
     const standalone=id==='library',item=id&&!standalone?historyItem(id):null;
     if(id&&!standalone&&!item)return notify('词条已被删除。','info','场景记忆');
     returnFocus=document.activeElement;
     const now=new Date().toISOString();
     let scene=findScene(id,sceneId);
-    const query=item?.query||document.querySelector('#query-input')?.value.trim()||'';
+    const query=item?.query||(!standalone?document.querySelector('#query-input')?.value.trim():'')||'';
     if(!scene&&!item&&!standalone){
       try{scene=await SceneData.getDraft(`pending:${normalizeSearch(query)}`)}catch{}
     }
+    if(editor||account!==(cloudUser?.id||'local'))return;
     let targetLabel='';
     if(targetKey&&item){
       for(const kind of ['sense','collocation','confusion']){
@@ -90,7 +92,7 @@
     }
     scene=SceneData.normalizeScene(scene||{id:crypto.randomUUID(),targetKey,targetLabel,createdAt:now,updatedAt:now,media:[]});
     const sources=recentSources();
-    editor={historyId:item?.id||null,standalone,query,scene,newScene:!sceneId};
+    editor={historyId:item?.id||null,standalone,query,scene,newScene:!sceneId,owner:cloudUser?.id||'local',base:sceneId?JSON.stringify(scene):null};
     const layer=document.createElement('div');layer.id='scene-editor';layer.className='scene-editor-layer modal-layer open';
     layer.innerHTML=`<section class="scene-editor" role="dialog" aria-modal="true" aria-labelledby="scene-editor-title"><header><div><h2 id="scene-editor-title">${sceneId?'编辑':'添加'}场景</h2><p>${esc(targetLabel||scene.targetLabel||query||'独立记录')}</p></div>${action('close','关闭场景编辑')}</header>
       <form id="scene-editor-form"><div class="scene-editor-body">
@@ -101,6 +103,11 @@
       ${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" open><summary>${icon('chevron-down')}来源信息</summary>${sources.length?`<label class="scene-field"><span>最近来源</span><select id="scene-source-recent"><option value="">选择已用来源</option>${sources.map((source,index)=>`<option value="${index}">${esc([source.sourceTitle||source.sourceUrl||'来源',source.chapter,source.timeRange].filter(Boolean).join(' · ').slice(0,160))}</option>`).join('')}</select></label>`:''}<div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details>
       </div><p id="scene-editor-status" role="status"></p><footer>${!item&&!standalone?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button><button type="button" class="plain-btn" data-scene-action="standalone">独立保存场景</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item||standalone?'保存场景':'随查词保存'}</button></footer></form></section>`;
     document.body.append(layer);document.body.classList.add('modal-open');
+    const body=layer.querySelector('.scene-editor-body'),primary=document.createElement('section'),secondary=document.createElement('section');
+    primary.className='scene-editor-section';secondary.className='scene-editor-section';
+    primary.innerHTML='<h3>场景内容</h3>';secondary.innerHTML='<h3>补充信息</h3>';
+    for(const node of [body.querySelector('.scene-drop'),body.querySelector('[name="quote"]').closest('label'),body.querySelector('[name="translation"]').closest('label')])primary.append(node);
+    while(body.firstChild)secondary.append(body.firstChild);body.append(primary,secondary);
     layer.addEventListener('backdrop-dismiss',()=>close());
     layer.querySelector('#scene-source-recent')?.addEventListener('change',event=>{
       if(event.target.value==='')return;
@@ -123,6 +130,8 @@
   async function restoreEditor(snapshot){
     if((cloudUser?.id||'local')!==snapshot.owner)return notify('账号已切换，未恢复其他账号的草稿。','info','恢复草稿');
     if(editor)return notify('请先关闭当前编辑器，再恢复上一份草稿。','info','恢复草稿',true,{label:'恢复草稿',run:()=>restoreEditor(snapshot)});
+    const latest=findScene(snapshot.standalone?'library':snapshot.historyId,snapshot.scene.id);
+    if(!snapshot.newScene&&JSON.stringify(latest)!==snapshot.base)return notify('原场景已更新或删除，未恢复过期草稿。','warn','恢复草稿');
     await open(snapshot.standalone?'library':snapshot.historyId,snapshot.scene.targetKey,snapshot.newScene?'':snapshot.scene.id);
     if(!editor)return;
     editor.scene=structuredClone(snapshot.scene);
@@ -158,7 +167,7 @@
     if(!force&&changed){
       if(!await askConfirm('尚未保存的文字和素材选择不会写入词条。确认放弃？','放弃场景修改'))return;
       if(editor!==closing)return;
-      snapshot={historyId:editor.historyId,standalone:editor.standalone,newScene:editor.newScene,scene:structuredClone(editor.scene),owner:cloudUser?.id||'local',fields:[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value])};
+      snapshot={historyId:editor.historyId,standalone:editor.standalone,newScene:editor.newScene,base:editor.base,scene:structuredClone(editor.scene),owner:editor.owner,fields:[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value])};
     }
     document.querySelector('#scene-editor')?.remove();editor=null;
     if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
@@ -240,6 +249,8 @@
   }
   async function save(manual=false,standalone=false){
     if(!editor||busy)return;
+    if(editor.owner!==(cloudUser?.id||'local')){status('账号已切换，请关闭后重新打开场景。',true);return}
+    if(!editor.newScene&&JSON.stringify(findScene(editor.standalone?'library':editor.historyId,editor.scene.id))!==editor.base){status('场景已在其他位置更新或删除，请保留草稿文字，重新打开后编辑。',true);return}
     const form=new FormData(document.querySelector('#scene-editor-form'));
     const scene=readForm();
     if(!scene.title&&!scene.quote&&!scene.note&&!scene.media.length){status('请添加场景内容、笔记或素材。',true);return}
@@ -277,21 +288,31 @@
     catch(error){notify(`词条已保存，但场景尚未关联：${error.message}`,'warn','场景记忆');return false}
   }
   async function remove(id,sceneId){
+    const owner=cloudUser?.id||'local',before=JSON.stringify(findScene(id,sceneId));
     if(id==='library'){
       const scene=findScene(id,sceneId);if(!scene||!await askConfirm('删除独立场景？已有词条的关联仍然保留。','删除场景'))return;
+      if(owner!==(cloudUser?.id||'local')||JSON.stringify(findScene(id,sceneId))!==before)return notify('场景或账号已变化，未执行删除。','warn','删除场景');
       const settings=getSettings(),now=new Date(Math.max(Date.now(),(Date.parse(scene.updatedAt)||0)+1)).toISOString();
-      if(!setSettings({...settings,sceneLibrary:library().filter(row=>row.id!==sceneId),sceneLibraryTombstones:SettingsData.addTombstone(settings.sceneLibraryTombstones,sceneId,now),updatedAt:now}))return;
-      renderHub();notify('独立场景已删除。','good','场景',true,{label:'撤销',run:()=>saveLibrary({...scene,updatedAt:new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString()})});return;
+      const data=SceneData.reconcile(library(),[...(settings.sceneLibraryTombstones||[]),{key:sceneId,deletedAt:now}]);
+      if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:now}))return;
+      renderHub();notify('独立场景已删除。','good','场景',true,{label:'撤销',run:()=>{
+        if(owner!==(cloudUser?.id||'local')||findScene(id,sceneId)||!getSettings().sceneLibraryTombstones.some(row=>row.key===sceneId&&row.deletedAt===now))return notify('场景已再次变化，未恢复过期删除。','warn','撤销');
+        saveLibrary({...scene,updatedAt:new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString()});
+      }});return;
     }
     let item=historyItem(id),scene=scenes(item).find(row=>row.id===sceneId);if(!scene)return;
     if(!await askConfirm('从此词条移除这个场景？其他词条的关联不受影响。','删除场景'))return;
+    if(owner!==(cloudUser?.id||'local')||JSON.stringify(findScene(id,sceneId))!==before)return notify('场景或账号已变化，未执行移除。','warn','删除场景');
     item=historyItem(id);scene=scenes(item).find(row=>row.id===sceneId);if(!scene)return;
     const now=new Date(Math.max(Date.now(),(Date.parse(scene.updatedAt)||0)+1)).toISOString();
     const data=SceneData.reconcile(item.scenes,[...(item.sceneTombstones||[]),{key:sceneId,deletedAt:now}]);
     if(!setHistory(getHistory().map(row=>String(row.id)===String(id)?{...row,scenes:data.items,sceneTombstones:data.tombstones,updatedAt:now}:row)))return;
     refreshFragmentPinViews(id);
     if(activeView==='scenes')renderHub();
-    notify('场景已移除。','good','场景记忆',true,{label:'撤销',run:()=>saveToHistory(id,{...scene,updatedAt:new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString()})});
+    notify('场景已移除。','good','场景记忆',true,{label:'撤销',run:()=>{
+      if(owner!==(cloudUser?.id||'local')||findScene(id,sceneId)||!historyItem(id)?.sceneTombstones?.some(row=>row.key===sceneId&&row.deletedAt===now))return notify('关联已再次变化，未恢复过期删除。','warn','撤销');
+      saveToHistory(id,{...scene,updatedAt:new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString()});
+    }});
   }
   async function loadAsset(node){
     const id=node.dataset.sceneAsset;if(!id||node.dataset.loading)return;
@@ -496,67 +517,52 @@
   }
   async function queryFromScene(id,sceneId){
     const scene=findScene(id,sceneId);if(!scene)return;
-    document.querySelector('#scene-query-dialog')?.close();document.querySelector('#scene-query-dialog')?.remove();
-    const dialog=document.createElement('dialog');dialog.id='scene-query-dialog';dialog.className='scene-query-dialog';
     const selection=getSelection(),selectionScene=selection?.anchorNode?.parentElement?.closest('[data-scene-id]');
     const selected=selectionScene?.dataset.sceneId===sceneId?String(selection).trim().slice(0,200):'';
-    dialog.innerHTML=`<header><h2>从场景查词</h2><button type="button" class="icon-btn" data-query-close aria-label="关闭">${icon('x')}</button></header><blockquote>${esc(scene.quote||scene.note)}</blockquote><form><label class="scene-field"><span>单词或词组 · 每行一个，最多 20 个</span><textarea name="query" required rows="4">${esc(selected)}</textarea></label><p class="scene-query-status" role="status"></p><footer><button class="plain-btn" type="submit" value="link">关联已有词条</button><button class="plain-btn primary-btn" type="submit" value="query">确认查询并关联</button></footer></form>`;
-    dialog.querySelector('[data-query-close]').onclick=()=>dialog.close();
-    dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();
-    dialog.querySelector('textarea').focus();
-    dialog.querySelector('form').addEventListener('submit',async event=>{
-      event.preventDefault();const queries=[...new Map(dialog.querySelector('textarea').value.split(/\n/).map(value=>value.trim()).filter(Boolean).map(query=>[normalizeSearch(query),query])).values()];if(!queries.length)return;
-      if(queries.length>20||queries.some(query=>query.length>200)){dialog.querySelector('.scene-query-status').textContent='每次最多 20 个词组，每个最多 200 字。';return}
-      try{
-        if(event.submitter?.value==='link'){
-          const targets=queries.map(query=>getHistory().find(row=>normalizeSearch(row.query)===normalizeSearch(query)||normalizeSearch(historyDisplayTitle(row))===normalizeSearch(query)));
-          if(targets.some(target=>!target)){dialog.querySelector('.scene-query-status').textContent='有词条尚不存在，请使用查询并关联。';return}
-          for(const target of targets)if(!scenes(target).some(row=>row.groupId===scene.groupId))saveToHistory(target.id,{...scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:true});
-          dialog.close();renderHub();notify(`已关联 ${targets.length} 个词条。`,'good','场景记忆');return;
-        }
-        saveLibrary(scene);
-        dialog.close();if(els.historyModal.classList.contains('open'))closeHistoryModal();
-        showView('scenes');
-        for(const query of queries){
-          const existing=findHistoryByQuery(query);
-          if(existing){if(!scenes(existing).some(row=>row.groupId===scene.groupId))saveToHistory(existing.id,{...scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:true});taskResult({query,sceneGroupId:scene.groupId},'complete');continue}
-          const request={query,sceneGroupId:scene.groupId,direction:els.direction.value,note:`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`,folderIds:lookupFolderIds};
-          if(lookupQueue.some(row=>lookupRequestSignature(row)===lookupRequestSignature(request))||activeLookupSignature===lookupRequestSignature(request))continue;
-          taskResult(request,'queued');enqueueLookup(request,{silent:true});
-        }
-        notify(`已处理 ${queries.length} 个词组，查询进度显示在场景下方。`,'info','场景查词');
-        processNextLookup();renderHub();
-      }catch(error){dialog.querySelector('.scene-query-status').textContent=error.message}
-    });
+    if(els.historyModal.classList.contains('open'))closeHistoryModal();
+    showView('scenes');root.SceneWorkspace?.select(scene.groupId);
+    if(selected)root.SceneWorkspace?.addQueries(scene.groupId,selected);
   }
-  const tasks=new Map();
+  let taskOwner='',tasks=new Map();
+  function restoreTasks(){
+    const owner=cloudUser?.id||'local';if(taskOwner===owner)return;
+    taskOwner=owner;tasks=new Map();
+    try{for(const task of JSON.parse(sessionStorage.getItem(`lexi-scene-tasks:${owner}`)||'[]'))if(task?.request?.sceneGroupId&&typeof task.request.query==='string')tasks.set(`${task.request.sceneGroupId}:${normalizeSearch(task.request.query)}`,{...task,status:['queued','running'].includes(task.status)?'error':task.status,message:['queued','running'].includes(task.status)?'任务中断，检查队列或重试。':task.message})}catch{}
+  }
   function taskResult(request,status,message=''){
     if(!request.sceneGroupId&&!request.batchId)return;
-    tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request,status,message});if(activeView==='scenes')renderHub();
+    restoreTasks();tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request:{query:request.query,sceneGroupId:request.sceneGroupId||request.batchId},status,message});
+    try{sessionStorage.setItem(`lexi-scene-tasks:${taskOwner}`,JSON.stringify([...tasks.values()].slice(-200)))}catch{}
+    if(activeView==='scenes')renderHub();
   }
   function sceneGroups(){
     const groups=new Map();
     for(const scene of library())groups.set(scene.groupId,{scene,item:{id:'library'},links:[]});
     for(const item of getHistory())for(const scene of scenes(item)){
       const group=groups.get(scene.groupId)||{scene,item,links:[]};
-      if(Date.parse(scene.updatedAt)>Date.parse(group.scene.updatedAt)){group.scene=scene;group.item=item}
-      group.links.push(item);groups.set(scene.groupId,group);
+      if(group.item.id!=='library'&&Date.parse(scene.updatedAt)>Date.parse(group.scene.updatedAt)){group.scene=scene;group.item=item}
+      if(!group.links.some(row=>row.id===item.id))group.links.push(item);groups.set(scene.groupId,group);
     }
     return [...groups.values()].sort((a,b)=>Date.parse(b.scene.updatedAt)-Date.parse(a.scene.updatedAt));
   }
   async function queueSceneQueries(groupId,queries){
     const group=sceneGroups().find(row=>row.scene.groupId===groupId);if(!group)throw new Error('场景已不存在。');
     const {scene}=group;saveLibrary(scene);
+    const accepted=[],failed=[];
     for(const query of queries){
+      try{
       const request={query,sceneGroupId:groupId,direction:els.direction.value,note:`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`,folderIds:lookupFolderIds};
       const existing=findHistoryByQuery(query);
-      if(existing){const linked=await attachPending(existing.id,query,groupId);taskResult(request,linked?'complete':'error',linked?'':'场景关联尚未完成');continue}
-      if(lookupQueue.some(row=>lookupRequestSignature(row)===lookupRequestSignature(request))||activeLookupSignature===lookupRequestSignature(request))continue;
+      if(existing){const linked=await attachPending(existing.id,query,groupId);taskResult(request,linked?'complete':'error',linked?'':'场景关联尚未完成');(linked?accepted:failed).push(query);continue}
+      if(lookupQueue.some(row=>lookupRequestSignature(row)===lookupRequestSignature(request))||activeLookupSignature===lookupRequestSignature(request)){accepted.push(query);continue}
       taskResult(request,'queued');enqueueLookup(request,{silent:true});
+      accepted.push(query);
+      }catch(error){failed.push(query);taskResult({query,sceneGroupId:groupId},'error',error.message)}
     }
-    processNextLookup();renderHub();
+    processNextLookup();renderHub();return {accepted,failed};
   }
   async function retrySceneTask(key){
+    restoreTasks();
     const task=tasks.get(key);if(!task)return;
     try{await queueSceneQueries(task.request.sceneGroupId,[task.request.query])}catch(error){taskResult(task.request,'error',error.message)}
   }
@@ -594,6 +600,6 @@
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,attachPending,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>[...tasks.entries()],syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,attachPending,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);
