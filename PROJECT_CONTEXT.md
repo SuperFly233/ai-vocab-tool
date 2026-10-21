@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.33.0: Settings category metadata in experience-ui.js is the single source for nav labels, icons, section titles and search aliases. Keep existing IDs/deep links. Seven concise categories: 模型生成/界面布局/阅读体验/场景媒体/消息通知/数据同步/维护诊断. Static nav is populated at setup; do not maintain a second label list in HTML. Media rows use the same copy-wrapper/control grid as other preferences. Danger actions remain last; integration gate stays closed. Search preserves input DOM/IME and offers empty recovery. Settings header mask prevents content leaking above the floating app bar. Design/reference and acceptance: docs/plans/2026-10-21-settings-refinement.md.
+
 - v0.32.2: Shared hover/focus CSS no longer scales/translates outer controls (plain/danger/icon/tab/seg/nav/filters/version controls and cloud inputs). Use color/border/inset feedback; preserve anchored centering, drag transforms, inward press contraction and hint animations. Do not add per-widget hover padding patches or blanket transform:none!important. check-control-motion.cjs uses CSSOM and real geometry at 320/390/768/1440 in both themes; project SOP carries the invariant.
 
 - v0.32.1: UIOverlays owns native modal dismissal via topDialog and guarded per-dialog callbacks. Escape/cancel and deliberate outside press/release close only the top modal; repeated Escape never cascades. Scene/review/library underlying key handlers defer to native dialogs. Notifications attach to the top modal, not the first. Scene fallback titles retain complete text: no slice(60/80), detail uses two-line CSS ellipsis and full tooltip, list single-line ellipsis. Regressions: check-modal-dismissal.cjs and check-scene-title.cjs.

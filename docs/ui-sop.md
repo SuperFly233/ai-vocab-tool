@@ -6,6 +6,8 @@ User confirmed 2026-10-21: generate a bitmap UI reference with the image model b
 
 ## Consistency and Readability
 
+Settings categories must share one metadata source for navigation labels, section titles and search aliases; preserve stable section IDs. Use consistent concise naming, then explicit content subgroups rather than inconsistent navigation subtitles. Keep destructive actions last. Every preference row uses a copy wrapper plus control track; mobile stacks the same DOM. Inspect scrolled screenshots, including the area above floating headers.
+
 Interaction geometry is invariant on hover/focus: outer control rectangles must not enlarge or translate. Use color, border or inset shadows. Structural centering transforms may remain unchanged between states. Dragging and top-layer tooltip entry/exit are deliberate exceptions, not reasons to disable all transforms. CSSOM rules plus real hover/focus rectangle checks in check-control-motion.cjs enforce this across shared control families and scene media choices.
 
 - Inspect both themes and 320/390/768/1024/1440px, including long content and scrolled states.

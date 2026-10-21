@@ -45,33 +45,54 @@
   function setupSettings(){
     document.querySelectorAll('.sidebar .nav-item').forEach(button=>{const label=button.textContent.trim();button.setAttribute('aria-label',label);button.dataset.tip=label});
     const experience=document.getElementById('settings-experience');
-    const reading=group('settings-reading','阅读',experience),media=group('settings-media','场景与媒体',reading),notifications=group('settings-notifications','通知',media);
+    const reading=group('settings-reading','阅读体验',experience),media=group('settings-media','场景媒体',reading),notifications=group('settings-notifications','消息通知',media);
     for(const id of ['label-mode-zh','font-mode-system','time-mode-created','visual-hints-pinned'])reading.append(document.getElementById(id).closest('.setting-row'));
     for(const id of ['toast-mode-snackbar','toast-position-top'])notifications.append(document.getElementById(id).closest('.setting-row'));
-    const row=(label,control)=>`<div class="setting-row"><div class="setting-label">${label}</div>${control}</div>`;
-    reading.insertAdjacentHTML('beforeend',row('浏览目录',`<div class="seg" data-preference="readingNav">${[['top','顶部'],['left','左侧'],['off','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
-    media.insertAdjacentHTML('beforeend',row('视频自动播放','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaAutoplay" aria-label="视频自动播放"><span>开启</span></label>')+row('视频原生控件','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaControls" aria-label="视频原生控件"><span>显示</span></label>')+row('素材工具',`<div class="seg" data-preference="mediaTools">${[['auto','悬停'],['always','常显'],['hidden','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
+    const row=(label,description,control)=>`<div class="setting-row"><div><div class="setting-label">${label}</div><div class="setting-sub">${description}</div></div>${control}</div>`;
+    reading.insertAdjacentHTML('beforeend',row('浏览目录','首页结果与词条详情共用此位置；左侧目录在手机上改为顶部。',`<div class="seg" data-preference="readingNav">${[['top','顶部'],['left','左侧'],['off','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
+    media.insertAdjacentHTML('beforeend',row('视频自动播放','尝试有声播放；浏览器限制时静音，并保留声音开关。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaAutoplay" aria-label="视频自动播放"><span>开启</span></label>')+row('视频播放控件','显示浏览器提供的进度、音量和全屏控件。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaControls" aria-label="视频原生控件"><span>显示</span></label>')+row('素材操作工具','设置放大、保存等操作的显示方式；不影响声音开关。',`<div class="seg" data-preference="mediaTools">${[['auto','自动'],['always','常显'],['hidden','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
     const nav=document.querySelector('.settings-nav');
-    for(const [section,label,glyph] of [[reading,'阅读','list'],[media,'场景与媒体','quote'],[notifications,'通知','info']]){
+    const categories=[
+      ['settings-model','模型生成','scan-search','API、模型配置与查询规则','接口 key prompt 模型'],
+      ['settings-experience','界面布局','monitor','主题、首页布局与移动工具栏','主题 深色 浅色 首页 手机'],
+      ['settings-reading','阅读体验','book-open','内容显示、浏览目录与编辑提示','字体 标签 词性 时间 导航 提示'],
+      ['settings-media','场景媒体','images','视频播放与素材操作','图片 gif 视频 自动播放 声音 音量'],
+      ['settings-notifications','消息通知','bell','通知样式与显示位置','toast snackbar 提醒 弹窗'],
+      ['settings-data','数据同步','cloud','云端、备份与外部集成','备份 导入 导出 Anki 收藏夹'],
+      ['settings-maintenance','维护诊断','settings-2','日志、缓存与数据重置','缓存 清理 错误 日志 重置']
+    ];
+    nav.replaceChildren();
+    for(const [id,label,glyph,description,keywords] of categories){
+      const section=document.getElementById(id);section.dataset.searchKeywords=keywords;
+      const title=section.querySelector('.setting-title');
+      if(title.querySelector('span'))title.querySelector('span').textContent=label;else title.textContent=label;
+      let intro=section.querySelector('.setting-intro');if(!intro){intro=document.createElement('p');intro.className='setting-intro';title.after(intro)}intro.textContent=description;
       const button=document.createElement('button');button.className='settings-nav-item';button.dataset.settingsTarget=section.id;
-      button.innerHTML=`${icon(glyph)}<span><b>${label}</b></span>`;button.onclick=()=>scrollToSettingsSection(section.id,button);
-      nav.insertBefore(button,nav.querySelector('[data-settings-target="settings-data"]'));
+      button.type='button';button.innerHTML=`${icon(glyph)}<span><b>${label}</b></span>`;button.onclick=()=>scrollToSettingsSection(section.id,button);nav.append(button);
     }
-    const categories=[['settings-model','模型与生成'],['settings-experience','外观与布局'],['settings-reading','阅读'],['settings-media','场景与媒体'],['settings-notifications','通知'],['settings-data','数据与同步'],['settings-maintenance','维护与诊断']];
-    for(const [id,label] of categories){const button=nav.querySelector(`[data-settings-target="${id}"]`);button.querySelector('b').textContent=label;button.querySelector('small')?.remove();nav.append(button)}
-    experience.querySelector('.setting-title>span')?.replaceChildren(document.createTextNode('外观与布局'));
+    const maintenance=document.getElementById('settings-maintenance');
+    maintenance.append(...maintenance.querySelectorAll(':scope>.setting-row:has(.danger-btn)'));
+    const data=document.getElementById('settings-data');data.append(document.getElementById('anki-task-manager').closest('.setting-row'));
+    const hintRow=document.getElementById('visual-hints-pinned').closest('.setting-row');reading.append(hintRow);
+    hintRow.dataset.settingArea='编辑辅助';
+    document.getElementById('clear-scene-previews').closest('.setting-row').dataset.settingArea='本机维护';
+    maintenance.querySelector('.setting-row:has(.danger-btn)').dataset.settingArea='危险操作';
+    document.getElementById('anki-task-manager').closest('.setting-row').dataset.settingArea='外部集成';
     setupSettingGroupToggles();setupSettingsNavigation();
-    const search=document.createElement('label');search.className='settings-search';search.innerHTML=`${icon('search')}<input type="search" aria-label="搜索设置" placeholder="搜索设置"><span role="status"></span>`;document.querySelector('.settings-layout').before(search);
+    for(const [id,label] of categories){const section=document.getElementById(id);section.querySelector('.setting-collapse-btn')?.setAttribute('aria-label',`${section.classList.contains('collapsed')?'展开':'折叠'} ${label}`)}
+    const search=document.createElement('label');search.className='settings-search';search.innerHTML=`${icon('search')}<input type="search" aria-label="搜索设置" placeholder="搜索设置、功能或关键词"><span role="status" aria-live="polite"></span>`;document.querySelector('.settings-page-head').append(search);
+    const empty=document.createElement('div');empty.className='settings-empty';empty.hidden=true;empty.innerHTML='<strong>没有找到相关设置</strong><p>试试“主题”“播放”或“备份”。</p><button class="plain-btn" type="button">清空搜索</button>';document.querySelector('.settings-content').append(empty);
+    empty.querySelector('button').onclick=()=>{const input=search.querySelector('input');input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus({preventScroll:true})};
     search.querySelector('input').addEventListener('input',()=>{
       const query=normalizeSearch(search.querySelector('input').value);let matches=0;
       for(const section of document.querySelectorAll('.settings-content>.setting-group')){
         let count=0;const category=section.querySelector('.setting-title').textContent;
-        for(const item of section.querySelectorAll(':scope>.setting-row')){const shown=!query||normalizeSearch(category+' '+item.textContent).includes(query);item.hidden=!shown;if(shown)count++}
+        for(const item of section.querySelectorAll(':scope>.setting-row')){const shown=!query||normalizeSearch(category+' '+section.dataset.searchKeywords+' '+item.textContent).includes(query);item.hidden=!shown;if(shown)count++}
         section.hidden=Boolean(query&&!count);nav.querySelector(`[data-settings-target="${section.id}"]`).hidden=section.hidden;
-        if(query&&count){section.classList.remove('collapsed');section.querySelector('.setting-collapse-btn')?.setAttribute('aria-expanded','true')}
+        if(query&&count){section.classList.remove('collapsed');const toggle=section.querySelector('.setting-collapse-btn');toggle?.setAttribute('aria-expanded','true');toggle?.setAttribute('aria-label',`折叠 ${category}`)}
         matches+=count;
       }
-      search.querySelector('[role="status"]').textContent=query?`${matches} 项`:'';
+      search.querySelector('[role="status"]').textContent=query?`${matches} 项`:'';empty.hidden=!query||matches>0;
       updateSettingsNavActive();
     });
     document.querySelectorAll('[data-preference]').forEach(control=>control.addEventListener(control.tagName==='INPUT'?'change':'click',event=>{

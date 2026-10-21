@@ -183,12 +183,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.32.2',
+  version:'0.33.0',
   releaseDate:'2026-10-21',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.33.0',date:'2026-10-21',title:'设置导航与内容精炼',
+    items:['设置按模型生成、界面布局、阅读体验、场景媒体、消息通知、数据同步、维护诊断统一命名与排序，保留原有功能和深链接。','修复媒体设置行对齐、折叠按钮名称过期及滚动顶栏上方透出内容；桌面右对齐操作，手机上下排列。','搜索增加功能关键词匹配和无结果清空入口；编辑辅助、外部集成、危险操作明确分组，危险操作置底。'],
+  },
   {
     version:'0.32.2',date:'2026-10-21',title:'共用控件悬停边界修复',
     items:['从共用规则移除按钮、标签页、分段选择及输入框悬停/聚焦时的外扩和位移，覆盖场景素材切换、版本、筛选等控件。','悬停改用颜色、边线及内阴影反馈，保留拖拽、向内按压、提示气泡浮出等必要动效。','增加 CSSOM 动效约束和控件几何回归测试；将边界稳定规范写入项目 SOP。'],
@@ -7902,6 +7906,7 @@ function setupSettingGroupToggles(){
       event.stopPropagation();
       group.classList.toggle('collapsed');
       event.currentTarget.setAttribute('aria-expanded',String(!group.classList.contains('collapsed')));
+      event.currentTarget.setAttribute('aria-label',`${group.classList.contains('collapsed')?'展开':'折叠'} ${group.querySelector('.setting-title>span').textContent}`);
     });
     title.addEventListener('click',event=>{
       if(event.target.closest('button'))return;
