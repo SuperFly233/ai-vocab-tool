@@ -55,3 +55,12 @@ Scope count: **3 bug groups / 6 optimizations / 1 new function = 10 units**. Saf
 ## Persistent SOP
 
 User requested preferences are recorded in AGENTS.md, docs/ui-sop.md and PROJECT_CONTEXT.md. Generated reference is preserved under docs/design/. This is durable repository memory, not a claim to have changed global ChatGPT memory.
+
+## Production Acceptance (2026-10-21)
+
+- Implementation commit: `d16c7ea`, pushed to main.
+- Deployment: https://7ca9219c.ai-vocab-tool.pages.dev ; production: https://ai-vocab-tool.pages.dev/scenes .
+- Nine production resources match the local build byte-for-byte after line-ending normalization: HTML, app, CSS, scene UI/study/workspace, overlays, Anki UI and icon subset.
+- Actual production browser checks at 390px and 1440px confirm v0.32.0, quote/translation highlights, editor help, no horizontal overflow and no script errors.
+- Checks ran in isolated browser contexts with offline-mode local fixtures only; no production user entries or media were modified.
+- Production config still reports `ankiBridgeEnabled:false`; the independent database/real-Anki acceptance gate is unchanged.
