@@ -183,12 +183,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.33.0',
-  releaseDate:'2026-10-21',
+  version:'0.34.0',
+  releaseDate:'2026-10-22',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.34.0',date:'2026-10-22',title:'场景学习与统一联动底座',
+    items:['修复 320px 阅读场景操作栏撑宽；场景原句优先、素材限高，摘词、关联与制卡入口按学习顺序排列。','设置集中连接诊断与任务入口，原网页承载卡片预览、目标牌库和确认；本地助手只处理连接，不再提供第二套制卡界面。','云端任务和网页确认保护已迁移；换目标、旧预览及重启恢复不能沿用确认。生产发送仍关闭，等待独立登录后的完整链路验收。','Fushi 官方只读适配与图片、音频建卡底座已测试，网页来源选取和远程撤销仍在推进；不宣称已完成 Fushi 双向同步或 Anki 自身云同步。'],
+  },
   {
     version:'0.33.0',date:'2026-10-21',title:'设置导航与内容精炼',
     items:['设置按模型生成、界面布局、阅读体验、场景媒体、消息通知、数据同步、维护诊断统一命名与排序，保留原有功能和深链接。','修复媒体设置行对齐、折叠按钮名称过期及滚动顶栏上方透出内容；桌面右对齐操作，手机上下排列。','搜索增加功能关键词匹配和无结果清空入口；编辑辅助、外部集成、危险操作明确分组，危险操作置底。'],

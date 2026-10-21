@@ -13,6 +13,10 @@ cloud = FakeCloud()
 state = State(Path(temp.name), cloud=cloud)
 anki = FakeAnki()
 state.anki = lambda: anki
+state.fushi = type('FushiFixture', (), {
+    'call': lambda self, action: {'running':True,'version':'3.0.0'},
+    'sources': lambda self, kind: [{'id':kind+':1','key':'fixture','title':'clock','quote':'I clocked the detail. <script>unsafe</script>','sourceTitle':'Fushi fixture','queued':kind!='favorites','mediaAvailable':False}]
+})()
 job_id = '11111111-1111-4111-8111-111111111111'
 job = {'id': job_id, 'device_id': '', 'status': 'awaiting_device', 'payload': {'cards': [card(), {**card('second'), 'title': 'connect the dots', 'meaning': '把线索串起来'}]}}
 original = cloud.call

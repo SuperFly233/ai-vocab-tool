@@ -42,7 +42,7 @@ declare
 begin
  if uid is null then raise exception 'Authentication required' using errcode='42501'; end if;
  if octet_length(args::text)>280000 then raise exception 'Payload too large'; end if;
- if action='health' then return jsonb_build_object('schema',1,'bridgeVersion','0.1.0'); end if;
+ if action='health' then return jsonb_build_object('schema',1,'bridgeVersion','0.2.0','payloadVersions',jsonb_build_array(1,2)); end if;
  if action='register' then
   device:=(args->>'deviceId')::uuid;
   if length(trim(args->>'name')) not between 1 and 80 then raise exception 'Invalid device name'; end if;
@@ -61,15 +61,25 @@ begin
   device:=(args->>'deviceId')::uuid;
   if not exists(select 1 from public.anki_devices where id=device and user_id=uid) then raise exception 'Device unavailable' using errcode='42501'; end if;
   if jsonb_typeof(args->'payload'->'cards') is distinct from 'array' then raise exception 'Invalid cards'; end if;
+  if coalesce((args->'payload'->>'version') in ('1','2'),false)=false then raise exception 'Unsupported payload version'; end if;
   total:=jsonb_array_length(args->'payload'->'cards');
   if total not between 1 and 20 or octet_length((args->'payload')::text)>262144 or length(args->>'dedupe')<>64 then raise exception 'Invalid batch'; end if;
   select count(distinct c->>'key') into key_count from jsonb_array_elements(args->'payload'->'cards') c;
   if key_count<>total then raise exception 'Duplicate card keys'; end if;
   for card in select * from jsonb_array_elements(args->'payload'->'cards') loop
+   if jsonb_typeof(card) is distinct from 'object' or jsonb_typeof(card->'media') is distinct from 'array' then raise exception 'Invalid card structure'; end if;
+   if args->'payload'->>'version'='2' and (coalesce(card->>'sourceType','') not in ('lexi','fushi') or coalesce(length(card->>'sourceId'),0) not between 1 and 160) then raise exception 'Invalid source identity'; end if;
    if coalesce(length(card->>'key'),0) not between 1 and 160 or coalesce(length(card->>'title'),0) not between 1 and 400
     or coalesce(length(card->>'quote'),0)>4000 or coalesce(length(card->>'translation'),0)>4000 or coalesce(length(card->>'meaning'),0)>12000
     or coalesce(length(card->>'note'),0)>12000 then raise exception 'Invalid card'; end if;
+   if jsonb_array_length(card->'media')>10 then raise exception 'Too many media'; end if;
+   if exists(select 1 from jsonb_array_elements(card->'media') m where jsonb_typeof(m) is distinct from 'object'
+     or coalesce(m->>'id','') !~ '^[a-f0-9]{64}$'
+     or coalesce(m->>'mime','') not in ('image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm','audio/mpeg','audio/ogg','audio/wav')
+     or jsonb_typeof(m->'size') is distinct from 'number' or coalesce(m->>'size','') !~ '^[0-9]+$') then raise exception 'Invalid media'; end if;
+   if exists(select 1 from jsonb_array_elements(card->'media') m where (m->>'size')::numeric not between 1 and 20971520) then raise exception 'Media too large'; end if;
   end loop;
+  if (select coalesce(sum(size),0) from (select max((m->>'size')::numeric) size from jsonb_array_elements(args->'payload'->'cards') c cross join lateral jsonb_array_elements(c->'media') m group by m->>'id') refs)>52428800 then raise exception 'Batch media too large'; end if;
   insert into public.anki_jobs(user_id,device_id,dedupe,payload) values(uid,device,args->>'dedupe',args->'payload')
    on conflict(user_id,device_id,dedupe) do nothing returning * into job;
   if job.id is null then select * into job from public.anki_jobs where user_id=uid and device_id=device and dedupe=args->>'dedupe'; end if;

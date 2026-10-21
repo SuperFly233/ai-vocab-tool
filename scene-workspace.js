@@ -107,6 +107,10 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
       host.querySelector('.scene-query-workspace').insertAdjacentHTML('beforeend','<div class="scene-query-tasks" aria-live="polite"></div>');
       host.querySelector('.scene-associated h3').insertAdjacentHTML('afterend',`<button class="plain-btn scene-associate-command" type="button" data-associate-entry>${icon('list-plus')}关联已有词条</button>`);
       host.querySelector('[data-associate-entry]').onclick=()=>SceneStudy.openPicker(scene.groupId);
+      const workflow=document.createElement('nav');workflow.className='scene-learning-actions';workflow.setAttribute('aria-label','场景学习操作');
+      workflow.innerHTML=`<button class="plain-btn" type="button" data-scene-focus-query>${icon('search')}摘词查询</button>`;
+      workflow.append(host.querySelector('[data-associate-entry]'));host.querySelector('.scene-study-content').after(workflow);
+      workflow.querySelector('[data-scene-focus-query]').onclick=()=>{const field=host.querySelector('.scene-phrase-form input');field.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});field.focus({preventScroll:true})};
       const input=host.querySelector('.scene-phrase-form input'),basket=draft(scene.groupId);input.value=basket.text;
       host.querySelector('[data-clear-scene-basket]').onclick=()=>{const before=structuredClone(basket),account=uiOwner;basket.queries=[];basket.text='';input.value='';saveDraft(scene.groupId);renderBasket(scene.groupId);notify('待查词组已清空。','info','场景学习',true,{label:'撤销',run:()=>{if(account!==uiOwner||draft(scene.groupId).text||draft(scene.groupId).queries.length)return notify('待查内容已有变化，未覆盖。','warn','撤销');Object.assign(draft(scene.groupId),before);saveDraft(scene.groupId);if(selectedId()===scene.groupId||innerWidth>900){const current=document.querySelector('.scene-phrase-form input');if(current&&document.querySelector('.scene-workbench')?.dataset.sceneId===scene.id){current.value=before.text;renderBasket(scene.groupId)}}}})};
       input.oninput=()=>{basket.text=input.value;saveDraft(scene.groupId);updateQueryButton(scene.groupId)};
@@ -130,7 +134,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
       if(review){
         host.classList.add('scene-review-mode');host.querySelector('.scene-query-workspace').hidden=true;
         const associated=host.querySelector('.scene-associated');associated.hidden=!review.revealed;
-        associated.querySelector('[data-associate-entry]').hidden=true;
+        workflow.hidden=true;
         host.querySelector('.scene-workbench').insertAdjacentHTML('afterbegin',`<div class="scene-review-toolbar"><strong>场景回顾 ${review.index+1} / ${review.ids.length}</strong><button class="plain-btn" data-review-exit>${icon('x')}退出回顾</button></div>`);
         host.querySelector('.scene-workbench').insertAdjacentHTML('beforeend',`<footer class="scene-review-footer"><button class="icon-btn" data-review-prev aria-label="上一个场景" data-tip="上一个场景" ${review.index===0?'disabled':''}>${icon('arrow-left')}</button><button class="plain-btn primary-btn" data-review-reveal>${review.revealed?'收起释义':'展开关联释义'}</button><button class="icon-btn" data-review-next aria-label="下一个场景" data-tip="下一个场景" ${review.index===review.ids.length-1?'disabled':''}>${icon('arrow-up-right')}</button></footer>`);
         host.querySelector('[data-review-exit]').onclick=exitReview;host.querySelector('[data-review-reveal]').onclick=()=>{review.revealed=!review.revealed;render()};

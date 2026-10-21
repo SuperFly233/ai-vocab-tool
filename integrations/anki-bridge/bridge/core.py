@@ -14,7 +14,20 @@ FIELDS = ['LexiKey', 'Expression', 'Sentence', 'Translation', 'Meaning', 'Notes'
 FRONT = '<main class="lexi"><div class="expression">{{Expression}}</div><div class="sentence">{{Sentence}}</div><div class="media">{{Media}}</div></main>'
 BACK = '{{FrontSide}}<hr id="answer"><div class="translation">{{Translation}}</div><div class="meaning">{{Meaning}}</div><div class="notes">{{Notes}}</div><div class="source">{{Source}}</div>'
 CSS = '.card{font:20px/1.6 system-ui;text-align:left;color:#222;background:#fff;padding:20px}.nightMode.card{color:#eee;background:#191b1a}.expression{font-size:28px;font-weight:700}.sentence{margin:16px 0}.media img{max-width:100%;max-height:300px;object-fit:contain}mark{background:#ead38c;color:#222}.meaning{font-weight:600;margin:12px 0}.source,.notes{font-size:15px;opacity:.8;overflow-wrap:anywhere}hr{border:0;border-top:1px solid #aaa;margin:20px 0}'
-EXTENSIONS = {'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'video/mp4': '.mp4', 'video/webm': '.webm'}
+EXTENSIONS = {'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'video/mp4': '.mp4', 'video/webm': '.webm', 'audio/mpeg': '.mp3', 'audio/ogg': '.ogg', 'audio/wav': '.wav'}
+
+
+def media_mime(data):
+    if data.startswith(b'\x89PNG\r\n\x1a\n'): return 'image/png'
+    if data.startswith(b'\xff\xd8\xff'): return 'image/jpeg'
+    if data.startswith((b'GIF87a', b'GIF89a')): return 'image/gif'
+    if data.startswith(b'RIFF') and data[8:12] == b'WEBP': return 'image/webp'
+    if data.startswith(b'RIFF') and data[8:12] == b'WAVE': return 'audio/wav'
+    if data.startswith(b'OggS') and (b'OpusHead' in data[:4096] or b'vorbis' in data[:4096]): return 'audio/ogg'
+    if data.startswith(b'ID3') or (len(data)>2 and data[0]==255 and data[1]&0xe0==0xe0): return 'audio/mpeg'
+    if data[4:8] == b'ftyp': return 'video/mp4'
+    if data.startswith(b'\x1aE\xdf\xa3') and b'webm' in data[:4096]: return 'video/webm'
+    return ''
 
 
 class BridgeError(Exception):
@@ -64,6 +77,8 @@ def card_fields(card, owner, profile):
         name = filename(ref)
         if ref['mime'].startswith('image/'):
             media.append(f'<img src="{name}" alt="{html.escape(str(ref.get("name", "")), quote=True)}">')
+        elif ref['mime'].startswith('audio/'):
+            media.append(f'[sound:{name}]')
         else:
             media.append(f'<p><a href="{name}">视频原文件（播放取决于终端支持）</a></p>')
     url = urlparse(card['sourceUrl'])
@@ -77,7 +92,7 @@ class Anki:
     def __init__(self, port=8765, key='', transport=None):
         if not isinstance(port, int) or not 1024 <= port <= 65535:
             raise BridgeError('端口需在 1024–65535 之间。')
-        self.port, self.key = port, key
+        self.port, self.key = port, key or None
         self.http = httpx.Client(base_url=f'http://127.0.0.1:{port}', timeout=30, trust_env=False, transport=transport)
 
     def call(self, action, **params):
@@ -146,8 +161,7 @@ class Anki:
         data = data() if callable(data) else data
         if len(data) != ref['size'] or hashlib.sha256(data).hexdigest() != ref['id']:
             raise BridgeError('素材哈希或大小校验失败。')
-        signatures = {'image/png': data.startswith(b'\x89PNG\r\n\x1a\n'), 'image/jpeg': data.startswith(b'\xff\xd8\xff'), 'image/gif': data.startswith((b'GIF87a', b'GIF89a')), 'image/webp': data.startswith(b'RIFF') and data[8:12] == b'WEBP', 'video/mp4': data[4:8] == b'ftyp', 'video/webm': data.startswith(b'\x1aE\xdf\xa3')}
-        if not signatures[ref['mime']]:
+        if media_mime(data) != ref['mime']:
             raise BridgeError('素材实际格式与声明不符。')
         self.call('storeMediaFile', filename=name, data=base64.b64encode(data).decode())
 
@@ -157,6 +171,7 @@ class Journal:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute('create table if not exists operations (owner text, profile text, job text, card text, note_id text, operation text, before_json text, after_json text, primary key(owner,profile,job,card))')
+        self.db.execute('create table if not exists local_batches (owner text,id text,payload text,status text,results text,primary key(owner,id))')
         self.db.commit()
 
     def record(self, owner, profile, job, card, note_id, operation, before, after):
@@ -166,6 +181,13 @@ class Journal:
     def rows(self, owner, profile, job):
         rows = self.db.execute('select card,note_id,operation,before_json,after_json from operations where owner=? and profile=? and job=?', (owner, profile, job)).fetchall()
         return [dict(key=r[0], noteId=r[1], operation=r[2], before=json.loads(r[3]), after=json.loads(r[4])) for r in rows]
+
+    def save_batch(self, owner, job, cards, status, results):
+        self.db.execute('insert or replace into local_batches values(?,?,?,?,?)', (owner, job, json.dumps(cards, ensure_ascii=False), status, json.dumps(results, ensure_ascii=False)))
+        self.db.commit()
+
+    def batches(self, owner):
+        return [dict(id=r[0], cards=json.loads(r[1]), status=r[2], results=json.loads(r[3])) for r in self.db.execute('select id,payload,status,results from local_batches where owner=? order by rowid desc limit 50', (owner,))]
 
 
 def preview(anki, cards, owner, profile):

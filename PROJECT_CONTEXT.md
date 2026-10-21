@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.34.0: Lexi website is the ONLY learning/card-making workbench. User rejected a second full local system. Windows Bridge is only an independently authenticated loopback connector for Fushi/Anki plus setup/diagnostics. Reference and actual acceptance boundaries: docs/plans/2026-10-22-learning-workbench.md. Production DB migrations for tasks and website review have applied; production sending stays disabled until real full-chain acceptance. Do not revert to local card selection/editing as final UX. Fushi website source selection, remote safe undo and cloud E2E are still pending.
 
 - v0.33.0: Settings category metadata in experience-ui.js is the single source for nav labels, icons, section titles and search aliases. Keep existing IDs/deep links. Seven concise categories: 模型生成/界面布局/阅读体验/场景媒体/消息通知/数据同步/维护诊断. Static nav is populated at setup; do not maintain a second label list in HTML. Media rows use the same copy-wrapper/control grid as other preferences. Danger actions remain last; integration gate stays closed. Search preserves input DOM/IME and offers empty recovery. Settings header mask prevents content leaking above the floating app bar. Design/reference and acceptance: docs/plans/2026-10-21-settings-refinement.md.
 

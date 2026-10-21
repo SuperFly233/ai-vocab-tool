@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.33.0" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.33.0" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.33.0">
-<link rel="stylesheet" href="/styles.css?v=0.33.0-20261021.5">
+<link rel="icon" href="/favicon.svg?v=0.34.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.34.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.34.0">
+<link rel="stylesheet" href="/styles.css?v=0.34.0-20261022.1">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.33.0" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.34.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -53,7 +53,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.33.0" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.34.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -354,7 +354,7 @@
 
       <div class="setting-group" id="settings-data">
         <div class="setting-title">数据与同步</div>
-        <div class="setting-row"><div><div class="setting-label">Anki 集成 · Bridge 0.1</div><div class="setting-sub">手机提交制卡任务，电脑预览确认后写入。数据库验收前暂不开放发送。</div></div><button class="plain-btn" id="anki-task-manager"><i data-lucide="send"></i>制卡任务</button></div>
+        <div class="setting-row"><div><div class="setting-label">学习联动</div><div class="setting-sub">Lexi 与 Fushi 双入口，电脑预览确认后写入 Anki；本地连接在学习伴侣中检查。</div></div><div class="setting-actions"><button class="plain-btn" id="learning-integrations"><i data-lucide="settings-2"></i>连接与设备</button><button class="plain-btn" id="anki-task-manager"><i data-lucide="list"></i>制卡任务</button></div></div>
         <div class="setting-row"><div><div class="setting-label">当前存储</div><div class="setting-sub" id="storage-status">localStorage，本机本浏览器记录。</div></div></div>
         <div class="setting-row cloud-row">
           <div><div class="setting-label">云端同步</div><div class="setting-sub" id="settings-sync-status">登录后会显示同步状态和冲突处理结果。</div></div>
@@ -613,24 +613,24 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.33.0"></script>
-<script src="/icons.js?v=0.33.0"></script>
-<script src="/history-data.js?v=0.33.0"></script>
-<script src="/settings-data.js?v=0.33.0"></script>
-<script src="/storage-state.js?v=0.33.0"></script>
-<script src="/lookup-tasks.js?v=0.33.0"></script>
-<script src="/sync-state.js?v=0.33.0"></script>
-<script src="/learning-tools.js?v=0.33.0"></script>
-<script src="/scene-data.js?v=0.33.0-20261021.5"></script>
-<script src="/scene-media.js?v=0.33.0-20261021.5"></script>
-<script src="/ui-overlays.js?v=0.33.0-20261021.5"></script>
-<script src="/scene-preview.js?v=0.33.0-20261021.5"></script>
-<script src="/scene-ui.js?v=0.33.0-20261021.5"></script>
-<script src="/app.js?v=0.33.0-20261021.5"></script>
-<script src="/scene-study.js?v=0.33.0-20261021.5"></script>
-<script src="/anki-bridge-ui.js?v=0.33.0-20261021.5"></script>
-<script src="/scene-workspace.js?v=0.33.0-20261021.5"></script>
-<script src="/experience-ui.js?v=0.33.0-20261021.5"></script>
-<script src="/request-ui.js?v=0.33.0-20261021.5"></script>
+<script src="/vendor/supabase.js?v=0.34.0"></script>
+<script src="/icons.js?v=0.34.0"></script>
+<script src="/history-data.js?v=0.34.0"></script>
+<script src="/settings-data.js?v=0.34.0"></script>
+<script src="/storage-state.js?v=0.34.0"></script>
+<script src="/lookup-tasks.js?v=0.34.0"></script>
+<script src="/sync-state.js?v=0.34.0"></script>
+<script src="/learning-tools.js?v=0.34.0"></script>
+<script src="/scene-data.js?v=0.34.0-20261022.1"></script>
+<script src="/scene-media.js?v=0.34.0-20261022.1"></script>
+<script src="/ui-overlays.js?v=0.34.0-20261022.1"></script>
+<script src="/scene-preview.js?v=0.34.0-20261022.1"></script>
+<script src="/scene-ui.js?v=0.34.0-20261022.1"></script>
+<script src="/app.js?v=0.34.0-20261022.1"></script>
+<script src="/scene-study.js?v=0.34.0-20261022.1"></script>
+<script src="/anki-bridge-ui.js?v=0.34.0-20261022.1"></script>
+<script src="/scene-workspace.js?v=0.34.0-20261022.1"></script>
+<script src="/experience-ui.js?v=0.34.0-20261022.1"></script>
+<script src="/request-ui.js?v=0.34.0-20261022.1"></script>
 </body>
 </html>

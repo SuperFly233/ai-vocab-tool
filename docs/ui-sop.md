@@ -27,3 +27,7 @@ No change: close directly. Changed: confirm, then show discard Toast with undo. 
 ## Delivery
 
 Report actual bugs fixed, optimizations and new functions separately; include tests, screenshots, commit and deployment. Browser mobile emulation is not a real iPhone test. Keep Anki production gate closed until its independent migration and real-deck acceptance.
+
+## Integration Workflow Ownership
+
+Lexi's existing website is the sole learning workspace, including external-source selection, card preview, target deck, confirmation and results. A local connector may expose device login, connection configuration and diagnostics, but must not grow a second scene library or card editor. Browser and connector sessions authenticate independently; never inherit credentials by reading another app's browser storage. External software writes require an explicit, current, target-bound preview confirmation.

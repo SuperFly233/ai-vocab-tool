@@ -153,6 +153,11 @@ class Tests(unittest.TestCase):
         self.assertFalse(self.anki.notes)
 
     def test_transport_diagnostics(self):
+        def no_key(request):
+            self.assertIsNone(json.loads(request.content)['key'])
+            return httpx.Response(200,json={'result':6,'error':None})
+        unkeyed=Anki(8765,transport=httpx.MockTransport(no_key))
+        self.assertEqual(unkeyed.call('version'),6);unkeyed.http.close()
         for status, data in [(404, {}), (403, {}), (200, {'unexpected': True})]:
             with self.subTest(status=status):
                 anki = Anki(8765, transport=httpx.MockTransport(lambda req: httpx.Response(status, json=data)))
