@@ -8003,6 +8003,7 @@ function setupSettingsNavigation(){
   updateSettingsNavActive();
 }
 function updateSettingsNavActive(){
+  if(activeView!=='settings')return;
   const sections=[...document.querySelectorAll('.settings-content .setting-group[id]')].filter(section=>!section.hidden);
   if(!sections.length)return;
   const nav=document.querySelector('.settings-nav'),mobile=window.matchMedia('(max-width:900px)').matches;

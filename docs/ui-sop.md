@@ -18,6 +18,8 @@ Each browsing page owns independent filter/sort preferences and its own reset ac
 
 Return-to-top is a shared lower-right action, hidden at approximately the first 5 percent and on non-scrollable views. It targets the top active dialog's scroll region when present, otherwise the document. It must not be a permanent settings-header button. All pages share an opaque top mask; never cover the home query panel to fix header leakage.
 
+Measure the mobile bottom navigation's actual rectangle when positioning return-to-top; it must sit above the navigation, not cover its last tab. Initialize settings scroll highlighting only while settings is visible, then refresh it after the active view/layout changes. Assert the initial category as well as scroll following; a stale highlight can otherwise pass overflow tests.
+
 Settings categories must share one metadata source for navigation labels, section titles and search aliases; preserve stable section IDs. Use consistent concise naming, then explicit content subgroups rather than inconsistent navigation subtitles. Keep destructive actions last. Every preference row uses a copy wrapper plus control track; mobile stacks the same DOM. Inspect scrolled screenshots, including the area above floating headers.
 
 Interaction geometry is invariant on hover/focus: outer control rectangles must not enlarge or translate. Use color, border or inset shadows. Structural centering transforms may remain unchanged between states. Dragging and top-layer tooltip entry/exit are deliberate exceptions, not reasons to disable all transforms. CSSOM rules plus real hover/focus rectangle checks in check-control-motion.cjs enforce this across shared control families and scene media choices.

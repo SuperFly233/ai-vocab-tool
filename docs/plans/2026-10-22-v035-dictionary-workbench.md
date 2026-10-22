@@ -12,16 +12,16 @@ Design reference: docs/design/learning-dictionary-v035-reference.png. This is a 
 | --- | --- | --- |
 | R1 | Mobile overflow, keyboard and bounded hints | Five-width browser checks passed; physical iPhone pending |
 | R2 | Nested dismissals, dirty confirmation and guarded Undo | Dictionary selection/discard/Undo passed; full modal-family regression pending |
-| R3 | IME, duplicate submit and scene-specific queue recovery | Pending |
+| R3 | IME, duplicate submit and scene-specific queue recovery | Lookup data, IME/source and six reading-workspace regressions passed |
 | R4 | Independent highlights, dictionary snapshots and sync isolation | Highlight/browser and immutable snapshot tests passed; regression breadth pending |
 | R5 | Owner/device/lease authorization and official-command whitelist | Migrations applied; isolated security tests and real owned-device acceptance passed |
 | R6 | Lost receipts, duplicates, partial results and safe Anki Undo | 40 mock tests plus real dictionary duplicate/receipt/Undo passed; packaged path pending |
-| O1 | Scene workflow and low-frequency action menus | Pending |
-| O2 | Core-first reading, bounded media and aligned metadata | Pending |
+| O1 | Scene workflow and low-frequency action menus | Existing workflow preserved and regression passed; unavailable integrations hidden |
+| O2 | Core-first reading, bounded media and aligned metadata | Responsive long-content and reading-workspace checks passed |
 | O3 | Unified highlight authoring and matching feedback | Existing multi-fragment and granular help checks passed |
-| O4 | Consolidated settings and actionable connection states | Pending |
+| O4 | Consolidated settings and actionable connection states | Website settings passed; external connection UI implemented on preview, packaged path pending |
 | O5 | Unified front/back preview, target and dictionary selection | Five-width dictionary/send/preview tests passed; dictionary update-diff refinement pending |
-| O6 | Visible-only task polling without focus/scroll loss | In progress |
+| O6 | Visible-only task polling without focus/scroll loss | Implemented; ten task-UI regressions passed; account switch closes stale task dialog |
 | N1 | Installed OALDPE reading in website | Implemented and browser-tested on acceptance preview; production gated |
 | N2 | Private immutable snapshots and offline reading | Real cloud snapshot and browser offline/account-isolation checks passed; production gated |
 | N3 | Independent Lexi Scene v2 dictionary card fields | Real dedicated note, duplicate skip and safe Undo passed; packaged path pending |
@@ -60,6 +60,8 @@ Final website simulation: all five widths and both themes passed the complete se
 Packaging blocker: system Python 3.12.4 PyInstaller process crashed with 0xC0000005. A separate project-only venv using bundled Python 3.12.14 and the same locked wheels passed all 40 tests and built an EXE, but --self-test hung before loopback startup. Only the two verified self-test processes were stopped. Diagnostic rebuild then also exited with 0xC0000005. Application log identified python312.dll for the first crash; no new recent System bugcheck/Kernel-Power event was found at that inspection. Cause is unproven. Stop further package-build attempts for now; do not distribute the unverified EXE. No system Python, driver, Fushi or Anki configuration was upgraded. Packaging now requires a successful self-test receipt bound to the exact EXE hash/version, preventing accidental shipment of this artifact. Production release and production gate opening remain pending, even though source-helper cloud acceptance succeeded.
 
 Latest preview: https://287a78d4.ai-vocab-tool.pages.dev. Six deployed static-resource hashes matched local dist. Anonymous preview task health returns 401 (login required), production returns 503 (still disabled). This is not a production v0.35 release. The acceptance ledger remains partial; do not count all 18 units as delivered.
+
+First-stage release: code 530211a pushed to main and v0.35.0 deployed at https://a588f045.ai-vocab-tool.pages.dev. All 28 production static hashes matched local dist; isolated 390/1440 browser checks passed, and external task gate remained 503. Source/private credentials and unverified packages were excluded. Production screenshot inspection then caught a mobile top-button/bottom-navigation overlap and stale initial settings highlight; a follow-up fix and explicit assertions are being verified before final acceptance. Additional regressions passed: responsive long content, six reading-workspace cases, twenty website/helper integration UI cases, ten Fushi source-selection cases, four modal-dismissal cases, six notice-priority cases and eight control-motion cases. Integration 0.35.1/Bridge 0.3 is not released.
 
 v0.35.0 delivers main-project improvements with unavailable external actions gated. v0.35.1 / Bridge 0.3 opens dictionary/card services only after migrations, security tests, Windows package and real dedicated-deck acceptance. Neither phase is complete until tested, committed, pushed, deployed and production-verified. Physical iPhone, actual media playback and Anki own sync must be reported separately.
 

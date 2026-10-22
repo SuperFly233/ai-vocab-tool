@@ -16,6 +16,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
   for(const view of ['history','folders','scenes','settings']){
    await page.evaluate(view=>{showView(view,null,{focus:false});if(view==='folders')openFolderView('liked')},view);await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.waitForFunction(()=>document.querySelector('.scroll-top-button')?.hidden);
    assert.equal(await page.locator('.settings-page-head [onclick="scrollSettingsToTop()"]').count(),0);
+   if(view==='settings')await page.waitForFunction(()=>document.querySelector('.settings-nav-item.active')?.dataset.settingsTarget==='settings-model');
    await page.evaluate(async()=>{scrollTo({top:(document.documentElement.scrollHeight-innerHeight)*.04,behavior:'instant'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))});assert.equal(await page.locator('.scroll-top-button').isVisible(),false,'Top five percent stays uncluttered');
    await page.evaluate(()=>scrollTo({top:Math.max(500,(document.documentElement.scrollHeight-innerHeight)*.25),behavior:'instant'}));
    await page.waitForFunction(()=>{const el=document.scrollingElement;return el.scrollHeight<=el.clientHeight+1||!document.querySelector('.scroll-top-button').hidden});
@@ -23,7 +24,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
    assert.equal(measure.maskPosition,'fixed');assert.ok(measure.maskHeight>=measure.header-1);assert.equal(measure.overflow,false,`${view} overflow`);
    if(measure.toolTop!==undefined)assert.ok(Math.abs(measure.toolTop-measure.header-8)<3,`${view} sticky ${JSON.stringify(measure)}`);
    await page.screenshot({path:`tmp/dialog-qa/browse-consistency/${view}-${width}-${theme}.png`});
-   if(await page.locator('.scroll-top-button').isVisible()){await page.locator('.scroll-top-button').click();await page.waitForFunction(()=>scrollY<5)}
+   if(await page.locator('.scroll-top-button').isVisible()){if(width<=900)assert.equal(await page.evaluate(()=>document.querySelector('.scroll-top-button').getBoundingClientRect().bottom<document.querySelector('.sidebar').getBoundingClientRect().top),true,'Top action stays above bottom navigation');await page.locator('.scroll-top-button').click();await page.waitForFunction(()=>scrollY<5)}
   }
   await page.evaluate(()=>showView('history',null,{focus:false}));await page.locator('[data-reset-browse="history"]').click();assert.equal(await page.evaluate(()=>historyState.sort),'updated');assert.equal(await page.evaluate(()=>getSettings().viewPreferences.scenes.value.sort),'created','History reset does not reset scenes');
   await page.evaluate(()=>setRememberViewFilters(false));await page.reload();await page.waitForFunction(()=>typeof ExperienceUI!=='undefined');assert.equal(await page.evaluate(()=>getSettings().rememberViewFilters),false);assert.equal(await page.evaluate(()=>ViewPreferences.get('scenes',getSettings()).sort),'updated');

@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),{createHash}=require('node:crypto');
 const sha=value=>createHash('sha256').update(value).digest('hex');
 (async()=>{
- const preview='https://287a78d4.ai-vocab-tool.pages.dev';
+ const preview=process.env.QA_ORIGIN||'https://integration-acceptance.ai-vocab-tool.pages.dev';
  for(const file of ['index.html','dictionary-ui.js','anki-bridge-ui.js','fushi-workspace.js','experience-ui.js','styles.css']){
   const response=await fetch(`${preview}/${file}`,{signal:AbortSignal.timeout(20000)});assert.equal(response.status,200,file);assert.equal(sha(Buffer.from(await response.arrayBuffer())),sha(fs.readFileSync(`dist/${file}`)),`${file} deployed bytes`);
  }
