@@ -14,6 +14,32 @@
     if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:new Date().toISOString()}))throw new Error('场景未能写入本机。');
     if(activeView==='scenes')renderHub();
   }
+  function importFushi(rows,account){
+    if((cloudUser?.id||'local')!==account)throw new Error('账号已切换，未导入其他账号的来源。');
+    if(!Array.isArray(rows)||!rows.length||rows.length>20)throw new Error('每次选择 1–20 个场景。');
+    const settings=getSettings(),existing=new Set(sceneGroups().map(row=>row.scene.groupId)),deleted=new Set((settings.sceneLibraryTombstones||[]).map(row=>row.key)),added=[];
+    const clock=new Date().toISOString();let skipped=0;
+    for(const row of rows){
+      if(!row||!/^[a-f0-9]{64}$/.test(row.key)||typeof row.id!=='string'||!row.id||row.id.length>160||typeof row.quote!=='string'||!row.quote.trim()||row.quote.length>4000)throw new Error('Fushi 来源缺少原句或稳定标识，未导入。');
+      const id=`fushi-${row.key}`;if(existing.has(id)||deleted.has(id)){skipped++;continue}existing.add(id);
+      const timestamp=new Date(typeof row.createdAt==='number'?row.createdAt:row.createdAt||clock),createdAt=Number.isFinite(timestamp.getTime())?timestamp.toISOString():clock;
+      added.push(SceneData.normalizeScene({id,groupId:id,title:row.title||row.sourceTitle||'',quote:row.quote,sourceTitle:row.sourceTitle||'Fushi',chapter:row.chapter||'',exampleHighlights:row.title?[row.title]:[],createdAt,updatedAt:clock,media:[],externalSource:{type:'fushi',id:row.id,key:row.key,queued:row.queued===true}}));
+    }
+    if(!added.length)return {added:0,skipped};
+    const data=SceneData.reconcile([...(settings.sceneLibrary||[]),...added],settings.sceneLibraryTombstones);
+    if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:clock}))throw new Error('场景未能写入本机，选取内容仍保留。');
+    renderHub();syncPending();
+    notify(`已导入 ${added.length} 个 Fushi 场景，跳过 ${skipped} 个已有或已删除来源。`,'good','Fushi',true,{label:'撤销',run:()=>{
+      if(account!==(cloudUser?.id||'local'))return notify('账号已切换，未撤销导入。','warn','撤销');
+      const latest=getSettings(),current=SceneData.reconcile(latest.sceneLibrary,latest.sceneLibraryTombstones).items,links=getHistory().flatMap(item=>scenes(item));
+      const removable=added.filter(item=>JSON.stringify(current.find(row=>row.id===item.id))===JSON.stringify(item)&&!links.some(row=>row.groupId===item.groupId));
+      if(!removable.length)return notify('导入内容已有修改、关联或删除，未撤销。','info','撤销');
+      const now=new Date(Math.max(Date.now(),Date.parse(clock)+1)).toISOString(),restored=SceneData.reconcile(current,[...(latest.sceneLibraryTombstones||[]),...removable.map(row=>({key:row.id,deletedAt:now}))]);
+      if(!setSettings({...latest,sceneLibrary:restored.items,sceneLibraryTombstones:restored.tombstones,updatedAt:now}))return notify('撤销未能保存。','warn','撤销');
+      renderHub();notify(`已撤销 ${removable.length} 个未修改场景，保留 ${added.length-removable.length} 个后续变化。`,'info','撤销');
+    }});
+    return {added:added.length,skipped};
+  }
   function action(name,label,attributes=''){
     const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
@@ -210,7 +236,7 @@
   function saveToHistory(id,scene,{share=false,defaults=null}={}){
     const item=historyItem(id);if(!item)throw new Error('词条已被删除，场景尚未保存。');
     const data=SceneData.reconcile([...(item.scenes||[]).filter(row=>row.id!==scene.id),scene],item.sceneTombstones);
-    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','heroMedia'];
+    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','heroMedia','externalSource'];
     const shared=Object.fromEntries(fields.map(key=>[key,scene[key]])),changed=[];
     const previousDefaults=defaults?library().find(row=>row.groupId===scene.groupId):null;
     // Only inherited values follow scene defaults; association-specific edits stay independent.
@@ -635,6 +661,6 @@
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,field,timeMeta,attachPending,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,field,timeMeta,attachPending,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

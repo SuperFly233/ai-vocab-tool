@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.34.1" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.34.1" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.34.1">
-<link rel="stylesheet" href="/styles.css?v=0.34.1-20261022.1">
+<link rel="icon" href="/favicon.svg?v=0.35.0" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.35.0" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.35.0">
+<link rel="stylesheet" href="/styles.css?v=0.35.0">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -36,7 +36,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.34.1" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.35.0" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -53,7 +53,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.34.1" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.35.0" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -171,12 +171,13 @@
           <div class="history-filter" data-filter-key="time"></div>
         </div>
         <div class="history-sortbar" id="history-sortbar">
-          <button class="sort-btn active" data-sort="updated" onclick="setHistorySort('updated')">修改 <span>↓</span></button>
-          <button class="sort-btn" data-sort="created" onclick="setHistorySort('created')">创建 <span>↓</span></button>
-          <button class="sort-btn" data-sort="text" onclick="setHistorySort('text')">词条 <span>↑</span></button>
-          <button class="sort-btn" data-sort="language" onclick="setHistorySort('language')">语言 <span>↑</span></button>
-          <button class="sort-btn" data-sort="rolls" onclick="setHistorySort('rolls')">版本 <span>↓</span></button>
-          <button class="sort-btn" data-sort="followups" onclick="setHistorySort('followups')">追问 <span>↓</span></button>
+          <button class="sort-btn active" data-sort="updated" onclick="setHistorySort('updated')">修改 <span></span></button>
+          <button class="sort-btn" data-sort="created" onclick="setHistorySort('created')">创建 <span></span></button>
+          <button class="sort-btn" data-sort="text" onclick="setHistorySort('text')">词条 <span></span></button>
+          <button class="sort-btn" data-sort="language" onclick="setHistorySort('language')">语言 <span></span></button>
+          <button class="sort-btn" data-sort="rolls" onclick="setHistorySort('rolls')">版本 <span></span></button>
+          <button class="sort-btn" data-sort="followups" onclick="setHistorySort('followups')">追问 <span></span></button>
+          <button class="icon-btn browse-reset" data-reset-browse="history" onclick="resetBrowsePreferences('history')" aria-label="重置历史筛选与排序" data-tip="重置筛选与排序"><i data-lucide="rotate-ccw"></i></button>
         </div>
       </div>
       <div class="history-selection-bar" id="history-selection-bar" hidden>
@@ -214,6 +215,7 @@
           </label>
           <select id="folder-search-scope" aria-label="搜索范围" onchange="setFolderSearchScope(this.value)"><option value="all">全部收藏</option><option value="current">当前收藏夹</option></select>
           <select id="folder-sort" aria-label="收藏排序" onchange="setFolderSort(this.value)"><option value="updated">最近更新</option><option value="title">词条名称</option><option value="created">创建时间</option></select>
+          <button class="icon-btn browse-reset" data-reset-browse="folders" onclick="resetBrowsePreferences('folders')" aria-label="重置收藏筛选与排序" data-tip="重置筛选与排序"><i data-lucide="rotate-ccw"></i></button>
       </div>
       <div id="folder-match-list" class="folder-match-list"></div>
       <div class="folder-layout">
@@ -230,7 +232,6 @@
     <div class="settings-wrap">
       <header class="settings-page-head">
         <div><h1>设置</h1></div>
-        <button class="icon-btn" type="button" data-tip="回到顶部" aria-label="回到设置顶部" onclick="scrollSettingsToTop()"><i data-lucide="arrow-up"></i></button>
       </header>
       <div class="settings-layout">
         <nav class="settings-nav" aria-label="设置分类">
@@ -330,14 +331,18 @@
           </div>
         </div>
         <div class="setting-row">
-          <div><div class="setting-label">全局隐藏提示气泡</div><div class="setting-sub">隐藏按钮、阅读摘要和编辑字段的提示；不影响操作通知、错误提醒和撤销。</div></div>
+          <div><div class="setting-label">隐藏编辑气泡</div><div class="setting-sub">仅隐藏编辑字段聚焦时浮出的说明；不影响鼠标悬停提示和操作通知。</div></div>
           <label class="capsule-switch">
             <input id="hints-hidden" type="checkbox" role="switch" onchange="setHintsHidden(this.checked)">
             <span>隐藏</span>
           </label>
         </div>
         <div class="setting-row">
-          <div><div class="setting-label">可视化填写提示</div><div class="setting-sub">提示开启时，可选择聚焦显示气泡或在字段下方常驻显示填写规则。</div></div>
+          <div><div class="setting-label">隐藏悬停提示</div><div class="setting-sub">单独控制按钮及阅读目录的鼠标悬停、键盘聚焦提示，默认保留。</div></div>
+          <label class="capsule-switch"><input id="tooltips-hidden" type="checkbox" role="switch" onchange="setTooltipsHidden(this.checked)"><span>隐藏</span></label>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">常驻填写说明</div><div class="setting-sub">在编辑字段下方常驻显示填写规则，独立于浮出气泡与悬停提示。</div></div>
           <label class="capsule-switch">
             <input id="visual-hints-pinned" type="checkbox" role="switch" onchange="setVisualHintsPinned(this.checked)">
             <span>常驻显示</span>
@@ -620,24 +625,27 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.34.1"></script>
-<script src="/icons.js?v=0.34.1"></script>
-<script src="/history-data.js?v=0.34.1"></script>
-<script src="/settings-data.js?v=0.34.1"></script>
-<script src="/storage-state.js?v=0.34.1"></script>
-<script src="/lookup-tasks.js?v=0.34.1"></script>
-<script src="/sync-state.js?v=0.34.1"></script>
-<script src="/learning-tools.js?v=0.34.1"></script>
-<script src="/scene-data.js?v=0.34.1-20261022.1"></script>
-<script src="/scene-media.js?v=0.34.1-20261022.1"></script>
-<script src="/ui-overlays.js?v=0.34.1-20261022.1"></script>
-<script src="/scene-preview.js?v=0.34.1-20261022.1"></script>
-<script src="/scene-ui.js?v=0.34.1-20261022.1"></script>
-<script src="/app.js?v=0.34.1-20261022.1"></script>
-<script src="/scene-study.js?v=0.34.1-20261022.1"></script>
-<script src="/anki-bridge-ui.js?v=0.34.1-20261022.1"></script>
-<script src="/scene-workspace.js?v=0.34.1-20261022.1"></script>
-<script src="/experience-ui.js?v=0.34.1-20261022.1"></script>
-<script src="/request-ui.js?v=0.34.1-20261022.1"></script>
+<script src="/vendor/supabase.js?v=0.35.0"></script>
+<script src="/icons.js?v=0.35.0"></script>
+<script src="/history-data.js?v=0.35.0"></script>
+<script src="/settings-data.js?v=0.35.0"></script>
+<script src="/view-preferences.js?v=0.35.0"></script>
+<script src="/storage-state.js?v=0.35.0"></script>
+<script src="/lookup-tasks.js?v=0.35.0"></script>
+<script src="/sync-state.js?v=0.35.0"></script>
+<script src="/learning-tools.js?v=0.35.0"></script>
+<script src="/scene-data.js?v=0.35.0"></script>
+<script src="/scene-media.js?v=0.35.0"></script>
+<script src="/ui-overlays.js?v=0.35.0"></script>
+<script src="/scene-preview.js?v=0.35.0"></script>
+<script src="/scene-ui.js?v=0.35.0"></script>
+<script src="/app.js?v=0.35.0"></script>
+<script src="/scene-study.js?v=0.35.0"></script>
+<script src="/anki-bridge-ui.js?v=0.35.0"></script>
+<script src="/fushi-workspace.js?v=0.35.0"></script>
+<script src="/scene-workspace.js?v=0.35.0"></script>
+<script src="/dictionary-ui.js?v=0.35.0"></script>
+<script src="/experience-ui.js?v=0.35.0"></script>
+<script src="/request-ui.js?v=0.35.0"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ const {chromium,request}=require(process.env.PLAYWRIGHT_PATH||'playwright');
   const context=await browser.newContext({viewport:{width,height:844}});page=await context.newPage();
   await page.addInitScript(()=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme','dark')});
   await page.goto(`${base}/settings`,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined');assert.equal(await page.evaluate(()=>APP_INFO.version),version);
-  await page.getByRole('searchbox',{name:'搜索设置'}).fill('全局隐藏');await page.locator('#hints-hidden').check();assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);
+  await page.getByRole('searchbox',{name:'搜索设置'}).fill('隐藏编辑气泡');await page.locator('#hints-hidden').check();assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);
   await page.goto(`${base}/scenes`,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined');
   await page.evaluate(async()=>{await cloudInitPromise;const now=new Date().toISOString();setSettings({...getSettings(),sceneLibrary:[{id:'qa-hints',groupId:'qa-hints',quote:'I clocked a thorn.',translation:'我注意到眼中钉。',createdAt:now,updatedAt:now}]});SceneWorkspace.render();await SceneUI.open('library','','qa-hints')});
   const input=page.locator('#scene-editor [name="exampleHighlights"]');await input.fill('clocked\nthorn');await input.focus();assert.equal(await page.locator('.visual-hint-bubble:popover-open').count(),0);

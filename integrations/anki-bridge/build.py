@@ -5,11 +5,16 @@ import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
+from bridge import __version__
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 OUT = ROOT / 'tmp' / 'anki-bridge-build'
 OUT.mkdir(parents=True, exist_ok=True)
+NAME='LexiAnkiBridge-'+__version__
+diagnostic='--diagnostic' in sys.argv
+if diagnostic:NAME+='-diagnostic'
+(OUT/(NAME+'.selftest.json')).unlink(missing_ok=True)
 os.environ['PYINSTALLER_CONFIG_DIR'] = str(OUT / 'cache')
 os.environ['PYTHONHASHSEED'] = '0'
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
@@ -30,7 +35,7 @@ for dist in metadata.distributions():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, target)
 (OUT / 'THIRD_PARTY_NOTICES.json').write_text(json.dumps(notices, ensure_ascii=False, indent=2), 'utf-8')
-subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onefile', '--noconsole', '--name', 'LexiAnkiBridge-0.2.0', '--specpath', str(OUT), '--workpath', str(OUT / 'work'), '--distpath', str(OUT), '--paths', str(HERE), '--add-data', str(HERE / 'web') + ';web', '--add-data', str(ROOT / 'icons.js') + ';web', '--add-data', str(ROOT / 'favicon.svg') + ';web', '--hidden-import', 'keyring.backends.Windows', str(HERE / 'run.py')], check=True, cwd=ROOT)
+subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onefile', '--console' if diagnostic else '--noconsole', '--name', NAME, '--specpath', str(OUT), '--workpath', str(OUT / 'work'), '--distpath', str(OUT), '--paths', str(HERE), '--add-data', str(HERE / 'web') + ';web', '--add-data', str(ROOT / 'icons.js') + ';web', '--add-data', str(ROOT / 'favicon.svg') + ';web', '--hidden-import', 'keyring.backends.Windows', str(HERE / 'run.py')], check=True, cwd=ROOT)
 shutil.copyfile(HERE / 'README.md', OUT / 'README.md')
 shutil.copyfile(ROOT / 'node_modules' / 'lucide' / 'LICENSE', licenses / 'lucide-LICENSE')
-print(OUT / 'LexiAnkiBridge-0.2.0.exe')
+print(OUT / (NAME+'.exe'))

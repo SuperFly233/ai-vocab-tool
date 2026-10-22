@@ -3,6 +3,7 @@ import vm from 'node:vm';
 
 await import('../settings-data.js');
 await import('../scene-data.js');
+await import('../view-preferences.js');
 
 const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
 const start=app.indexOf('function normalizeSettings');
@@ -12,6 +13,7 @@ if(start<0||end<0)throw new Error('Could not locate production settings function
 const context={
   SettingsData:globalThis.SettingsData,
   SceneData:globalThis.SceneData,
+  ViewPreferences:globalThis.ViewPreferences,
   DEFAULT_API_PROFILE:{id:'default',name:'默认配置',apiUrl:'',apiKey:'',model:''},
   DEFAULT_SETTINGS:{apiUrl:'',apiKey:'',model:'',activeApiProfileId:'default',apiProfiles:[],apiProfileTombstones:[],apiProfileOrder:['default'],apiProfileOrderUpdatedAt:'',labelMode:'zh',fontMode:'system',historyTimeMode:'created',homeStickyMode:'compact',visualHintsPinned:false,modelPrompt:'',favoriteFolders:[],favoriteFolderTombstones:[],favoriteFolderOrder:[],favoriteFolderOrderUpdatedAt:''},
   FOLDER_LIKED_ID:'liked',
@@ -39,6 +41,9 @@ const legacy={
 };
 
 const first=context.normalizeSettings(legacy);
+expect(context.normalizeSettings({rememberViewFilters:'false'}).rememberViewFilters===false,'Legacy string false disables filter memory');
+expect(context.normalizeSettings({}).rememberViewFilters===true,'Filter memory defaults on for existing accounts');
+expect(context.normalizeSettings({hintsHidden:true}).tooltipsHidden===false,'Hiding editor hints must not hide hover tooltips');
 await new Promise(resolve=>setTimeout(resolve,15));
 const second=context.normalizeSettings(legacy);
 expect(JSON.stringify(first)===JSON.stringify(second),'Repeated legacy normalization must not depend on wall-clock time or randomness');

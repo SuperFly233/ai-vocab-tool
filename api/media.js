@@ -1,6 +1,6 @@
 const CHUNK_SIZE=512*1024;
 const MAX_SIZE=20*1024*1024;
-const TYPES=new Set(['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm']);
+const TYPES=new Set(['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm','audio/mpeg','audio/ogg','audio/wav']);
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 
 export default async function handler(request,response){

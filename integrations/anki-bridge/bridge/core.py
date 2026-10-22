@@ -14,6 +14,10 @@ FIELDS = ['LexiKey', 'Expression', 'Sentence', 'Translation', 'Meaning', 'Notes'
 FRONT = '<main class="lexi"><div class="expression">{{Expression}}</div><div class="sentence">{{Sentence}}</div><div class="media">{{Media}}</div></main>'
 BACK = '{{FrontSide}}<hr id="answer"><div class="translation">{{Translation}}</div><div class="meaning">{{Meaning}}</div><div class="notes">{{Notes}}</div><div class="source">{{Source}}</div>'
 CSS = '.card{font:20px/1.6 system-ui;text-align:left;color:#222;background:#fff;padding:20px}.nightMode.card{color:#eee;background:#191b1a}.expression{font-size:28px;font-weight:700}.sentence{margin:16px 0}.media img{max-width:100%;max-height:300px;object-fit:contain}mark{background:#ead38c;color:#222}.meaning{font-weight:600;margin:12px 0}.source,.notes{font-size:15px;opacity:.8;overflow-wrap:anywhere}hr{border:0;border-top:1px solid #aaa;margin:20px 0}'
+MODEL_V2 = 'Lexi Scene v2'
+FIELDS_V2 = FIELDS + ['Origin','Dictionary','DictionarySource']
+BACK_V2 = BACK + '{{#Dictionary}}<section class="lexi-dictionary"><hr><h3>{{DictionarySource}}</h3>{{Dictionary}}</section>{{/Dictionary}}'
+CSS_V2 = CSS + '.lexi-dictionary{font-size:17px;overflow-wrap:anywhere}.lexi-dictionary .sense{margin:12px 0}.lexi-dictionary .x,.lexi-dictionary .examples{display:block;margin-top:6px}.lexi-dictionary .chn{color:inherit;opacity:.8}.lexi-dictionary h3{font-size:15px;font-weight:600}'
 EXTENSIONS = {'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'video/mp4': '.mp4', 'video/webm': '.webm', 'audio/mpeg': '.mp3', 'audio/ogg': '.ogg', 'audio/wav': '.wav'}
 
 
@@ -85,7 +89,14 @@ def card_fields(card, owner, profile):
     source = html.escape(card['sourceTitle'])
     if url.scheme in ('https', 'http') and url.netloc and not url.username and not url.password:
         source += f' <a href="{html.escape(card["sourceUrl"], quote=True)}">打开来源</a>'
-    return dict(zip(FIELDS, [digest([owner, profile, card['key']]), html.escape(card['title']), highlight(card['quote'], card['exampleHighlights']), highlight(card['translation'], card['translationHighlights']), html.escape(card['meaning']), html.escape(card['note']), ''.join(media), source]))
+    fields=dict(zip(FIELDS, [digest([owner, profile, card['key']]), html.escape(card['title']), highlight(card['quote'], card['exampleHighlights']), highlight(card['translation'], card['translationHighlights']), html.escape(card['meaning']), html.escape(card['note']), ''.join(media), source]))
+    if card.get('_modelVersion')==2:
+        from .dictionary import clean_html
+        dictionary=card.get('_dictionary') or {}
+        fields.update(LexiKey=digest([owner,profile,card['key'],MODEL_V2]),Origin=html.escape(str(card.get('origin',''))),
+                      Dictionary=''.join(clean_html(sense['html']) for sense in dictionary.get('senses',[])),
+                      DictionarySource=html.escape(str(dictionary.get('dictionary',''))))
+    return fields
 
 
 class Anki:
@@ -121,19 +132,24 @@ class Anki:
             raise BridgeError('需要支持 API v6 的 AnkiConnect。')
         return {'version': version, 'profile': str(self.call('getActiveProfile')), 'decks': self.call('deckNames')}
 
+    def model_definition(self):
+        return (MODEL_V2,FIELDS_V2,FRONT,BACK_V2,CSS_V2) if getattr(self,'model_version',1)==2 else (MODEL,FIELDS,FRONT,BACK,CSS)
+
     def check_model(self):
-        if MODEL in self.call('modelNames'):
-            if self.call('modelFieldNames', modelName=MODEL) != FIELDS:
+        model,fields,front,back,_=self.model_definition()
+        if model in self.call('modelNames'):
+            if self.call('modelFieldNames', modelName=model) != fields:
                 raise BridgeError('专用模板字段已变化，请先检查模板，不会覆盖。')
-            templates = self.call('modelTemplates', modelName=MODEL)
-            if templates != {'Scene': {'Front': FRONT, 'Back': BACK}}:
+            templates = self.call('modelTemplates', modelName=model)
+            if templates != {'Scene': {'Front': front, 'Back': back}}:
                 raise BridgeError('专用模板卡面已变化，不能使用失真的预览写入。')
             return True
         return False
 
     def ensure_model(self):
         if not self.check_model():
-            self.call('createModel', modelName=MODEL, inOrderFields=FIELDS, css=CSS, cardTemplates=[{'Name': 'Scene', 'Front': FRONT, 'Back': BACK}])
+            model,fields,front,back,css=self.model_definition()
+            self.call('createModel', modelName=model, inOrderFields=fields, css=css, cardTemplates=[{'Name': 'Scene', 'Front': front, 'Back': back}])
 
     def existing(self, key):
         if not re.fullmatch('[a-f0-9]{64}', key):
@@ -144,16 +160,19 @@ class Anki:
         if not ids:
             return None
         row = self.call('notesInfo', notes=ids)[0]
-        if row.get('modelName') != MODEL or row.get('fields', {}).get('LexiKey', {}).get('value') != key:
+        if row.get('modelName') not in (MODEL,MODEL_V2) or row.get('fields', {}).get('LexiKey', {}).get('value') != key:
             raise BridgeError('来源键与模板不匹配，未写入。')
-        return {'id': row['noteId'], 'fields': {k: v['value'] for k, v in row['fields'].items()}, 'cards': row['cards']}
+        return {'id': row['noteId'], 'fields': {k: v['value'] for k, v in row['fields'].items()}, 'cards': row['cards'], 'tags': row.get('tags', [])}
 
     def media(self, ref, data):
         name = filename(ref)
         present = self.call('retrieveMediaFile', filename=name)
         if present:
             try:
-                if hashlib.sha256(base64.b64decode(present, validate=True)).hexdigest() == ref['id']:
+                cached = base64.b64decode(present, validate=True)
+                if hashlib.sha256(cached).hexdigest() == ref['id']:
+                    if len(cached) != ref['size'] or media_mime(cached) != ref['mime']:
+                        raise BridgeError('已有素材的实际格式或大小与声明不符，未复用。')
                     return
             except ValueError:
                 pass
@@ -171,16 +190,20 @@ class Journal:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute('create table if not exists operations (owner text, profile text, job text, card text, note_id text, operation text, before_json text, after_json text, primary key(owner,profile,job,card))')
+        if 'tags_json' not in {row[1] for row in self.db.execute('pragma table_info(operations)')}:
+            self.db.execute('alter table operations add column tags_json text')
         self.db.execute('create table if not exists local_batches (owner text,id text,payload text,status text,results text,primary key(owner,id))')
         self.db.commit()
 
-    def record(self, owner, profile, job, card, note_id, operation, before, after):
-        self.db.execute('insert or replace into operations values(?,?,?,?,?,?,?,?)', (owner, profile, job, card, str(note_id), operation, json.dumps(before, ensure_ascii=False), json.dumps(after, ensure_ascii=False)))
+    def record(self, owner, profile, job, card, note_id, operation, before, after, expected_tags=None):
+        previous = self.db.execute('select tags_json from operations where owner=? and profile=? and job=? and card=?', (owner, profile, job, card)).fetchone()
+        tags = json.dumps(expected_tags) if expected_tags is not None else previous[0] if previous else None
+        self.db.execute('insert or replace into operations(owner,profile,job,card,note_id,operation,before_json,after_json,tags_json) values(?,?,?,?,?,?,?,?,?)', (owner, profile, job, card, str(note_id), operation, json.dumps(before, ensure_ascii=False), json.dumps(after, ensure_ascii=False), tags))
         self.db.commit()
 
     def rows(self, owner, profile, job):
-        rows = self.db.execute('select card,note_id,operation,before_json,after_json from operations where owner=? and profile=? and job=?', (owner, profile, job)).fetchall()
-        return [dict(key=r[0], noteId=r[1], operation=r[2], before=json.loads(r[3]), after=json.loads(r[4])) for r in rows]
+        rows = self.db.execute('select card,note_id,operation,before_json,after_json,tags_json from operations where owner=? and profile=? and job=?', (owner, profile, job)).fetchall()
+        return [dict(key=r[0], noteId=r[1], operation=r[2], before=json.loads(r[3]), after=json.loads(r[4]), expectedTags=json.loads(r[5]) if r[5] else None) for r in rows]
 
     def save_batch(self, owner, job, cards, status, results):
         self.db.execute('insert or replace into local_batches values(?,?,?,?,?)', (owner, job, json.dumps(cards, ensure_ascii=False), status, json.dumps(results, ensure_ascii=False)))
@@ -203,11 +226,16 @@ def preview(anki, cards, owner, profile):
 
 def execute_one(anki, row, owner, profile, job, deck, journal, fetch_media, before_write=lambda: None):
     fields, card = row['fields'], row['card']
+    batch_tag = 'lexi-batch-' + digest([owner, profile, job, card['key']])
+    creation_tags = ['lexi-bridge', 'lexi-source-' + fields['LexiKey'], batch_tag]
     current = anki.existing(fields['LexiKey'])
     if current and current['fields'] == fields:
         # Preserve an earlier creation receipt when an acknowledgement was lost.
-        if not any(r['key'] == card['key'] for r in journal.rows(owner, profile, job)):
+        previous = next((r for r in journal.rows(owner, profile, job) if r['key'] == card['key']), None)
+        if previous is None:
             journal.record(owner, profile, job, card['key'], current['id'], 'skip', current['fields'], fields)
+        elif previous['operation'] == 'create' and not previous['noteId'] and batch_tag in current.get('tags', []):
+            journal.record(owner, profile, job, card['key'], current['id'], 'create', previous['before'], fields, previous['expectedTags'] or creation_tags)
         return {'status': 'skipped', 'noteId': str(current['id'])}
     if current != row['before']:
         raise BridgeError('卡片在预览后发生变化，请重新预览。')
@@ -215,12 +243,12 @@ def execute_one(anki, row, owner, profile, job, deck, journal, fetch_media, befo
         anki.media(ref, lambda: fetch_media(ref))
     before_write()
     operation = 'update' if current else 'create'
-    journal.record(owner, profile, job, card['key'], current['id'] if current else '', operation, current['fields'] if current else None, fields)
+    journal.record(owner, profile, job, card['key'], current['id'] if current else '', operation, current['fields'] if current else None, fields, creation_tags if not current else None)
     if current:
         anki.call('updateNoteFields', note={'id': current['id'], 'fields': fields})
         note_id = current['id']
     else:
-        note_id = anki.call('addNote', note={'deckName': deck, 'modelName': MODEL, 'fields': fields, 'options': {'allowDuplicate': False}, 'tags': ['lexi-bridge', 'lexi-source-' + fields['LexiKey']]})
+        note_id = anki.call('addNote', note={'deckName': deck, 'modelName': MODEL_V2 if 'Dictionary' in fields else MODEL, 'fields': fields, 'options': {'allowDuplicate': False}, 'tags': creation_tags})
         if not note_id:
             raise BridgeError('Anki 未返回笔记 ID，请重新核对来源键。')
     journal.record(owner, profile, job, card['key'], note_id, operation, current['fields'] if current else None, fields)
@@ -230,10 +258,14 @@ def execute_one(anki, row, owner, profile, job, deck, journal, fetch_media, befo
 def undo_one(anki, row):
     if row['operation'] not in ('create', 'update'):
         return False
+    if row['operation'] == 'create' and not row.get('noteId'):
+        raise BridgeError('创建回执丢失，无法确认新增归属，未自动删除。请先在 Anki 核对。')
     current = anki.existing(row['after']['LexiKey'])
     if not current or (row['noteId'] and str(current['id']) != row['noteId']) or current['fields'] != row['after']:
         raise BridgeError('卡片已删除或有后续修改，未撤销。')
     if row['operation'] == 'create':
+        if row.get('expectedTags') is None or set(current.get('tags', [])) != set(row['expectedTags']):
+            raise BridgeError('笔记标签有后续修改或旧记录缺少标签快照，未自动删除。')
         cards = anki.call('cardsInfo', cards=current['cards'])
         if not cards or any(card.get('reps', 0) > 0 for card in cards):
             raise BridgeError('卡片已开始学习，未自动删除。')

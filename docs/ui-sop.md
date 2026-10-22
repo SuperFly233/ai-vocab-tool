@@ -2,6 +2,8 @@
 
 ## Optional Hints
 
+Clarification 2026-10-22: the user's original intent is to hide obstructive field-focus bubbles, not hover tooltips. `hintsHidden` now controls floating editor help only; `tooltipsHidden` separately controls button/reading hover and keyboard-focus tooltips and defaults false. Legacy `hintsHidden=true` must not disable hover hints. Pinned field explanations remain independently controlled. Result/error/Undo Toasts are unaffected.
+
 User confirmed 2026-10-22: provide a global opt-out for explanatory button/reading/field bubbles and pinned field help. Preserve accessible control names, error/result notifications and Undo actions. Apply visibility immediately and after settings hydration. Field help must remain content-sized and bounded to the visual viewport, including mobile keyboards; long help scrolls internally. Never promise newline-separated input on a single-line control.
 
 ## Design Before Implementation
@@ -9,6 +11,12 @@ User confirmed 2026-10-22: provide a global opt-out for explanatory button/readi
 User confirmed 2026-10-21: generate a bitmap UI reference with the image model before substantial layout redesign, inspect it, then plan and implement. Keep the artifact and the concrete decisions in the project, not only in chat. The generated design guides hierarchy, not application data, navigation or background assets.
 
 ## Consistency and Readability
+
+User confirmed 2026-10-22: history is the visual baseline for history/favorites/scenes search, filters, sorting and reset controls. Desktop search/filter tools remain sticky below the opaque global header; left folders/scenes stay visible while main content scrolls. Mobile preserves usable content space and safe header masking. Apply this consistently to future equivalent browsing views, not only to the page in the latest screenshot.
+
+Each browsing page owns independent filter/sort preferences and its own reset action. A settings switch controls whether these survive refresh and synchronize. Do not share one sort variable between pages, persist temporary search text, or treat reset as deleting user records. Preference merges use per-page clocks so editing scenes cannot erase newer history preferences.
+
+Return-to-top is a shared lower-right action, hidden at approximately the first 5 percent and on non-scrollable views. It targets the top active dialog's scroll region when present, otherwise the document. It must not be a permanent settings-header button. All pages share an opaque top mask; never cover the home query panel to fix header leakage.
 
 Settings categories must share one metadata source for navigation labels, section titles and search aliases; preserve stable section IDs. Use consistent concise naming, then explicit content subgroups rather than inconsistent navigation subtitles. Keep destructive actions last. Every preference row uses a copy wrapper plus control track; mobile stacks the same DOM. Inspect scrolled screenshots, including the area above floating headers.
 

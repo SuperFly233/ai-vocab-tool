@@ -37,4 +37,8 @@ assert.equal((await run({action:'put',...large,chunks:[{index:0,data:Buffer.allo
 assert.equal((await run({action:'complete',...large})).code,200);
 assert.equal((await run({action:'get',id:large.id,indexes:[0,1]})).body.chunks.length,2);
 assert.equal((await run({action:'put',...ref,chunks:[{index:0,data:'AQIDBAAA'}]})).code,400,'Encoded length must match the exact decoded size');
+const audio={id:'d'.repeat(64),mime:'audio/wav',size:4};
+assert.equal((await run({action:'put',...audio,chunks:[{index:0,data:'AQIDBA=='}]})).code,200,'Authenticated audio transport for Anki snapshots');
+assert.equal((await run({action:'complete',...audio})).code,200);
+assert.equal((await run({action:'manifest',id:audio.id},'user-two')).body.manifest,null,'Audio stays account-private');
 console.log('Media API passed: auth, server-owned identity, private namespace, bounded payloads, validation, chunk completion and cross-user isolation.');

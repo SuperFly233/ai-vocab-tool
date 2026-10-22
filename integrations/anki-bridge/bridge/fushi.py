@@ -6,9 +6,10 @@ from pathlib import Path
 
 from .core import BridgeError, digest
 
-UPSTREAM = '185dcfdd940226631bbc42069088ae5ae24fdd12'
+UPSTREAM = '725fcde6c9a1e2abef8c72009886a4cd66e4751a'
 COMMANDS = {'status': ('status',), 'favorites': ('favorite', 'ls', '--limit', '200'),
-            'pending': ('anki', 'pending'), 'staged': ('video', 'mine-queue')}
+            'pending': ('anki', 'pending'), 'staged': ('video', 'mine-queue'),
+            'dictionaries': ('dict', 'ls'), 'dictionary': ('dict', 'search')}
 
 
 class Fushi:
@@ -16,13 +17,20 @@ class Fushi:
         self.runner = runner
         self.executable = Path(executable) if executable else Path(os.environ.get('LOCALAPPDATA', str(Path.home() / 'AppData/Local'))) / 'Fushi' / 'fushi_cli.exe'
 
-    def call(self, action):
+    def call(self, action, limit=None, query=None):
         if action not in COMMANDS:
             raise BridgeError('Fushi 仅允许只读查询。')
         if not self.executable.is_file():
             raise BridgeError('未找到官方 Fushi CLI；请检查 Fushi 桌面安装。')
+        if limit is not None and (not isinstance(limit, int) or not 1 <= limit <= 200):
+            raise BridgeError('Fushi 读取数量无效。')
+        command = ('favorite', 'ls', '--limit', str(limit)) if action == 'favorites' and limit is not None else COMMANDS[action]
+        if action == 'dictionary':
+            if not isinstance(query, str) or not query.strip() or len(query) > 200 or any(ord(char)<32 for char in query):
+                raise BridgeError('词典查询需为 1–200 字的单词或词组。')
+            command = ('dict', 'search', '--limit', '10', '--', query.strip())
         try:
-            result = self.runner([str(self.executable), '--no-launch', '--json', *COMMANDS[action]],
+            result = self.runner([str(self.executable), '--no-launch', '--json', *command],
                                  capture_output=True, timeout=15, shell=False,
                                  creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             if len(result.stdout) > 4 * 1024 * 1024:
@@ -36,15 +44,17 @@ class Fushi:
         except (OSError, ValueError, UnicodeError):
             raise BridgeError('Fushi 控制通道不可用或版本格式不兼容。') from None
 
-    def sources(self, kind):
-        value = self.call(kind)
+    def sources(self, kind, limit=200):
+        value = self.call(kind, limit)
         key = {'favorites': 'favorites', 'pending': 'pending', 'staged': 'items'}.get(kind)
         if key is None or not isinstance(value.get(key), list):
             raise BridgeError('Fushi 来源格式不兼容，未猜测导入。')
         output = []
-        for row in value[key][:200]:
-            if not isinstance(row, dict) or not isinstance(row.get('id'), (str, int)):
+        for row in value[key][:limit]:
+            if not isinstance(row, dict) or isinstance(row.get('id'), bool) or not isinstance(row.get('id'), (str, int)):
                 raise BridgeError('Fushi 来源缺少稳定标识。')
+            if any(row.get(field) is not None and not isinstance(row[field], str) for field in ('text','sentence','expression','bookTitle')):
+                raise BridgeError('Fushi 来源字段格式不兼容，未猜测导入。')
             source_id = kind + ':' + str(row['id'])
             output.append({'id': source_id, 'title': str(row.get('expression') or '')[:400],
                            'quote': str((row.get('text') if kind == 'favorites' else row.get('sentence')) or '')[:4000],

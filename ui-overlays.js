@@ -19,7 +19,7 @@
     animation.onfinish=()=>{if(motion===animation){hint.hidePopover();animation.cancel();motion=null}};
   }
   function show(button){
-    if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active')||document.body.classList.contains('hints-hidden'))return;
+    if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active')||document.body.classList.contains('tooltips-hidden'))return;
     const label=button.matches('.nav-item')?button.querySelector('span'):null;
     if(label?.getBoundingClientRect().width&&label.textContent.trim()===button.dataset.tip.trim())return;
     hide(true);owner=button;previousDescription=button.getAttribute('aria-describedby');
@@ -132,7 +132,7 @@
     if(!reducedMotion())bubble.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:140,easing:'ease'});
   });
   document.addEventListener('focusout',event=>{if(!event.relatedTarget?.closest?.('.visual-hint-bubble'))hideFieldHint()});
-  document.addEventListener('hint-visibility-change',()=>{hide(true);hideFieldHint()});
+  document.addEventListener('hint-visibility-change',()=>{if(document.body.classList.contains('tooltips-hidden'))hide(true);if(document.body.classList.contains('hints-hidden'))hideFieldHint()});
   document.addEventListener('click',event=>{const close=event.target.closest('.visual-hint-close');if(!close)return;event.preventDefault();close.closest('.visual-field-hinted')?.classList.add('hint-dismissed');hideFieldHint()},true);
   document.addEventListener('scroll',positionFieldHint,true);addEventListener('resize',positionFieldHint);visualViewport?.addEventListener('resize',positionFieldHint);
   const notifications=document.getElementById('toast-stack');

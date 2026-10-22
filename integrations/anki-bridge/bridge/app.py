@@ -4,6 +4,7 @@ import os
 import secrets
 import socket
 import threading
+import time
 import uuid
 import webbrowser
 from pathlib import Path
@@ -16,6 +17,8 @@ from . import __version__
 from .cloud import Cloud, Vault
 from .core import Anki, BridgeError, Journal, digest, execute_one, preview, undo_one, media_mime
 from .fushi import Fushi, make_card
+from .remote import process_request
+from .dictionary import validate_snapshot
 
 ASSETS = Path(__file__).parent.parent / 'web'
 
@@ -36,6 +39,7 @@ class State:
         self.sources = {}
         self.local_media = {}
         self.worker_error = ''
+        self.next_announcement = 0
 
     def save_config(self):
         temporary = self.config_file.with_suffix('.tmp')
@@ -56,7 +60,7 @@ class State:
         return owner
 
     def renew(self):
-        while not self.closed.wait(20):
+        while not self.closed.wait(5):
             with self.lock:
                 if self.active and not self.active.get('local'):
                     try:
@@ -66,10 +70,18 @@ class State:
                     except BridgeError:
                         self.active = None
                 try:
+                    self.bind_account()
+                    if time.monotonic() >= self.next_announcement:
+                        self.cloud.call('register', deviceId=self.config['deviceId'], name=self.config['name'])
+                        self.next_announcement = time.monotonic() + 20
+                    process_request(self)
                     self.web_tick()
                     self.worker_error = ''
                 except BridgeError as error:
                     self.worker_error = str(error)
+                except Exception:
+                    self.active = None
+                    self.worker_error = '设备操作返回异常；任务未被标记成功，请检查连接后重试。'
 
     def web_tick(self):
         if self.active:
@@ -82,10 +94,7 @@ class State:
                 self.execute(self.active['token'])
             return
         self.bind_account()
-        jobs = self.cloud.call('list')
-        job = next((j for j in reversed(jobs) if j['device_id'] == self.config['deviceId']
-                    and j['status'] in ('awaiting_device', 'awaiting_confirmation', 'running')
-                    and not j.get('cancel_requested') and j['payload'].get('confirmationMode') == 'web'), None)
+        job = self.cloud.call('next_job', deviceId=self.config['deviceId'])
         if job:
             self.prepare(job['id'])
 
@@ -113,13 +122,23 @@ class State:
             cards = job['payload'].get('cards', [])
             if not 1 <= len(cards) <= 20:
                 raise BridgeError('任务快照无效。')
+            model_version=2 if job['payload'].get('version')==3 else 1
+            anki.model_version=model_version
+            for card in cards:
+                card.pop('_dictionary',None);card['_modelVersion']=model_version
+                ref=card.get('dictionaryRef')
+                if ref:
+                    if model_version != 2 or not isinstance(ref, dict):
+                        raise BridgeError('词典引用需要新版任务，请重新提交。')
+                    snapshot=self.cloud.call('dictionary_get',snapshotId=ref.get('id'))
+                    card['_dictionary']=validate_snapshot(snapshot,ref)
             refs = {ref.get('id'): ref for card in cards for ref in card.get('media', [])}
             if any(not isinstance(ref.get('size'), int) or not 1 <= ref['size'] <= 20 * 1024 * 1024 for ref in refs.values()) or sum(ref['size'] for ref in refs.values()) > 50 * 1024 * 1024:
                 raise BridgeError('单批素材最多 50 MB，每份最多 20 MB。')
             binding = digest([self.config['port'], connection['profile'], deck])
             rows = preview(anki, cards, owner, binding)
             token = secrets.token_urlsafe(24)
-            self.active = {'job': job, 'rows': rows, 'owner': owner, 'profile': connection['profile'], 'binding': binding, 'deck': deck, 'configDeck': self.config['deck'], 'token': token, 'media': {}}
+            self.active = {'job': job, 'rows': rows, 'owner': owner, 'profile': connection['profile'], 'binding': binding, 'deck': deck, 'configDeck': self.config['deck'], 'token': token, 'media': {},'modelVersion':model_version}
             if job['payload'].get('confirmationMode') == 'web':
                 snapshot = {'deck': deck, 'profile': connection['profile'], 'binding': binding,
                             'decks': list(dict.fromkeys([*connection['decks'], 'Lexi 验收'])),
@@ -153,6 +172,7 @@ class State:
             if self.cloud.call('heartbeat', **lease).get('cancelRequested'):
                 raise BridgeError('任务已取消。')
             self.cloud.call('start', **lease)
+            anki.model_version=active.get('modelVersion',1)
             anki.ensure_model()
             if active['deck'] == 'Lexi 验收' and active['deck'] not in connection['decks']:
                 anki.call('createDeck', deck=active['deck'])
@@ -190,9 +210,9 @@ class State:
             self.active['media'][ref['id']] = self.cloud.media(ref)
         return self.active['media'][ref['id']]
 
-    def fushi_sources(self, kind):
+    def fushi_sources(self, kind, limit=200):
         owner = self.bind_account()
-        rows = self.fushi.sources(kind)
+        rows = self.fushi.sources(kind, limit)
         for row in rows:
             row['id'] = self.config['deviceId'] + ':' + row['id']
             row['key'] = digest(['fushi', row['id']])

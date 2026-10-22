@@ -1,6 +1,6 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.34.1",
+  "version": "0.35.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "check:anki-cloud": "node --check api/anki-jobs.js && node scripts/check-anki-jobs.cjs",
     "check:anki-ui": "node --check anki-bridge-ui.js && node scripts/check-anki-ui.cjs",
     "check:scene-learning-ui": "node --check scene-study.js && node scripts/check-scene-learning.cjs && node scripts/check-scene-learning-safety.cjs",
-    "precheck": "node --check experience-ui.js && node --check request-ui.js && node --check learning-tools.js && node scripts/check-learning-tools.js && node scripts/check-versions.js && npm run check:scenes",
+    "precheck": "node --check experience-ui.js && node --check dictionary-ui.js && node --check anki-bridge-ui.js && node --check fushi-workspace.js && node --check request-ui.js && node --check learning-tools.js && node scripts/check-learning-tools.js && node scripts/check-versions.js && npm run check:view-preferences && npm run check:scenes",
     "check:versions-ui": "node scripts/check-versions-ui.cjs",
     "check:workspace-ui": "node --check experience-ui.js && node --check request-ui.js && node scripts/check-reading-workspace.cjs",
     "check:delete-undo-ui": "node scripts/check-delete-undo.cjs",
@@ -41,6 +41,8 @@
     "check:history": "node scripts/check-history-data.js",
     "check:settings": "node scripts/check-settings-data.js",
     "check:settings-app": "node scripts/check-settings-app.js",
+    "check:view-preferences": "node scripts/check-view-preferences.js",
+    "check:dictionary-ui": "node --check dictionary-ui.js && node scripts/check-dictionary-ui.cjs",
     "check:storage": "node scripts/check-storage-state.js",
     "check:icons": "node scripts/build-icons.js --check",
     "check:lookup": "node scripts/check-lookup-tasks.js",

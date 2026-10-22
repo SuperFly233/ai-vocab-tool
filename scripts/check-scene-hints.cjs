@@ -34,9 +34,13 @@ const server=require('./browser-test-server.cjs').createServer();
   await page.evaluate(()=>setHintsHidden(true));assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);assert.equal(await bubble.count(),0,'Changing setting dismisses active hint immediately');
   await page.locator('#scene-editor [data-scene-action="close"]').click();
   await page.evaluate(()=>SceneUI.open('library','','highlights'));await quote.focus();assert.equal(await page.locator('.visual-hint-bubble:popover-open').count(),0);
-  await page.locator('#scene-editor [data-scene-action="close"]').hover();assert.equal(await page.locator('#ui-tooltip:popover-open').count(),0);
+  await page.locator('#scene-editor [data-scene-action="close"]').hover();assert.equal(await page.locator('#ui-tooltip:popover-open').count(),1,'Hiding editor bubbles preserves hover tooltips');
+  await page.evaluate(()=>setTooltipsHidden(true));assert.equal(await page.locator('#ui-tooltip:popover-open').count(),0,'Hover hints have an independent switch');
+  await page.evaluate(()=>setTooltipsHidden(false));
+  await page.evaluate(()=>{const settings=getSettings();setSettings({...settings,visualHintsPinned:true});document.querySelector('.scene-editor').classList.add('hints-pinned')});
+  assert.equal(await page.locator('#scene-editor .visual-hint-pinned').first().isVisible(),true,'Pinned explanations remain independent');
   await page.evaluate(()=>notify('仍可撤销','good','测试',true,{label:'撤销',run:()=>{window.__undone=true}}));await page.locator('.toast-action').last().click();assert.equal(await page.evaluate(()=>window.__undone),true);
-  await page.reload();assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);assert.equal(await page.evaluate(()=>document.body.classList.contains('hints-hidden')),true);
+  await page.reload();assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);assert.equal(await page.evaluate(()=>getSettings().tooltipsHidden),false);assert.equal(await page.evaluate(()=>document.body.classList.contains('hints-hidden')),true);
   await context.close();console.log(`Highlights and hint visibility ${width}px ${theme}: passed`);
  }
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}})().catch(error=>{console.error(error);process.exitCode=1});

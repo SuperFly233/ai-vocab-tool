@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import math
+import re
 import time
 
 import httpx
@@ -41,7 +42,10 @@ class Vault:
 
 
 class Cloud:
-    def __init__(self, vault, http=None):
+    def __init__(self, vault, http=None, origin=ORIGIN):
+        if not re.fullmatch(r'https://(?:[a-z0-9-]+\.)?ai-vocab-tool\.pages\.dev', origin):
+            raise BridgeError('仅允许当前 Lexi 生产站点或其官方验收预览地址。')
+        self.origin = origin
         self.vault = vault
         self.http = http or httpx.Client(timeout=30, follow_redirects=False)
         self.session = None
@@ -82,8 +86,11 @@ class Cloud:
     def post(self, path, body):
         session = self.current()
         try:
-            response = self.http.post(ORIGIN + path, headers={'Authorization': 'Bearer ' + session['access']}, json=body)
-            data = response.json()
+            response = self.http.post(self.origin + path, headers={'Authorization': 'Bearer ' + session['access']}, json=body)
+            try:
+                data = response.json()
+            except ValueError:
+                raise BridgeError(f'云端返回格式异常（HTTP {response.status_code}），任务未被标为成功。') from None
             if response.status_code != 200:
                 raise BridgeError(str(data.get('error', '云端请求失败。'))[:300])
             return data

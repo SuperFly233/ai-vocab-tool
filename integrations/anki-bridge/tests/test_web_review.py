@@ -1,6 +1,7 @@
 import copy
 import tempfile
 import unittest
+from unittest.mock import Mock
 
 from bridge.app import State
 from bridge.core import BridgeError
@@ -19,6 +20,8 @@ class ReviewCloud(FakeCloud):
         if action == 'list':
             return [{'id': 'fixture', 'device_id': self.device, 'status': self.status,
                      'payload': {'confirmationMode': 'web', 'cards': [card()]}}]
+        if action == 'next_job':
+            return {'id': 'fixture'} if self.status in ('awaiting_device','awaiting_confirmation','running') else None
         if action == 'claim':
             self.status = 'awaiting_confirmation'
             return {'id': 'fixture', 'lease_token': 'lease', 'payload': {'confirmationMode': 'web', 'cards': [card()]}}
@@ -93,6 +96,36 @@ class WebReviewTests(unittest.TestCase):
         self.assertEqual(self.cloud.snapshot['rows'][0]['previous'], {})
         self.assertNotIn('token', self.cloud.snapshot)
         self.assertNotIn('lease_token', self.cloud.snapshot)
+
+    def test_legacy_job_cannot_attach_dictionary_reference(self):
+        original=self.cloud.call
+        def response(action, **args):
+            result=original(action, **args)
+            if action=='claim':
+                result['payload']['version']=2
+                result['payload']['cards'][0]['dictionaryRef']={'id':'fixture','hash':'a'*64}
+            return result
+        self.cloud.call=Mock(side_effect=response)
+        with self.assertRaisesRegex(BridgeError,'新版任务'):
+            self.state.prepare('fixture')
+        self.assertIsNone(self.state.active)
+        self.assertFalse(any(call.args[0]=='dictionary_get' for call in self.cloud.call.call_args_list))
+        self.assertEqual(self.anki.calls.count('addNote'),0)
+
+    def test_invalid_dictionary_snapshot_never_becomes_writable(self):
+        original=self.cloud.call
+        def response(action, **args):
+            if action=='dictionary_get':return {'canonical':'{','hash':'a'*64}
+            result=original(action, **args)
+            if action=='claim':
+                result['payload']['version']=3
+                result['payload']['cards'][0]['dictionaryRef']={'id':'fixture','hash':'a'*64}
+            return result
+        self.cloud.call=Mock(side_effect=response)
+        with self.assertRaisesRegex(BridgeError,'快照校验失败'):
+            self.state.prepare('fixture')
+        self.assertIsNone(self.state.active)
+        self.assertEqual(self.anki.calls.count('addNote'),0)
 
 
 if __name__ == '__main__':

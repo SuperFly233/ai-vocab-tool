@@ -1,6 +1,20 @@
 (function(root){
   let scheduled=false,drag=null;
   const navLocks=new WeakMap();
+  const topButton=document.createElement('button');topButton.type='button';topButton.className='icon-btn scroll-top-button';topButton.hidden=true;topButton.setAttribute('aria-label','回到顶部');topButton.dataset.tip='回到顶部';topButton.innerHTML=icon('arrow-up');document.body.append(topButton);
+  function scrollContext(){
+    const native=root.UIOverlays?.topDialog(),layer=native||[...document.querySelectorAll('.modal-layer.open')].at(-1);
+    if(document.querySelector('.confirm-layer.open')||native?.classList.contains('draft-confirm'))return {host:document.body,target:null};
+    if(layer){const candidates=[...layer.querySelectorAll('.scene-dialog-body,.scene-editor-body,.modal-body,.scene-viewer-content')];return {host:layer,target:candidates.find(node=>node.scrollHeight>node.clientHeight+1)||null}}
+    return {host:document.body,target:document.scrollingElement};
+  }
+  function updateScrollTop(){
+    const {host,target}=scrollContext();if(topButton.parentElement!==host)host.append(topButton);
+    const range=target?target.scrollHeight-target.clientHeight:0;topButton.hidden=!target||range<=1||target.scrollTop<=Math.max(16,range*.05);
+    if(host===document.body){topButton.style.removeProperty('right');topButton.style.removeProperty('bottom')}
+    else{const rect=host.getBoundingClientRect(),footer=host.querySelector('footer'),footerRect=footer?.getBoundingClientRect();topButton.style.right=`${Math.max(18,innerWidth-rect.right+14)}px`;topButton.style.bottom=`${Math.max(22,innerHeight-rect.bottom+14,footerRect&&footerRect.top<rect.bottom?innerHeight-footerRect.top+8:0)}px`}
+  }
+  topButton.onclick=()=>{const {target}=scrollContext();target?.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})};
   function revealNavItem(nav,button){
     if(!nav||!button||nav.dataset.currentItem===button.dataset.settingsTarget+'|'+button.dataset.readTarget)return;
     nav.dataset.currentItem=button.dataset.settingsTarget+'|'+button.dataset.readTarget;
@@ -18,6 +32,14 @@
       if(!clear){clear=document.createElement('button');clear.type='button';clear.className='history-clear-btn';clear.setAttribute('aria-label','清空搜索');clear.dataset.tip='清空搜索';clear.innerHTML=icon('x');label.append(clear);clear.onclick=()=>{input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus({preventScroll:true})}}
       const update=()=>clear.classList.toggle('hidden',!input.value);input.addEventListener('input',update);update();
     });
+  }
+  const measuredBrowseTools=new WeakSet(),browseSizeObserver=new ResizeObserver(()=>schedule());
+  function enhanceBrowseTools(){
+    document.querySelectorAll('.folder-toolbar select,.scene-filter-bar select').forEach(select=>{
+      if(select.parentElement.classList.contains('browse-select'))return;
+      const wrapper=document.createElement('span');wrapper.className='browse-select';select.before(wrapper);wrapper.append(select);wrapper.insertAdjacentHTML('beforeend',icon('chevron-down'));
+    });
+    document.querySelectorAll('.history-tools,.folder-toolbar,.scene-browse-tools').forEach(node=>{if(!measuredBrowseTools.has(node)){measuredBrowseTools.add(node);browseSizeObserver.observe(node)}});
   }
   const ratios=new Map(),mediaObserver=new IntersectionObserver(entries=>{
     for(const entry of entries){const video=entry.target;if(entry.isIntersecting&&getSettings().mediaAutoplay&&!document.hidden&&!document.querySelector('#scene-viewer'))playAudibly(video);else video.pause()}
@@ -46,10 +68,12 @@
     document.querySelectorAll('.sidebar .nav-item').forEach(button=>{const label=button.textContent.trim();button.setAttribute('aria-label',label);button.dataset.tip=label});
     const experience=document.getElementById('settings-experience');
     const reading=group('settings-reading','阅读体验',experience),media=group('settings-media','场景媒体',reading),notifications=group('settings-notifications','消息通知',media);
-    for(const id of ['label-mode-zh','font-mode-system','time-mode-created','hints-hidden','visual-hints-pinned'])reading.append(document.getElementById(id).closest('.setting-row'));
+    for(const id of ['label-mode-zh','font-mode-system','time-mode-created','hints-hidden','tooltips-hidden','visual-hints-pinned'])reading.append(document.getElementById(id).closest('.setting-row'));
     for(const id of ['toast-mode-snackbar','toast-position-top'])notifications.append(document.getElementById(id).closest('.setting-row'));
     const row=(label,description,control)=>`<div class="setting-row"><div><div class="setting-label">${label}</div><div class="setting-sub">${description}</div></div>${control}</div>`;
     reading.insertAdjacentHTML('beforeend',row('浏览目录','首页结果与词条详情共用此位置；左侧目录在手机上改为顶部。',`<div class="seg" data-preference="readingNav">${[['top','顶部'],['left','左侧'],['off','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
+    reading.insertAdjacentHTML('beforeend',row('记住各页筛选与排序','历史、收藏、场景分别保存，刷新及云同步后恢复；不保存临时搜索文字。关闭后恢复默认。','<label class="capsule-switch"><input id="remember-view-filters" type="checkbox" role="switch" onchange="setRememberViewFilters(this.checked)"><span>记住</span></label>'));
+    document.getElementById('remember-view-filters').checked=getSettings().rememberViewFilters!==false;
     media.insertAdjacentHTML('beforeend',row('视频自动播放','尝试有声播放；浏览器限制时静音，并保留声音开关。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaAutoplay" aria-label="视频自动播放"><span>开启</span></label>')+row('视频播放控件','显示浏览器提供的进度、音量和全屏控件。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaControls" aria-label="视频原生控件"><span>显示</span></label>')+row('素材操作工具','设置放大、保存等操作的显示方式；不影响声音开关。',`<div class="seg" data-preference="mediaTools">${[['auto','自动'],['always','常显'],['hidden','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
     const nav=document.querySelector('.settings-nav');
     const categories=[
@@ -73,7 +97,7 @@
     const maintenance=document.getElementById('settings-maintenance');
     maintenance.append(...maintenance.querySelectorAll(':scope>.setting-row:has(.danger-btn)'));
     const data=document.getElementById('settings-data');data.append(document.getElementById('anki-task-manager').closest('.setting-row'));
-    const hintRow=document.getElementById('hints-hidden').closest('.setting-row');reading.append(hintRow,document.getElementById('visual-hints-pinned').closest('.setting-row'));
+    const hintRow=document.getElementById('hints-hidden').closest('.setting-row');reading.append(hintRow,document.getElementById('tooltips-hidden').closest('.setting-row'),document.getElementById('visual-hints-pinned').closest('.setting-row'));
     hintRow.dataset.settingArea='提示辅助';
     document.getElementById('clear-scene-previews').closest('.setting-row').dataset.settingArea='本机维护';
     maintenance.querySelector('.setting-row:has(.danger-btn)').dataset.settingArea='危险操作';
@@ -133,6 +157,7 @@
       layout.append(nav,content);container.append(layout);
     }
     layout.dataset.position=getSettings().readingNav;
+    root.DictionaryUI?.install(container);
     const content=layout.querySelector('.reading-content'),nav=layout.querySelector('.reading-nav'),entries=sections(content);
     const signature=entries.map(entry=>entry.title).join('|');if(nav.dataset.signature===signature)return;
     nav.dataset.signature=signature;nav.replaceChildren();
@@ -165,13 +190,16 @@
       revealNavItem(nav,nav.querySelector('[aria-current="location"]'));
     }
     const topbar=document.querySelector('.topbar'),sidebar=innerWidth>900?document.querySelector('.sidebar'):null,query=document.body.classList.contains('home-scrolled')?document.querySelector('#view-home.active .editor-pane'):null;
+    document.documentElement.style.setProperty('--app-header-mask-height',`${Math.max(0,topbar?.getBoundingClientRect().bottom||0,sidebar?.getBoundingClientRect().bottom||0)}px`);
+    const tools=document.querySelector('.view.active .scene-browse-tools,.view.active .folder-toolbar,.view.active .history-tools');
+    document.documentElement.style.setProperty('--browse-tools-height',`${tools?.getBoundingClientRect().height||0}px`);
     document.documentElement.style.setProperty('--app-top',`${Math.max(0,topbar?.getBoundingClientRect().bottom||0,sidebar?.getBoundingClientRect().bottom||0,query?.getBoundingClientRect().bottom||0)}px`);
   }
   function refresh(){
-    scheduled=false;enhanceSearch();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
+    scheduled=false;enhanceSearch();enhanceBrowseTools();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
     for(const summary of document.querySelectorAll('.scene-library>summary,.scene-more-media>summary'))if(!summary.querySelector('svg'))summary.insertAdjacentHTML('afterbegin',icon('chevron-down'));
     for(const card of document.querySelectorAll('.scene-illustrated'))if(ratios.has(card.dataset.sceneId))card.style.setProperty('--scene-media-width',`${ratios.get(card.dataset.sceneId)}%`);
-    updateCurrent();
+    updateCurrent();updateScrollTop();
   }
   const schedule=()=>{if(!scheduled){scheduled=true;requestAnimationFrame(refresh)}};
   function apply(settings){
@@ -197,5 +225,5 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)document.querySelectorAll('.scene-asset video').forEach(video=>video.pause())});
   document.addEventListener('scroll',schedule,true);addEventListener('resize',schedule);
   new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
-  root.ExperienceUI={apply,mediaReady,refresh,revealNavItem};setupSettings();apply(getSettings());
+  root.ExperienceUI={apply,mediaReady,refresh,revealNavItem,scrollContext};setupSettings();apply(getSettings());
 })(globalThis);

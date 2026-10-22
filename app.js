@@ -101,6 +101,7 @@ let historyReadCache=null;
 let tombstoneReadCache=null;
 let settingsReadCache=null;
 const activeToasts=new Map();
+const queuedToasts=[];
 const FOLDER_LIKED_ID='liked';
 const FOLDER_INSIGHTS_ID='insights';
 const FOLDER_UNFILED_ID='unfiled';
@@ -183,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.34.1',
+  version:'0.35.0',
   releaseDate:'2026-10-22',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.35.0',date:'2026-10-22',title:'统一浏览与编辑提示',
+    items:['历史、收藏、场景统一固定搜索与筛选，顶栏遮挡覆盖共用间隙；下滑后才显示回到顶部。','新增按页面独立记忆筛选与排序，刷新及云同步后恢复，各页可分别重置；临时搜索文字不上传。','隐藏编辑气泡与隐藏悬停提示拆开控制，常驻填写说明独立保留，撤销及操作结果不受影响。','词典快照、网页制卡与 Fushi 来源在独立验收预览推进；真实专用牌库验收通过，但 Windows 包启动仍待排查，生产联动保持关闭。'],
+  },
   {
     version:'0.34.1',date:'2026-10-22',title:'场景多片段高亮与提示控制',
     items:['修复场景多词关联的自动高亮；手动高亮支持顿号及换行，未独立调整的关联随场景默认值更新，保留独立覆盖。','编辑原句或译文时可将选中的片段加入高亮；总览同步显示双语高亮。','阅读体验新增全局隐藏提示气泡，覆盖按钮、阅读摘要和编辑说明，不关闭操作结果、错误及撤销通知。','提示框按内容排布并限制手机宽高，长说明可滚动；联动功能继续单独验收，生产云任务开关保持关闭。'],
@@ -1172,6 +1177,20 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
   }
   const key=`${type}|${title}|${message}`;
   const existing=activeToasts.get(key);
+  const toastMode=normalizeToastMode(getSettings()?.toastMode),limit=toastMode==='snackbar'?1:3;
+  const protectedAction=state=>state.action&&!state.used&&!state.dismissed;
+  const park=(oldKey,state)=>{clearTimeout(state.timer);state.element.remove();activeToasts.delete(oldKey);if(state.owner===(cloudUser?.id||'local'))queuedToasts.push({key:oldKey,message:state.message,type:state.type,title:state.title,action:state.action,owner:state.owner})};
+  const queue=()=>{
+    const owner=cloudUser?.id||'local';
+    if(!action&&queuedToasts.some(row=>!row.action&&row.key===key&&row.owner===owner))return;
+    if(!action&&queuedToasts.filter(row=>!row.action).length>=20)queuedToasts.splice(queuedToasts.findIndex(row=>!row.action),1);
+    queuedToasts.push({key,message,type,title,action,owner});
+  };
+  // Do not evict an available undo because a background status arrives.
+  if(action){
+    if(existing&&protectedAction(existing))park(key,existing);
+    if(activeToasts.size>=limit&&[...activeToasts.values()].every(protectedAction)){const [oldKey,state]=activeToasts.entries().next().value;park(oldKey,state)}
+  }else if((existing&&protectedAction(existing))||(activeToasts.size>=limit&&[...activeToasts.values()].every(protectedAction))){queue();return}
   if(existing?.element?.isConnected){
     if(existing.element.classList.contains('leaving')||action||existing.action){
       clearTimeout(existing.timer);
@@ -1189,10 +1208,10 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
     }
   }
   const toast=document.createElement('div');
-  const toastMode=normalizeToastMode(getSettings()?.toastMode);
-  const limit=toastMode==='snackbar'?1:3;
   while(activeToasts.size>=limit){
-    const [oldKey,oldState]=activeToasts.entries().next().value;
+    const victim=[...activeToasts.entries()].find(([,state])=>!protectedAction(state));
+    if(!victim){queue();return}
+    const [oldKey,oldState]=victim;
     clearTimeout(oldState.timer);
     oldState.element.remove();
     activeToasts.delete(oldKey);
@@ -1214,10 +1233,10 @@ function notify(message,type='info',title='Lexi酱',record=true,action=null){
   globalThis.UIOverlays?.raiseNotifications();
   toast.querySelector('.toast-close')?.addEventListener('click',()=>dismissToast(key));
   toast.querySelector('.toast-action')?.addEventListener('click',()=>{
-    try{action?.run?.()}finally{dismissToast(key)}
+    try{state.used=true;if(state.owner!==(cloudUser?.id||'local'))notify('账号已切换，未执行其他账号的通知操作。','warn','撤销');else action?.run?.()}finally{if(activeToasts.get(key)===state)dismissToast(key)}
   });
   bindToastSwipe(toast,key);
-  const state={element:toast,count:1,timer:null,action};
+  const state={element:toast,count:1,timer:null,action,owner:cloudUser?.id||'local',message,type,title};
   activeToasts.set(key,state);
   armToastTimer(key,state);
   toast.addEventListener('pointerenter',()=>clearTimeout(state.timer));
@@ -1273,17 +1292,27 @@ function toastIcon(type){
   if(type==='bad'||type==='warn')return icon('circle-alert');
   return icon('info');
 }
+function flushQueuedToast(){
+  const limit=normalizeToastMode(getSettings()?.toastMode)==='snackbar'?1:3;
+  if(activeToasts.size>=limit)return;
+  for(let n=queuedToasts.length-1;n>=0;n--)if(queuedToasts[n].owner!==(cloudUser?.id||'local'))queuedToasts.splice(n,1);
+  if(!queuedToasts.length)return;
+  const priority=queuedToasts.findLastIndex(row=>row.action),row=queuedToasts.splice(priority<0?0:priority,1)[0];
+  notify(row.message,row.type,row.title,false,row.action);
+}
 function dismissToast(key){
   const toastState=activeToasts.get(key);
   const toast=toastState?.element;
   if(!toast)return activeToasts.delete(key);
   if(toast.classList.contains('leaving'))return;
   clearTimeout(toastState.timer);
+  toastState.dismissed=true;
   toast.classList.add('leaving');
   const remove=()=>{
     clearTimeout(fallback);
     toast.remove();
     if(activeToasts.get(key)===toastState)activeToasts.delete(key);
+    queueMicrotask(flushQueuedToast);
   };
   // Safari or reduced-motion styles may skip the exit animation event.
   const fallback=setTimeout(remove,320);
@@ -1772,6 +1801,7 @@ function normalizeSettings(raw={}){
   const homeStickyMode=normalizeHomeStickyMode(source.homeStickyMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
   const hintsHidden=normalizeBooleanSetting(source.hintsHidden,false);
+  const tooltipsHidden=normalizeBooleanSetting(source.tooltipsHidden,false);
   const toastMode=normalizeToastMode(source.toastMode);
   const toastPosition=normalizeToastPosition(source.toastPosition);
   const modelPrompt=String(source.modelPrompt||'');
@@ -1803,6 +1833,9 @@ function normalizeSettings(raw={}){
     homeStickyMode,
     visualHintsPinned,
     hintsHidden,
+    tooltipsHidden,
+    rememberViewFilters:normalizeBooleanSetting(source.rememberViewFilters,true),
+    viewPreferences:ViewPreferences.records(source.viewPreferences),
     readingNav:['top','left','off'].includes(source.readingNav)?source.readingNav:'top',
     mediaAutoplay:source.mediaAutoplay===true,
     mediaControls:source.mediaControls!==false,
@@ -1961,6 +1994,9 @@ function mergeSettings(localRaw,remoteRaw){
     homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
     hintsHidden:preferLocalSettings?local.hintsHidden:remote.hintsHidden,
+    tooltipsHidden:preferLocalSettings?local.tooltipsHidden:remote.tooltipsHidden,
+    rememberViewFilters:preferLocalSettings?local.rememberViewFilters:remote.rememberViewFilters,
+    viewPreferences:ViewPreferences.merge(local.viewPreferences,remote.viewPreferences),
     readingNav:preferLocalSettings?local.readingNav:remote.readingNav,
     mediaAutoplay:preferLocalSettings?local.mediaAutoplay:remote.mediaAutoplay,
     mediaControls:preferLocalSettings?local.mediaControls:remote.mediaControls,
@@ -4702,6 +4738,7 @@ function loadMoreFolders(){
   renderFoldersView();
 }
 function rerenderHistoryFromStart(){
+  rememberViewPreference('history');
   clearTimeout(historySearchRenderTimer);
   historySearchRenderTimer=null;
   resetHistoryVisible();
@@ -4804,6 +4841,7 @@ function toggleHistoryFilters(){
   if(!historyState.filtersOpen)closeHistoryFilterMenus();
   else renderHistoryFilterOptions(getHistory());
   updateHistoryFilterToggle();
+  rememberViewPreference('history');
 }
 function renderHistory(){
   const allHistory=getHistory();
@@ -6036,7 +6074,7 @@ function renderHistorySortControls(){
     const active=button.dataset.sort===historyState.sort;
     button.classList.toggle('active',active);
     const mark=button.querySelector('span');
-    if(mark)mark.textContent=active?(historyState.sortDir==='asc'?'↑':'↓'):'';
+    if(mark)mark.innerHTML=active?icon(historyState.sortDir==='asc'?'arrow-up':'arrow-down'):'';
   });
 }
 function normalizeSearch(value){
@@ -7508,8 +7546,8 @@ function filteredFolderEntries(folderId=folderState.activeId,items=historyForFol
 }
 function searchableFragment(pin={}){return [pin.title,pin.meaning,pin.example,pin.translation,pin.detail]}
 function folderSearchIsGlobal(){return Boolean(folderState.query.trim()&&folderState.searchScope==='all')}
-function setFolderSearchScope(value){folderState.searchScope=value==='current'?'current':'all';if(value==='current')folderState.detailOpen=true;folderState.visibleCount=folderBatchSize();renderFoldersView()}
-function setFolderSort(value){folderState.sort=['title','created'].includes(value)?value:'updated';folderState.visibleCount=folderBatchSize();renderFoldersView()}
+function setFolderSearchScope(value){folderState.searchScope=value==='current'?'current':'all';if(value==='current')folderState.detailOpen=true;folderState.visibleCount=folderBatchSize();rememberViewPreference('folders');renderFoldersView()}
+function setFolderSort(value){folderState.sort=['title','created'].includes(value)?value:'updated';folderState.visibleCount=folderBatchSize();rememberViewPreference('folders');renderFoldersView()}
 function exportVisibleFolderJSON(){
   const entries=filteredFolderEntries();
   downloadText('Lexi-favorites.json',JSON.stringify(entries,null,2));
@@ -7751,7 +7789,34 @@ function clearEditor(){
   resetCurrentLookupState();
   updateEditorState();
 }
+let appliedViewPreferenceKey='';
+function rememberViewPreference(page,value){
+  const settings=getSettings();if(settings.rememberViewFilters===false)return;
+  const next=ViewPreferences.normalize(page,value||(page==='history'?historyState:folderState));
+  if(JSON.stringify(next)===JSON.stringify(ViewPreferences.get(page,settings)))return;
+  setSettings(ViewPreferences.update(page,next,settings));
+}
+function applyViewPreferences(settings,force=false){
+  const key=JSON.stringify([cloudUser?.id||'local',settings.rememberViewFilters,settings.viewPreferences]);
+  if(!force&&key===appliedViewPreferenceKey)return;appliedViewPreferenceKey=key;
+  Object.assign(historyState,ViewPreferences.get('history',settings));Object.assign(folderState,ViewPreferences.get('folders',settings));
+  globalThis.SceneWorkspace?.applyPreferences(ViewPreferences.get('scenes',settings));
+  const toggle=document.getElementById('remember-view-filters');if(toggle)toggle.checked=settings.rememberViewFilters!==false;
+  if(activeView==='history')renderHistory();if(activeView==='folders')renderFoldersView();
+}
+function setRememberViewFilters(value){
+  let settings={...getSettings(),rememberViewFilters:Boolean(value),updatedAt:new Date().toISOString()};
+  if(!value)for(const page of ['history','folders','scenes'])settings=ViewPreferences.update(page,ViewPreferences.defaults[page],settings);
+  if(setSettings(settings))applyViewPreferences(getSettings(),true);
+}
+function resetBrowsePreferences(page){
+  if(page==='scenes')return globalThis.SceneWorkspace?.resetFilters();
+  const value=ViewPreferences.normalize(page,ViewPreferences.defaults[page]);
+  if(page==='history'){Object.assign(historyState,value,{query:''});if(els.historySearch)els.historySearch.value='';rerenderHistoryFromStart()}
+  if(page==='folders'){Object.assign(folderState,value,{query:''});rememberViewPreference('folders');renderFoldersView()}
+}
 function hydrateSettings(){
+  applyViewPreferences(getSettings());
   globalThis.ExperienceUI?.apply(getSettings());
   if(activeView==='scenes')globalThis.SceneUI?.renderHub();
   const settings=getSettings();
@@ -7763,6 +7828,7 @@ function hydrateSettings(){
   applyHomeStickyMode(settings.homeStickyMode);
   applyVisualHintsPinned(settings.visualHintsPinned);
   applyHintsHidden(settings.hintsHidden);
+  applyTooltipsHidden(settings.tooltipsHidden);
   applyToastMode(settings.toastMode);
   applyToastPosition(settings.toastPosition);
   renderModelPromptSettings(settings);
@@ -8045,8 +8111,16 @@ function applyHintsHidden(value){
   const hidden=normalizeBooleanSetting(value,false);
   document.body.classList.toggle('hints-hidden',hidden);
   const input=document.getElementById('hints-hidden');if(input)input.checked=hidden;
-  const pinned=document.getElementById('visual-hints-pinned');if(pinned)pinned.disabled=hidden;
   document.dispatchEvent(new Event('hint-visibility-change'));
+}
+function applyTooltipsHidden(value){
+  const hidden=normalizeBooleanSetting(value,false);document.body.classList.toggle('tooltips-hidden',hidden);
+  const input=document.getElementById('tooltips-hidden');if(input)input.checked=hidden;
+  document.dispatchEvent(new Event('hint-visibility-change'));
+}
+function setTooltipsHidden(value){
+  const hidden=normalizeBooleanSetting(value,false);
+  if(setSettings({...getSettings(),tooltipsHidden:hidden,updatedAt:new Date().toISOString()}))applyTooltipsHidden(hidden);
 }
 function setHintsHidden(value){
   const hidden=normalizeBooleanSetting(value,false);

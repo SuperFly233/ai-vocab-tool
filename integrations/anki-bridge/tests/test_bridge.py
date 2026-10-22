@@ -44,7 +44,7 @@ class FakeAnki:
         if action == 'addNote':
             fields = args['note']['fields']
             nid = len(self.notes) + 1
-            self.notes[fields['LexiKey']] = {'id': nid, 'fields': copy.deepcopy(fields), 'cards': [nid]}
+            self.notes[fields['LexiKey']] = {'id': nid, 'fields': copy.deepcopy(fields), 'cards': [nid], 'tags': copy.deepcopy(args['note'].get('tags', []))}
             if self.lost:
                 self.lost = False
                 raise BridgeError('Lost write response')
@@ -145,6 +145,40 @@ class Tests(unittest.TestCase):
         with self.assertRaises(BridgeError): self.anki.media(ref, b'bad')
         self.anki.media(ref, data)
         self.anki.media(ref, lambda: self.fail('Repeated media download'))
+
+    def test_cached_media_still_checks_actual_format(self):
+        import base64
+        data=b'\xff\xd8\xfffixture'
+        ref={'id':hashlib.sha256(data).hexdigest(),'mime':'image/png','size':len(data)}
+        self.anki.media_files['lexi_'+ref['id']+'.png']=base64.b64encode(data).decode()
+        with self.assertRaises(BridgeError):self.anki.media(ref,lambda:self.fail('Unexpected download'))
+
+    def test_undo_requires_known_creation_receipt(self):
+        row=preview(self.anki,[card()],'owner','profile')[0]
+        self.anki.lost=True
+        with self.assertRaises(BridgeError):self.execute(row)
+        uncertain=self.journal.rows('owner','profile','job')[0]
+        self.assertEqual(uncertain['noteId'],'')
+        with self.assertRaises(BridgeError):undo_one(self.anki,uncertain)
+        self.assertEqual(len(self.anki.notes),1,'Do not delete a note without a proven creation receipt')
+
+    def test_uncertain_creation_cannot_adopt_another_batch(self):
+        row=preview(self.anki,[card()],'owner','profile')[0]
+        self.execute(row)
+        self.journal.record('owner','profile','other-job','one','','create',None,row['fields'])
+        recovered=preview(self.anki,[card()],'owner','profile')[0]
+        self.assertEqual(execute_one(self.anki,recovered,'owner','profile','other-job','deck',self.journal,lambda _:b'')['status'],'skipped')
+        uncertain=self.journal.rows('owner','profile','other-job')[0]
+        self.assertEqual(uncertain['noteId'],'')
+        with self.assertRaises(BridgeError):undo_one(self.anki,uncertain)
+        self.assertEqual(len(self.anki.notes),1)
+
+    def test_creation_undo_preserves_later_user_tags(self):
+        row=preview(self.anki,[card()],'owner','profile')[0]
+        self.execute(row)
+        self.anki.notes[row['fields']['LexiKey']]['tags'].append('my-later-tag')
+        with self.assertRaisesRegex(BridgeError,'标签'):undo_one(self.anki,self.journal.rows('owner','profile','job')[0])
+        self.assertEqual(len(self.anki.notes),1)
 
     def test_before_write_cancellation(self):
         row = preview(self.anki, [card()], 'owner', 'profile')[0]
