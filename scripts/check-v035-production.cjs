@@ -21,6 +21,6 @@ const base='https://ai-vocab-tool.pages.dev',sha=value=>createHash('sha256').upd
   if(width<=900)assert.equal(await page.evaluate(()=>document.querySelector('.scroll-top-button').getBoundingClientRect().bottom<document.querySelector('.sidebar').getBoundingClientRect().top),true,'Top action clears bottom navigation');
   await page.getByRole('button',{name:'回到顶部',exact:true}).click();await page.waitForFunction(()=>scrollY<5);
   await page.evaluate(()=>{setRememberViewFilters(false);setHintsHidden(true);setTooltipsHidden(false)});await page.reload();await page.waitForFunction(()=>typeof ExperienceUI!=='undefined');assert.equal(await page.evaluate(()=>getSettings().rememberViewFilters),false);assert.equal(await page.evaluate(()=>getSettings().tooltipsHidden),false);
-  assert.deepEqual(errors,[]);await context.close();console.log(`Production ${width}px isolated browser: version, views, scrolled mask/top action, independent settings and closed integration passed.`);
+  assert.deepEqual(errors,[]);await context.close();console.log(`Production ${width}px isolated browser: version, views, scrolled mask/top action, independent settings and unauthenticated integration hiding passed.`);
  }
 }finally{await browser?.close()}})().catch(error=>{console.error(error);process.exitCode=1});

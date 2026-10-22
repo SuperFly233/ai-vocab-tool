@@ -1,6 +1,6 @@
 # v0.35.1 / Bridge 0.3 阶段交付
 
-日期：2026-10-22。真实验收仅使用专用“Lexi 验收”牌库；不修改 Fushi 模板、原队列、已有卡片或调度。
+实施与首次上线：2026-10-22；生产及下载复核完成：2026-10-23。真实验收仅使用专用“Lexi 验收”牌库；不修改 Fushi 模板、原队列、已有卡片或调度。
 
 ## 本轮实际变化
 
@@ -45,15 +45,19 @@
 
 ## 发布证据
 
-- 生产网站：https://ai-vocab-tool.pages.dev 。最终提交、部署与生产复核结果在发布后补记。
+- 生产网站：https://ai-vocab-tool.pages.dev 。生产部署：https://07573307.ai-vocab-tool.pages.dev 。代码提交：`3a677e64df22f829690048ca7b18c91b0a7bc5a6`，已 Push 到 main。
+- 生产 28 项静态文件哈希与构建一致；390／1440px 隔离线上浏览器的版本、页面、滚动与偏好回归通过。未登录健康请求返回 401；使用伴侣独立登录凭据的生产健康检查成功，支持任务 v1／v2／v3 与词典，生产开关已开放。
+- 发布：https://github.com/SuperFly233/ai-vocab-tool/releases/tag/v0.35.1 。下载：https://github.com/SuperFly233/ai-vocab-tool/releases/download/v0.35.1/LexiAnkiBridge-0.3.0-Windows-portable.zip 。远端资产为 18,456,344 字节，GitHub 返回的 SHA-256 与下方本地校验值完全一致。
 - 验收预览：https://21507337.ai-vocab-tool.pages.dev （生产开放前使用）。
 - 包：`tmp/anki-bridge-build/LexiAnkiBridge-0.3.0-Windows-portable.zip`，约 18.5 MB，未代码签名。
 - ZIP SHA-256：`901a2a1254ddb36250d1636ecb90bedb1358a2fa97f79d5e26558cebce10f5ed`。
+- ZIP 中 191 个运行文件的逐项哈希通过，未发现 `device.json`、`journal.sqlite3`、回环连接文件或 MDX／MDD 词库。程序未代码签名；完整性清单不等于代码签名。
 - EXE SHA-256：`db22b864b20d8284edfb0bd7bd5d804bdcc7523912a6f714af54de75843004c6`。最终随包说明更新后重新自检；EXE 与已真实验收的程序一致。
 - 实际构建 24.58 秒；最终自检通过，未绕过验证。首次目录自检发现缺失证书策略文件，修正后通过；未重复触发访问冲突。
 - `npm run check`、45 项 Python 单测、SQL／API／词典隔离测试通过。预览 10 组、词典 10 组、网页及助手 20 组、Fushi 10 组、控件动效 8 组、关闭 4 组、流式 4 组通过。
 - 真实程序证据：`tmp/anki-bridge-qa/portable-acceptance-report.json`：干净子进程环境、中文空格路径、单实例、2 张新增、2 张跳过、更新与还原、2 张安全撤销、重启保持设备与回执。
 - 截图：`tmp/dialog-qa/anki-preview-v0351/` 为合成数据五宽度明暗主题；`tmp/dialog-qa/portable-live/` 为个人本机验收，不公开词典正文。
+- 已人工检查 390px 深色及 1440px 浅色预览截图：确认区在视口内，长差异单独滚动，无关闭气泡遮挡；生产截图位于 `tmp/dialog-qa/v035-production/`。
 - 设计参考：`docs/design/anki-review-v0351-reference.png`，内置 imagegen 生成，先检查再实施，未当网页背景。
 
 ## 限制
@@ -61,3 +65,7 @@
 实体 iPhone、真实音视频播放、Anki 自身云同步、Fushi 原媒体自动传输未验证／未交付。真实故障下的断网与部分成功未在用户系统注入；相应保护由模拟测试覆盖。不宣称跨系统绝对恰好一次，不读取 Fushi 私有数据库，不自动调用模型。
 
 回滚：关闭 `ANKI_BRIDGE_ENABLED` 并重新部署；必要时恢复 v0.35.0 网页产物。追加的校验迁移保留，旧客户端仍兼容，不回退或删除用户数据。完成发布后暂停。
+
+## 使用入口
+
+完整解压便携 ZIP，运行 EXE，保留同目录的 `_internal`。本地页面仅用于独立登录与连接配置，按需读取现有 AnkiConnect 连接；Fushi 和 Anki 由用户手动启动。学习、词典选义、目标牌库与制卡确认继续在原 Lexi 网页操作。关闭本地浏览器页不等于退出程序，使用助手的退出操作。
