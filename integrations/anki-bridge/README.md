@@ -1,11 +1,11 @@
-# Lexi Anki Bridge 0.2.0 (Development)
+# Lexi Anki Bridge 0.3.0
 
 Windows 本地伴侣程序，复用已有 AnkiConnect。不修改 Fushi、既有模板或复习调度，不设置开机自启。
 
 ## 当前发布边界
 
-生产任务、网页确认、设备请求、自动接单与词典快照迁移已执行。独立验收预览已通过真实词典查询、选择义项快照、专用牌库写入、重复跳过、回执与安全撤销；生产发送仍关闭，不能把预览验收视为生产上线或 Anki 自身同步完成。
-原 Lexi 网页是唯一学习工作台，本地程序只负责登录此电脑、连接配置、诊断和执行。Fushi 内容进入原网页的选择流程仍在开发，不提供第二套本地场景或制卡编辑器。
+生产任务、网页确认、设备请求、自动接单与词典快照迁移已执行。便携程序已通过真实词典查询、选择义项快照、专用牌库写入、重复跳过、更新、回执与安全撤销；生产开放状态以官网与 v0.35.1 阶段报告为准，不能把预览验收或写入成功视为 Anki 自身同步完成。
+原 Lexi 网页是唯一学习工作台，本地程序只负责登录此电脑、连接配置、诊断和执行。Fushi 内容在原网页明确选取后导入，不提供第二套本地场景或制卡编辑器；官方列表未提供原媒体时需手动补充。
 
 ## 0.3 词典能力
 
@@ -36,7 +36,11 @@ Windows 本地伴侣程序，复用已有 AnkiConnect。不修改 Fushi、既有
 
 推荐 Python 3.12.10 或更新的 3.12 修复版。使用 requirements-lock.txt 创建隔离环境，并设置 PYTHONPATH 为 integrations/anki-bridge 后运行 `python -m unittest discover -s integrations/anki-bridge/tests -v`。
 SQL/API 测试使用隔离的 PGlite：先在项目 tmp/anki-bridge-qa 安装 @electric-sql/pglite，再运行 `node scripts/check-anki-jobs.cjs`；它不连接生产数据库。
-运行 `python integrations/anki-bridge/build.py` 生成 Windows 测试包及第三方许可证；EXE 支持 `--self-test`，只在临时目录启动并检查本地 HTTP，不登录、不读写真实牌库。未代码签名，首次运行可能有系统信誉提示。
+运行 `python integrations/anki-bridge/build.py` 生成目录式 Windows 程序及第三方许可证，构建最多 180 秒。再运行 `verify_package.py`，在 45 秒内检查运行时、证书策略资源、临时数据库、本地 HTTP 与退出，不登录、不读写真实牌库。成功凭据绑定整个运行目录的文件清单与哈希；`package.py` 拒绝变动过的运行目录。PyInstaller 仍保留为构建工具，不将单文件 EXE 作为交付门槛。
+
+便携 ZIP 必须完整解压，保留 EXE 旁的 `_internal` 目录，双击 `LexiAnkiBridge-0.3.0.exe`。无须安装 Python；配置和凭据不保存在包内。同一数据目录重复启动退出码为 3，不开启第二个执行器。未代码签名，首次运行可能有系统信誉提示。
+
+诊断支持 `--self-test`；自动化验收可显式使用 `--data-dir`、官方 `--origin`、`--no-browser` 与 `--connection-file`。连接文件仅含本次回环地址与短期控制令牌，退出时删除，不得上传。普通使用无须这些参数，不把密码、登录令牌或 Anki 密钥写入命令行。
 PyInstaller 使用其 GPL 加打包例外；FastAPI/keyring 为 MIT，uvicorn/httpx 为 BSD。完整运行依赖许可证随测试包生成；不打包或复制 Anki/Fushi 程序代码。
 
 Fushi 官方 CLI 已实现固定路径、只读白名单和超时适配，锁定核查的上游 725fcde6c9a1e2abef8c72009886a4cd66e4751a。网页来源选取、确认与独立场景导入已在验收预览实现；当前官方收藏/暂存列表不返回图片和音频文件，不读取私有数据库来伪装完整支持。所选来源的原始媒体接入仍未完成。不复制 Fushi GPL 程序代码，不消费其原队列。

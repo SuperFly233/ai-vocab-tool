@@ -14,11 +14,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from . import __version__
-from .cloud import Cloud, Vault
+from .cloud import Cloud, Vault, ORIGIN
 from .core import Anki, BridgeError, Journal, digest, execute_one, preview, undo_one, media_mime
 from .fushi import Fushi, make_card
 from .remote import process_request
 from .dictionary import validate_snapshot
+from .review import review_rows
 
 ASSETS = Path(__file__).parent.parent / 'web'
 
@@ -142,9 +143,7 @@ class State:
             if job['payload'].get('confirmationMode') == 'web':
                 snapshot = {'deck': deck, 'profile': connection['profile'], 'binding': binding,
                             'decks': list(dict.fromkeys([*connection['decks'], 'Lexi 验收'])),
-                            'rows': [{'key': row['card']['key'], 'operation': row['operation'],
-                                      'previous': {key: value for key, value in (row['before'] or {}).get('fields', {}).items()
-                                                   if key in ('Expression', 'Sentence', 'Translation', 'Meaning', 'Notes', 'Source')}} for row in rows]}
+                            'rows': review_rows(rows)}
                 try:
                     self.cloud.call('review_publish', **self.lease(), snapshot=snapshot)
                 except BridgeError:
@@ -510,16 +509,41 @@ def create_app(state, port, token):
     return app
 
 
-def main():
-    directory = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'LexiAnkiBridge'
-    state = State(directory)
+def main(directory=None, origin=ORIGIN, open_browser=True, connection_file=None):
+    directory = Path(directory) if directory else Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'LexiAnkiBridge'
+    # Separate portable instances must not run workers against the same local journal.
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel.CreateMutexW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.ReleaseMutex.argtypes = [wintypes.HANDLE]
+    handle = kernel.CreateMutexW(None, True, 'Local\\LexiBridge-' + digest(str(directory.resolve()).lower()))
+    if not handle:
+        raise BridgeError('无法取得本机运行锁。')
+    if ctypes.get_last_error() == 183:
+        kernel.CloseHandle(handle)
+        return 3
+    try:
+        return serve(directory, origin, open_browser, connection_file)
+    finally:
+        kernel.ReleaseMutex(handle)
+        kernel.CloseHandle(handle)
+
+
+def serve(directory, origin, open_browser, connection_file):
+    state = State(directory, cloud=Cloud(Vault(), origin=origin))
     token = secrets.token_urlsafe(32)
     sock = socket.socket()
     sock.bind(('127.0.0.1', 0))
     port = sock.getsockname()[1]
     app = create_app(state, port, token)
     threading.Thread(target=state.renew, daemon=True).start()
-    threading.Timer(1, lambda: webbrowser.open(f'http://127.0.0.1:{port}/#token={token}')).start()
+    if open_browser:
+        threading.Timer(1, lambda: webbrowser.open(f'http://127.0.0.1:{port}/#token={token}')).start()
+    if connection_file:
+        Path(connection_file).write_text(json.dumps({'port': port, 'token': token}), 'utf-8')
     try:
         server = uvicorn.Server(uvicorn.Config(app, access_log=False, log_level='warning', log_config=None))
         def stop():
@@ -530,6 +554,8 @@ def main():
     finally:
         state.closed.set()
         sock.close()
+        if connection_file:
+            Path(connection_file).unlink(missing_ok=True)
 
 
 if __name__ == '__main__':

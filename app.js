@@ -184,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.35.0',
+  version:'0.35.1',
   releaseDate:'2026-10-22',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.35.1',date:'2026-10-22',title:'词典与制卡预览交付',
+    items:['Bridge 0.3 改为目录式便携包，增加有时限的启动自检、整包哈希与重复启动保护。','制卡预览展示新增、更新与跳过数量，按字段呈现纯文本变化；词典长内容明确标注摘要，完整新释义独立阅读。','全部素材与词典引用校验通过后才允许确认；网页仍是唯一学习工作台，本地助手只负责连接与执行。','本机词典、Fushi 文字来源与 Anki 专用模板按真实连接提供；Fushi 原素材需手动补充，不代表 Anki 自身同步或所有终端播放已验证。'],
+  },
   {
     version:'0.35.0',date:'2026-10-22',title:'统一浏览与编辑提示',
     items:['历史、收藏、场景统一固定搜索与筛选，顶栏遮挡覆盖共用间隙；下滑后才显示回到顶部。','新增按页面独立记忆筛选与排序，刷新及云同步后恢复，各页可分别重置；临时搜索文字不上传。','隐藏编辑气泡与隐藏悬停提示拆开控制，常驻填写说明独立保留，撤销及操作结果不受影响。','词典快照、网页制卡与 Fushi 来源在独立验收预览推进；真实专用牌库验收通过，但 Windows 包启动仍待排查，生产联动保持关闭。'],

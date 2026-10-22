@@ -9,7 +9,7 @@
   const result=await fetch('/api/anki-jobs',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action,args}),signal});
   const value=await result.json();if(cloudUser?.id!==account)throw new Error('账号已切换，请重新打开。');if(!result.ok)throw new Error(value.error||'Anki 请求未完成。');return value.data;
  }
- function dialog(title){const node=document.createElement('dialog');node.className='scene-study-dialog anki-dialog';node.innerHTML=`<header><h2>${esc(title)}</h2><button class="icon-btn" aria-label="关闭" data-tip="关闭">${icon('x')}</button></header><div class="scene-dialog-body"></div><p class="scene-dialog-status" role="status"></p>`;node.querySelector('header button').onclick=()=>node.close();node.onclose=()=>node.remove();document.body.append(node);node.showModal();return node}
+ function dialog(title,{closeHint=true}={}){const node=document.createElement('dialog');node.className='scene-study-dialog anki-dialog';node.innerHTML=`<header><h2>${esc(title)}</h2><button class="icon-btn" aria-label="关闭" ${closeHint?'data-tip="关闭"':''}>${icon('x')}</button></header><div class="scene-dialog-body"></div><p class="scene-dialog-status" role="status"></p>`;node.querySelector('header button').onclick=()=>node.close();node.onclose=()=>node.remove();document.body.append(node);node.showModal();return node}
  function error(node,value){const status=node.querySelector('[role=status]');if(status)status.textContent=value}
  function confirmIntent(message,title,label='确认'){
   return new Promise(resolve=>{const node=dialog(title),body=node.querySelector('.scene-dialog-body');body.innerHTML=`<p></p><footer><button class="plain-btn" data-cancel-intent>取消</button><button class="plain-btn primary-btn" data-accept-intent>${esc(label)}</button></footer>`;body.querySelector('p').textContent=message;body.querySelector('[data-cancel-intent]').onclick=()=>node.close();body.querySelector('[data-accept-intent]').onclick=()=>node.close('confirm');node.addEventListener('close',()=>resolve(node.returnValue==='confirm'),{once:true})});
@@ -122,17 +122,31 @@
  }
  let scheduled=false;new MutationObserver(()=>{if(!scheduled){scheduled=true;requestAnimationFrame(()=>{scheduled=false;installButtons();refreshAvailability()})}}).observe(document.body,{childList:true,subtree:true});installButtons();refreshAvailability();
  addEventListener('online',()=>{capabilityTime=0;refreshAvailability()});
+ function previewText(value){
+  if(root.DictionaryUI)return DictionaryUI.safeHTML(String(value??'')).textContent.trim();
+  const doc=new DOMParser().parseFromString(String(value??''),'text/html');doc.querySelectorAll('script,style').forEach(node=>node.remove());return doc.body.textContent.trim();
+ }
+ function changesHTML(row){
+  const names={Expression:'词头',Origin:'原始输入 Origin',Sentence:'原句',Translation:'译文',Meaning:'释义',Notes:'备注',Source:'来源',DictionarySource:'词典来源',Dictionary:'词典内容'};
+  const changes=Array.isArray(row.changes)?row.changes:Object.entries(row.previous||{}).filter(([field])=>names[field]).map(([field,value])=>({field,before:previewText(value),legacy:true}));
+  if(!changes.length)return '<p class="muted">仅素材或格式发生变化；请核对上方卡面。</p>';
+  return `<section class="anki-review-diff"><h3>本次变化</h3>${changes.map(change=>`<section class="anki-change-row"><h4>${esc(names[change.field]||'内容')}</h4><div><span>原内容</span><p>${esc(change.before||'无')}${change.beforeTruncated?'… <small>仅显示摘要</small>':''}</p></div><div><span>新内容</span><p>${change.legacy?'请核对上方卡面；此电脑未提供逐字段差异':esc(change.after||'无')}${change.afterTruncated?'… <small>仅显示摘要；完整新内容见上方</small>':''}</p></div></section>`).join('')}</section>`;
+ }
  async function reviewJob(job){
-  const node=dialog('确认写入 Anki'),body=node.querySelector('.scene-dialog-body');let current=null,index=0,pending=false,urls=[],generation=0,dictionaryReady=false;
+  const node=dialog('确认写入 Anki',{closeHint:false}),body=node.querySelector('.scene-dialog-body');let current=null,index=0,pending=false,urls=[],generation=0,dictionaryReady=false;
+  node.classList.add('anki-review-dialog');
   function release(){urls.forEach(URL.revokeObjectURL);urls=[]}
   node.addEventListener('close',release,{once:true});
   async function show(){
    const version=++generation;dictionaryReady=!job.payload.cards.some(card=>card.dictionaryRef);release();const data=current,card=job.payload.cards[index],row=data.snapshot.rows.find(row=>row.key===card.key);
-   body.innerHTML=`<div class="anki-review-target"><label>目标牌库<select data-review-deck>${data.snapshot.decks.map(deck=>`<option ${deck===data.snapshot.deck?'selected':''}>${esc(deck)}</option>`).join('')}</select></label><span>电脑配置 ${esc(data.snapshot.profile)}</span></div><div class="anki-review-navigation"><button class="icon-btn" data-review-prev aria-label="上一张" ${index?'':'disabled'}>${icon('chevron-left')}</button><span>${index+1} / ${job.payload.cards.length} · ${esc(({create:'新增',update:'更新已有卡片',skip:'内容未变，跳过'})[row.operation])}</span><button class="icon-btn" data-review-next aria-label="下一张" ${index+1<job.payload.cards.length?'':'disabled'}>${icon('chevron-right')}</button></div><div class="anki-web-faces"><section><span>正面</span><h3>${esc(card.title)}</h3><p>${highlightText(card.quote,card.exampleHighlights)}</p><div data-review-media></div></section><section><span>背面</span><p>${highlightText(card.translation,card.translationHighlights)}</p><strong>${esc(card.meaning)}</strong>${card.note?`<p>${esc(card.note)}</p>`:''}<p class="scene-source-line">${esc(card.sourceTitle)}</p></section></div>${row.operation==='update'?`<details class="anki-review-diff"><summary>原有字段 · 确认后仅更新本集成字段</summary><dl>${Object.entries(row.previous).map(([field,value])=>`<dt>${esc(({Expression:'词头',Sentence:'原句',Translation:'译文',Meaning:'释义',Notes:'备注',Source:'来源'})[field]||field)}</dt><dd>${esc(value)}</dd>`).join('')}</dl></details>`:''}<footer><span data-review-state>${data.approved?'已确认，等待电脑执行':'尚未写入 Anki'}</span><button class="plain-btn primary-btn" data-review-approve ${data.approved?'disabled':''}>${icon('check')}确认写入 ${job.payload.cards.length} 张</button></footer>`;
+   const counts=data.snapshot.rows.reduce((value,item)=>(value[item.operation]=(value[item.operation]||0)+1,value),{create:0,update:0,skip:0});
+   dictionaryReady=false;
+   body.innerHTML=`<div class="anki-review-target"><label>目标牌库<select data-review-deck>${data.snapshot.decks.map(deck=>`<option ${deck===data.snapshot.deck?'selected':''}>${esc(deck)}</option>`).join('')}</select></label><span>电脑配置 ${esc(data.snapshot.profile)}</span></div><p class="anki-review-counts">新增 ${counts.create} · 更新 ${counts.update} · 跳过 ${counts.skip}</p><div class="anki-review-navigation"><button class="icon-btn" data-review-prev aria-label="上一张" ${index?'':'disabled'}>${icon('chevron-left')}</button><span>${index+1} / ${job.payload.cards.length} · ${esc(({create:'新增',update:'更新已有卡片',skip:'内容未变，跳过'})[row.operation])}</span><button class="icon-btn" data-review-next aria-label="下一张" ${index+1<job.payload.cards.length?'':'disabled'}>${icon('chevron-right')}</button></div><div class="anki-web-faces"><section><span>正面</span><h3>${esc(card.title)}</h3><p>${highlightText(card.quote,card.exampleHighlights)}</p><div data-review-media></div></section><section><span>背面</span><p>${highlightText(card.translation,card.translationHighlights)}</p><strong>${esc(card.meaning)}</strong>${card.note?`<p>${esc(card.note)}</p>`:''}<p class="scene-source-line">${esc(card.sourceTitle)}</p></section></div>${row.operation==='update'?changesHTML(row):''}<footer><span data-review-state>${data.approved?'已确认，等待电脑执行':'正在校验词典与素材…'}</span><button class="plain-btn primary-btn" data-review-approve disabled>${icon('check')}确认本批 ${job.payload.cards.length} 张</button></footer>`;
+   node.querySelector(':scope>footer')?.remove();node.insertBefore(body.querySelector('footer'),node.querySelector('.scene-dialog-status'));
    body.querySelector('[data-review-prev]').onclick=()=>{index--;show()};body.querySelector('[data-review-next]').onclick=()=>{index++;show()};
    body.querySelector('[data-review-deck]').onchange=async event=>{if(pending)return;const select=event.currentTarget;pending=true;select.disabled=true;try{await request('review_target',{jobId:job.id,revision:data.revision,deck:select.value});await refresh()}catch(e){select.value=data.snapshot.deck;error(node,e.message)}finally{pending=false;select.disabled=false}};
-   const approve=body.querySelector('[data-review-approve]');approve.disabled=Boolean(data.approved)||!dictionaryReady;
-   approve.onclick=async event=>{if(pending||!dictionaryReady)return;const button=event.currentTarget;pending=true;button.disabled=true;try{await request('review_approve',{jobId:job.id,revision:data.revision});if(node.isConnected)body.querySelector('[data-review-state]').textContent='已确认，等待电脑执行。可在任务列表查看逐项回执。'}catch(e){error(node,e.message);button.disabled=false}finally{pending=false}};
+   const approve=node.querySelector('[data-review-approve]');approve.disabled=Boolean(data.approved)||!dictionaryReady;
+   approve.onclick=async event=>{if(pending||!dictionaryReady)return;const button=event.currentTarget;pending=true;button.disabled=true;try{await request('review_approve',{jobId:job.id,revision:data.revision});if(node.isConnected)node.querySelector('[data-review-state]').textContent='已确认，等待电脑执行。可在任务列表查看逐项回执。'}catch(e){error(node,e.message);button.disabled=false}finally{pending=false}};
    if(!dictionaryReady){
     try{
      const saved=new Map();for(const item of job.payload.cards.filter(item=>item.dictionaryRef)){
@@ -141,16 +155,23 @@
       if(!root.DictionaryUI||snapshot.hash!==ref.hash||!await DictionaryUI.valid(snapshot))throw Error('词典快照不可用，未允许确认写入。');saved.set(ref.id,snapshot);
      }
      if(card.dictionaryRef){const section=document.createElement('section');section.className='dictionary-reading';DictionaryUI.renderSnapshot(section,saved.get(card.dictionaryRef.id));body.querySelector('.anki-web-faces>section:last-child').append(section)}
-     dictionaryReady=true;approve.disabled=Boolean(data.approved);
     }catch(e){if(node.isConnected&&version===generation)error(node,e.message);return}
    }
    const host=body.querySelector('[data-review-media]');
+   const files=new Map();
+   try{
+    for(const ref of new Map(job.payload.cards.flatMap(item=>item.media).map(ref=>[ref.id,ref])).values()){
+     const file=await SceneMedia.resolve(ref);if(!node.isConnected||version!==generation)return;
+     await SceneMedia.verify(ref,file.blob);if(!node.isConnected||version!==generation)return;files.set(ref.id,file);
+    }
+   }catch(e){if(node.isConnected&&version===generation){error(node,`素材校验未通过：${e.message}`);node.querySelector('[data-review-state]').textContent='未允许确认，请检查素材后重新打开预览。'}return}
+   dictionaryReady=true;approve.disabled=Boolean(data.approved);node.querySelector('[data-review-state]').textContent=data.approved?'已确认，等待电脑执行':'尚未写入 Anki；确认后仅更新本集成负责的字段。';
    for(const ref of card.media){
     if(!ref.mime.startsWith('image/')){const text=document.createElement('p');text.textContent=ref.mime.startsWith('video/')?'视频原文件随卡保存；终端播放支持另行验证。':ref.name;host.append(text);continue}
-    try{const file=await SceneMedia.resolve(ref);if(!node.isConnected||body.querySelector('[data-review-media]')!==host)return;const url=URL.createObjectURL(file.blob);urls.push(url);const img=document.createElement('img');img.src=url;img.alt=ref.name;host.append(img)}catch(e){if(host.isConnected){const text=document.createElement('p');text.textContent=`素材加载失败：${e.message}`;host.append(text)}}
+    try{const file=files.get(ref.id);if(!node.isConnected||body.querySelector('[data-review-media]')!==host)return;const url=URL.createObjectURL(file.blob);urls.push(url);const img=document.createElement('img');img.src=url;img.alt=ref.name;host.append(img)}catch(e){if(host.isConnected){const text=document.createElement('p');text.textContent=`素材加载失败：${e.message}`;host.append(text)}}
    }
   }
-  async function refresh(){try{current=await request('review_get',{jobId:job.id});if(!node.isConnected)return;error(node,'');if(!current.valid){release();body.innerHTML='<p>等待电脑准备当前目标的预览。连接助手需保持运行。</p><button class="plain-btn" data-wait-review>重新检查</button>';body.querySelector('[data-wait-review]').onclick=refresh;return}await show()}catch(e){error(node,e.message)}}
+  async function refresh(){try{current=await request('review_get',{jobId:job.id});if(!node.isConnected)return;error(node,'');if(!current.valid){release();dictionaryReady=false;node.querySelector(':scope>footer')?.remove();body.innerHTML='<p>等待电脑准备当前目标的预览。连接助手需保持运行。</p><button class="plain-btn" data-wait-review>重新检查</button>';body.querySelector('[data-wait-review]').onclick=refresh;return}await show()}catch(e){error(node,e.message)}}
   await refresh();
  }
  document.addEventListener('click',event=>{const button=event.target.closest('[data-review-job]');if(!button)return;request('list').then(jobs=>{const job=jobs.find(job=>job.id===button.dataset.reviewJob);if(job)reviewJob(job)}).catch(e=>notify(e.message,'warn','Anki'))});

@@ -4,13 +4,14 @@ const base='https://ai-vocab-tool.pages.dev',sha=value=>createHash('sha256').upd
 (async()=>{let browser;try{
  const files=fs.readdirSync('dist',{recursive:true}).filter(file=>fs.statSync(path.join('dist',file)).isFile());
  for(const file of files){const response=await fetch(`${base}/${file.replaceAll('\\','/')}`,{signal:AbortSignal.timeout(20000)});assert.equal(response.status,200,file);assert.equal(sha(Buffer.from(await response.arrayBuffer())),sha(fs.readFileSync(path.join('dist',file))),`${file} deployed hash`)}
- const gate=await fetch(`${base}/api/anki-jobs`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'health'}),signal:AbortSignal.timeout(20000)});assert.equal(gate.status,503);assert.equal((await gate.json()).enabled,false);
- console.log(`Production static verification: ${files.length} hashes match; external task gate closed.`);
+ const enabled=process.env.QA_PRODUCTION_ENABLED==='1';
+ const gate=await fetch(`${base}/api/anki-jobs`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'health'}),signal:AbortSignal.timeout(20000)});assert.equal(gate.status,enabled?401:503);if(!enabled)assert.equal((await gate.json()).enabled,false);
+ console.log(`Production static verification: ${files.length} hashes match; external gate ${enabled?'requires authentication':'closed'}.`);
  browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_PATH});fs.mkdirSync('tmp/dialog-qa/v035-production',{recursive:true});
  for(const width of [390,1440]){
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(()=>localStorage.setItem('ai_vocab_tool_offline_mode','1'));
   await page.route('https://**/*',route=>{const url=new URL(route.request().url());return url.hostname==='ai-vocab-tool.pages.dev'?route.continue():route.abort()});
-  await page.goto(base+'/scenes');await page.waitForFunction(()=>typeof ExperienceUI!=='undefined');assert.equal(await page.evaluate(()=>APP_INFO.version),'0.35.0');
+  await page.goto(base+'/scenes');await page.waitForFunction(()=>typeof ExperienceUI!=='undefined');assert.equal(await page.evaluate(()=>APP_INFO.version),'0.35.1');
   await page.evaluate(async()=>{await cloudInitPromise;const now=new Date().toISOString();setSettings({...getSettings(),sceneLibrary:Array.from({length:30},(_,index)=>({id:`prod-fixture-${index}`,groupId:`prod-fixture-${index}`,title:`Synthetic scene ${index}`,quote:'Isolated browser acceptance only.',createdAt:now,updatedAt:now}))});SceneWorkspace.render()});
   for(const view of ['history','folders','scenes','settings']){
    await page.evaluate(view=>{showView(view,null,{focus:false});ExperienceUI.refresh()},view);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${view} ${width} overflow`);if(view==='settings')await page.waitForFunction(()=>document.querySelector('.settings-nav-item.active')?.dataset.settingsTarget==='settings-model');await page.screenshot({path:`tmp/dialog-qa/v035-production/${view}-${width}.png`});

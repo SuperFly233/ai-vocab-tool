@@ -2099,6 +2099,20 @@ body[data-media-tools="hidden"] .scene-media-tools,.scene-asset[data-tools="hidd
 .anki-web-faces p{white-space:pre-wrap;margin-block:12px}
 .anki-web-faces img{display:block;max-width:100%;max-height:220px;object-fit:contain;margin-block:12px}
 .anki-review-diff dd{margin-inline:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.anki-review-counts{font-size:14px;color:var(--muted);margin-block:8px 16px}
+.anki-review-dialog{width:min(900px,calc(100vw - 24px))}
+.anki-review-dialog>footer{flex:none;margin:0;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel)}
+.anki-review-dialog>.scene-dialog-status:empty{display:none}
+.anki-review-diff{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+.anki-review-diff h3{font-size:17px;margin-bottom:12px}
+.anki-change-row{display:grid;grid-template-columns:110px repeat(2,minmax(0,1fr));gap:12px;padding-block:12px;border-bottom:1px solid var(--line);min-width:0}
+.anki-change-row h4{font-size:14px;line-height:1.6;margin:0;overflow-wrap:anywhere}
+.anki-change-row>div{min-width:0}
+.anki-change-row span,.anki-change-row small{font-size:12px;color:var(--muted)}
+.anki-change-row p{margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.6}
+.anki-dialog footer [data-review-state]{font-size:13px;color:var(--muted);flex:1;min-width:0}
+.anki-dialog [data-review-approve]{white-space:nowrap;flex-shrink:0}
+@media(max-width:600px){.anki-change-row{grid-template-columns:minmax(0,1fr);gap:8px}.anki-change-row>div{border-left:2px solid var(--line);padding-left:10px}.anki-dialog footer [data-review-state]{flex-basis:100%}.anki-dialog [data-review-approve]{width:100%}}
 @media(max-width:600px){.anki-web-faces{grid-template-columns:minmax(0,1fr);gap:12px}.anki-review-target{align-items:stretch;flex-direction:column}.anki-dialog footer{flex-wrap:wrap;gap:12px}.anki-dialog select{font-size:16px}}
 .fushi-source-dialog{width:min(1000px,calc(100vw - 24px))}.fushi-read-controls{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 100px auto;gap:12px;align-items:end;margin-bottom:16px}.fushi-read-controls .scene-field{margin:0}.fushi-source-workbench{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;margin-top:12px}.fushi-source-list{min-width:0;max-height:45dvh;overflow:auto}.fushi-source-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:12px 0}.fushi-source-row label{display:flex;gap:10px;min-width:0;flex:1;align-items:start}.fushi-source-row input{flex:none;width:18px;height:18px;accent-color:var(--accent)}.fushi-source-row label>span{display:grid;min-width:0;gap:4px}.fushi-source-row strong,.fushi-source-row label>span>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fushi-source-row small{color:var(--muted);overflow-wrap:anywhere}.fushi-source-preview{min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;border-left:1px solid var(--line);padding-left:20px}.fushi-source-preview h3{font-size:18px;margin:0 0 12px}.fushi-source-preview p{line-height:1.6}.fushi-source-dialog footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
 @media(max-width:700px){.fushi-read-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.fushi-read-controls select{font-size:16px}.fushi-source-workbench{grid-template-columns:minmax(0,1fr);gap:12px}.fushi-source-list{max-height:32dvh}.fushi-source-preview{border-left:0;border-top:1px solid var(--line);padding:12px 0 0}.fushi-source-dialog footer{flex-wrap:wrap}}

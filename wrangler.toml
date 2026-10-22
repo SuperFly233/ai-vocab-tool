@@ -3,7 +3,7 @@ compatibility_date = "2024-11-01"
 pages_build_output_dir = "dist"
 
 [vars]
-ANKI_BRIDGE_ENABLED = "false"
+ANKI_BRIDGE_ENABLED = "true"
 
 [env.preview.vars]
 ANKI_BRIDGE_ENABLED = "true"

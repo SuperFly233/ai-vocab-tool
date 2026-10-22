@@ -7,6 +7,6 @@ const sha=value=>createHash('sha256').update(value).digest('hex');
  }
  const request={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'health'}),signal:AbortSignal.timeout(20000)};
  assert.equal((await fetch(`${preview}/api/anki-jobs`,request)).status,401,'Preview enabled but authentication required');
- assert.equal((await fetch('https://ai-vocab-tool.pages.dev/api/anki-jobs',{...request,signal:AbortSignal.timeout(20000)})).status,503,'Production remains gated');
- console.log('Dictionary preview: six resource hashes match; preview requires login and production remains disabled.');
+ assert.equal((await fetch('https://ai-vocab-tool.pages.dev/api/anki-jobs',{...request,signal:AbortSignal.timeout(20000)})).status,process.env.QA_PRODUCTION_ENABLED==='1'?401:503,'Production gate matches release stage');
+ console.log('Dictionary preview: six resource hashes match; authentication and production gate match the release stage.');
 })().catch(error=>{console.error(error);process.exitCode=1});

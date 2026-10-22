@@ -79,7 +79,18 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  assert.equal((await nextJob()).id,web.id,'Oldest pending job survives the recent-history display cap');
  const held=await rpc('claim',{jobId:web.id,deviceId:device});assert.equal(await nextJob(),null,'Do not take over an active device lease');
  await owner(b);await assert.rejects(nextJob(),'Device identity is owner-isolated');await owner(a);
- await db.close();console.log('Anki SQL passed: PostgreSQL/RLS, atomic leases, website approval/targets, device whitelist, bounded Fushi consent, private-field rejection and recovery.');
+ await db.exec('reset role');await db.exec(fs.readFileSync('integrations/anki-bridge/migration-review-changes.sql','utf8'));await owner(a);
+ const change={field:'Dictionary',before:'Old meaning',after:'New meaning',beforeTruncated:true,afterTruncated:false};
+ const changed={...snapshot,deck:'Other',rows:snapshot.rows.map(row=>({...row,changes:[change]}))};
+ const changedArgs={jobId:web.id,deviceId:device,leaseToken:held.lease_token};
+ await review('review_publish',{...changedArgs,snapshot:changed});
+ assert.equal((await review('review_get',{jobId:web.id})).snapshot.rows[0].changes[0].field,'Dictionary');
+ for(const invalid of [{...change,field:'Private'},{...change,before:'x'.repeat(601)},{...change,afterTruncated:'false'},{...change,password:'secret'}]){
+  await assert.rejects(review('review_publish',{...changedArgs,snapshot:{...changed,rows:[{...changed.rows[0],changes:[invalid]},changed.rows[1]]}}),'Bound and whitelist preview summaries');
+ }
+ await review('review_publish',{...changedArgs,snapshot:{...snapshot,deck:'Other'}});
+ await owner(b);await assert.rejects(review('review_get',{jobId:web.id}));await owner(a);
+ await db.close();console.log('Anki SQL passed: PostgreSQL/RLS, atomic leases, website approval/targets, device whitelist, bounded Fushi consent, private-field rejection, preview changes and recovery.');
  const {default:handler,validatePayload}=await import('../api/anki-jobs.js');
  const valid={...card,key:'key',sceneId:'scene',entryId:'entry',origin:'clock',sourceTitle:'',sourceUrl:'',exampleHighlights:[],translationHighlights:[]};
  assert.equal(validatePayload({version:1,cards:[valid]}).cards[0].sourceType,'lexi');assert.throws(()=>validatePayload({version:1,cards:[{...valid,sourceUrl:'javascript:alert(1)'}]}));assert.throws(()=>validatePayload({version:1,cards:[valid,valid]}));

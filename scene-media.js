@@ -42,6 +42,18 @@
     uploading.set(key,work);
     try{return await work}finally{uploading.delete(key)}
   }
+  async function verify(ref,blob){
+    if(!blob||blob.size!==ref.size||blob.size<=0||blob.size>20*1024*1024)throw new Error('素材大小不匹配。');
+    if(!ref.mime.startsWith('audio/')){
+      const inspected=await SceneData.inspectFile(blob);
+      if(inspected.ref.id!==ref.id||inspected.ref.mime!==ref.mime)throw new Error('素材完整性或类型校验失败。');
+      return;
+    }
+    const bytes=new Uint8Array(await blob.arrayBuffer()),head=new TextDecoder('latin1').decode(bytes.slice(0,4096));
+    const mime=head.startsWith('RIFF')&&head.slice(8,12)==='WAVE'?'audio/wav':head.startsWith('OggS')&&(/OpusHead|vorbis/.test(head))?'audio/ogg':head.startsWith('ID3')||(bytes[0]===255&&(bytes[1]&224)===224)?'audio/mpeg':'';
+    const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(value=>value.toString(16).padStart(2,'0')).join('');
+    if(mime!==ref.mime||hash!==ref.id)throw new Error('音频完整性或类型校验失败。');
+  }
   async function resolve(ref,{refresh=false}={}){
     const cached=await SceneData.getFile(ref.id);if(cached?.blob&&!refresh)return cached;
     if(!cloudUser)throw new Error('本机没有此素材，请登录原账号后加载。');
@@ -62,12 +74,12 @@
         }
       }
       const blob=new Blob(parts,{type:ref.mime});
-      const inspected=await SceneData.inspectFile(blob);
-      if(inspected.ref.id!==ref.id||blob.size!==ref.size)throw new Error('素材完整性校验失败，未写入本机。');
+      await verify(ref,blob);
+      if(cloudUser?.id!==owner)throw new Error('账号已切换，素材下载已停止。');
       const record={ref,blob,uploadedFor:[owner]};await SceneData.putRecord(ref.id,record);return record;
     })();
     downloading.set(key,work);
     try{return await work}finally{downloading.delete(key)}
   }
-  root.SceneMedia={upload,resolve};
+  root.SceneMedia={upload,resolve,verify};
 })(globalThis);
