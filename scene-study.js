@@ -70,7 +70,7 @@
   function openHighlights(id,gid,draft=null){
     const item=entry(id),scene=link(item,gid);if(!scene)return;
     const expected=JSON.stringify(records(item).filter(row=>row.groupId===gid)),account=owner(),node=dialog(`高亮 · ${historyDisplayTitle(item)}`);node.id='scene-highlight-editor';
-    node.querySelector('.scene-dialog-body').innerHTML=`<form><label class="scene-field"><span>原句高亮</span><input name="quote" value="${esc(scene.exampleHighlights.join('、'))}" placeholder="多个片段用顿号分隔"></label><label class="scene-field"><span>译文高亮</span><input name="translation" value="${esc(scene.translationHighlights.join('、'))}"></label><div class="scene-highlight-preview"></div><footer><button class="plain-btn primary-btn" type="submit">保存高亮</button></footer></form>`;
+    node.querySelector('.scene-dialog-body').innerHTML=`<form><label class="scene-field"><span>原句高亮</span><textarea name="quote" rows="2" maxlength="4000" placeholder="多个片段用顿号或换行分隔">${esc(scene.exampleHighlights.join('\n'))}</textarea></label><label class="scene-field"><span>译文高亮</span><textarea name="translation" rows="2" maxlength="4000" placeholder="多个片段用顿号或换行分隔">${esc(scene.translationHighlights.join('\n'))}</textarea></label><div class="scene-highlight-preview"></div><footer><button class="plain-btn primary-btn" type="submit">保存高亮</button></footer></form>`;
     const form=node.querySelector('form');
     for(const [key,label] of [['quote','原句高亮（可选）'],['translation','译文高亮（可选）']]){
       const control=form.elements[key],field=control.closest('label');field.classList.add('visual-field-hinted');
@@ -79,7 +79,7 @@
     }
     node.classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
     const preview=()=>{node.querySelector('.scene-highlight-preview').innerHTML=`<blockquote>${highlightText(scene.quote,splitVisualList(form.elements.quote.value))}</blockquote><p>${highlightText(scene.translation,splitVisualList(form.elements.translation.value))}</p>`};form.oninput=preview;preview();
-    UIOverlays.guardDialog(node,{getState:()=>({quote:form.elements.quote.value,translation:form.elements.translation.value}),initialState:{quote:scene.exampleHighlights.join('、'),translation:scene.translationHighlights.join('、')},canRestore:()=>JSON.stringify(records(entry(id)).filter(row=>row.groupId===gid))===expected,restore:values=>openHighlights(id,gid,values)});
+    UIOverlays.guardDialog(node,{getState:()=>({quote:form.elements.quote.value,translation:form.elements.translation.value}),initialState:{quote:scene.exampleHighlights.join('\n'),translation:scene.translationHighlights.join('\n')},canRestore:()=>JSON.stringify(records(entry(id)).filter(row=>row.groupId===gid))===expected,restore:values=>openHighlights(id,gid,values)});
     form.onsubmit=event=>{event.preventDefault();try{if(account!==owner())throw new Error('账号已切换，请重新打开。');update(id,gid,{exampleHighlights:splitVisualList(form.elements.quote.value),translationHighlights:splitVisualList(form.elements.translation.value)},{expected});node.close()}catch(error){node.querySelector('[role="status"]').textContent=error.message}};
   }
   function exportData(groups){

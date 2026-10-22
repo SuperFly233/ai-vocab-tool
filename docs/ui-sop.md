@@ -1,5 +1,9 @@
 # UI SOP / Persistent User Preferences
 
+## Optional Hints
+
+User confirmed 2026-10-22: provide a global opt-out for explanatory button/reading/field bubbles and pinned field help. Preserve accessible control names, error/result notifications and Undo actions. Apply visibility immediately and after settings hydration. Field help must remain content-sized and bounded to the visual viewport, including mobile keyboards; long help scrolls internally. Never promise newline-separated input on a single-line control.
+
 ## Design Before Implementation
 
 User confirmed 2026-10-21: generate a bitmap UI reference with the image model before substantial layout redesign, inspect it, then plan and implement. Keep the artifact and the concrete decisions in the project, not only in chat. The generated design guides hierarchy, not application data, navigation or background assets.

@@ -112,5 +112,5 @@
   const putDraft=(key,value)=>transaction('drafts','readwrite',store=>store.put(value,key));
   const deleteDraft=key=>transaction('drafts','readwrite',store=>store.delete(key));
   const clearPreviews=()=>transaction('drafts','readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(String(cursor.key).startsWith('thumbnail-v1:'))cursor.delete();cursor.continue()};return null});
-  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,normalizeMedia,normalizeScene,reconcile,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
+  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,highlights,normalizeMedia,normalizeScene,reconcile,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
 })(globalThis);

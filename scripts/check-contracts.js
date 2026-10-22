@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const read = async path => (await readFile(new URL(`../${path}`, import.meta.url), 'utf8')).replace(/\r\n/g,'\n');
 const [app, html, changelog, readme, projectContext, packageText, vercelText, syncApi, manifestText, faviconText, css, supabaseSdk] = await Promise.all([
   read('app.js'),
   read('index.html'),

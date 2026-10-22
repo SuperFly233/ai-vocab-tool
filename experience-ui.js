@@ -46,7 +46,7 @@
     document.querySelectorAll('.sidebar .nav-item').forEach(button=>{const label=button.textContent.trim();button.setAttribute('aria-label',label);button.dataset.tip=label});
     const experience=document.getElementById('settings-experience');
     const reading=group('settings-reading','阅读体验',experience),media=group('settings-media','场景媒体',reading),notifications=group('settings-notifications','消息通知',media);
-    for(const id of ['label-mode-zh','font-mode-system','time-mode-created','visual-hints-pinned'])reading.append(document.getElementById(id).closest('.setting-row'));
+    for(const id of ['label-mode-zh','font-mode-system','time-mode-created','hints-hidden','visual-hints-pinned'])reading.append(document.getElementById(id).closest('.setting-row'));
     for(const id of ['toast-mode-snackbar','toast-position-top'])notifications.append(document.getElementById(id).closest('.setting-row'));
     const row=(label,description,control)=>`<div class="setting-row"><div><div class="setting-label">${label}</div><div class="setting-sub">${description}</div></div>${control}</div>`;
     reading.insertAdjacentHTML('beforeend',row('浏览目录','首页结果与词条详情共用此位置；左侧目录在手机上改为顶部。',`<div class="seg" data-preference="readingNav">${[['top','顶部'],['left','左侧'],['off','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
@@ -73,8 +73,8 @@
     const maintenance=document.getElementById('settings-maintenance');
     maintenance.append(...maintenance.querySelectorAll(':scope>.setting-row:has(.danger-btn)'));
     const data=document.getElementById('settings-data');data.append(document.getElementById('anki-task-manager').closest('.setting-row'));
-    const hintRow=document.getElementById('visual-hints-pinned').closest('.setting-row');reading.append(hintRow);
-    hintRow.dataset.settingArea='编辑辅助';
+    const hintRow=document.getElementById('hints-hidden').closest('.setting-row');reading.append(hintRow,document.getElementById('visual-hints-pinned').closest('.setting-row'));
+    hintRow.dataset.settingArea='提示辅助';
     document.getElementById('clear-scene-previews').closest('.setting-row').dataset.settingArea='本机维护';
     maintenance.querySelector('.setting-row:has(.danger-btn)').dataset.settingArea='危险操作';
     document.getElementById('anki-task-manager').closest('.setting-row').dataset.settingArea='外部集成';

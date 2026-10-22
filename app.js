@@ -183,12 +183,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.34.0',
+  version:'0.34.1',
   releaseDate:'2026-10-22',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.34.1',date:'2026-10-22',title:'场景多片段高亮与提示控制',
+    items:['修复场景多词关联的自动高亮；手动高亮支持顿号及换行，未独立调整的关联随场景默认值更新，保留独立覆盖。','编辑原句或译文时可将选中的片段加入高亮；总览同步显示双语高亮。','阅读体验新增全局隐藏提示气泡，覆盖按钮、阅读摘要和编辑说明，不关闭操作结果、错误及撤销通知。','提示框按内容排布并限制手机宽高，长说明可滚动；联动功能继续单独验收，生产云任务开关保持关闭。'],
+  },
   {
     version:'0.34.0',date:'2026-10-22',title:'场景学习与统一联动底座',
     items:['修复 320px 阅读场景操作栏撑宽；场景原句优先、素材限高，摘词、关联与制卡入口按学习顺序排列。','设置集中连接诊断与任务入口，原网页承载卡片预览、目标牌库和确认；本地助手只处理连接，不再提供第二套制卡界面。','云端任务和网页确认保护已迁移；换目标、旧预览及重启恢复不能沿用确认。生产发送仍关闭，等待独立登录后的完整链路验收。','Fushi 官方只读适配与图片、音频建卡底座已测试，网页来源选取和远程撤销仍在推进；不宣称已完成 Fushi 双向同步或 Anki 自身云同步。'],
@@ -1767,6 +1771,7 @@ function normalizeSettings(raw={}){
   const historyTimeMode=normalizeHistoryTimeMode(source.historyTimeMode);
   const homeStickyMode=normalizeHomeStickyMode(source.homeStickyMode);
   const visualHintsPinned=normalizeBooleanSetting(source.visualHintsPinned,DEFAULT_SETTINGS.visualHintsPinned);
+  const hintsHidden=normalizeBooleanSetting(source.hintsHidden,false);
   const toastMode=normalizeToastMode(source.toastMode);
   const toastPosition=normalizeToastPosition(source.toastPosition);
   const modelPrompt=String(source.modelPrompt||'');
@@ -1797,6 +1802,7 @@ function normalizeSettings(raw={}){
     historyTimeMode,
     homeStickyMode,
     visualHintsPinned,
+    hintsHidden,
     readingNav:['top','left','off'].includes(source.readingNav)?source.readingNav:'top',
     mediaAutoplay:source.mediaAutoplay===true,
     mediaControls:source.mediaControls!==false,
@@ -1954,6 +1960,7 @@ function mergeSettings(localRaw,remoteRaw){
     historyTimeMode:preferLocalSettings?local.historyTimeMode:remote.historyTimeMode||local.historyTimeMode,
     homeStickyMode:preferLocalSettings?local.homeStickyMode:remote.homeStickyMode||local.homeStickyMode,
     visualHintsPinned:preferLocalSettings?local.visualHintsPinned:remote.visualHintsPinned,
+    hintsHidden:preferLocalSettings?local.hintsHidden:remote.hintsHidden,
     readingNav:preferLocalSettings?local.readingNav:remote.readingNav,
     mediaAutoplay:preferLocalSettings?local.mediaAutoplay:remote.mediaAutoplay,
     mediaControls:preferLocalSettings?local.mediaControls:remote.mediaControls,
@@ -3445,7 +3452,7 @@ function highlightText(value,terms=[]){
     .map(term=>String(term||'').trim())
     .filter(term=>isHighlightTerm(term,{allowSingleCjk:true})))
     .sort((a,b)=>b.length-a.length)
-    .slice(0,8)
+    .slice(0,40)
     .map(highlightPatternForTerm)
     .filter(Boolean);
   if(!tokens.length)return escaped;
@@ -7755,6 +7762,7 @@ function hydrateSettings(){
   applyHistoryTimeMode(settings.historyTimeMode);
   applyHomeStickyMode(settings.homeStickyMode);
   applyVisualHintsPinned(settings.visualHintsPinned);
+  applyHintsHidden(settings.hintsHidden);
   applyToastMode(settings.toastMode);
   applyToastPosition(settings.toastPosition);
   renderModelPromptSettings(settings);
@@ -8032,6 +8040,17 @@ function setHomeStickyMode(mode){
     renderLookupQueue();
   }
   notify(next==='compact'?'手机滚动后会自动收起查询选项。':'手机滚动后会保持完整查询选项。','good','首页工具栏');
+}
+function applyHintsHidden(value){
+  const hidden=normalizeBooleanSetting(value,false);
+  document.body.classList.toggle('hints-hidden',hidden);
+  const input=document.getElementById('hints-hidden');if(input)input.checked=hidden;
+  const pinned=document.getElementById('visual-hints-pinned');if(pinned)pinned.disabled=hidden;
+  document.dispatchEvent(new Event('hint-visibility-change'));
+}
+function setHintsHidden(value){
+  const hidden=normalizeBooleanSetting(value,false);
+  if(setSettings({...getSettings(),hintsHidden:hidden,updatedAt:new Date().toISOString()}))applyHintsHidden(hidden);
 }
 function applyVisualHintsPinned(value){
   const enabled=normalizeBooleanSetting(value,false);

@@ -19,7 +19,7 @@
     animation.onfinish=()=>{if(motion===animation){hint.hidePopover();animation.cancel();motion=null}};
   }
   function show(button){
-    if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active'))return;
+    if(!button?.isConnected||!button.dataset.tip||document.body.classList.contains('reorder-active')||document.body.classList.contains('hints-hidden'))return;
     const label=button.matches('.nav-item')?button.querySelector('span'):null;
     if(label?.getBoundingClientRect().width&&label.textContent.trim()===button.dataset.tip.trim())return;
     hide(true);owner=button;previousDescription=button.getAttribute('aria-describedby');
@@ -114,7 +114,8 @@
     const viewport=visualViewport,left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||innerWidth,height=viewport?.height||innerHeight;
     const anchor=fieldAnchor.getBoundingClientRect();
     if(anchor.bottom<top||anchor.top>top+height)return hideFieldHint();
-    fieldHint.style.maxWidth=`${Math.min(360,width-24)}px`;fieldHint.style.maxHeight=`${Math.max(40,height-24)}px`;fieldHint.style.setProperty('--hint-height',`${Math.max(40,height-24)}px`);
+    const limit=Math.max(40,Math.min(220,height*.35));
+    fieldHint.style.maxWidth=`${Math.max(40,Math.min(360,width-24))}px`;fieldHint.style.maxHeight=`${limit}px`;fieldHint.style.setProperty('--hint-height',`${limit}px`);
     const header=fieldAnchor.closest('dialog,.scene-editor,.modal-card')?.querySelector(':scope>header,:scope>.modal-head'),safeTop=Math.max(top+12,(header?.getBoundingClientRect().bottom||0)+8);
     const rect=fieldHint.getBoundingClientRect(),above=anchor.top-rect.height-10>=safeTop;
     const x=Math.max(left+12,Math.min(left+width-rect.width-12,anchor.left));
@@ -125,12 +126,13 @@
   }
   document.addEventListener('focusin',event=>{
     const field=event.target.closest('.visual-field-hinted');if(event.target.closest('.visual-hint-bubble'))return;
-    hideFieldHint();if(!field||field.closest('.hints-pinned'))return;
+    hideFieldHint();if(!field||field.closest('.hints-pinned')||document.body.classList.contains('hints-hidden'))return;
     field.classList.remove('hint-dismissed');const bubble=field.querySelector('.visual-hint-bubble');if(!bubble)return;
     fieldHint=bubble;fieldAnchor=event.target;bubble.setAttribute('popover','manual');bubble.showPopover();positionFieldHint();
     if(!reducedMotion())bubble.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:140,easing:'ease'});
   });
   document.addEventListener('focusout',event=>{if(!event.relatedTarget?.closest?.('.visual-hint-bubble'))hideFieldHint()});
+  document.addEventListener('hint-visibility-change',()=>{hide(true);hideFieldHint()});
   document.addEventListener('click',event=>{const close=event.target.closest('.visual-hint-close');if(!close)return;event.preventDefault();close.closest('.visual-field-hinted')?.classList.add('hint-dismissed');hideFieldHint()},true);
   document.addEventListener('scroll',positionFieldHint,true);addEventListener('resize',positionFieldHint);visualViewport?.addEventListener('resize',positionFieldHint);
   const notifications=document.getElementById('toast-stack');

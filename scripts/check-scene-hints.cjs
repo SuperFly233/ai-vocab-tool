@@ -1,0 +1,42 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
+const server=require('./browser-test-server.cjs').createServer();
+(async()=>{let browser;try{
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_PATH});
+ for(const width of [320,390,768,1440])for(const theme of ['light','dark']){
+  const context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage();
+  await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',theme)},theme);
+  await page.route('https://**/*',route=>route.abort());await page.goto(`http://127.0.0.1:${server.address().port}/scenes`);
+  await page.waitForFunction(()=>typeof SceneStudy!=='undefined');
+  assert.equal(await page.evaluate(()=>{const words=Array.from({length:12},(_,index)=>`phrase${index}`),holder=document.createElement('div');holder.innerHTML=highlightText(words.join(' '),words);return holder.querySelectorAll('mark').length}),12,'Multiple highlights are not silently capped at eight');
+  await page.evaluate(async()=>{await cloudInitPromise;const now=new Date().toISOString();setSettings({...getSettings(),sceneLibrary:[{id:'highlights',groupId:'highlights',quote:'I clocked the detail and saw a thorn.',translation:'我注意到细节与眼中钉。',createdAt:now,updatedAt:now}]});for(const query of ['clock','thorn'])saveLookupResult({query,result:{meta:{query},headword:{title:query,coreMeaning:'测试'},senses:[],collocations:[],register:{},confusions:[]}});await SceneStudy.associate('highlights',getHistory().map(item=>item.id));SceneWorkspace.render();await SceneUI.open('library','','highlights')});
+  await page.locator('#scene-editor [data-scene-action="close"]').click();await page.evaluate(()=>SceneWorkspace.select('highlights'));
+  assert.equal(await page.locator('.scene-study-quote mark').count(),2,'Multiple linked words automatically highlight in the overview');
+  await page.evaluate(()=>SceneUI.open('library','','highlights'));
+  const quote=page.locator('#scene-editor [name="exampleHighlights"]'),translation=page.locator('#scene-editor [name="translationHighlights"]');
+  assert.equal(await quote.evaluate(node=>node.tagName),'TEXTAREA','Highlight instructions promise newline input');
+  await page.locator('#scene-editor [name="quote"]').evaluate(node=>{node.focus();node.setSelectionRange(2,9);node.dispatchEvent(new Event('select',{bubbles:true}))});
+  await page.locator('[data-highlight-selection="quote"]').click();assert.equal(await quote.inputValue(),'clocked','Selected original text enters highlight field');
+  await quote.fill('clocked、the detail\nthorn');await translation.fill('注意到\n眼中钉');
+  await quote.focus();const bubble=page.locator('.visual-hint-bubble:popover-open');await bubble.waitFor();
+  const box=await bubble.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width&&box.height<260,JSON.stringify(box));
+  await bubble.evaluate(async node=>{await Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>{})))});
+  fs.mkdirSync('tmp/dialog-qa/scene-hints',{recursive:true});await page.screenshot({path:`tmp/dialog-qa/scene-hints/editor-${width}-${theme}.png`});
+  await page.locator('#scene-editor [data-scene-action="save"]').click();
+  assert.deepEqual(await page.evaluate(()=>getSettings().sceneLibrary[0].exampleHighlights),['clocked','the detail','thorn']);
+  assert.deepEqual(await page.evaluate(()=>SceneStudy.link(findHistoryByQuery('clock'),'highlights').exampleHighlights),['clocked','the detail','thorn'],'Inherited links follow scene defaults');
+  await page.evaluate(()=>SceneWorkspace.select('highlights'));assert.equal(await page.locator('.scene-study-quote mark').count(),3);assert.equal(await page.locator('.scene-study-text>.scene-translation mark').count(),2);
+  await page.evaluate(()=>SceneStudy.update(findHistoryByQuery('clock').id,'highlights',{exampleHighlights:['clocked']}));
+  await page.evaluate(()=>SceneUI.open('library','','highlights'));await quote.fill('thorn\nthe detail');await page.locator('#scene-editor [data-scene-action="save"]').click();
+  assert.deepEqual(await page.evaluate(()=>SceneStudy.link(findHistoryByQuery('clock'),'highlights').exampleHighlights),['clocked'],'Independent override stays intact');
+  assert.deepEqual(await page.evaluate(()=>SceneStudy.link(findHistoryByQuery('thorn'),'highlights').exampleHighlights),['thorn','the detail']);
+  await page.evaluate(()=>SceneUI.open('library','','highlights'));await quote.focus();await bubble.waitFor();
+  await page.evaluate(()=>setHintsHidden(true));assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);assert.equal(await bubble.count(),0,'Changing setting dismisses active hint immediately');
+  await page.locator('#scene-editor [data-scene-action="close"]').click();
+  await page.evaluate(()=>SceneUI.open('library','','highlights'));await quote.focus();assert.equal(await page.locator('.visual-hint-bubble:popover-open').count(),0);
+  await page.locator('#scene-editor [data-scene-action="close"]').hover();assert.equal(await page.locator('#ui-tooltip:popover-open').count(),0);
+  await page.evaluate(()=>notify('仍可撤销','good','测试',true,{label:'撤销',run:()=>{window.__undone=true}}));await page.locator('.toast-action').last().click();assert.equal(await page.evaluate(()=>window.__undone),true);
+  await page.reload();assert.equal(await page.evaluate(()=>getSettings().hintsHidden),true);assert.equal(await page.evaluate(()=>document.body.classList.contains('hints-hidden')),true);
+  await context.close();console.log(`Highlights and hint visibility ${width}px ${theme}: passed`);
+ }
+}finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}})().catch(error=>{console.error(error);process.exitCode=1});

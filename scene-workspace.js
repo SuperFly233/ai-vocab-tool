@@ -141,6 +141,13 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
         for(const [name,step] of [['prev',-1],['next',1]])host.querySelector(`[data-review-${name}]`).onclick=()=>{review.index+=step;review.revealed=false;render();scrollTo({top:0,behavior:'instant'})};
       }else host.classList.remove('scene-review-mode');
     }
+    const quote=host.querySelector('.scene-study-quote');
+    const automatic=group.links.flatMap(item=>{
+      const associated=SceneStudy.link(item,scene.groupId),result=displayedResultForHistory(item.id,item)||{};
+      return associated?.exampleHighlights?.length?associated.exampleHighlights:resultQueryHighlightTerms(result);
+    });
+    const highlighted=highlightText(scene.quote,scene.exampleHighlights?.length?scene.exampleHighlights:automatic);
+    if(quote&&quote.innerHTML!==highlighted)quote.innerHTML=highlighted;
     renderTasks(group);
   }
   function exitReview(){const scroll=review?.scroll||0;review=null;paneKey='';render();scrollTo({top:scroll,behavior:'instant'})}
