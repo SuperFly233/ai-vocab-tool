@@ -52,10 +52,12 @@
 
 ## 发布信息
 
-- 生产部署、提交及远端包摘要：发布后追加核验结果，不提前宣称完成。
+- 代码提交：`24d4ddee3e189408c02ed0d24e2450683a7f260b`，已 Push 到 `origin/main`。
+- 生产：[Lexi](https://ai-vocab-tool.pages.dev)，不可变部署：[149fb35a](https://149fb35a.ai-vocab-tool.pages.dev)。28个生产资源哈希一致，未登录接口401，已登录 health 成功；390/1440主要页面、滚动及设置回归通过。
+- 最终预览 `[08634a62](https://08634a62.ai-vocab-tool.pages.dev)` 已在生产发布前核对同样的28个资源和认证门槛。
 - 本地包：`tmp/anki-bridge-build/LexiAnkiBridge-0.3.1-Windows-portable.zip`。
 - ZIP SHA256：`8a2fa4be53424f3789a1dd8bfabc383ade85b9fa954c6b432368ab735464fc4a`。
-- 下载预定为 GitHub release v0.36.0；以远端 release 资产摘要核对结果为准。
+- [Bridge 0.3.1 Windows 便携 ZIP 下载](https://github.com/SuperFly233/ai-vocab-tool/releases/download/v0.36.0/LexiAnkiBridge-0.3.1-Windows-portable.zip)，18,457,913字节。GitHub 远端资产 digest 与上述本地 SHA256 一致，release 目标为上述代码提交。程序未代码签名。
 
 ## 未验证和明确不交付
 
