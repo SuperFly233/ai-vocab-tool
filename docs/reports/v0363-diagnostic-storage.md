@@ -23,4 +23,10 @@ Legacy HTML/long diagnostics use a bounded text preview; the original log messag
 
 Physical iPhone, the user's exact browser and authenticated end-user synchronization remain to be confirmed by refresh. IndexedDB can still fail under disk pressure/private restrictions; fallback preserves originals. Entire history/settings are NOT migrated and an arbitrarily large history can still reach Web Storage limits. Diagnostics are not automatically pruned beyond existing80-entry retention. No Anki/Fushi or v0.37 feature release in this hotfix.
 
-Deployment evidence is appended after production verification.
+## Deployment
+
+- Code commit `25dbc26`, pushed to `origin/main`.
+- Preview https://70dcd7e8.ai-vocab-tool.pages.dev ; production https://ai-vocab-tool.pages.dev ; immutable production https://477db778.ai-vocab-tool.pages.dev .
+- All33 production resources match final dist hashes, authentication protection and390/1440 browser checks passed.
+- Actual production-page isolated Chromium fixtures at390/1440 additionally passed genuine quota reproduction, full log migration,120 large-entry merge/reload, full export, cross-tab updates, explicit clear and injected migration-failure preservation. No authenticated user rows were altered.
+- Desktop WebKit local fixtures passed the same migration/data cases; physical iPhone still requires the user's refresh/sync confirmation.
