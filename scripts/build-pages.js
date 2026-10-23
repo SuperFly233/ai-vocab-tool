@@ -14,6 +14,7 @@ const files = [
   'settings-data.js',
   'view-preferences.js',
   'storage-state.js',
+  'diagnostic-store.js',
   'icons.js',
   'lookup-tasks.js',
   'sync-state.js',

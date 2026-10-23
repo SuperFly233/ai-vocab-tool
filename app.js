@@ -184,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.36.2',
+  version:'0.36.3',
   releaseDate:'2026-10-23',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.36.3',date:'2026-10-23',title:'诊断日志迁出小容量存储',
+    items:['完整诊断日志改用 IndexedDB，旧日志写入并读回校验后才移除 localStorage 副本，释放历史同步空间；迁移失败保留旧数据。','日志界面隐藏旧拦截页的 HTML 和图片编码，保留可读摘要并支持导出完整日志。','云同步等待归档写入完成，多标签页同步日志；词条、场景、版本、黑与白直连和云端数据结构保持不变。'],
+  },
   {
     version:'0.36.2',date:'2026-10-23',title:'黑与白浏览器直连与拦截提示修复',
     items:['黑与白指定 API 地址使用浏览器直连，查词、追问、模型列表、连接测试与版本整合不再经过云端转发。其他服务商和数据库通道保持不变。','复用真实 SSE 和查询规则，失败不自动换云端；生成阶段与连接测试显示浏览器直连。','访问拦截页改为简短可读说明，不再显示 HTML、样式及图片编码。'],
@@ -1144,7 +1148,8 @@ const els={
 };
 
 function readStorageValue(key,fallback=''){
-  const result=StorageState.readValue(localStorage,key,fallback);
+  const storage=globalThis.DiagnosticStore?.storage(localStorage)||localStorage;
+  const result=StorageState.readValue(storage,key,fallback);
   if(result.ok)return result.value;
   console.warn('浏览器本地存储暂时无法读取。',result.error);
   if(!storageReadWarningShown){
@@ -1162,7 +1167,8 @@ function readJSON(key,fallback){
   }
 }
 function commitStorageChanges(changes){
-  const result=StorageState.writeBatch(localStorage,changes);
+  const storage=globalThis.DiagnosticStore?.storage(localStorage)||localStorage;
+  const result=StorageState.writeBatch(storage,changes);
   if(result.ok)return result;
   const error=result.error instanceof Error?result.error:new Error('浏览器本地存储写入失败');
   error.storageCommit=result;
@@ -1364,8 +1370,8 @@ function resetConfirmUI(){
   }
 }
 function getLogs(){return readJSON(STORAGE_KEYS.logs,[])}
-function setLogs(items){
-  try{writeJSON(STORAGE_KEYS.logs,items.slice(0,80))}catch(error){
+async function setLogs(items){
+  try{writeJSON(STORAGE_KEYS.logs,items.slice(0,80));await globalThis.DiagnosticStore?.flush()}catch(error){
     notify(storageFailureMessage(error,'日志'),'bad','日志未保存',false);
     return false;
   }
@@ -1381,10 +1387,11 @@ function pushLog(message,type='info',title='Lexi酱'){
   markCloudDirty(CLOUD_KEYS.logs);
   renderLogs();
 }
-function clearLogs(){
-  setLogs([]);
+async function clearLogs(){
+  if(!await setLogs([]))return;
   notify('日志已清空。','good','日志',false);
 }
+function exportLogs(){downloadText('lexi-diagnostics.json',JSON.stringify(getLogs(),null,2))}
 function offlineMode(){return temporaryOfflineMode||readStorageValue(STORAGE_KEYS.offline,'')==='1'}
 function canEnterApp(){return Boolean(cloudUser)||offlineMode()}
 function renderAuthGate(){
@@ -1415,7 +1422,7 @@ function renderAuthGate(){
     els.authStatus.textContent=cloudClient?'未登录。可以登录或离线使用。':`${cloudUnavailableMessage()} 可以离线使用。`;
   }
   if(els.storageStatus){
-    els.storageStatus.textContent=cloudUser?'localStorage + Supabase 自动同步':'localStorage，本机本浏览器记录。';
+    els.storageStatus.textContent=(globalThis.DiagnosticStore?.available?'历史与设置 localStorage，诊断日志 IndexedDB':'localStorage，本机本浏览器记录')+(cloudUser?' · Supabase 自动同步':'。');
   }
   if(!couldEnter&&canEnterApp())focusQueryInput();
   if(canEnterApp())scheduleRecoveredLookups();
@@ -2079,7 +2086,7 @@ function setCloudBusy(busy,visible=false){
 function cloudErrorMessage(error,action='同步'){
   const message=String(error?.message||error?.details||error||'未知错误');
   const code=String(error?.code||'');
-  if(error?.storageCommit)return storageFailureMessage(error,'同步数据')+' 云端同步尚未完成，请勿清除站点数据。';
+  if(error?.storageCommit)return storageFailureMessage(error,'同步数据')+' 云端同步尚未完成。';
   if(StorageState.isQuotaError(error))return `${action}未完成：存储额度不足。请先导出备份；需要检查是浏览器存储还是服务端额度，不要直接清除站点数据。`;
   if(code==='42P01'||/relation .*study_store.* does not exist|study_store.*does not exist/i.test(message)){
     return `${action}失败：Supabase 的 public.study_store 表不存在。请在项目 SQL Editor 里执行仓库的 supabase.sql。`;
@@ -2615,6 +2622,7 @@ async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
   setCloudBusy(true,manual);
   if(manual)setCloudStatus('正在读取云端数据...','info',true);
   try{
+    await globalThis.DiagnosticStore?.flush();
     if(probe&&cloudRemoteVersions!==null){
       try{
         const versions=SyncState.versionMap(await fetchCloudVersions());
@@ -2632,6 +2640,7 @@ async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
     const remote=cloudRawMap(data);
     if(mode==='cloud'){
       replaceLocalWithItems(remote);
+      await globalThis.DiagnosticStore?.flush();
       clearCloudDirty(Object.keys(remote),{force:true});
       setCloudStatus('已读取云端最新数据。','good');
       if(manual)notify('已读取云端最新数据。','good','云端同步');
@@ -2657,6 +2666,7 @@ async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
     }
     const merged=Object.keys(remote).length?mergeSyncItems(local,remote):local;
     if(!mapsEqual(local,merged))replaceLocalWithItems(merged);
+    await globalThis.DiagnosticStore?.flush();
     if(!Object.keys(remote).length||!mapsEqual(remote,merged)){
       const result=await replaceCloudWithItems(merged,dirtySnapshot);
       if(result.error)throw result.error;
@@ -2722,6 +2732,7 @@ async function syncAllToCloud(silent=false,{force=false}={}){
   setCloudBusy(true,!silent);
   setCloudStatus('正在保存到云端...','info',!silent);
   try{
+    await globalThis.DiagnosticStore?.flush();
     const result=await uploadItemsToCloud(syncableItems(keys),dirtySnapshot);
     if(result.error)throw result.error;
     setCloudStatus(`已同步 ${result.count} 项到云端。`,'good');
@@ -8406,6 +8417,7 @@ async function factoryReset(){
       STORAGE_KEYS.theme,STORAGE_KEYS.layout,STORAGE_KEYS.logs,
       STORAGE_KEYS.lookupDraft,STORAGE_KEYS.lookupTasks,STORAGE_KEYS.reviewSession,
     ].map(key=>({key,value:null})));
+    await globalThis.DiagnosticStore?.flush();
   }catch(error){
     notify(storageFailureMessage(error,'恢复出厂'),'bad','恢复失败',false);
     return;
@@ -8444,7 +8456,7 @@ function renderLogs(){
   els.logList.innerHTML=logs.slice(0,18).map(item=>`
     <article class="log-item ${escapeHTML(item.type)}">
       <div class="log-head"><b>${escapeHTML(item.title)}</b><span>${new Date(item.time).toLocaleString('zh-CN',{hour12:false})}</span></div>
-      <p>${escapeHTML(item.message)}</p>
+      <p>${escapeHTML(globalThis.DiagnosticStore?.preview(item.message)??item.message)}</p>
     </article>
   `).join('');
 }
@@ -8776,6 +8788,9 @@ els.confirmLayer?.addEventListener('click',event=>{
   if(event.target===els.confirmLayer)closeConfirm(false);
 });
 
+async function startApplication(){
+const diagnostics=await globalThis.DiagnosticStore?.ready;
+if(diagnostics?.error)notify('日志归档暂不可用，旧数据保持原样；请勿清除站点数据。','warn','日志迁移未完成',false);
 startCloudInitialization();
 renderEmpty();
 hydrateSettings();
@@ -8790,3 +8805,7 @@ updateEditorState();
 updateHistorySearchState();
 loadConfigInfo();
 restoreViewFromLocation({replace:true});
+}
+globalThis.appReady=startApplication();
+addEventListener('diagnostic-storage-error',event=>notify(event.detail.message,'warn','日志归档未完成',false));
+addEventListener('diagnostic-storage-update',()=>renderLogs());

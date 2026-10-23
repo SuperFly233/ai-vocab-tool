@@ -4,6 +4,8 @@
 
 ## 最新进展
 
+- v0.36.3 修复旧拦截日志挤满本地存储：完整日志迁至 IndexedDB，读回校验后才释放旧副本，历史和场景不删除；日志可完整导出。Chromium/WebKit 均通过真实容量、迁移失败回退、刷新及多页回归。大历史库整体仍在 localStorage，不能宣称无限扩容。见 docs/reports/v0363-diagnostic-storage.md。
+
 - v0.36.2 黑与白 `https://ai.hybgzs.com/v1/chat/completions` 改为浏览器直连，覆盖查词、追问、模型、测试与版本整合，失败不自动中转。其他服务商、数据库和 Anki 通道不变。真实无效 Key 的 CORS/401连通验证通过；有效 Key 模型调用和实体 iPhone 未实测。证据见 docs/reports/v0362-provider-direct.md。
 
 - v0.36.1 存储热修复：历史与同步去除重复的最新正文，批量写入先释放本批空间，失败保留原值；不删除历史或素材。真实浏览器容量与刷新恢复验证见 docs/reports/v0361-storage-quota.md。

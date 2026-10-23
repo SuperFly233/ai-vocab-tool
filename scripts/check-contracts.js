@@ -125,7 +125,8 @@ expect(/function factoryReset\([\s\S]{0,700}commitStorageChanges\(\[[\s\S]{0,350
 expect(/function setTheme\([\s\S]{0,350}commitStorageChanges\(\[\{key:STORAGE_KEYS\.theme/.test(app), 'Theme changes must persist before updating the visible theme');
 expect(/function setLayout\([\s\S]{0,400}commitStorageChanges\(\[\{key:STORAGE_KEYS\.layout/.test(app), 'Layout changes must persist before updating the visible layout');
 expect(!/localStorage\.(?:setItem|removeItem)\(/.test(app), 'App storage writes must use the rollback-capable transaction helper');
-expect(app.includes('StorageState.readValue(localStorage,key,fallback)'), 'App storage reads must use the failure-tolerant storage helper');
+expect(app.includes('StorageState.readValue(storage,key,fallback)')&&app.includes('DiagnosticStore?.storage(localStorage)||localStorage'), 'App storage reads must use the failure-tolerant helper and initialized diagnostics facade');
+expect(app.includes('await globalThis.DiagnosticStore?.ready')&&app.includes('await globalThis.DiagnosticStore?.flush()'), 'Diagnostics migration and writes must settle before cloud synchronization claims success');
 expect(!/localStorage\.getItem\(/.test(app), 'App modules must not bypass the failure-tolerant storage reader');
 expect(app.includes('async function cloudAuthRequest(operation)')&&!/await cloudClient\.auth\./.test(app), 'Cloud auth calls must convert network throws into handled errors');
 expect(/cloudInitPromise=initCloud\(\)\.catch\(error=>\{/.test(app), 'Cloud initialization must not create an unhandled startup rejection');

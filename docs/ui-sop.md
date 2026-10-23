@@ -1,5 +1,9 @@
 # UI SOP / Persistent User Preferences
 
+## Storage Failure Recovery
+
+2026-10-23: quota after a prior fix requires measuring storage categories, not repeatedly asking the user to clear data. Distinguish learning records from oversized diagnostics; never place HTML block pages or base64 in ordinary error UI. Migrate a legacy copy only after its destination transaction completes and exact read-back verifies it; failure must retain the original. Await asynchronous diagnostic writes before reporting cloud completion. Retain complete export even when the UI shows a bounded preview. Test real quota behavior in both Chromium and desktop WebKit, but keep physical iPhone unverified until tested. Moving logs alone is not a full history/settings migration or unlimited storage.
+
 ## Network Path Accuracy
 
 2026-10-23: a device's direct/proxy setting does not change Cloudflare/relay egress. Show actual browser/cloud request path; never silently reroute a provider requiring direct access. Provider direct mode requires verified CORS and an explicit host/path allowlist, omits cookies and blocks redirects. Personal API credentials may go only to the selected provider; environment credentials stay server-side. Keep model transport independent from Supabase login/data/media/tasks; test each instead of promising all services can use one route. Never show raw HTML block pages, CSS/base64 or reflected secrets as error text. Invalid-key JSON401 proves reachability, not successful inference. Network-only fixes need no invented UI redesign or image mockup.
