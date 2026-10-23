@@ -39,6 +39,8 @@ Summary: 16 complete / 1 regression passed / 1 partial. Five concrete fixes demo
 
 ## Mac direct request
 
+2026-10-23 follow-up: user confirms Mac Edge now works. Mark user-device recovery, not a proven diagnosis or a server-side fix.
+
 The user reports generic browser-direct failure on a Mac. A proxy-disabled command-line preflight received403/no CORS; actual isolated Edge from the production website received readable JSON401 using an invalid synthetic Key. This does not establish the Mac's cause or a universal CORS outage. New errors distinguish reported offline from unavailable readable response, preserve aborts, HTTP401/403 and no-cloud-fallback rules. Browser/vendor reachability requested from the user; no Key requested, no browser security bypass or storage clear advised.
 
 ## Remaining scope and release limits
@@ -46,6 +48,8 @@ The user reports generic browser-direct failure on a Mac. A proxy-disabled comma
 The broader v0.37-v0.38 ledger remains authoritative: screenshot intake, vision modes, canonical-source index, automatic extraction/save/lookup, mobile/desktop GIF/video edits and AI crop confirmation are NOT implemented by v0.37. Entire history/settings IndexedDB migration is also pending; only diagnostic logs have migrated. Physical iPhone, actual media playback, native-tray popup appearance and Anki's own cloud sync remain explicitly unverified.
 
 Candidate preview: https://094c4128.ai-vocab-tool.pages.dev ; branch alias https://learning-v037-acceptance.ai-vocab-tool.pages.dev . Synthetic UI screenshots under tmp/dialog-qa/learning-v037; actual portable acceptance evidence is local and does not expose private dictionary bodies.
+
+Published: code `07a1516ff689dfeeb75985ef1487eef08f2c6cc6`, production https://94a97c8b.ai-vocab-tool.pages.dev (all36 hashes and authenticated v4 health verified). Release/download: https://github.com/SuperFly233/ai-vocab-tool/releases/tag/v0.37.0 . Remote ZIP digest matches the final-byte acceptance hash below.
 
 Final candidate ZIP: tmp/anki-bridge-build/LexiAnkiBridge-0.4.0-Windows-portable.zip, SHA256 `0257c69323d08cd0c0f35aa027567fae599fec07fbd7a4ac5447a7d7c1d6ebee`. Final-byte ZIP was freshly extracted and real-deck tested, not inferred from an earlier build. Final build16.92s and self-test1.33s are within180/45s limits. Full GPL/LGPL notices and unmodified pystray source/rebuild guidance included; no credentials or dictionary corpus bundled.
 
