@@ -13,7 +13,12 @@
       normalized.forEach(change=>{
         if(!snapshots.has(change.key))snapshots.set(change.key,storage.getItem(change.key));
       });
-      normalized.forEach(change=>{
+      // Free space within this batch before writing larger values at the quota boundary.
+      const ordered=[...normalized].sort((a,b)=>{
+        const delta=change=>(change.value?.length||0)-(snapshots.get(change.key)?.length||0);
+        return delta(a)-delta(b);
+      });
+      (snapshots.size===normalized.length?ordered:normalized).forEach(change=>{
         failedKey=change.key;
         if(change.value===null)storage.removeItem(change.key);
         else storage.setItem(change.key,change.value);
@@ -21,7 +26,9 @@
       return {ok:true,failedKey:'',rollbackOk:true,error:null};
     }catch(error){
       let rollbackOk=true;
-      [...snapshots.entries()].reverse().forEach(([key,value])=>{
+      [...snapshots.entries()].sort(([a,av],[b,bv])=>{
+        try{return ((av?.length||0)-(storage.getItem(a)?.length||0))-((bv?.length||0)-(storage.getItem(b)?.length||0))}catch{return 0}
+      }).forEach(([key,value])=>{
         try{
           if(value===null)storage.removeItem(key);
           else storage.setItem(key,value);
@@ -49,5 +56,14 @@
     return name==='quotaexceedederror'||code===22||code===1014||/quota|storage.*full|disk.*full/.test(message);
   }
 
-  root.StorageState=Object.freeze({readValue,writeBatch,isQuotaError});
+  function historyJSON(items=[]){
+    return JSON.stringify(items.map(item=>{
+      const first=item?.rolls?.[0]?.result;
+      if(!first||JSON.stringify(item.result)!==JSON.stringify(first))return item;
+      const {result,...rest}=item;
+      return rest;
+    }));
+  }
+
+  root.StorageState=Object.freeze({readValue,writeBatch,isQuotaError,historyJSON});
 })(typeof globalThis==='object'?globalThis:this);

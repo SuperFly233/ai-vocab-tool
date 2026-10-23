@@ -184,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.36.0',
+  version:'0.36.1',
   releaseDate:'2026-10-23',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.36.1',date:'2026-10-23',title:'同步存储容量修复',
+    items:['历史与云同步无损去除最新正文的重复副本，完整版本、场景与笔记继续保留，旧格式仍可读取。','批量写入先释放本批空间，额度不足保留原值；同步错误明确说明本地存储问题，不要求清除站点数据。'],
+  },
   {
     version:'0.36.0',date:'2026-10-23',title:'Fushi 来源选取与学习流程',
     items:['读取请求支持稳定标识与数据库去重；超时继续检查原请求，关闭或隐藏窗口停止检查，刷新恢复当前账号的选择。','来源窗口按电脑、范围、数量、列表预览与选取篮组织，跨范围最多选择 20 条；导入前核对新增、已有与已删除项，不默认全选。','整批校验后保存，逐条回执可打开场景、补充素材、关联词条和回顾；撤销保护后续修改及关联。','场景保留来源范围、接收电脑、读取及导入时间，未知来源时间不伪造；Bridge 0.3.1 继续使用官方只读 CLI，不自动读取原媒体。'],
@@ -1166,7 +1170,7 @@ function writeJSON(key,value){
 }
 function storageFailureMessage(error,subject='数据'){
   if(error?.storageCommit&&!error.storageCommit.rollbackOk)return `${subject}写入失败，而且浏览器未能完整恢复旧值。请不要刷新，立即导出 JSON 备份。`;
-  if(StorageState.isQuotaError(error))return `${subject}没有保存：浏览器本地空间已满。当前页面内容仍可查看，请先导出 JSON，再清理不用的历史或站点数据。`;
+  if(StorageState.isQuotaError(error))return `${subject}没有保存：浏览器本地空间已满。当前页面内容仍可查看，请先导出 JSON 备份，不要直接清除站点数据。`;
   return `${subject}没有保存：${error?.message||'浏览器拒绝了本地存储写入'}。`;
 }
 function escapeHTML(value){
@@ -1646,7 +1650,7 @@ function repairStoredHistory(){
   let parsed=[];
   try{parsed=JSON.parse(raw)}catch{}
   const repaired=reconcileHistoryData(parsed,getHistoryTombstones()).history;
-  if(raw===JSON.stringify(repaired)){
+  if(raw===StorageState.historyJSON(repaired)){
     historyReadCache={historyRaw:raw,tombstoneRaw,value:repaired};
     return false;
   }
@@ -1674,7 +1678,7 @@ function setHistory(items,{revive=false,deletedItems=[]}={}){
     tombstones=tombstones.filter(item=>!revivedKeys.has(item.key));
   }
   const reconciled=reconcileHistoryData(normalizedItems,tombstones);
-  const historyRaw=JSON.stringify(reconciled.history);
+  const historyRaw=StorageState.historyJSON(reconciled.history);
   const tombstoneRaw=JSON.stringify(reconciled.tombstones);
   try{
     commitStorageChanges([
@@ -1710,7 +1714,7 @@ function setHistoryAndSettings(items,settings,{revive=false,deletedItems=[]}={})
   }
   const reconciled=reconcileHistoryData(normalizedItems,tombstones);
   const normalizedSettings=normalizeSettings(settings);
-  const historyRaw=JSON.stringify(reconciled.history);
+  const historyRaw=StorageState.historyJSON(reconciled.history);
   const tombstoneRaw=JSON.stringify(reconciled.tombstones);
   const settingsRaw=JSON.stringify(normalizedSettings);
   try{
@@ -2071,6 +2075,8 @@ function setCloudBusy(busy,visible=false){
 function cloudErrorMessage(error,action='同步'){
   const message=String(error?.message||error?.details||error||'未知错误');
   const code=String(error?.code||'');
+  if(error?.storageCommit)return storageFailureMessage(error,'同步数据')+' 云端同步尚未完成，请勿清除站点数据。';
+  if(StorageState.isQuotaError(error))return `${action}未完成：存储额度不足。请先导出备份；需要检查是浏览器存储还是服务端额度，不要直接清除站点数据。`;
   if(code==='42P01'||/relation .*study_store.* does not exist|study_store.*does not exist/i.test(message)){
     return `${action}失败：Supabase 的 public.study_store 表不存在。请在项目 SQL Editor 里执行仓库的 supabase.sql。`;
   }
@@ -2169,7 +2175,7 @@ function clearCloudDirty(snapshot=null,{force=false}={}){
   cloudDirtyState.clear(snapshot||{});
 }
 function syncableValue(key){
-  if(key===CLOUD_KEYS.history)return JSON.stringify(getHistory());
+  if(key===CLOUD_KEYS.history)return StorageState.historyJSON(getHistory());
   if(key===CLOUD_KEYS.historyTombstones)return JSON.stringify(getHistoryTombstones());
   if(key===CLOUD_KEYS.settings)return JSON.stringify(getSettings());
   if(key===CLOUD_KEYS.theme)return readStorageValue(STORAGE_KEYS.theme,'auto');
@@ -2211,7 +2217,7 @@ function replaceLocalWithItems(items){
   const history=has(CLOUD_KEYS.history)?safeHistoryFromRaw(items[CLOUD_KEYS.history]):[];
   const tombstones=has(CLOUD_KEYS.historyTombstones)?safeHistoryTombstonesFromRaw(items[CLOUD_KEYS.historyTombstones]):[];
   const reconciledHistory=reconcileHistoryData(history,tombstones);
-  const historyRaw=JSON.stringify(reconciledHistory.history);
+  const historyRaw=StorageState.historyJSON(reconciledHistory.history);
   const tombstoneRaw=JSON.stringify(reconciledHistory.tombstones);
   commitStorageChanges([
     {key:STORAGE_KEYS.history,value:historyRaw},
@@ -2302,7 +2308,7 @@ function mergeSyncItems(local,remote){
     const remoteHistory=safeHistoryFromRaw(remote[CLOUD_KEYS.history]);
     const localHistory=safeHistoryFromRaw(local[CLOUD_KEYS.history]);
     const reconciled=HistoryData.reconcileHistory(mergeHistoryItems(localHistory,remoteHistory),tombstones,historyIdentityKey);
-    merged[CLOUD_KEYS.history]=JSON.stringify(reconciled.history);
+    merged[CLOUD_KEYS.history]=StorageState.historyJSON(reconciled.history);
     merged[CLOUD_KEYS.historyTombstones]=JSON.stringify(reconciled.tombstones);
   }else if(tombstones.length){
     merged[CLOUD_KEYS.historyTombstones]=JSON.stringify(tombstones);
