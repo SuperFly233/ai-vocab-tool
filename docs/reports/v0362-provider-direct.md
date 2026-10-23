@@ -24,4 +24,10 @@ Supabase remains unchanged: data sync has the existing same-origin fallback; log
 
 Real valid-Key inference, the user's mobile network and physical iPhone remain unverified. CORS or provider filtering can change. Direct mode follows the device's own routing; application code cannot force a clean residential IP or bypass a configured system proxy. This release does not implement new Supabase auth proxying, screenshot OCR, Bridge0.4 or full-content Anki release.
 
-Deployment evidence is appended after production verification.
+## Deployment
+
+- Code commit `06bf287`, pushed to `origin/main`.
+- Preview https://6df234a8.ai-vocab-tool.pages.dev ; production https://ai-vocab-tool.pages.dev ; immutable deployment https://dfafebfd.ai-vocab-tool.pages.dev .
+- Preview and production: all32 resource hashes match, integration unauthenticated access401, 390/1440 isolated view/scroll/preferences checks passed.
+- Actual production page `modelRequest('test-profile', diagnostic invalid Key)` with proxy-disabled Edge returns JSON401 and `X-Lexi-Request-Path: browser`. No HTML. This confirms deployed browser-direct transport, not valid-Key model success.
+- No Supabase schema change or external-app operation. API credentials already stored/synced under the existing settings policy remain governed by that policy; this change only removes the model-call forwarding hop, not existing settings synchronization.
