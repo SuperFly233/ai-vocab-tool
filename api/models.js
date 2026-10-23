@@ -1,4 +1,5 @@
 import { relayIfIpv6Blocked } from './relay.js';
+import { upstreamFailure } from './upstream-error.js';
 
 function inferModelsUrl(apiUrl) {
   const raw = String(apiUrl || '').trim();
@@ -53,7 +54,7 @@ export default async function handler(request, response) {
     if (!upstream.ok) {
       const text = await upstream.text();
       if (await relayIfIpv6Blocked({ request, response, endpoint: 'models', payload, status: upstream.status, text })) return;
-      response.status(upstream.status).json({ error: text });
+      response.status(upstream.status).json(upstreamFailure(upstream, text, apiKey));
       return;
     }
     const models = [...new Set(normalizeModels(await upstream.json()))].sort();

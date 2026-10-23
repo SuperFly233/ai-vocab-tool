@@ -1,4 +1,5 @@
 import { ipv6Blocked, relayIfIpv6Blocked } from './relay.js';
+import { upstreamFailure } from './upstream-error.js';
 
 async function assertCanUseEnvironmentKey(request, payload) {
   if (payload.apiKey) return;
@@ -34,10 +35,6 @@ async function assertCanUseEnvironmentKey(request, payload) {
     error.status = 403;
     throw error;
   }
-}
-
-function compactError(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim().slice(0, 360);
 }
 
 export default async function handler(request, response) {
@@ -86,7 +83,7 @@ export default async function handler(request, response) {
         ok: false,
         status: upstream.status,
         elapsedMs,
-        error: compactError(text) || upstream.statusText || `HTTP ${upstream.status}`,
+        ...upstreamFailure(upstream, text, apiKey),
       });
       return;
     }

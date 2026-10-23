@@ -1,5 +1,7 @@
 import { relayIfIpv6Blocked } from './relay.js';
 import { modelEvents, streamHeaders } from './model-stream.js';
+import { upstreamFailure } from './upstream-error.js';
+import { safeParseJSON, lookupUserPrompt } from '../provider-contract.js';
 
 const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句子的结构化词汇分析助手。用户原始规则必须完整保留；JSON 只是为了让网页格式化排版的输出容器。你必须严格根据用户输入输出合法 JSON；不要输出 Markdown、代码块、解释性前言、总结套话或模型自我表态。
 
@@ -173,21 +175,6 @@ async function assertCanUseEnvironmentKey(request, payload) {
   }
 }
 
-function safeParseJSON(text) {
-  const cleaned = String(text || '')
-    .trim()
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/i, '')
-    .trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch (firstError) {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw firstError;
-    return JSON.parse(match[0]);
-  }
-}
-
 async function repairJSON({ apiUrl, apiKey, model, content }) {
   const upstream = await fetch(apiUrl, {
     method: 'POST',
@@ -288,12 +275,7 @@ export default async function handler(request, response) {
     return;
   }
 
-  const userPrompt = [
-    `查询内容：${payload.query || ''}`,
-    `特殊语言方向：${payload.direction || '未指定，按默认规则处理'}`,
-    `补充要求：${payload.note || '无'}`,
-    '请按完整规则生成结构化 JSON。常见多义词必须覆盖主要常见义项；存在稳定搭配时必须列出高频实用搭配；不要为简短而省略关键内容。必须判断 meta.entryType：单个词写 word，短语/固定表达/句子写 phrase。若词条有多个词性，headword.basicPartOfSpeech 必须用 "/" 列出全部主要词性，senses 里每个义项仍只写一个词性。',
-  ].join('\n');
+  const userPrompt = lookupUserPrompt(payload);
 
   try {
     await assertCanUseEnvironmentKey(request, payload);
@@ -323,7 +305,7 @@ export default async function handler(request, response) {
     if (!upstream.ok) {
       const text = await upstream.text();
       if (await relayIfIpv6Blocked({ request, response, endpoint: 'analyze', payload, status: upstream.status, text })) return;
-      response.status(upstream.status).json({ error: text });
+      response.status(upstream.status).json(upstreamFailure(upstream, text, apiKey));
       return;
     }
 

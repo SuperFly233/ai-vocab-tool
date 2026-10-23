@@ -1,4 +1,6 @@
 import { relayIfIpv6Blocked } from './relay.js';
+import { upstreamFailure } from './upstream-error.js';
+import { followupMessages } from '../provider-contract.js';
 import { modelEvents, streamHeaders } from './model-stream.js';
 
 async function assertCanUseEnvironmentKey(request, payload) {
@@ -35,37 +37,6 @@ async function assertCanUseEnvironmentKey(request, payload) {
     error.status = 403;
     throw error;
   }
-}
-
-function compactContext(result) {
-  return JSON.stringify({
-    meta: result?.meta,
-    headword: result?.headword,
-    senses: result?.senses,
-    collocations: result?.collocations,
-    register: result?.register,
-    confusions: result?.confusions,
-  }).slice(0, 18000);
-}
-
-function followupMessages(payload, question) {
-  const history = Array.isArray(payload.followups)
-    ? payload.followups.slice(-8).map(item => `问：${item.question}\n答：${item.answer}`).join('\n\n')
-    : '';
-  return [
-    {
-      role: 'system',
-      content: '你是词汇追问助手。基于给定词条和上下文直接回答用户问题。回答要清楚、可读、简洁；可以使用短段落、列表、引用或表格等 Markdown 版式。不要返回 JSON，不要写寒暄，不要重复原词条全文。',
-    },
-    {
-      role: 'user',
-      content: [
-        `当前词条 JSON：${compactContext(payload.result || {})}`,
-        history ? `已有追问：\n${history}` : '已有追问：无',
-        `本次追问：${question}`,
-      ].join('\n\n'),
-    },
-  ];
 }
 
 function writeStreamEvent(response, data) {
@@ -140,7 +111,7 @@ export default async function handler(request, response) {
     if (!upstream.ok) {
       const text = await upstream.text();
       if (await relayIfIpv6Blocked({ request, response, endpoint: 'followup', payload, status: upstream.status, text })) return;
-      response.status(upstream.status).json({ error: text });
+      response.status(upstream.status).json(upstreamFailure(upstream, text, apiKey));
       return;
     }
 
