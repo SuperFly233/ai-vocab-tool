@@ -6,7 +6,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
   const context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',theme)},theme);await page.route('https://**/*',route=>route.abort());await page.route('**/api/anki-jobs',async route=>{try{const input=route.request().postDataJSON(),data=await page.evaluate(input=>AnkiBridge.request(input.action,input.args),input);await route.fulfill({json:{data}})}catch(error){await route.fulfill({status:400,json:{error:error.message}})}});await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.evaluate(async()=>{
-   await cloudInitPromise;cloudUser={id:'dictionary-fixture'};cloudAccessToken=async()=>'fixture-only-token';
+   await globalThis.appReady;await cloudInitPromise;cloudUser={id:'dictionary-fixture'};cloudAccessToken=async()=>'fixture-only-token';
    const sha=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(n=>n.toString(16).padStart(2,'0')).join('');
    const html='<li class="sense"><b>notice</b><span class="chn">注意到；察觉</span><span class="x">She clocked the detail immediately.</span></li>';
    const payload={dictionary:'OALDPE En-Cn',headword:'clock',senses:[{id:await sha(html),html}],textOnly:true},canonical=JSON.stringify(payload);
@@ -14,6 +14,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
    AnkiBridge.request=async(action,args)=>{window.dictRequests.push([action,args]);if(action==='health')return {dictionary:true};if(action==='dictionary_list')return [dictionaryFixture];if(action==='dictionary_get'||action==='dictionary_save')return dictionaryFixture;if(action==='devices')return [{id:'fixture-device',name:'测试电脑'}];throw Error(action)};
    const result={meta:{query:'clock'},headword:{title:'clock',coreMeaning:'注意到'},senses:[{shortestLabel:'察觉',meaning:'AI meaning'}],collocations:[],register:{},confusions:[]};saveLookupResult({query:'clcok',result});renderResult(result);ExperienceUI.refresh();
   });
+  try{await page.getByRole('button',{name:'本机词典',exact:true}).waitFor({timeout:8000})}catch(e){throw Error('Dictionary install did not complete: '+JSON.stringify(await page.evaluate(()=>({owner:cloudUser?.id,heads:document.querySelectorAll('.entry-head').length,titles:[...document.querySelectorAll('.entry-title')].map(n=>n.textContent),requests:dictRequests,errors:[...document.querySelectorAll('[role=status]')].map(n=>n.textContent)}))))}
   await page.getByRole('button',{name:'本机词典',exact:true}).click();await page.getByText('She clocked the detail immediately.',{exact:true}).waitFor();
   assert.equal(await page.locator('.dictionary-reading').getByText('注意到；察觉',{exact:true}).count(),1);
   assert.equal(await page.evaluate(()=>getHistory()[0].query),'clcok','Dictionary reading cannot overwrite Origin');
@@ -26,6 +27,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
   assert.equal((await page.evaluate(()=>DictionaryUI.cached('clock','other-account'))).length,0,'Cache account isolation');
   assert.equal(await page.evaluate(async()=>DictionaryUI.valid({...dictionaryFixture,canonical:'{'})),false,'Invalid cache rejected');
   await page.evaluate(async()=>{
+   // This fixture verifies existing v3 dictionary jobs, not the separately tested v4 flow.
+   globalThis.LearningCards=null;
    const now=new Date().toISOString();setSettings({...getSettings(),sceneLibrary:[{id:'dictionary-scene',groupId:'dictionary-scene',quote:'I clocked the detail.',translation:'我注意到细节。',createdAt:now,updatedAt:now}]});await SceneStudy.associate('dictionary-scene',getHistory().map(item=>item.id));
    AnkiBridge.request=async(action,args)=>{window.dictRequests.push([action,args]);if(action==='devices')return [{id:'fixture-device',name:'测试电脑'}];if(action==='dictionary_list')return [dictionaryFixture];if(action==='dictionary_get')return dictionaryFixture;if(action==='submit'){window.sentDictionaryJob={id:'fixture-job',status:'awaiting_device',payload:args.payload};return sentDictionaryJob}if(action==='review_get')return {valid:true,revision:'fixture',approved:false,snapshot:{deck:'Lexi 验收',profile:'fixture',decks:['Lexi 验收'],rows:sentDictionaryJob.payload.cards.map(card=>({key:card.key,operation:'create',previous:{}}))}};throw Error(action)};
    await AnkiBridge.openGroup('dictionary-scene');

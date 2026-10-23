@@ -22,7 +22,16 @@ async function request(endpoint,payload,{signal}={}){
   const options={headers,credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',signal};
   const send=async(body,url=payload.apiUrl)=>{
     try{return await fetch(url,{...options,method:body?'POST':'GET',...(body?{body:JSON.stringify(body)}:{})})}
-    catch(error){if(signal?.aborted)throw error;throw Error('浏览器直连失败：请检查本机网络及服务商的跨域支持；未自动改走云端或备用中继。')}
+    catch(error){
+      if(signal?.aborted)throw error;
+      const offline=globalThis.navigator?.onLine===false;
+      const failure=Error(offline
+        ? '浏览器直连失败：当前设备报告离线，请恢复网络后重试。未自动改走云端或备用中继。'
+        : '浏览器直连失败：未取得可读的 API 响应，不能据此判断模型或密钥错误。请用同一浏览器检查 ai.hybgzs.com 是否可访问，并核对代理分流、浏览器拦截及 API 跨域设置；官网能打开也不代表 API 可调用。未自动改走云端或备用中继。');
+      failure.code=offline?'BROWSER_OFFLINE':'BROWSER_RESPONSE_UNAVAILABLE';
+      failure.requestPath='browser';
+      throw failure;
+    }
   };
   const failure=async response=>json(upstreamFailure(response,await response.text(),payload.apiKey,'browser'),response.status);
   if(endpoint==='models'){

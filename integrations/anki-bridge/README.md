@@ -1,8 +1,10 @@
-# Lexi Anki Bridge 0.3.1
+# Lexi 连接助手 0.4.0
 
 Windows 本地伴侣程序，复用已有 AnkiConnect。不修改 Fushi、既有模板或复习调度，不设置开机自启。
 
 ## 当前发布边界
+
+0.4.0 为待发布候选：新增手动启动托盘、完整内容任务 v4 与独立 `Lexi Learning v3`，旧任务和既有模板继续兼容。普通启动不自动打开浏览器；从托盘进入连接设置、检查连接、暂停接单或退出。暂停不会丢弃已领取任务。源码和隔离自检通过，不等于生产迁移、真实牌库或便携包发布已完成；以本版验收报告为准。
 
 0.3.1 对官方来源返回实施明确的字段与长度校验，不再静默截断原句；兼容网页 v0.36.0 的稳定请求标识、范围选取和来源追踪。原媒体仍需手动补充。本机实际收藏列表为空，真实单句导入不可据模拟验收宣称完成；详细状态见 v0.36.0 发布报告。
 
@@ -40,9 +42,11 @@ Windows 本地伴侣程序，复用已有 AnkiConnect。不修改 Fushi、既有
 SQL/API 测试使用隔离的 PGlite：先在项目 tmp/anki-bridge-qa 安装 @electric-sql/pglite，再运行 `node scripts/check-anki-jobs.cjs`；它不连接生产数据库。
 运行 `python integrations/anki-bridge/build.py` 生成目录式 Windows 程序及第三方许可证，构建最多 180 秒。再运行 `verify_package.py`，在 45 秒内检查运行时、证书策略资源、临时数据库、本地 HTTP 与退出，不登录、不读写真实牌库。成功凭据绑定整个运行目录的文件清单与哈希；`package.py` 拒绝变动过的运行目录。PyInstaller 仍保留为构建工具，不将单文件 EXE 作为交付门槛。
 
-便携 ZIP 必须完整解压，保留 EXE 旁的 `_internal` 目录，双击 `LexiAnkiBridge-0.3.0.exe`。无须安装 Python；配置和凭据不保存在包内。同一数据目录重复启动退出码为 3，不开启第二个执行器。未代码签名，首次运行可能有系统信誉提示。
+便携 ZIP 必须完整解压，保留 EXE 旁的 `_internal` 目录，双击 `LexiConnect.exe`。无须安装 Python；配置和凭据不保存在包内。同一数据目录重复启动退出码为 3，不开启第二个执行器。未代码签名，首次运行可能有系统信誉提示。
 
 诊断支持 `--self-test`；自动化验收可显式使用 `--data-dir`、官方 `--origin`、`--no-browser` 与 `--connection-file`。连接文件仅含本次回环地址与短期控制令牌，退出时删除，不得上传。普通使用无须这些参数，不把密码、登录令牌或 Anki 密钥写入命令行。
 PyInstaller 使用其 GPL 加打包例外；FastAPI/keyring 为 MIT，uvicorn/httpx 为 BSD。完整运行依赖许可证随测试包生成；不打包或复制 Anki/Fushi 程序代码。
+
+托盘依赖 pystray 0.19.5 使用 LGPLv3，Pillow 13.0.0 与 six 1.17.0 采用各自许可证，完整文本位于 `licenses/`。未修改的 pystray 源码随包位于 `third-party-source/pystray`，上游为 https://github.com/moses-palmer/pystray/tree/v0.19.5 。替换、调试或修改该库不受本项目额外限制。重新构建时从 https://github.com/SuperFly233/ai-vocab-tool 获取对应发布提交，在独立 Python 3.12 环境安装锁定依赖后，以修改后的 pystray 源码安装覆盖该依赖，再运行本目录的 `build.py`、`verify_package.py` 和 `package.py`；不要直接改动已验收包后继续使用旧校验凭据。
 
 Fushi 官方 CLI 已实现固定路径、只读白名单和超时适配，锁定核查的上游 725fcde6c9a1e2abef8c72009886a4cd66e4751a。网页来源选取、确认与独立场景导入已在验收预览实现；当前官方收藏/暂存列表不返回图片和音频文件，不读取私有数据库来伪装完整支持。所选来源的原始媒体接入仍未完成。不复制 Fushi GPL 程序代码，不消费其原队列。

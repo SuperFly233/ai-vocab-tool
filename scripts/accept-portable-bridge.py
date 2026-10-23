@@ -18,28 +18,33 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'integrations/anki-bridge'))
 from bridge.cloud import Cloud, Vault, ORIGIN
 from bridge.distribution import verified_files
+from bridge.core import Anki
 import httpx
 
 origin = os.environ.get('QA_ORIGIN', 'https://integration-acceptance.ai-vocab-tool.pages.dev')
 if origin == ORIGIN and os.environ.get('QA_ALLOW_PRODUCTION') != 'dedicated-test-deck':
     raise RuntimeError('Production requires explicit dedicated-test-deck acceptance mode')
 run = str(uuid.uuid4())
+version = os.environ.get('QA_BRIDGE_VERSION', '0.3.0')
+if version not in ('0.3.0', '0.4.0'):
+    raise RuntimeError('Unsupported portable acceptance version')
+full_content = version == '0.4.0'
 directory = ROOT / 'tmp' / 'anki-bridge-qa' / ('便携 验收 ' + run)
 directory.mkdir(parents=True)
-archive = ROOT / 'tmp/anki-bridge-build/LexiAnkiBridge-0.3.0-Windows-portable.zip'
+archive = ROOT / f'tmp/anki-bridge-build/LexiAnkiBridge-{version}-Windows-portable.zip'
 with zipfile.ZipFile(archive) as bundle:
     for member in bundle.namelist():
         if not (directory / member).resolve().is_relative_to(directory.resolve()):
             raise RuntimeError('Unsafe archive path')
     bundle.extractall(directory)
-runtime = directory / 'LexiAnkiBridge-0.3.0'
-exe = runtime / 'LexiAnkiBridge-0.3.0.exe'
-verified_files(runtime, '0.3.0')
+runtime = directory / ('LexiAnkiBridge-' + version)
+exe = runtime / ('LexiConnect.exe' if full_content else 'LexiAnkiBridge-' + version + '.exe')
+verified_files(runtime, version)
 tamper = runtime / '_internal/web/icons.js'
 original = tamper.read_bytes()
 tamper.write_bytes(original + b'\n/* simulated tamper */')
 try:
-    verified_files(runtime, '0.3.0')
+    verified_files(runtime, version)
 except RuntimeError:
     pass
 else:
@@ -49,13 +54,15 @@ finally:
 environment = {key: value for key, value in os.environ.items() if key not in ('PYTHONPATH', 'PYTHONHOME', 'VIRTUAL_ENV')}
 environment['PATH'] = str(Path(os.environ['SystemRoot']) / 'System32')
 subprocess.run([str(exe), '--self-test'], cwd=directory, env=environment, timeout=45, check=True)
-verified_files(runtime, '0.3.0')
+verified_files(runtime, version)
 cloud = Cloud(Vault(), origin=origin)
 owner = cloud.current()['owner']
 data = directory / 'data'
 data.mkdir()
 device = str(uuid.uuid4())
-(data / 'device.json').write_text(json.dumps({'deviceId': device, 'owner': owner, 'accounts': {owner: device}, 'name': 'Lexi 便携程序专用验收', 'port': 8765, 'deck': 'Lexi 验收'}, ensure_ascii=False), 'utf-8')
+saved_config = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'LexiAnkiBridge/device.json'
+port = json.loads(saved_config.read_text('utf-8')).get('port', 8765) if full_content and saved_config.exists() else 8765
+(data / 'device.json').write_text(json.dumps({'deviceId': device, 'owner': owner, 'accounts': {owner: device}, 'name': 'Lexi 便携程序专用验收', 'port': port, 'deck': 'Lexi 验收'}, ensure_ascii=False), 'utf-8')
 connection_file = directory / 'loopback.json'
 process = None
 client = httpx.Client(timeout=35, trust_env=False)
@@ -63,7 +70,7 @@ loopback = None
 jobs = []
 old_key = cloud.vault.get('anki-key')
 acceptance_key = None
-report = {'version': '0.3.0', 'origin': origin, 'packagedExecutableTested': True, 'cleanEnvironment': True,
+report = {'version': version, 'origin': origin, 'packagedExecutableTested': True, 'cleanEnvironment': True,
           'unicodeSpacePath': True, 'physicalPhoneTested': False, 'actualPlaybackTested': False, 'ankiOwnSyncTested': False}
 
 
@@ -106,6 +113,8 @@ def approve(job, label):
 
 
 try:
+    existing_anki = Anki(port, old_key or '')
+    protected_models = {name: existing_anki.call('modelTemplates', modelName=name) for name in existing_anki.call('modelNames') if 'lapis' in name.lower() or 'fushi' in name.lower()}
     args = [str(exe), '--data-dir', str(data), '--origin', origin, '--no-browser', '--connection-file', str(connection_file)]
     process = subprocess.Popen(args, cwd=directory, env=environment, creationflags=subprocess.CREATE_NO_WINDOW)
     wait(lambda: connection_file.is_file(), 30)
@@ -116,8 +125,9 @@ try:
     assert local('status')['owner'] == owner
     assert subprocess.run(args, env=environment, cwd=directory, timeout=15).returncode == 3
     report['singleInstance'] = True
-    local('detect-anki', confirmed=True)
-    acceptance_key = cloud.vault.get('anki-key')
+    if not full_content:
+        local('detect-anki', confirmed=True)
+        acceptance_key = cloud.vault.get('anki-key')
     local('register')
     _, diagnosis = command('diagnostics')
     assert diagnosis['anki']['ok'] and diagnosis['fushi']['ok'] and diagnosis['dictionary']['ok']
@@ -144,7 +154,18 @@ try:
                       'note': 'Dedicated acceptance only; no Anki cloud sync claim.', 'sourceTitle': 'Lexi synthetic portable acceptance',
                       'sourceUrl': '', 'exampleHighlights': ['clocked'], 'translationHighlights': ['注意到'], 'media': [ref],
                       **({'dictionaryRef': {'id': saved['id'], 'hash': saved['hash']}} if index == 0 else {})})
-    payload = {'version': 3, 'cards': cards}
+    if full_content:
+        for index, card in enumerate(cards):
+            content = {'version': 1, 'selected': ['core','summary','senses','examples','collocations','register','confusions'] if index == 0 else ['core'], 'origin': card['origin'], 'result': {
+                'headword': {'title': 'clock', 'coreMeaning': card['meaning'], 'summary': 'Synthetic full summary' if index == 0 else ''},
+                'meta': {'model': 'synthetic-acceptance', 'source': 'Lexi synthetic acceptance'},
+                'senses': [{'shortestLabel': 'notice', 'meaning': 'Synthetic sense', 'example': 'I clocked the detail.', 'translation': '我注意到了细节。', 'exampleHighlights': ['clocked'], 'translationHighlights': ['注意到']}] if index == 0 else [],
+                'collocations': [{'phrase': 'clock in', 'meaning': 'Synthetic collocation', 'example': 'Clock in now.', 'translation': '现在登记。'}] if index == 0 else [],
+                'register': {'style': 'spoken', 'tone': 'neutral', 'environment': 'synthetic'} if index == 0 else {},
+                'confusions': [{'term': 'notice', 'difference': 'Synthetic distinction', 'usage': 'Synthetic usage'}] if index == 0 else []}}
+            content_snapshot = cloud.call('content_save', payload=content)
+            card.update(sourceKind='entry', sceneId='', contentRef={'id': content_snapshot['id'], 'hash': content_snapshot['hash']})
+    payload = {'version': 4 if full_content else 3, 'cards': cards}
     job = cloud.call('submit', deviceId=device, payload=payload)
     jobs.append(job)
     review = wait(lambda: (value if (value := cloud.call('review_get', jobId=job['id'])).get('valid') else None))
@@ -153,6 +174,13 @@ try:
     approve(job, 'new-cards')
     results = wait(lambda: (rows if len(rows := cloud.call('results', jobId=job['id'])) == 2 else None))
     assert all(row['status'] == 'complete' for row in results), results
+    if full_content:
+        notes = existing_anki.call('notesInfo', notes=[int(row['note_id']) for row in results])
+        full_note = next(note for note in notes if 'Synthetic full summary' in note['fields']['AIContent']['value'])
+        assert full_note['modelName'] == 'Lexi Learning v3'
+        assert all(text in full_note['fields']['AIContent']['value'] for text in ('Synthetic sense','clock in','Synthetic distinction','spoken','<mark>clocked</mark>'))
+        assert any(not note['fields']['AIContent']['value'] and note['fields']['CoreMeaning']['value'] for note in notes)
+        report['completeFieldsAndCoreOnlyVerified'] = True
     assert cloud.call('submit', deviceId=device, payload=payload)['id'] == job['id']
     report.update(created=2, dictionarySaved=True, websiteConfirmed=True, duplicateSubmissionReused=True, receiptVerified=True)
     # Reorder the same cards to create a different batch while preserving stable note keys.
@@ -165,12 +193,18 @@ try:
     assert all(row['status'] == 'skipped' for row in skipped), skipped
     report['unchangedNotesSkipped'] = 2
     updated_card = {**cards[0], 'meaning': 'Updated synthetic definition.', 'origin': 'clock'}
-    updated = cloud.call('submit', deviceId=device, payload={'version': 3, 'cards': [updated_card]})
+    if full_content:
+        changed_content = cloud.call('content_get', snapshotId=cards[0]['contentRef']['id'])['payload']
+        changed_content['origin'] = 'clock'
+        changed_content['result']['headword']['coreMeaning'] = updated_card['meaning']
+        saved_content = cloud.call('content_save', payload=changed_content)
+        updated_card['contentRef'] = {'id': saved_content['id'], 'hash': saved_content['hash']}
+    updated = cloud.call('submit', deviceId=device, payload={'version': payload['version'], 'cards': [updated_card]})
     jobs.append(updated)
     updated_review = wait(lambda: (value if (value := cloud.call('review_get', jobId=updated['id'])).get('valid') else None))
     row = updated_review['snapshot']['rows'][0]
     assert row['operation'] == 'update'
-    assert {change['field'] for change in row['changes']} == {'Origin', 'Meaning'}
+    assert {change['field'] for change in row['changes']} == ({'Origin', 'Meaning', 'CoreMeaning'} if full_content else {'Origin', 'Meaning'})
     approve(updated, 'updated-card')
     changed = wait(lambda: (rows if len(rows := cloud.call('results', jobId=updated['id'])) == 1 else None))
     assert changed[0]['status'] == 'complete'
@@ -193,6 +227,9 @@ try:
     time.sleep(7)
     assert all(row['status'] == 'undone' for row in cloud.call('results', jobId=job['id']))
     report['restartPreservesDeviceAndReceipts'] = True
+    assert all(existing_anki.call('modelTemplates', modelName=name) == templates for name, templates in protected_models.items())
+    report['existingLapisFushiTemplatesUnchanged'] = True
+    existing_anki.http.close()
     report['passed'] = True
     print('Extracted portable EXE: dictionary, two synthetic notes, website approval, receipts and safe undo passed', flush=True)
 finally:

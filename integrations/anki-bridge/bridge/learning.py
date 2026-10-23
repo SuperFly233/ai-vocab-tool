@@ -84,7 +84,13 @@ def render(value):
             if row.get('note'): value += '<small>' + esc(row['note']) + '</small>'
             output.append(value + '</article>')
         return ''.join(output)
+    extra = ([] if 'senses' in selected else r['senses']) + ([] if 'collocations' in selected else r['collocations'])
+    examples = ''.join('<article class="learning-item">'
+                       + ('<p class="learning-example">'+highlight(row['example'], row.get('exampleHighlights'))+'</p>' if row.get('example') else '')
+                       + ('<p class="learning-translation">'+highlight(row['translation'], row.get('translationHighlights'))+'</p>' if row.get('translation') else '')
+                       + '</article>' for row in extra if row.get('example') or row.get('translation'))
     return (section('summary', '<p>'+esc(r['headword'].get('summary'))+'</p>' if r['headword'].get('summary') else '')
             +section('senses', items(r['senses'], 'shortestLabel'))+section('collocations', items(r['collocations'], 'phrase'))
+            +section('examples', examples)
             +section('register', ''.join('<p><b>'+{'style':'语体','tone':'语气','environment':'环境'}[k]+'</b> '+esc(v)+'</p>' for k,v in r.get('register', {}).items() if v and k in ('style','tone','environment')))
             +section('confusions', ''.join('<article class="learning-item"><h4>'+esc(row.get('term'))+'</h4><p>'+esc(row.get('difference'))+'</p><p class="learning-translation">'+esc(row.get('usage'))+'</p></article>' for row in r['confusions'])))

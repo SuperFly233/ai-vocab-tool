@@ -106,6 +106,7 @@ class RemoteTests(unittest.TestCase):
         self.assertNotIn('never-export', text)
         self.assertNotIn('decks', text)
         self.assertTrue(value['result']['anki']['ok'])
+        self.assertFalse(value['result']['cloud']['detail']['learningContent'], 'An old service is not full-content compatible merely because it responds')
 
 
 if __name__ == '__main__':

@@ -51,6 +51,9 @@ def diagnose(state):
             value = check()
             fields = ('version', 'running', 'initialized') if name == 'fushi' else ('schema', 'bridgeVersion')
             result[name] = {'ok': True, 'detail': {key: value[key] for key in fields if key in value}}
+            if name == 'cloud':
+                versions = value.get('payloadVersions', [])
+                result[name]['detail']['learningContent'] = value.get('learningContent') is True and isinstance(versions, list) and 4 in versions
         except BridgeError as error:
             result[name] = {'ok': False, 'message': str(error)}
     anki = state.anki()

@@ -1,0 +1,23 @@
+{
+  "version": "0.4.0",
+  "origin": "https://learning-v037-acceptance.ai-vocab-tool.pages.dev",
+  "packagedExecutableTested": true,
+  "cleanEnvironment": true,
+  "unicodeSpacePath": true,
+  "physicalPhoneTested": false,
+  "actualPlaybackTested": false,
+  "ankiOwnSyncTested": false,
+  "singleInstance": true,
+  "completeFieldsAndCoreOnlyVerified": true,
+  "created": 2,
+  "dictionarySaved": true,
+  "websiteConfirmed": true,
+  "duplicateSubmissionReused": true,
+  "receiptVerified": true,
+  "unchangedNotesSkipped": 2,
+  "updateDiffAndUndo": true,
+  "safelyUndone": 2,
+  "restartPreservesDeviceAndReceipts": true,
+  "existingLapisFushiTemplatesUnchanged": true,
+  "passed": true
+}

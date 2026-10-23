@@ -4,6 +4,8 @@
 
 ## 最新进展
 
+- v0.37.0 候选实现完整当前版本制卡、独立 Lexi Learning v3、网页确认及 Bridge 0.4 托盘；生产迁移已执行并验证权限，实际便携包与测试牌库验收仍在推进，尚不宣称正式上线。截图学习进展见 docs/plans/2026-10-23-learning-release-ledger.md。
+
 - v0.36.3 修复旧拦截日志挤满本地存储：完整日志迁至 IndexedDB，读回校验后才释放旧副本，历史和场景不删除；日志可完整导出。Chromium/WebKit 均通过真实容量、迁移失败回退、刷新及多页回归。大历史库整体仍在 localStorage，不能宣称无限扩容。见 docs/reports/v0363-diagnostic-storage.md。
 
 - v0.36.2 黑与白 `https://ai.hybgzs.com/v1/chat/completions` 改为浏览器直连，覆盖查词、追问、模型、测试与版本整合，失败不自动中转。其他服务商、数据库和 Anki 通道不变。真实无效 Key 的 CORS/401连通验证通过；有效 Key 模型调用和实体 iPhone 未实测。证据见 docs/reports/v0362-provider-direct.md。

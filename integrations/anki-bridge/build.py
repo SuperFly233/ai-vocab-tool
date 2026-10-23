@@ -31,7 +31,7 @@ for dist in metadata.distributions():
     name = dist.metadata['Name']
     notices.append({'name': name, 'version': dist.version, 'license': dist.metadata.get('License-Expression') or dist.metadata.get('License') or [c for c in dist.metadata.get_all('Classifier', []) if c.startswith('License ::')], 'source': dist.metadata.get('Home-page') or dist.metadata.get_all('Project-URL', [])})
     for file in dist.files or []:
-        if any(part.lower() in ('licenses', 'license', 'license.txt', 'copying', 'copying.txt') for part in file.parts):
+        if any(part.lower() == 'licenses' or part.lower().startswith(('license', 'copying')) for part in file.parts):
             source = Path(dist.locate_file(file))
             if source.is_file():
                 target = licenses / name / Path(*file.parts[1:])
@@ -65,6 +65,8 @@ bundle = OUT / NAME
 shutil.copyfile(HERE / 'README.md', bundle / 'README.md')
 shutil.copyfile(OUT / 'THIRD_PARTY_NOTICES.json', bundle / 'THIRD_PARTY_NOTICES.json')
 shutil.copytree(licenses, bundle / 'licenses', dirs_exist_ok=True)
+shutil.copytree(metadata.distribution('pystray').locate_file('pystray'), bundle / 'third-party-source' / 'pystray',
+                ignore=shutil.ignore_patterns('__pycache__', '*.pyc'), dirs_exist_ok=True)
 for source in HERE.glob('migration*.sql'):
     shutil.copyfile(source, bundle / source.name)
 print(bundle / EXECUTABLE)

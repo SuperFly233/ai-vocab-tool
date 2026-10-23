@@ -184,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.36.3',
+  version:'0.37.0',
   releaseDate:'2026-10-23',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.37.0',date:'2026-10-23',title:'完整释义制卡与连接助手',
+    items:['首页、历史和收藏可直接制卡；当前版本核心义及全部正文默认选中，可独立调整，场景与词典按需带入。','使用独立 Lexi Learning v3 模板和不可变完整内容快照，不改已有 Lapis、Fushi 或旧卡片。网页完整预览并确认后才写入。','Bridge 0.4 提供正式版本、托盘、单实例及暂停接单，普通启动不弹浏览器；直连错误区分离线与未取得可读响应，不自动改走云端。截图识别和轻编辑尚在后续阶段。'],
+  },
   {
     version:'0.36.3',date:'2026-10-23',title:'诊断日志迁出小容量存储',
     items:['完整诊断日志改用 IndexedDB，旧日志写入并读回校验后才移除 localStorage 副本，释放历史同步空间；迁移失败保留旧数据。','日志界面隐藏旧拦截页的 HTML 和图片编码，保留可读摘要并支持导出完整日志。','云同步等待归档写入完成，多标签页同步日志；词条、场景、版本、黑与白直连和云端数据结构保持不变。'],
@@ -3987,7 +3991,7 @@ async function readFollowupStream(response,onDelta,onStatus=null){
 }
 async function modelRequest(endpoint,payload,{signal}={}){
   if(/^https:\/\/ai\.hybgzs\.com(?::443)?\//i.test(String(payload.apiUrl||''))){
-    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.36.2');
+    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.37.0');
     if(client.canDirect(payload)){if(endpoint==='analyze')globalThis.RequestUI?.route?.('browser');return client.request(endpoint,payload,{signal})}
     throw new Error('黑与白直连地址需使用 https://ai.hybgzs.com/v1/chat/completions，并填写自己的 API Key；未改走云端。');
   }

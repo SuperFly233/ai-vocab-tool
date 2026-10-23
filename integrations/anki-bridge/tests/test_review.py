@@ -4,6 +4,18 @@ import json
 
 
 class PreviewChangesTests(unittest.TestCase):
+    def test_learning_diff_prioritizes_changed_section_not_long_unchanged_intro(self):
+        intro = '<section data-content-section="summary"><p>' + 'unchanged ' * 1000 + '</p></section>'
+        old = intro + '<section data-content-section="confusions"><h3>易混词辨析</h3><p>old distinction</p></section>'
+        new = intro + '<section data-content-section="confusions"><h3>易混词辨析</h3><p>new distinction</p></section>'
+        row = review_row({'card': {'key': 'one'}, 'operation': 'update',
+                          'before': {'fields': {'AIContent': old}}, 'fields': {'AIContent': new}})
+        change = row['changes'][0]
+        self.assertIn('old distinction', change['before'])
+        self.assertIn('new distinction', change['after'])
+        self.assertNotIn('unchanged', change['before'])
+        self.assertFalse(change['beforeTruncated'])
+
     def test_only_changed_owned_fields_are_published_as_text(self):
         value = review_row({'card': {'key': 'one'}, 'operation': 'update',
                             'before': {'fields': {'Origin': 'clcok', 'Meaning': 'same', 'Dictionary': '<b>old</b>', 'Private': 'secret'}},
