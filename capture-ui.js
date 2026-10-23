@@ -90,6 +90,8 @@
             CaptureData.dimensions(new Uint8Array(await checked.blob.arrayBuffer()),checked.ref.mime);if(!valid())break;
             if(state.items.some(row=>row.id===checked.ref.id)){skipped++;continue}
             if(state.items.length>=CaptureData.MAX_ITEMS||state.items.reduce((sum,row)=>sum+row.ref.size,0)+checked.ref.size>CaptureData.MAX_BATCH_BYTES)throw Error('每批最多 20 张、合计 40 MB，已添加部分仍保留。');
+            let decoded;try{decoded=await createImageBitmap(checked.blob)}catch{throw Error('截图无法解码，请重新导出为 PNG 或 JPEG。已添加的其他截图仍保留。')}finally{decoded?.close()}
+            if(!valid())break;
             if(!await SceneData.getFile(checked.ref.id))await SceneData.putRecord(checked.ref.id,{...checked,uploadedFor:[]});
             if(!valid())break;
             state.items.push({id:checked.ref.id,ref:checked.ref,status:'pending',quote:'',translation:'',translationOrigin:'none',terms:[],exampleHighlights:[],translationHighlights:[]});
