@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 RECEIPT = '.bridge-selftest.json'
+EXECUTABLE = 'LexiConnect.exe'
 
 
 def manifest(directory):

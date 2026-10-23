@@ -1,7 +1,7 @@
 from html.parser import HTMLParser
 import json
 
-REVIEW_FIELDS = ('Expression', 'Origin', 'Sentence', 'Translation', 'Meaning', 'Notes', 'Source', 'DictionarySource', 'Dictionary')
+REVIEW_FIELDS = ('Expression', 'Origin', 'Sentence', 'Translation', 'Meaning', 'Notes', 'Source', 'DictionarySource', 'Dictionary', 'CoreMeaning', 'AIContent', 'AIContentSource')
 
 
 class Text(HTMLParser):

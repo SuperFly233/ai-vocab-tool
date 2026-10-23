@@ -90,12 +90,20 @@ def card_fields(card, owner, profile):
     if url.scheme in ('https', 'http') and url.netloc and not url.username and not url.password:
         source += f' <a href="{html.escape(card["sourceUrl"], quote=True)}">打开来源</a>'
     fields=dict(zip(FIELDS, [digest([owner, profile, card['key']]), html.escape(card['title']), highlight(card['quote'], card['exampleHighlights']), highlight(card['translation'], card['translationHighlights']), html.escape(card['meaning']), html.escape(card['note']), ''.join(media), source]))
-    if card.get('_modelVersion')==2:
+    if card.get('_modelVersion') in (2,3):
         from .dictionary import clean_html
         dictionary=card.get('_dictionary') or {}
         fields.update(LexiKey=digest([owner,profile,card['key'],MODEL_V2]),Origin=html.escape(str(card.get('origin',''))),
                       Dictionary=''.join(clean_html(sense['html']) for sense in dictionary.get('senses',[])),
                       DictionarySource=html.escape(str(dictionary.get('dictionary',''))))
+    if card.get('_modelVersion')==3:
+        from .learning import MODEL, render
+        content=card.get('_content')
+        if not content:
+            raise BridgeError('完整释义快照尚未校验。')
+        fields.update(LexiKey=digest([owner,profile,card['key'],MODEL]),
+                      CoreMeaning=html.escape(content['result']['headword'].get('coreMeaning','')),
+                      AIContent=render(content),AIContentSource=html.escape(' · '.join(v for v in [content['result'].get('meta',{}).get('model',''),content['result'].get('meta',{}).get('generatedAt','')] if v)))
     return fields
 
 
@@ -133,6 +141,9 @@ class Anki:
         return {'version': version, 'profile': str(self.call('getActiveProfile')), 'decks': self.call('deckNames')}
 
     def model_definition(self):
+        if getattr(self,'model_version',1)==3:
+            from . import learning
+            return learning.MODEL,FIELDS_V2+['CoreMeaning','AIContent','AIContentSource'],learning.FRONT,learning.BACK,learning.css()
         return (MODEL_V2,FIELDS_V2,FRONT,BACK_V2,CSS_V2) if getattr(self,'model_version',1)==2 else (MODEL,FIELDS,FRONT,BACK,CSS)
 
     def check_model(self):
@@ -160,7 +171,7 @@ class Anki:
         if not ids:
             return None
         row = self.call('notesInfo', notes=ids)[0]
-        if row.get('modelName') not in (MODEL,MODEL_V2) or row.get('fields', {}).get('LexiKey', {}).get('value') != key:
+        if row.get('modelName') not in (MODEL,MODEL_V2,'Lexi Learning v3') or row.get('fields', {}).get('LexiKey', {}).get('value') != key:
             raise BridgeError('来源键与模板不匹配，未写入。')
         return {'id': row['noteId'], 'fields': {k: v['value'] for k, v in row['fields'].items()}, 'cards': row['cards'], 'tags': row.get('tags', [])}
 
@@ -248,7 +259,7 @@ def execute_one(anki, row, owner, profile, job, deck, journal, fetch_media, befo
         anki.call('updateNoteFields', note={'id': current['id'], 'fields': fields})
         note_id = current['id']
     else:
-        note_id = anki.call('addNote', note={'deckName': deck, 'modelName': MODEL_V2 if 'Dictionary' in fields else MODEL, 'fields': fields, 'options': {'allowDuplicate': False}, 'tags': creation_tags})
+        note_id = anki.call('addNote', note={'deckName': deck, 'modelName': 'Lexi Learning v3' if 'AIContent' in fields else MODEL_V2 if 'Dictionary' in fields else MODEL, 'fields': fields, 'options': {'allowDuplicate': False}, 'tags': creation_tags})
         if not note_id:
             raise BridgeError('Anki 未返回笔记 ID，请重新核对来源键。')
     journal.record(owner, profile, job, card['key'], note_id, operation, current['fields'] if current else None, fields)

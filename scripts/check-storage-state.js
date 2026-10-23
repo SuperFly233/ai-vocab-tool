@@ -69,6 +69,30 @@ expect(!removeRollback.ok&&removeRollback.rollbackOk,'a failure after removal sh
 const removeRollbackDump=removeRollbackStorage.dump();
 expect(removeRollbackDump.history==='keep-history'&&removeRollbackDump.settings==='old-settings'&&Object.keys(removeRollbackDump).length===2,'rollback must restore a key removed earlier in the batch');
 
+function boundedStorage(initial,limit){
+  const storage=memoryStorage(initial),write=storage.setItem;
+  storage.setItem=(key,value)=>{
+    const next={...storage.dump(),[key]:String(value)};
+    if(Object.values(next).reduce((total,raw)=>total+raw.length,0)>limit){
+      const error=new Error('The quota has been exceeded');error.name='QuotaExceededError';throw error;
+    }
+    write(key,value);
+  };
+  return storage;
+}
+const boundary=boundedStorage({history:'12345',settings:'12345'},10);
+expect(StorageState.writeBatch(boundary,[{key:'history',value:'12345678'},{key:'settings',value:'12'}]).ok,'Shrink other batch values before growing history');
+const overflow=boundedStorage({history:'12345',settings:'12345'},10);
+const rejected=StorageState.writeBatch(overflow,[{key:'settings',value:'12'},{key:'history',value:'123456789'}]);
+expect(!rejected.ok&&rejected.rollbackOk&&overflow.dump().settings==='12345'&&overflow.dump().history==='12345','True quota overflow must preserve both original values');
+const content={headword:{title:'word'},senses:[{definition:'full text'}]};
+const entry={id:1,result:content,rolls:[{id:'one',result:content}],note:'keep',scenes:[{id:'scene'}]};
+const original=JSON.stringify(entry),compact=JSON.parse(StorageState.historyJSON([entry]))[0];
+expect(!Object.hasOwn(compact,'result')&&JSON.stringify(compact.rolls[0].result)===JSON.stringify(content),'Only redundant latest content may be omitted');
+expect(compact.note==='keep'&&compact.scenes[0].id==='scene'&&JSON.stringify(entry)===original,'Compaction preserves metadata and does not mutate input');
+expect(JSON.parse(StorageState.historyJSON([{id:2,result:content}]))[0].result.headword.title==='word','Legacy history without rolls retains result');
+expect(JSON.parse(StorageState.historyJSON([{...entry,result:{headword:{title:'different'}}}]))[0].result.headword.title==='different','Distinct legacy result must never be dropped');
+
 if(failures.length){
   console.error(`Storage state check failed (${failures.length}):`);
   failures.forEach(message=>console.error(`- ${message}`));

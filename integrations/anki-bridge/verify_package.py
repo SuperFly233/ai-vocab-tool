@@ -4,11 +4,11 @@ import sys
 import time
 from pathlib import Path
 from bridge import __version__
-from bridge.distribution import RECEIPT, verified_files
+from bridge.distribution import RECEIPT, verified_files, EXECUTABLE
 
 OUT = Path(__file__).resolve().parents[2] / 'tmp' / 'anki-bridge-build'
 name = 'LexiAnkiBridge-' + __version__
-exe = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else OUT / name / (name + '.exe')
+exe = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else OUT / name / EXECUTABLE
 if not exe.is_file() or exe.read_bytes()[:2] != b'MZ':
     raise RuntimeError('Expected a built Windows executable')
 (exe.parent / RECEIPT).unlink(missing_ok=True)

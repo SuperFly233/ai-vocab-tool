@@ -17,7 +17,7 @@ from . import __version__
 from .cloud import Cloud, Vault, ORIGIN
 from .core import Anki, BridgeError, Journal, digest, execute_one, preview, undo_one, media_mime
 from .fushi import Fushi, make_card
-from .remote import process_request
+from .remote import process_request, diagnose
 from .dictionary import validate_snapshot
 from .review import review_rows
 
@@ -41,6 +41,9 @@ class State:
         self.local_media = {}
         self.worker_error = ''
         self.next_announcement = 0
+        self.paused = threading.Event()
+        self.latest_diagnostics = {}
+        self.worker_done = threading.Event()
 
     def save_config(self):
         temporary = self.config_file.with_suffix('.tmp')
@@ -73,9 +76,12 @@ class State:
                 try:
                     self.bind_account()
                     if time.monotonic() >= self.next_announcement:
-                        self.cloud.call('register', deviceId=self.config['deviceId'], name=self.config['name'])
+                        self.cloud.call('register', deviceId=self.config['deviceId'], name=self.config['name'],bridgeVersion=__version__,payloadVersions=[1,2,3,4])
                         self.next_announcement = time.monotonic() + 20
-                    process_request(self)
+                    if self.paused.is_set() and not self.active:
+                        continue
+                    if not self.paused.is_set():
+                        process_request(self)
                     self.web_tick()
                     self.worker_error = ''
                 except BridgeError as error:
@@ -95,7 +101,9 @@ class State:
                 self.execute(self.active['token'])
             return
         self.bind_account()
-        job = self.cloud.call('next_job', deviceId=self.config['deviceId'])
+        if self.paused.is_set() or self.closed.is_set():
+            return
+        job = self.cloud.call('next_job', deviceId=self.config['deviceId'],workerVersion=__version__)
         if job:
             self.prepare(job['id'])
 
@@ -114,7 +122,7 @@ class State:
             deck = self.config['deck']
             if deck not in connection['decks'] and deck != 'Lexi 验收':
                 raise BridgeError('目标牌库不存在，请重新选择。')
-            job = self.cloud.call('claim', jobId=job_id, deviceId=self.config['deviceId'], **({'leaseToken': previous['job']['lease_token']} if previous and previous['job']['id'] == job_id else {}))
+            job = self.cloud.call('claim', jobId=job_id, deviceId=self.config['deviceId'],workerVersion=__version__, **({'leaseToken': previous['job']['lease_token']} if previous and previous['job']['id'] == job_id else {}))
             if job['payload'].get('confirmationMode') == 'web':
                 review = self.cloud.call('review_get', jobId=job_id)
                 deck = review.get('requestedDeck') or deck
@@ -123,16 +131,26 @@ class State:
             cards = job['payload'].get('cards', [])
             if not 1 <= len(cards) <= 20:
                 raise BridgeError('任务快照无效。')
-            model_version=2 if job['payload'].get('version')==3 else 1
+            if job['payload'].get('version',1) not in (1,2,3,4):
+                raise BridgeError('任务协议不兼容，请更新连接助手。')
+            model_version=3 if job['payload'].get('version')==4 else 2 if job['payload'].get('version')==3 else 1
             anki.model_version=model_version
             for card in cards:
                 card.pop('_dictionary',None);card['_modelVersion']=model_version
                 ref=card.get('dictionaryRef')
                 if ref:
-                    if model_version != 2 or not isinstance(ref, dict):
+                    if model_version not in (2,3) or not isinstance(ref, dict):
                         raise BridgeError('词典引用需要新版任务，请重新提交。')
                     snapshot=self.cloud.call('dictionary_get',snapshotId=ref.get('id'))
                     card['_dictionary']=validate_snapshot(snapshot,ref)
+                if model_version==3:
+                    from .learning import validate
+                    content_ref=card.get('contentRef')
+                    if not isinstance(content_ref,dict):
+                        raise BridgeError('缺少完整释义快照。')
+                    card['_content']=validate(self.cloud.call('content_get',snapshotId=content_ref.get('id')),content_ref)
+                    if card['_content']['result']['headword']['title']!=card['title']:
+                        raise BridgeError('卡片标题与完整释义快照不一致。')
             refs = {ref.get('id'): ref for card in cards for ref in card.get('media', [])}
             if any(not isinstance(ref.get('size'), int) or not 1 <= ref['size'] <= 20 * 1024 * 1024 for ref in refs.values()) or sum(ref['size'] for ref in refs.values()) > 50 * 1024 * 1024:
                 raise BridgeError('单批素材最多 50 MB，每份最多 20 MB。')
@@ -177,11 +195,15 @@ class State:
                 anki.call('createDeck', deck=active['deck'])
             output = []
             def before_write():
+                if self.closed.is_set():
+                    raise BridgeError('连接助手正在退出，停止剩余写入。')
                 if self.cloud.call('heartbeat', **lease).get('cancelRequested'):
                     raise BridgeError('任务已取消，停止剩余写入。')
                 if anki.call('getActiveProfile') != active['profile']:
                     raise BridgeError('Anki 配置已切换，停止写入。')
             for row in active['rows']:
+                if self.closed.is_set():
+                    break
                 if self.cloud.call('heartbeat', **lease).get('cancelRequested'):
                     break
                 try:
@@ -354,6 +376,10 @@ def create_app(state, port, token):
     def index():
         return FileResponse(ASSETS / 'index.html')
 
+    @app.get('/api/info')
+    def info():
+        return {'version':__version__,'payloadVersions':[1,2,3,4]}
+
     @app.get('/assets/{name}')
     def asset(name: str):
         if name not in ('connection.js', 'style.css', 'icons.js', 'favicon.svg'):
@@ -378,10 +404,16 @@ def create_app(state, port, token):
                     return {'ok': True}
                 if action == 'status':
                     owner = state.bind_account()
-                    return {'version': __version__, 'owner': owner, 'workerError': state.worker_error, 'config': {k: state.config[k] for k in ['deviceId', 'name', 'port', 'deck']}}
+                    return {'version': __version__, 'owner': owner,'paused':state.paused.is_set(), 'workerError': state.worker_error, 'config': {k: state.config[k] for k in ['deviceId', 'name', 'port', 'deck']}}
+                if action == 'pause':
+                    if body.get('paused') is True:state.paused.set()
+                    else:state.paused.clear()
+                    return {'paused':state.paused.is_set()}
+                if action == 'diagnostics-export':
+                    return {'version':__version__,'payloadVersions':[1,2,3,4],'paused':state.paused.is_set(),'checks':{k:{'ok':v.get('ok') is True,'message':v.get('message','')} for k,v in state.latest_diagnostics.items()}}
                 if action == 'register':
                     state.bind_account()
-                    return state.cloud.call('register', deviceId=state.config['deviceId'], name=state.config['name'])
+                    return state.cloud.call('register', deviceId=state.config['deviceId'], name=state.config['name'],bridgeVersion=__version__,payloadVersions=[1,2,3,4])
                 if action == 'fushi-status':
                     return state.fushi.call('status')
                 if action == 'fushi-sources':
@@ -393,16 +425,8 @@ def create_app(state, port, token):
                 if action == 'fushi-history':
                     return [{**r, 'status': 'error' if r['status']=='running' and (state.active or {}).get('job',{}).get('id')!=r['id'] else r['status']} for r in state.journal.batches(state.bind_account())]
                 if action == 'diagnostics':
-                    output = {}
-                    for name, check in [('fushi', lambda: state.fushi.call('status')), ('cloud', lambda: state.cloud.call('health'))]:
-                        try: output[name] = {'ok': True, 'detail': check()}
-                        except BridgeError as error: output[name] = {'ok': False, 'message': str(error)}
-                    anki = state.anki()
-                    try:
-                        try: output['anki'] = {'ok': True, 'detail': anki.diagnose()}
-                        except BridgeError as error: output['anki'] = {'ok': False, 'message': str(error)}
-                    finally: anki.http.close()
-                    return output
+                    state.latest_diagnostics=diagnose(state)
+                    return state.latest_diagnostics
                 if action == 'fushi-export':
                     return state.export_local_scene(body.get('textOnly') is True)
                 if action == 'fushi-cancel':
@@ -524,6 +548,14 @@ def main(directory=None, origin=ORIGIN, open_browser=True, connection_file=None)
         raise BridgeError('无法取得本机运行锁。')
     if ctypes.get_last_error() == 183:
         kernel.CloseHandle(handle)
+        if open_browser:
+            try:
+                running=json.loads((directory/'running.json').read_text('utf-8'))
+                existing_port=int(running['port'])
+                if not 1024<=existing_port<=65535 or not isinstance(running['token'],str):raise ValueError()
+                webbrowser.open(f'http://127.0.0.1:{existing_port}/#token={running["token"]}')
+            except (OSError,ValueError,KeyError):
+                ctypes.windll.user32.MessageBoxW(None,'连接助手或旧版正在运行。请从托盘打开，或在旧版连接页正常退出后再启动。','Lexi 连接助手',0x40)
         return 3
     try:
         return serve(directory, origin, open_browser, connection_file)
@@ -539,21 +571,34 @@ def serve(directory, origin, open_browser, connection_file):
     sock.bind(('127.0.0.1', 0))
     port = sock.getsockname()[1]
     app = create_app(state, port, token)
-    threading.Thread(target=state.renew, daemon=True).start()
+    settings_url=f'http://127.0.0.1:{port}/#token={token}'
+    def work():
+        try:state.renew()
+        finally:state.worker_done.set()
+    worker=threading.Thread(target=work,daemon=True);worker.start()
+    tray=None
     if open_browser:
-        threading.Timer(1, lambda: webbrowser.open(f'http://127.0.0.1:{port}/#token={token}')).start()
+        from .tray import ConnectorTray
+        tray=ConnectorTray(state,settings_url);tray.start()
+    running_file=Path(directory)/'running.json'
+    running_file.write_text(json.dumps({'port':port,'token':token,'version':__version__}), 'utf-8')
     if connection_file:
         Path(connection_file).write_text(json.dumps({'port': port, 'token': token}), 'utf-8')
     try:
         server = uvicorn.Server(uvicorn.Config(app, access_log=False, log_level='warning', log_config=None))
         def stop():
             state.closed.wait()
+            state.worker_done.wait(90)
             server.should_exit = True
         threading.Thread(target=stop, daemon=True).start()
         server.run(sockets=[sock])
     finally:
         state.closed.set()
+        worker.join(35)
+        if tray:tray.stop()
         sock.close()
+        running_file.unlink(missing_ok=True)
+        if not worker.is_alive():state.journal.db.close()
         if connection_file:
             Path(connection_file).unlink(missing_ok=True)
 

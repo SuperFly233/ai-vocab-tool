@@ -17,6 +17,7 @@
  async function openGroup(groupId,entryId=''){
   const group=SceneUI.sceneGroups().find(group=>group.scene.groupId===groupId);if(!group)return;
   if(group.scene.externalSource?.queued&&!await confirmIntent('导入时此来源已在 Fushi 制卡流程中。继续会另建 Lexi 专用卡片，不会替换现有 Fushi 卡片或消费原队列。','确认另建 Lexi 卡片','继续准备'))return;
+  if(root.LearningCards)return LearningCards.openGroup(groupId,entryId);
   const node=dialog('发送到 Anki'),body=node.querySelector('.scene-dialog-body'),account=cloudUser?.id;
   try{
    const devices=await request('devices');if(!node.isConnected)return;
@@ -127,7 +128,7 @@
   const doc=new DOMParser().parseFromString(String(value??''),'text/html');doc.querySelectorAll('script,style').forEach(node=>node.remove());return doc.body.textContent.trim();
  }
  function changesHTML(row){
-  const names={Expression:'词头',Origin:'原始输入 Origin',Sentence:'原句',Translation:'译文',Meaning:'释义',Notes:'备注',Source:'来源',DictionarySource:'词典来源',Dictionary:'词典内容'};
+  const names={Expression:'词头',Origin:'原始输入 Origin',Sentence:'原句',Translation:'译文',Meaning:'释义',Notes:'备注',Source:'来源',DictionarySource:'词典来源',Dictionary:'词典内容',CoreMeaning:'核心义',AIContent:'完整 AI 正文',AIContentSource:'AI 来源'};
   const changes=Array.isArray(row.changes)?row.changes:Object.entries(row.previous||{}).filter(([field])=>names[field]).map(([field,value])=>({field,before:previewText(value),legacy:true}));
   if(!changes.length)return '<p class="muted">仅素材或格式发生变化；请核对上方卡面。</p>';
   return `<section class="anki-review-diff"><h3>本次变化</h3>${changes.map(change=>`<section class="anki-change-row"><h4>${esc(names[change.field]||'内容')}</h4><div><span>原内容</span><p>${esc(change.before||'无')}${change.beforeTruncated?'… <small>仅显示摘要</small>':''}</p></div><div><span>新内容</span><p>${change.legacy?'请核对上方卡面；此电脑未提供逐字段差异':esc(change.after||'无')}${change.afterTruncated?'… <small>仅显示摘要；完整新内容见上方</small>':''}</p></div></section>`).join('')}</section>`;
@@ -149,12 +150,20 @@
    approve.onclick=async event=>{if(pending||!dictionaryReady)return;const button=event.currentTarget;pending=true;button.disabled=true;try{await request('review_approve',{jobId:job.id,revision:data.revision});if(node.isConnected)node.querySelector('[data-review-state]').textContent='已确认，等待电脑执行。可在任务列表查看逐项回执。'}catch(e){error(node,e.message);button.disabled=false}finally{pending=false}};
    if(!dictionaryReady){
     try{
+     if(job.payload.version===4){
+      if(!root.LearningCards)throw Error('网页完整内容组件尚未加载。');
+      const content=new Map();for(const item of job.payload.cards){if(!item.contentRef)throw Error('缺少完整释义快照。');const value=await LearningCards.readSnapshot(item.contentRef);if(!node.isConnected||version!==generation)return;content.set(item.key,value)}
+      const value=content.get(card.key),front=body.querySelector('.anki-web-faces>section:first-child'),back=body.querySelector('.anki-web-faces>section:last-child');front.classList.add('lexi-learning');back.classList.add('lexi-learning');
+      const frontTitle=front.querySelector('h3');if(frontTitle){const heading=document.createElement('h2');heading.textContent=frontTitle.textContent;frontTitle.replaceWith(heading)}
+      back.innerHTML='<span>背面</span><h2>'+esc(card.title)+'</h2>'+(card.quote?'<p>'+highlightText(card.quote,card.exampleHighlights)+'</p>':'')+'<div class="media" data-review-media-back></div><p class="learning-translation">'+highlightText(card.translation,card.translationHighlights)+'</p>'+(value.result.headword.coreMeaning?'<div class="learning-core">'+esc(value.result.headword.coreMeaning)+'</div>':'')+LearningContent.render(value)+'<div data-review-dictionary></div>'+(card.note?'<section class="learning-section"><h3>我的笔记</h3>'+esc(card.note)+'</section>':'')+'<footer class="learning-source">'+esc(card.sourceTitle)+(card.sourceUrl?'<p>'+esc(card.sourceUrl)+'</p>':'')+'<p>'+esc([value.result.meta.model,value.result.meta.generatedAt].filter(Boolean).join(' · '))+'</p><p>Origin: '+esc(card.origin)+'</p></footer>';
+      const tabs=document.createElement('div');tabs.className='learning-face-controls';tabs.innerHTML='<button class="plain-btn" aria-pressed="false" data-view-face="front">正面</button><button class="plain-btn active" aria-pressed="true" data-view-face="back">背面</button>';body.querySelector('.anki-web-faces').before(tabs);front.hidden=true;body.querySelector('.anki-web-faces').classList.add('learning-review-faces');tabs.querySelectorAll('button').forEach(button=>button.onclick=()=>{front.hidden=button.dataset.viewFace!=='front';back.hidden=!front.hidden;tabs.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button))})});
+     }
      const saved=new Map();for(const item of job.payload.cards.filter(item=>item.dictionaryRef)){
       const ref=item.dictionaryRef;if(saved.has(ref.id))continue;
       const snapshot=await request('dictionary_get',{snapshotId:ref.id});if(!node.isConnected||version!==generation)return;
       if(!root.DictionaryUI||snapshot.hash!==ref.hash||!await DictionaryUI.valid(snapshot))throw Error('词典快照不可用，未允许确认写入。');saved.set(ref.id,snapshot);
      }
-     if(card.dictionaryRef){const section=document.createElement('section');section.className='dictionary-reading';DictionaryUI.renderSnapshot(section,saved.get(card.dictionaryRef.id));body.querySelector('.anki-web-faces>section:last-child').append(section)}
+     if(card.dictionaryRef){const section=document.createElement('section');section.className='dictionary-reading';DictionaryUI.renderSnapshot(section,saved.get(card.dictionaryRef.id));(body.querySelector('[data-review-dictionary]')||body.querySelector('.anki-web-faces>section:last-child')).append(section)}
     }catch(e){if(node.isConnected&&version===generation)error(node,e.message);return}
    }
    const host=body.querySelector('[data-review-media]');
@@ -170,6 +179,7 @@
     if(!ref.mime.startsWith('image/')){const text=document.createElement('p');text.textContent=ref.mime.startsWith('video/')?'视频原文件随卡保存；终端播放支持另行验证。':ref.name;host.append(text);continue}
     try{const file=files.get(ref.id);if(!node.isConnected||body.querySelector('[data-review-media]')!==host)return;const url=URL.createObjectURL(file.blob);urls.push(url);const img=document.createElement('img');img.src=url;img.alt=ref.name;host.append(img)}catch(e){if(host.isConnected){const text=document.createElement('p');text.textContent=`素材加载失败：${e.message}`;host.append(text)}}
    }
+   const backMedia=body.querySelector('[data-review-media-back]');if(backMedia)backMedia.replaceChildren(...[...host.childNodes].map(n=>n.cloneNode(true)));
   }
   async function refresh(){try{current=await request('review_get',{jobId:job.id});if(!node.isConnected)return;error(node,'');if(!current.valid){release();dictionaryReady=false;node.querySelector(':scope>footer')?.remove();body.innerHTML='<p>等待电脑准备当前目标的预览。连接助手需保持运行。</p><button class="plain-btn" data-wait-review>重新检查</button>';body.querySelector('[data-wait-review]').onclick=refresh;return}await show()}catch(e){error(node,e.message)}}
   await refresh();

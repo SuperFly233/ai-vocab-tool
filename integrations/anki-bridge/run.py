@@ -12,6 +12,8 @@ if __name__ == '__main__':
         import time
         import ssl
         import certifi
+        import pystray
+        from PIL import Image
         from pathlib import Path
         from types import SimpleNamespace
         import httpx
@@ -24,6 +26,8 @@ if __name__ == '__main__':
         assert '<script' not in clean_html('<p>dictionary</p><script>bad()</script>')
         assert (ASSETS / 'index.html').is_file()
         assert (ASSETS / 'icons.js').is_file()
+        assert (ASSETS / 'app-icon.png').is_file()
+        assert (ASSETS / 'learning-card.css').is_file()
         Vault()
         ssl.create_default_context(cafile=certifi.where())
         if sys.stdout:print('Self-test: runtime and dictionary sanitizer ready',flush=True)
