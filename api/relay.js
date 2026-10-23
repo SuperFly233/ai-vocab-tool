@@ -1,3 +1,5 @@
+import { upstreamFailure } from './upstream-error.js';
+
 const RELAY_HEADER = 'x-ai-vocab-relay';
 
 function headerValue(request, name) {
@@ -56,6 +58,10 @@ export async function relayApiRequest(request, response, endpoint, payload) {
   }
 
   const text = await upstream.text();
+  if (!upstream.ok) {
+    response.status(upstream.status).json(upstreamFailure(upstream, text, payload?.apiKey));
+    return true;
+  }
   if (contentType) response.setHeader?.('Content-Type', contentType);
   try {
     response.status(upstream.status).json(JSON.parse(text));

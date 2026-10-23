@@ -6,6 +6,10 @@ const dist = join(root, 'dist');
 const files = [
   'index.html',
   'app.js',
+  'provider-client.js',
+  'provider-contract.js',
+  'model-stream.js',
+  'upstream-error.js',
   'history-data.js',
   'settings-data.js',
   'view-preferences.js',

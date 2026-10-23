@@ -1,5 +1,9 @@
 # UI SOP / Persistent User Preferences
 
+## Network Path Accuracy
+
+2026-10-23: a device's direct/proxy setting does not change Cloudflare/relay egress. Show actual browser/cloud request path; never silently reroute a provider requiring direct access. Provider direct mode requires verified CORS and an explicit host/path allowlist, omits cookies and blocks redirects. Personal API credentials may go only to the selected provider; environment credentials stay server-side. Keep model transport independent from Supabase login/data/media/tasks; test each instead of promising all services can use one route. Never show raw HTML block pages, CSS/base64 or reflected secrets as error text. Invalid-key JSON401 proves reachability, not successful inference. Network-only fixes need no invented UI redesign or image mockup.
+
 ## Optional Hints
 
 Clarification 2026-10-22: the user's original intent is to hide obstructive field-focus bubbles, not hover tooltips. `hintsHidden` now controls floating editor help only; `tooltipsHidden` separately controls button/reading hover and keyboard-focus tooltips and defaults false. Legacy `hintsHidden=true` must not disable hover hints. Pinned field explanations remain independently controlled. Result/error/Undo Toasts are unaffected.

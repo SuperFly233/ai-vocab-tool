@@ -4,12 +4,14 @@
   const host=document.createElement('details');host.className='request-timing';host.hidden=true;host.setAttribute('aria-label','生成阶段与耗时');document.querySelector('.result-toolbar').after(host);
   function render(){
     if(!state)return;const now=state.end||performance.now(),total=(now-state.start)/1000;
+    const title=key=>key==='request'&&state.route==='browser'?'已发送 · 浏览器直连':titles[key];
     const first=state.events.find(event=>event.key==='first'),current=state.events.at(-1);
-    host.querySelector('summary').textContent=`${titles[current.key]} · ${total.toFixed(1)}s${first?` · 首字 ${((first.time-state.start)/1000).toFixed(1)}s`:''}`;
+    host.querySelector('summary').textContent=`${title(current.key)} · ${total.toFixed(1)}s${first?` · 首字 ${((first.time-state.start)/1000).toFixed(1)}s`:''}`;
     const list=host.querySelector('ol');list.replaceChildren();
-    state.events.forEach((event,index)=>{const row=document.createElement('li');row.textContent=`${titles[event.key]} · +${((event.time-state.start)/1000).toFixed(1)}s${index===state.events.length-1&&!state.end?` · 已等待 ${((now-event.time)/1000).toFixed(1)}s`:''}`;list.append(row)});
+    state.events.forEach((event,index)=>{const row=document.createElement('li');row.textContent=`${title(event.key)} · +${((event.time-state.start)/1000).toFixed(1)}s${index===state.events.length-1&&!state.end?` · 已等待 ${((now-event.time)/1000).toFixed(1)}s`:''}`;list.append(row)});
   }
   root.RequestUI={
+    route(mode){if(state){state.route=mode;render()}},
     start(){clearInterval(timer);state={start:performance.now(),events:[],end:null};host.innerHTML='<summary></summary><ol></ol>';host.hidden=false;host.open=true;this.mark('prepare');timer=setInterval(render,250)},
     mark(key){if(!state||state.end||!titles[key]||state.events.at(-1)?.key===key||key==='first'&&state.events.some(event=>event.key==='first'))return;state.events.push({key,time:performance.now()});render()},
     finish(ok){if(!state)return;this.mark(ok?'complete':'error');state.end=performance.now();clearInterval(timer);host.open=!ok;render()},
