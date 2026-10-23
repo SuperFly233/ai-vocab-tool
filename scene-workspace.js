@@ -51,7 +51,7 @@
     host.querySelector('[data-reset-scene-filters]').onclick=resetFilters;
     const tools=document.createElement('div');tools.className='scene-browse-tools';search.closest('label').before(tools);tools.append(search.closest('label'),host.querySelector('.scene-filter-bar'));
     host.querySelector('.scene-library-head .scene-actions').insertAdjacentHTML('afterbegin',`<button class="icon-btn" data-scene-review aria-label="回顾当前场景" data-tip="回顾当前筛选的场景">${icon('play')}</button><button class="icon-btn" data-scene-export aria-label="导出学习清单" data-tip="导出学习清单">${icon('file-text')}</button>`);
-    host.querySelector('[data-scene-review]').onclick=()=>{if(!visibleGroups.length)return;review={ids:visibleGroups.map(group=>group.scene.groupId),index:0,revealed:false,scroll:scrollY};paneKey='';render();scrollTo({top:0,behavior:'instant'})};
+    host.querySelector('[data-scene-review]').onclick=()=>startReview();
     host.querySelector('[data-scene-export]').onclick=()=>{const node=document.createElement('dialog');node.className='scene-study-dialog';node.innerHTML=`<header><h2>导出学习清单</h2><button class="icon-btn" aria-label="关闭">${icon('x')}</button></header><div class="scene-export-options"><button class="plain-btn" data-export="html">${icon('file-text')}可读 HTML</button><button class="plain-btn" data-export="json">${icon('code-2')}结构化 JSON</button></div>`;node.querySelector('header button').onclick=()=>node.close();node.querySelectorAll('[data-export]').forEach(button=>button.onclick=()=>{SceneStudy.exportList(visibleGroups,button.dataset.export);node.close()});node.onclose=()=>node.remove();document.body.append(node);node.showModal()};
     host.querySelector('.scene-master').onclick=event=>{const row=event.target.closest('[data-select-scene]');if(row)select(row.dataset.selectScene)};
     paneKey='';listKey='';
@@ -102,6 +102,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
       const heading=host.querySelector('.scene-workbench>header h2'),headingGroup=document.createElement('div');headingGroup.className='scene-heading';heading.before(headingGroup);headingGroup.append(heading);headingGroup.insertAdjacentHTML('beforeend',SceneUI.timeMeta(scene));
       if(!scene.title)heading.textContent=scene.quote||scene.sourceTitle||'未命名场景';heading.title=heading.textContent;heading.setAttribute('aria-label',heading.textContent);
       const translation=host.querySelector('.scene-study-text>.scene-translation');if(translation)translation.innerHTML=highlightText(scene.translation,scene.translationHighlights||[]);
+      host.querySelector('.scene-study-text>.scene-source-line').insertAdjacentHTML('afterend',SceneUI.provenance(scene));
       const quote=host.querySelector('.scene-study-quote');if(quote)quote.dataset.label='原句';if(translation)translation.dataset.label='译文';
       host.querySelector('.scene-back').onclick=()=>review?exitReview():back();
       const mediaHost=host.querySelector('.scene-study-content>.scene-media');
@@ -153,6 +154,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
     if(quote&&quote.innerHTML!==highlighted)quote.innerHTML=highlighted;
     renderTasks(group);
   }
+  function startReview(ids=visibleGroups.map(group=>group.scene.groupId)){const known=new Set(SceneUI.sceneGroups().map(group=>group.scene.groupId));ids=[...new Set(ids)].filter(id=>known.has(id));if(!ids.length)return;review={ids,index:0,revealed:false,scroll:scrollY};paneKey='';render();scrollTo({top:0,behavior:'instant'})}
   function exitReview(){const scroll=review?.scroll||0;review=null;paneKey='';render();scrollTo({top:scroll,behavior:'instant'})}
   async function loadThumb(ref,node,owner){
     try{
@@ -201,5 +203,5 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
   addEventListener('pagehide',event=>{if(!event.persisted){for(const url of thumbs.values())URL.revokeObjectURL(url);thumbs.clear()}});
   function applyPreferences(value){restoreAccount();Object.assign(filters,value);const host=document.getElementById('scene-hub');host?.querySelectorAll('[data-filter]').forEach(field=>{field.value=filters[field.dataset.filter]});if(activeView==='scenes')render()}
   function resetFilters(){Object.assign(filters,defaults);const host=document.getElementById('scene-hub'),search=host?.querySelector('.scene-search input');if(search)search.value='';host?.querySelectorAll('[data-filter]').forEach(field=>field.value=filters[field.dataset.filter]);saveView();render()}
-  root.SceneWorkspace={render,select,back,addQueries,applyPreferences,resetFilters,clearPreviews:async()=>{await root.ScenePreview?.clear();await SceneData.clearPreviews();for(const url of thumbs.values())URL.revokeObjectURL(url);thumbs.clear();listKey='';if(activeView==='scenes')render()},filteredGroups:()=>visibleGroups};if(activeView==='scenes')render();
+  root.SceneWorkspace={render,select,back,addQueries,startReview,applyPreferences,resetFilters,clearPreviews:async()=>{await root.ScenePreview?.clear();await SceneData.clearPreviews();for(const url of thumbs.values())URL.revokeObjectURL(url);thumbs.clear();listKey='';if(activeView==='scenes')render()},filteredGroups:()=>visibleGroups};if(activeView==='scenes')render();
 })(globalThis);

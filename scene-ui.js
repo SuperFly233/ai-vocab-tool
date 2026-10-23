@@ -14,22 +14,36 @@
     if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:new Date().toISOString()}))throw new Error('场景未能写入本机。');
     if(activeView==='scenes')renderHub();
   }
-  function importFushi(rows,account){
+  function planFushi(rows,account){
     if((cloudUser?.id||'local')!==account)throw new Error('账号已切换，未导入其他账号的来源。');
     if(!Array.isArray(rows)||!rows.length||rows.length>20)throw new Error('每次选择 1–20 个场景。');
-    const settings=getSettings(),existing=new Set(sceneGroups().map(row=>row.scene.groupId)),deleted=new Set((settings.sceneLibraryTombstones||[]).map(row=>row.key)),added=[];
-    const clock=new Date().toISOString();let skipped=0;
-    for(const row of rows){
-      if(!row||!/^[a-f0-9]{64}$/.test(row.key)||typeof row.id!=='string'||!row.id||row.id.length>160||typeof row.quote!=='string'||!row.quote.trim()||row.quote.length>4000)throw new Error('Fushi 来源缺少原句或稳定标识，未导入。');
-      const id=`fushi-${row.key}`;if(existing.has(id)||deleted.has(id)){skipped++;continue}existing.add(id);
-      const timestamp=new Date(typeof row.createdAt==='number'?row.createdAt:row.createdAt||clock),createdAt=Number.isFinite(timestamp.getTime())?timestamp.toISOString():clock;
-      added.push(SceneData.normalizeScene({id,groupId:id,title:row.title||row.sourceTitle||'',quote:row.quote,sourceTitle:row.sourceTitle||'Fushi',chapter:row.chapter||'',exampleHighlights:row.title?[row.title]:[],createdAt,updatedAt:clock,media:[],externalSource:{type:'fushi',id:row.id,key:row.key,queued:row.queued===true}}));
-    }
-    if(!added.length)return {added:0,skipped};
+    const settings=getSettings(),existing=new Set(sceneGroups().map(row=>row.scene.groupId)),deleted=new Set((settings.sceneLibraryTombstones||[]).map(row=>row.key));
+    return rows.map(row=>{
+      const id=`fushi-${row?.key}`;
+      const invalid=!row||!/^[a-f0-9]{64}$/.test(row.key)||typeof row.id!=='string'||!row.id||row.id.length>160||typeof row.quote!=='string'||!row.quote.trim()||row.quote.length>4000||['title','sourceTitle','chapter'].some(key=>row[key]!=null&&(typeof row[key]!=='string'||row[key].length>400));
+      const status=invalid?'invalid':existing.has(id)?'existing':deleted.has(id)?'deleted':'new';
+      if(status==='new')existing.add(id);
+      return {id,sourceId:row?.id,status,title:row?.title||row?.sourceTitle||'原句',row};
+    });
+  }
+  function provenance(scene){
+    const source=scene.externalSource;if(source?.type!=='fushi')return '';
+    const labels={favorites:'收藏句',staged:'视频暂存',pending:'制卡队列摘要'},date=value=>Number.isFinite(Date.parse(value))?formatHistoryTime(value):'未知';
+    return `<dl class="scene-source-trace"><dt>来源范围</dt><dd>${esc(labels[source.scope]||'旧版来源')}</dd><dt>原来源时间</dt><dd>${esc(date(source.sourceCreatedAt))}</dd><dt>读取时间</dt><dd>${esc(date(source.capturedAt))}</dd><dt>导入时间</dt><dd>${esc(date(source.importedAt))}</dd>${source.deviceId?`<dt>接收电脑</dt><dd>${esc(source.deviceId.slice(0,8))}</dd>`:''}</dl>`;
+  }
+    function importFushi(rows,account,{silent=false}={}){
+    const plan=planFushi(rows,account);if(plan.some(item=>item.status==='invalid'))throw new Error('Fushi 来源缺少完整原句或字段格式无效，整批未保存，选取仍保留。');
+    const settings=getSettings(),clock=new Date().toISOString();
+    const added=plan.filter(item=>item.status==='new').map(({id,row})=>{
+      const original=new Date(row.createdAt==null?'':row.createdAt),sourceCreatedAt=Number.isFinite(original.getTime())?original.toISOString():'';
+      return SceneData.normalizeScene({id,groupId:id,title:row.title||row.sourceTitle||'',quote:row.quote,sourceTitle:row.sourceTitle||'Fushi',chapter:row.chapter||'',exampleHighlights:row.title?[row.title]:[],createdAt:clock,updatedAt:clock,media:[],externalSource:{type:'fushi',id:row.id,key:row.key,queued:row.queued===true,deviceId:row.deviceId,requestId:row.requestId,scope:row.scope,capturedAt:row.capturedAt,importedAt:clock,sourceCreatedAt}});
+    });
+    const skipped=plan.length-added.length,items=plan.map(({row,...item})=>item);
+    if(!added.length)return {added:0,skipped,items};
     const data=SceneData.reconcile([...(settings.sceneLibrary||[]),...added],settings.sceneLibraryTombstones);
     if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:clock}))throw new Error('场景未能写入本机，选取内容仍保留。');
     renderHub();syncPending();
-    notify(`已导入 ${added.length} 个 Fushi 场景，跳过 ${skipped} 个已有或已删除来源。`,'good','Fushi',true,{label:'撤销',run:()=>{
+      const undo=()=>{
       if(account!==(cloudUser?.id||'local'))return notify('账号已切换，未撤销导入。','warn','撤销');
       const latest=getSettings(),current=SceneData.reconcile(latest.sceneLibrary,latest.sceneLibraryTombstones).items,links=getHistory().flatMap(item=>scenes(item));
       const removable=added.filter(item=>JSON.stringify(current.find(row=>row.id===item.id))===JSON.stringify(item)&&!links.some(row=>row.groupId===item.groupId));
@@ -37,8 +51,9 @@
       const now=new Date(Math.max(Date.now(),Date.parse(clock)+1)).toISOString(),restored=SceneData.reconcile(current,[...(latest.sceneLibraryTombstones||[]),...removable.map(row=>({key:row.id,deletedAt:now}))]);
       if(!setSettings({...latest,sceneLibrary:restored.items,sceneLibraryTombstones:restored.tombstones,updatedAt:now}))return notify('撤销未能保存。','warn','撤销');
       renderHub();notify(`已撤销 ${removable.length} 个未修改场景，保留 ${added.length-removable.length} 个后续变化。`,'info','撤销');
-    }});
-    return {added:added.length,skipped};
+      };
+      if(!silent)notify(`已导入 ${added.length} 个 Fushi 场景，跳过 ${skipped} 个已有或已删除来源。`,'good','Fushi',true,{label:'撤销',run:undo});
+      return {added:added.length,skipped,items,undo};
   }
   function action(name,label,attributes=''){
     const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
@@ -61,7 +76,7 @@
       <div class="scene-sync-error" data-scene-sync-status role="status" ${syncError?'':'hidden'}>${syncErrorHTML(syncError)}</div>
       <div class="scene-context">
       ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${translation}</p>`:''}
-      ${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}
+        ${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}${provenance(scene)}
       ${source||scene.sourceUrl?`<details class="scene-source" open><summary>${icon('chevron-down')}来源与备注</summary>${source?`<p>${esc(source)}</p>`:''}${scene.sourceUrl?`<a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</details>`:''}</div>
       ${hero.length?`<button type="button" class="scene-splitter" role="separator" aria-orientation="vertical" aria-label="调整文字与素材宽度，双击复位" aria-valuemin="25" aria-valuemax="65" aria-valuenow="38" data-tip="拖动调整宽度，双击复位"><span class="scene-splitter-rail"></span>${icon('grip-vertical')}</button><div class="scene-media">${assets(hero)}</div>`:''}
       ${scene.media.some(ref=>!hero.includes(ref))?`<details class="scene-more-media"><summary>其他素材 · ${scene.media.length-hero.length}</summary><div class="scene-media">${assets(scene.media.filter(ref=>!hero.includes(ref)))}</div></details>`:''}
@@ -661,6 +676,6 @@
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,field,timeMeta,attachPending,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

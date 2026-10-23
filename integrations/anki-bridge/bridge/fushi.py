@@ -51,17 +51,21 @@ class Fushi:
             raise BridgeError('Fushi 来源格式不兼容，未猜测导入。')
         output = []
         for row in value[key][:limit]:
-            if not isinstance(row, dict) or isinstance(row.get('id'), bool) or not isinstance(row.get('id'), (str, int)):
+            if not isinstance(row, dict) or isinstance(row.get('id'), bool) or not isinstance(row.get('id'), (str, int)) or not str(row['id']).strip():
                 raise BridgeError('Fushi 来源缺少稳定标识。')
             if any(row.get(field) is not None and not isinstance(row[field], str) for field in ('text','sentence','expression','bookTitle')):
                 raise BridgeError('Fushi 来源字段格式不兼容，未猜测导入。')
             source_id = kind + ':' + str(row['id'])
-            output.append({'id': source_id, 'title': str(row.get('expression') or '')[:400],
-                           'quote': str((row.get('text') if kind == 'favorites' else row.get('sentence')) or '')[:4000],
-                           'sourceTitle': str(row.get('bookTitle') or 'Fushi')[:400],
-                           'chapter': str(row.get('chapter') or '')[:400],
-                           'createdAt': row.get('createdAt'), 'queued': kind != 'favorites',
-                           'status': str(row.get('status') or ''), 'sourceType': 'fushi',
+            fields = {'title': row.get('expression') or '', 'quote': (row.get('text') if kind == 'favorites' else row.get('sentence')) or '',
+                      'sourceTitle': row.get('bookTitle') or 'Fushi', 'chapter': row.get('chapter') or '', 'status': row.get('status') or ''}
+            if len(source_id)>100 or any(not isinstance(value,str) or len(value)>(4000 if name=='quote' else 400) for name,value in fields.items()):
+                raise BridgeError('Fushi 来源过长或格式不兼容，未截断原句；请缩小范围或在原应用整理内容。')
+            timestamp = row.get('createdAt')
+            if isinstance(timestamp,bool) or not isinstance(timestamp,(str,int,float,type(None))):
+                timestamp = None
+            output.append({'id': source_id, **fields,
+                           'createdAt': timestamp, 'queued': kind != 'favorites',
+                           'sourceType': 'fushi',
                            'key': digest(['fushi', source_id]), 'mediaAvailable': False})
         return output
 

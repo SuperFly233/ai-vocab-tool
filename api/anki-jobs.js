@@ -33,7 +33,7 @@ export default async function handler(request,response){
   const {action,args:raw={}}=request.body||{};if(!actions.has(action)||!raw||typeof raw!=='object'||Array.isArray(raw))throw fail(400,'无效操作。');
   if(JSON.stringify(raw).length>270000)throw fail(413,'批次过大。');
   const args={...raw};
-  for(const key of ['jobId','deviceId','leaseToken','revision','requestId','snapshotId'])if(args[key]!==undefined&&!uuid.test(args[key]))throw fail(400,'无效标识。');
+  for(const key of ['jobId','deviceId','leaseToken','revision','requestId','snapshotId','clientRequestId'])if(args[key]!==undefined&&!uuid.test(args[key]))throw fail(400,'无效标识。');
   delete args.userId;delete args.user_id;
   if(action==='submit'){
    args.payload=validatePayload(args.payload);

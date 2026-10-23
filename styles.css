@@ -2116,4 +2116,36 @@ body[data-media-tools="hidden"] .scene-media-tools,.scene-asset[data-tools="hidd
 @media(max-width:600px){.anki-web-faces{grid-template-columns:minmax(0,1fr);gap:12px}.anki-review-target{align-items:stretch;flex-direction:column}.anki-dialog footer{flex-wrap:wrap;gap:12px}.anki-dialog select{font-size:16px}}
 .fushi-source-dialog{width:min(1000px,calc(100vw - 24px))}.fushi-read-controls{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 100px auto;gap:12px;align-items:end;margin-bottom:16px}.fushi-read-controls .scene-field{margin:0}.fushi-source-workbench{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;margin-top:12px}.fushi-source-list{min-width:0;max-height:45dvh;overflow:auto}.fushi-source-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:12px 0}.fushi-source-row label{display:flex;gap:10px;min-width:0;flex:1;align-items:start}.fushi-source-row input{flex:none;width:18px;height:18px;accent-color:var(--accent)}.fushi-source-row label>span{display:grid;min-width:0;gap:4px}.fushi-source-row strong,.fushi-source-row label>span>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fushi-source-row small{color:var(--muted);overflow-wrap:anywhere}.fushi-source-preview{min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;border-left:1px solid var(--line);padding-left:20px}.fushi-source-preview h3{font-size:18px;margin:0 0 12px}.fushi-source-preview p{line-height:1.6}.fushi-source-dialog footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
 @media(max-width:700px){.fushi-read-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.fushi-read-controls select{font-size:16px}.fushi-source-workbench{grid-template-columns:minmax(0,1fr);gap:12px}.fushi-source-list{max-height:32dvh}.fushi-source-preview{border-left:0;border-top:1px solid var(--line);padding:12px 0 0}.fushi-source-dialog footer{flex-wrap:wrap}}
+.fushi-source-dialog{height:min(840px,calc(100dvh - 32px))}
+.fushi-source-dialog>.scene-dialog-body{display:flex;flex-direction:column;overflow:hidden;flex:1}
+.fushi-source-dialog>.scene-dialog-body>.fushi-read-controls,.fushi-source-dialog .search-field,.fushi-read-state,.fushi-selection{flex:none}
+.fushi-source-dialog>.scene-dialog-body>.fushi-source-workbench{flex:1;min-height:90px;overflow:hidden}
+.fushi-source-dialog .fushi-source-list{max-height:none;overflow:auto;min-height:0}
+.fushi-source-dialog .fushi-source-preview{overflow:auto;min-height:0;white-space:normal;padding-right:4px}
+.fushi-source-preview blockquote{font-size:19px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0}
+.fushi-source-preview dl{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px;font-size:13px;margin-block:16px}
+.fushi-source-preview dt,.fushi-read-state{color:var(--muted)}.fushi-source-preview dd{margin:0;overflow-wrap:anywhere}
+.scene-source-trace{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted);margin-block:10px}.scene-source-trace dd{margin:0 12px 0 0;overflow-wrap:anywhere}.scene-source-trace dt{font-weight:600}
+.fushi-source-dialog .fushi-read-controls{gap:8px;margin-bottom:8px}
+.fushi-read-controls select{font-size:16px;min-width:0;width:100%;max-width:100%}
+.fushi-read-controls [data-read-fushi]{display:flex;gap:6px;align-items:center;justify-content:center;white-space:nowrap}
+.fushi-read-state{font-size:13px;margin-block:0 10px;min-height:20px}
+.fushi-selection{border-top:1px solid var(--line);padding-top:8px;margin-top:10px;max-height:115px;overflow:auto}
+.fushi-selection>header{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+[data-fushi-basket]{display:flex;flex-wrap:wrap;gap:6px;padding-block:4px}
+[data-remove-selected]{display:flex;gap:6px;align-items:center;min-width:0;max-width:100%;font-size:13px;padding:6px 10px}
+[data-remove-selected] span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+[data-remove-selected] svg{flex:none;width:15px;height:15px}
+.fushi-source-dialog>footer{flex:none;border-top:1px solid var(--line);padding:12px 18px;margin:0;background:var(--panel)}
+.fushi-source-dialog>footer>span{font-size:13px;color:var(--muted);min-width:0}
+.fushi-source-dialog>footer button{flex:none;white-space:nowrap}
+.fushi-source-dialog>.scene-dialog-status:empty{display:none}
+.fushi-preview-back{display:none}
+.fushi-import-plan{overflow:auto;min-height:0;flex:1}
+.fushi-import-plan h3{font-size:17px;margin-block:12px}.fushi-import-plan>p{color:var(--muted);font-size:13px}
+.fushi-import-plan>section{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding-block:14px;border-bottom:1px solid var(--line);font-size:14px}
+.fushi-import-plan strong{overflow-wrap:anywhere;min-width:0}.fushi-import-plan section>span{color:var(--muted);font-size:13px;max-width:180px}
+.fushi-receipt-actions{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fushi-plan-active>.fushi-source-workbench,.fushi-plan-active>.fushi-selection,.fushi-plan-active>.search-field{display:none!important}
+@media(max-width:700px){.fushi-source-dialog .fushi-read-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.fushi-source-dialog .fushi-source-workbench{grid-template-columns:minmax(0,1fr);gap:0}.fushi-source-dialog .fushi-source-preview{display:none}.fushi-source-dialog.fushi-preview-open .fushi-source-list{display:none}.fushi-source-dialog.fushi-preview-open .fushi-source-preview{display:block;border:0;padding:0}.fushi-preview-back{display:flex;gap:6px;align-items:center;margin-bottom:10px}.fushi-selection{max-height:90px}.fushi-import-plan>section{grid-template-columns:minmax(0,1fr)}.fushi-source-dialog>footer{flex-wrap:nowrap}.fushi-source-dialog>footer button{font-size:14px;padding:8px 12px}}
 .anki-remote-results section{padding-block:12px;border-bottom:1px solid var(--line)}.integration-status-list [data-connection-ok] h3{display:flex;align-items:center;gap:8px}.integration-status-list [data-connection-ok] h3:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--bad);flex:none}.integration-status-list [data-connection-ok="true"] h3:before{background:var(--good)}

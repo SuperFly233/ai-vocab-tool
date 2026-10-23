@@ -90,7 +90,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  }
  await review('review_publish',{...changedArgs,snapshot:{...snapshot,deck:'Other'}});
  await owner(b);await assert.rejects(review('review_get',{jobId:web.id}));await owner(a);
- await db.close();console.log('Anki SQL passed: PostgreSQL/RLS, atomic leases, website approval/targets, device whitelist, bounded Fushi consent, private-field rejection, preview changes and recovery.');
+ await db.exec('reset role');await db.exec(fs.readFileSync('integrations/anki-bridge/migration-dictionary.sql','utf8'));await db.exec(fs.readFileSync('integrations/anki-bridge/migration-device-idempotency.sql','utf8'));await owner(a);
+ const identity='88888888-8888-4888-8888-888888888888',readArgs={deviceId:device,kind:'fushi_read',scope:'favorites',limit:1,confirmed:true,clientRequestId:identity};
+ const once=await command('device_request',readArgs);assert.equal((await command('device_request',readArgs)).id,once.id,'Retry returns original request');
+ await assert.rejects(command('device_request',{...readArgs,limit:2}),'Same identity cannot change parameters');
+ await owner(b);await assert.rejects(command('device_request',readArgs));await owner(a);
+ assert.equal((await command('device_status',{requestId:once.id})).request_fingerprint,undefined,'Internal dedupe data stays private');
+ assert.equal((await command('device_request',{deviceId:device,kind:'diagnostics'})).kind,'diagnostics','Legacy caller remains supported');
+ await db.close();console.log('Anki SQL passed: PostgreSQL/RLS, atomic leases, website approval/targets, device whitelist, bounded Fushi consent, private-field rejection, preview changes and idempotent recovery.');
  const {default:handler,validatePayload}=await import('../api/anki-jobs.js');
  const valid={...card,key:'key',sceneId:'scene',entryId:'entry',origin:'clock',sourceTitle:'',sourceUrl:'',exampleHighlights:[],translationHighlights:[]};
  assert.equal(validatePayload({version:1,cards:[valid]}).cards[0].sourceType,'lexi');assert.throws(()=>validatePayload({version:1,cards:[{...valid,sourceUrl:'javascript:alert(1)'}]}));assert.throws(()=>validatePayload({version:1,cards:[valid,valid]}));

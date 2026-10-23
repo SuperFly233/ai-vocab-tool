@@ -1,0 +1,13 @@
+{
+  "version": "0.3.1",
+  "origin": "https://integration-acceptance.ai-vocab-tool.pages.dev",
+  "realExecutable": true,
+  "fushiMutations": 0,
+  "ankiWrites": 0,
+  "atomicDedupe": true,
+  "readComplete": true,
+  "favoriteCount": 0,
+  "actualImportVerified": false,
+  "restartRecovery": true,
+  "passed": true
+}

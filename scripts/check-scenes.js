@@ -40,3 +40,7 @@ assert.equal(merged.note,'new content');assert.equal(merged.studyState,'mastered
 assert.deepEqual(S.reconcile([contentNew,stateNew]),S.reconcile([stateNew,contentNew]),'Independent study clock merge is commutative');
 assert.equal(S.reconcile(JSON.parse(JSON.stringify([merged]))).items[0].studyState,'mastered','Backup roundtrip preserves state');
 console.log('Scenes passed: merge/deletion/concurrency, URL and MIME safety, byte sniffing, hashing and deduplication.');
+const external={type:'fushi',id:'device:favorites:1',key:'a'.repeat(64),queued:false,deviceId:'11111111-1111-4111-8111-111111111111',requestId:'22222222-2222-4222-8222-222222222222',scope:'favorites',capturedAt:created,importedAt:later,sourceCreatedAt:'',privateConfig:'never'};
+const traced=S.normalizeScene({...a,externalSource:external});
+assert.equal(traced.externalSource.scope,'favorites');assert.equal(traced.externalSource.importedAt,later);assert.equal(traced.externalSource.sourceCreatedAt,undefined);assert.equal(traced.externalSource.privateConfig,undefined);
+assert.deepEqual(S.normalizeScene(JSON.parse(JSON.stringify(traced))).externalSource,traced.externalSource,'Provenance backup compatibility');

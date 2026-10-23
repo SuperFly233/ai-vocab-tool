@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.35.1",
+  "version": "0.36.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:fushi-ui": "node scripts/check-fushi-workspace.cjs && node scripts/check-fushi-lifecycle.cjs",
     "check:control-motion": "node scripts/check-control-motion.cjs",
     "check:modal-dismissal": "node scripts/check-modal-dismissal.cjs",
     "check:scene-authoring-polish": "node scripts/check-scene-authoring-polish.cjs",

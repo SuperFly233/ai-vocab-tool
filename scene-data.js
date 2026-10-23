@@ -27,7 +27,10 @@
     const media=normalizeMedia(item.media);
     const heroMedia=Array.isArray(item.heroMedia)?item.heroMedia.filter(id=>media.some(ref=>ref.id===id)):media.slice(0,1).map(ref=>ref.id);
     const groupId=/^[\w-]{1,100}$/.test(String(item.groupId||''))?String(item.groupId):id;
-    const origin=item.externalSource,externalSource=origin?.type==='fushi'&&hashId(origin.key)&&typeof origin.id==='string'&&origin.id.length>0&&origin.id.length<=160?{type:'fushi',id:origin.id,key:origin.key,queued:origin.queued===true}:null;
+    const origin=item.externalSource,externalSource=origin?.type==='fushi'&&hashId(origin.key)&&typeof origin.id==='string'&&origin.id.length>0&&origin.id.length<=160?{type:'fushi',id:origin.id,key:origin.key,queued:origin.queued===true,
+      ...Object.fromEntries(['deviceId','requestId'].filter(key=>/^[a-f0-9-]{36}$/i.test(origin[key]||'')).map(key=>[key,origin[key]])),
+      ...(['favorites','pending','staged'].includes(origin.scope)?{scope:origin.scope}:{}),
+      ...Object.fromEntries(['capturedAt','importedAt','sourceCreatedAt'].filter(key=>time(origin[key])).map(key=>[key,origin[key]]))}:null;
     return {id,groupId,...(externalSource?{externalSource}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
       exampleHighlights:highlights(item.exampleHighlights),translationHighlights:highlights(item.translationHighlights),
       studyState:['new','review','mastered'].includes(item.studyState)?item.studyState:'new',studyUpdatedAt:time(item.studyUpdatedAt)?item.studyUpdatedAt:'',

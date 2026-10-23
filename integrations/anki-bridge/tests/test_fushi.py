@@ -50,6 +50,22 @@ class FushiTests(unittest.TestCase):
         rows=self.state.fushi_sources('favorites')
         return {'selections':[{'id':rows[0]['id'],'meaning':'notice','translation':'注意到了','mediaIds':[]}]}
 
+    def test_source_bounds_do_not_silently_truncate(self):
+        self.adapter.runner=lambda *a,**k:SimpleNamespace(returncode=0,stdout=json.dumps({'favorites':[{'id':1,'text':'x'*4001}]}).encode())
+        with self.assertRaisesRegex(BridgeError,'未截断'):
+            self.adapter.sources('favorites',1)
+
+    def test_empty_missing_quote_and_unknown_timestamp(self):
+        self.adapter.runner=lambda *a,**k:SimpleNamespace(returncode=0,stdout=b'{"favorites":[{"id":"","text":"valid sentence"}]}')
+        with self.assertRaisesRegex(BridgeError,'稳定标识'):
+            self.adapter.sources('favorites',1)
+        self.adapter.runner=lambda *a,**k:SimpleNamespace(returncode=0,stdout=b'{"favorites":[]}')
+        self.assertEqual(self.adapter.sources('favorites',1),[])
+        self.adapter.runner=lambda *a,**k:SimpleNamespace(returncode=0,stdout=b'{"favorites":[{"id":1,"createdAt":{"unexpected":1}}]}')
+        row=self.adapter.sources('favorites',1)[0]
+        self.assertEqual(row['quote'],'')
+        self.assertIsNone(row['createdAt'])
+
     def test_local_preview_write_retry_undo_and_export(self):
         body=self.selection();v=self.state.prepare_local(body)
         self.assertNotIn('<script>',v['rows'][0]['fields']['Sentence'])

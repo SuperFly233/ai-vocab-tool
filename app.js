@@ -184,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.35.1',
-  releaseDate:'2026-10-22',
+  version:'0.36.0',
+  releaseDate:'2026-10-23',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.36.0',date:'2026-10-23',title:'Fushi 来源选取与学习流程',
+    items:['读取请求支持稳定标识与数据库去重；超时继续检查原请求，关闭或隐藏窗口停止检查，刷新恢复当前账号的选择。','来源窗口按电脑、范围、数量、列表预览与选取篮组织，跨范围最多选择 20 条；导入前核对新增、已有与已删除项，不默认全选。','整批校验后保存，逐条回执可打开场景、补充素材、关联词条和回顾；撤销保护后续修改及关联。','场景保留来源范围、接收电脑、读取及导入时间，未知来源时间不伪造；Bridge 0.3.1 继续使用官方只读 CLI，不自动读取原媒体。'],
+  },
   {
     version:'0.35.1',date:'2026-10-22',title:'词典与制卡预览交付',
     items:['Bridge 0.3 改为目录式便携包，增加有时限的启动自检、整包哈希与重复启动保护。','制卡预览展示新增、更新与跳过数量，按字段呈现纯文本变化；词典长内容明确标注摘要，完整新释义独立阅读。','全部素材与词典引用校验通过后才允许确认；网页仍是唯一学习工作台，本地助手只负责连接与执行。','本机词典、Fushi 文字来源与 Anki 专用模板按真实连接提供；Fushi 原素材需手动补充，不代表 Anki 自身同步或所有终端播放已验证。'],
