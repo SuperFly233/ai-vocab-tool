@@ -122,7 +122,13 @@
             await checkpoint();renderList();if(state.selected===row.id)await renderDetail();
           }
           if(current())status('识别结束。原句、译文和来源请核对后保存；模型来源建议不等于数据库匹配。');
-        }catch(error){if(current())status(error.message)}finally{context.running=false;if(valid()){renderList();renderDetail()}}
+        }catch(error){if(current())status(error.message)}finally{
+          context.running=false;
+          if(valid()){
+            if(JSON.stringify(profile()||{})!==profileBase){for(const row of state.items)if(row.status==='running'){row.status='error';row.message='识图配置已有变化，旧结果未应用，请重新验证后重试。'}await checkpoint();status('识图配置已有变化，请重新验证。')}
+            renderList();renderDetail();
+          }
+        }
       }
       async function save(query){
         if(context.running||context.adding||context.saving||!valid())return;const row=state.items.find(row=>row.id===state.selected);if(!row||row.status==='saved')return;
