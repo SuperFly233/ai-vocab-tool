@@ -1399,6 +1399,7 @@ function exportLogs(){downloadText('lexi-diagnostics.json',JSON.stringify(getLog
 function offlineMode(){return temporaryOfflineMode||readStorageValue(STORAGE_KEYS.offline,'')==='1'}
 function canEnterApp(){return Boolean(cloudUser)||offlineMode()}
 function renderAuthGate(){
+  document.dispatchEvent(new Event('lexi-account-state'));
   const couldEnter=!document.body.classList.contains('auth-required');
   document.body.classList.toggle('auth-required',!canEnterApp());
   document.body.classList.toggle('offline-mode',offlineMode()&&!cloudUser);

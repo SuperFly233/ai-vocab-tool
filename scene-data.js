@@ -31,7 +31,8 @@
       ...Object.fromEntries(['deviceId','requestId'].filter(key=>/^[a-f0-9-]{36}$/i.test(origin[key]||'')).map(key=>[key,origin[key]])),
       ...(['favorites','pending','staged'].includes(origin.scope)?{scope:origin.scope}:{}),
       ...Object.fromEntries(['capturedAt','importedAt','sourceCreatedAt'].filter(key=>time(origin[key])).map(key=>[key,origin[key]]))}:null;
-    return {id,groupId,...(externalSource?{externalSource}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
+    const captured=item.capture, capture=captured&&hashId(captured.assetId)?{assetId:captured.assetId,model:text(captured.model,200),profileId:text(captured.profileId,100),userInstruction:text(captured.userInstruction,2000),recognizedAt:time(captured.recognizedAt)?captured.recognizedAt:'',translationOrigin:['visible','machine','manual','none'].includes(captured.translationOrigin)?captured.translationOrigin:'none',sourceEvidence:(Array.isArray(captured.sourceEvidence)?captured.sourceEvidence:[]).slice(0,6).map(value=>text(value,300))}:null;
+    return {id,groupId,...(externalSource?{externalSource}:{}),...(capture?{capture}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
       exampleHighlights:highlights(item.exampleHighlights),translationHighlights:highlights(item.translationHighlights),
       studyState:['new','review','mastered'].includes(item.studyState)?item.studyState:'new',studyUpdatedAt:time(item.studyUpdatedAt)?item.studyUpdatedAt:'',
       order:Number.isFinite(item.order)?item.order:time(item.createdAt),featured:typeof item.featured==='boolean'?item.featured:!item.targetKey,heroMedia:[...new Set(heroMedia)],
@@ -50,7 +51,8 @@
       const previous=found.get(item.id);
       const preferred=!previous||time(item.updatedAt)>time(previous.updatedAt)||(time(item.updatedAt)===time(previous.updatedAt)&&JSON.stringify(item)>JSON.stringify(previous))?item:previous;
       const study=!previous||time(item.studyUpdatedAt)>time(previous.studyUpdatedAt)||(time(item.studyUpdatedAt)===time(previous.studyUpdatedAt)&&item.studyState>previous.studyState)?item:previous;
-      found.set(item.id,{...preferred,studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
+      const capture=preferred.capture||[item.capture,previous?.capture].find(value=>value&&preferred.media.some(ref=>ref.id===value.assetId));
+      found.set(item.id,{...preferred,...(capture?{capture}:{}),studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
     }
     const kept=[];
     for(const item of found.values()){

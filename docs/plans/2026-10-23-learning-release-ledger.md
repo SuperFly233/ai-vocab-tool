@@ -12,9 +12,9 @@ Approved scope: full-content cards and screenshot learning, 6 reliability / 6 re
 
 1. Code integration: checkpoint c3b34a3 preserves all original v0.37 work; merge 37c13a8 incorporates released direct transport and diagnostics migration. Released in07a1516,36 production resource hashes verified.
 2. Storage/sync: v0.36.3 logs migration released. Physical iPhone confirmation and history/settings IndexedDB migration pending.
-3. Vision capability: pending metadata + synthetic image validation. Model name is not proof of image support.
+3. Vision capability: preview implements random image-digit challenge bound to endpoint/model/key hash, one-hour in-memory validity. Simulated success/failure/changed-Key tests pass; real service channel and metadata negotiation remain unverified. Model name is not proof of image support.
 4. Task lifecycle: existing queue checks plus v0.37 account/object/close guards implemented; targeted concurrency regression pending.
-5. Media/privacy: selected inputs only, original always retained. Intake/derivative tests pending.
+5. Media/privacy: preview intake retains selected PNG/JPEG/WebP originals in IndexedDB; 8MB/item,40MB/batch,20items and24MP guard. No background monitoring. Original/duplicate/refresh tests pass; derivative/GIF/video editing remains pending.
 6. Card safety: 51 Python tests, SQL/API isolation and renderer parity pass. Actual final-byte0.4 portable ZIP passed two synthetic cards, full/core-only fields, web confirmation, unchanged skips, update/Undo, receipt and restart on the dedicated deck. Published at GitHub v0.37.0; remote digest verified. Production authenticated v4 health passed.
 
 ## Refinements
@@ -22,15 +22,15 @@ Approved scope: full-content cards and screenshot learning, 6 reliability / 6 re
 1. Design first: v0.37 reference exists; v0.38 reference generated and inspected, docs/design/screenshot-learning-v038-reference.png.
 2. Complete cards: published7-section defaults, direct entries, optional scene and independent model. Five widths x two themes and actual extracted portable/deck acceptance passed; production resources/health verified.
 3. Reading/workspace consistency: existing SOP retained; new intake views not implemented.
-4. Recognition review: pending actual components and screenshots.
+4. Recognition review: preview actual desktop list/detail and mobile drill-in implemented; five widths/two themes captured. Original/translation/highlights/terms are editable, guessed source never auto-confirmed. Real model acceptance pending.
 5. Canonical sources: pending identity/alias matching; never silently merge fuzzy titles.
 6. Connector productization: final0.4 build/self-test, actual extracted EXE/single-instance/exit and native icon/pause smoke pass; popup visual screenshot unverified. Full scope remains pending screenshot/media/source work.
 
 ## Additions
 
-1. Batch selected screenshot intake: pending.
+1. Batch selected screenshot intake: preview file/paste/drop implementation, hash dedupe, account-scoped drafts, save/queue reuse and guarded discard Undo. Five-width synthetic browser acceptance passes. Not production v0.38 release.
 2. Evidence-qualified automatic extraction/save/lookup: pending; Anki still separately approved.
-3. Vision modes: default preconfigured validated vision provider + optional per-run selection, pending.
+3. Vision modes: preview explicit saved-profile picker, session draft remembers choice, capability rechecked after refresh. Account-synced default/per-run preference in settings and all-provider relay support pending; initial path requires browser CORS.
 4. Teyvat: local v0.9.0 source located at C:/Users/tomori/Documents/小项目/teyvat-scriptorium; catalog plus per-chapter bodies, not an existing global quote index. Pending index and representative matches.
 5. Image/GIF/video lightweight editing: pending; GIF must stay animated, video audio retained, bounded browser resources and helper fallback.
 6. AI crop suggestions: pending; explicit confirmation required before deterministic derivative creation.

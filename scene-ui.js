@@ -59,6 +59,24 @@
     const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
   }
+  function importCapture(row,account){
+    if(account!==(cloudUser?.id||'local'))throw Error('账号已切换，未保存截图场景。');
+    if(!SceneData.hashId(row?.ref?.id)||!row.quote?.trim()||row.quote.length>4000||!Array.isArray(row.terms)||row.terms.length>20)throw Error('请先核对完整原句和待查词组。');
+    const id=`capture-${row.ref.id}`,settings=getSettings(),existing=sceneGroups().find(group=>group.scene.groupId===id);
+    if(existing)return {scene:existing.scene,existing:true};
+    if((settings.sceneLibraryTombstones||[]).some(item=>item.key===id))throw Error('这张截图对应的场景已删除，不会自动恢复。');
+    const now=new Date().toISOString(),scene=SceneData.normalizeScene({id,groupId:id,title:row.title||'',quote:row.quote,translation:row.translation||'',sourceTitle:row.sourceTitle||'',sourceUrl:row.sourceUrl||'',note:row.note||'',exampleHighlights:row.exampleHighlights,translationHighlights:row.translationHighlights,media:[row.ref],createdAt:now,updatedAt:now,capture:{assetId:row.ref.id,model:row.model,profileId:row.profileId,userInstruction:row.userInstruction,recognizedAt:row.recognizedAt,translationOrigin:row.translationOrigin,sourceEvidence:row.sourceEvidence}});
+    if(!scene||scene.media.length!==1)throw Error('截图素材引用无效，未保存。');
+    saveLibrary(scene);syncPending();
+    const undo=()=>{
+      if(account!==(cloudUser?.id||'local'))return notify('账号已切换，未撤销保存。','warn','撤销');
+      const current=getSettings(),stored=library().find(item=>item.id===id),linked=getHistory().some(item=>scenes(item).some(item=>item.groupId===id));
+      if(JSON.stringify(stored)!==JSON.stringify(scene)||linked)return notify('场景已有修改、关联或删除，未撤销。','info','撤销');
+      const data=SceneData.reconcile(current.sceneLibrary,[...(current.sceneLibraryTombstones||[]),{key:id,deletedAt:new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString()}]);
+      if(setSettings({...current,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:new Date().toISOString()}))renderHub();
+    };
+    return {scene,existing:false,undo};
+  }
   function assets(items=[]){
     return items.map(ref=>`<figure class="scene-asset" data-scene-asset="${esc(ref.id)}" data-scene-mime="${esc(ref.mime)}" aria-label="${esc(ref.name)}"><span class="scene-asset-loading" aria-hidden="true"></span></figure>`).join('');
   }
@@ -676,6 +694,6 @@
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,field,timeMeta,provenance,attachPending,planFushi,importFushi,importCapture,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);
