@@ -27,6 +27,8 @@ Keep these limits visible in the delivery ledger. Do not call a mocked vision re
 
 ## v0.39.1 common-fix roll-forward
 
+Follow-up v0.39.2: merge `dc941d663cf406f6db08dabf10a9da5eb4e80567` carries minute list timestamps and explicit two-line full-time hints. Independent deployment https://d15ce409.ai-vocab-tool.pages.dev . Four changed assets (app/styles/index/manifest) match local hashes; capture contracts and320/390/1440 light/dark timestamp interactions pass locally and deployed. No new recognition capability is enabled.
+
 Merge `6afcd567cda2c49c475a2ebc56c8224560e75d71` preserves screenshot metadata/import, adds the new organization and shared UI modules, and regenerates a73-icon subset including capture. No wholesale old-file replacement. `npm run check`, capture contracts, local five-width/two-theme intake and consistency suites, and synthetic vision concurrency pass after merge. Inspected synthetic390dark and1440light intake screenshots.
 
 Deployment: https://dea72f94.ai-vocab-tool.pages.dev / https://capture-v038-preview.ai-vocab-tool.pages.dev .48 deployed static hashes match; integration gate returns401,390/1440 view checks pass. Deployed five-width/two-theme intake interactions and390dark shared consistency pass. One earlier attempt failed with `ERR_CONNECTION_CLOSED` while loading a new scene page, before any capture operation; one bounded retry via the stable alias passed completely. No network/security settings changed. Synthetic evidence: [phone](evidence/v0391/capture-390-dark.png), [desktop](evidence/v0391/capture-1440-light.png).
