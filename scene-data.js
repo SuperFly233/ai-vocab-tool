@@ -5,6 +5,23 @@
   const time=value=>Number.isFinite(Date.parse(value))?Date.parse(value):0;
   const hashId=value=>/^[a-f0-9]{64}$/.test(String(value||''));
   const mimeTypes=new Set(['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm']);
+  function mergeOrganization(...sources){
+    const merged=Object.create(null);
+    for(const source of sources)for(const [id,record] of Object.entries(source&&typeof source==='object'&&!Array.isArray(source)?source:{})){
+      if(!id||id.length>400||['__proto__','constructor','prototype'].includes(id)||!record||typeof record!=='object')continue;
+      const target=merged[id]||(merged[id]={});
+      for(const field of ['favorite','pinned','folders','state']){
+        const input=record[field];if(!input||!time(input.updatedAt))continue;
+        let value;
+        if(field==='folders'){if(!Array.isArray(input.value))continue;value=[...new Set(input.value.filter(v=>typeof v==='string'&&v&&v.length<=400))].sort()}
+        else if(field==='state'){if(!['new','review','mastered'].includes(input.value))continue;value=input.value}
+        else{if(typeof input.value!=='boolean')continue;value=input.value}
+        const next={value,updatedAt:new Date(time(input.updatedAt)).toISOString()},old=target[field];
+        if(!old||time(next.updatedAt)>time(old.updatedAt)||(time(next.updatedAt)===time(old.updatedAt)&&JSON.stringify(next.value)>JSON.stringify(old.value)))target[field]=next;
+      }
+    }
+    return merged;
+  }
   function highlights(value){
     const items=Array.isArray(value)?value:String(value||'').split(/[\n,，、;；]+/);
     return [...new Set(items.filter(item=>typeof item==='string').map(item=>text(item,4000)).filter(Boolean))].slice(0,40);
@@ -116,5 +133,5 @@
   const putDraft=(key,value)=>transaction('drafts','readwrite',store=>store.put(value,key));
   const deleteDraft=key=>transaction('drafts','readwrite',store=>store.delete(key));
   const clearPreviews=()=>transaction('drafts','readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(String(cursor.key).startsWith('thumbnail-v1:'))cursor.delete();cursor.continue()};return null});
-  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,highlights,normalizeMedia,normalizeScene,reconcile,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
+  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,highlights,normalizeMedia,normalizeScene,reconcile,mergeOrganization,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
 })(globalThis);

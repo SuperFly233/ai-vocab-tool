@@ -67,6 +67,10 @@ Card review keeps the confirmation area visible independently of its scrolling c
 External-source pickers keep routine outcomes and guarded undo inside the active window; after closure, renew the actionable toast instead of covering phone close controls. Persist request identities and selected IDs in account-scoped session state, not raw source bodies or shared searches. Discard undo must compare the later session revision as well as the account. Empty real source lists are valid evidence for empty-state handling, never proof of a real nonempty import; do not fabricate external records to complete acceptance.
 # Shared learning interaction contract (2026-10-24)
 
+- Small create/rename actions use inline editable rows in the current list, not window.prompt. Enter saves single-line names, Escape uses the shared unchanged/dirty discard rules, failed saves retain the input. Restore discarded drafts only after account/object checks. Deleting a folder removes classification, not learning contents.
+- Scene and entry review states are independent. No blanket mastery for an unassociated scene. Local suggestion selection fills text only; model calls require explicit query. Personal history stays local until existing account synchronization, never goes to a suggestion service.
+- Keep the screenshot/source-index/media-editing backlog visible separately from each UI release. A source investigation, mock response or independent preview is never a claim of production integration.
+
 - Whole-row navigation: title, summary and blank surface open the same target. Secondary controls remain independent. Selection, pointer movement and cancelled touch gestures never open a row. Use a real keyboard-accessible title link; hover changes title color/underline, not outer geometry.
 - Header ownership: compact home replaces navigation. Hidden headers never contribute mask geometry; page entry animations must not retain a stacking context trapping fixed search controls.
 - Organization: scenes and entries share folders but never implicitly share favorite or learning state. Scene featured placement is not a global pin.

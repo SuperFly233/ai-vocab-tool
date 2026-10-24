@@ -1700,6 +1700,33 @@ body.home-scrolled:after{height:0}
 [data-row-link]{color:inherit;text-decoration:none;font:inherit;text-align:inherit;background:none;border:0;padding:0}
 [data-open-row]:hover [data-row-link],[data-row-link]:focus-visible{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
 [data-row-link]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.inline-name-editor{display:grid;grid-template-columns:minmax(0,1fr) 36px 36px;align-items:end;gap:6px;width:100%;min-width:0;padding:10px 0;scroll-margin-top:calc(var(--app-top,80px) + var(--browse-tools-height,70px) + 12px)}
+.inline-name-editor label{display:grid;gap:5px;min-width:0;font-size:13px;color:var(--muted)}
+.inline-name-editor input{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);padding:9px 10px;font:16px/1.4 var(--font-ui)}
+.inline-name-editor p{grid-column:1/-1;font-size:13px;color:var(--bad);margin:0;overflow-wrap:anywhere}
+.inline-name-editor .icon-btn{width:36px;min-width:36px;height:40px}
+.scene-organize-actions{display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap}
+.scene-organize-actions .active{color:var(--accent);background:var(--accent-bg)}
+.learning-selection-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 0;min-width:0}
+.learning-selection-bar>span{font-size:13px;color:var(--muted)}
+.learning-selectable-row{display:flex;align-items:center;min-width:0}
+.learning-selectable-row>.scene-list-row{flex:1;min-width:0}
+.learning-selectable-row>[data-list-favorite]{width:32px;min-width:32px;height:36px}.learning-selectable-row>[data-list-favorite].active{color:var(--accent);background:var(--accent-bg)}
+.learning-row-check{display:flex;align-items:center;padding:8px;flex:none}
+.learning-row-check input{width:18px;height:18px;accent-color:var(--accent)}
+.review-scene-media .scene-asset{max-height:280px}.review-linked-entry{padding:12px 0;border-bottom:1px solid var(--line)}.review-linked-entry select{font:inherit;font-size:16px;max-width:100%;min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text)}
+.input-suggestions{position:fixed;inset:auto;margin:0;padding:5px;z-index:6500;border:1px solid var(--line2);border-radius:8px;background:var(--panel);color:var(--text);box-shadow:var(--shadow);overflow:auto;box-sizing:border-box}
+.input-suggestions[hidden]{display:none!important}
+.input-suggestions button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;width:100%;text-align:left;border:0;border-radius:4px;background:transparent;color:var(--text);padding:8px 10px;font:16px/1.4 var(--font-ui)}
+.input-suggestions button>span{min-width:0;overflow-wrap:anywhere}.input-suggestions small{flex:none;color:var(--muted);font-size:12px}
+.input-suggestions button[aria-selected="true"],.input-suggestions button:hover{background:var(--accent-bg);color:var(--accent)}
+.setting-shortcut{font-size:13px;color:var(--muted);white-space:nowrap}
+.scene-favorite-row{display:flex;align-items:center;gap:12px;min-width:0}
+.scene-favorite-row .history-copy{flex:1;min-width:0}
+.scene-favorite-row .history-word{overflow-wrap:anywhere}
+.folder-toolbar:has([data-folder-content-type]){grid-template-columns:minmax(0,1fr) repeat(3,minmax(100px,132px)) 40px}
+@media(max-width:900px){.folder-toolbar:has([data-folder-content-type]){grid-template-columns:repeat(2,minmax(0,1fr)) 40px}.folder-toolbar [data-folder-content-type]{grid-column:1/3}.scene-favorite-row{flex-wrap:wrap}.scene-favorite-row .history-copy{flex-basis:100%}.scene-record>header .scene-actions{flex-wrap:wrap}}
+.folder-content-head:has(>.inline-name-editor),.tag-manager-item:has(>.inline-name-editor){flex-wrap:wrap}
 .scroll-top-button{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(22px,calc(env(safe-area-inset-bottom) + 18px));z-index:1400;width:44px;height:44px;min-width:44px;min-height:44px;background:var(--panel);border:1px solid var(--line2);box-shadow:var(--shadow);opacity:1;transition:background .18s ease,border-color .18s ease,opacity .18s ease}
 .scroll-top-button[hidden]{display:none!important}
 .history-tools,.folder-toolbar,.scene-browse-tools{position:sticky;top:calc(var(--app-header-mask-height,78px) + 8px);z-index:800;background:var(--bg)}
@@ -2017,7 +2044,7 @@ body[data-media-tools="hidden"] .scene-media-tools,.scene-asset[data-tools="hidd
  .nav{grid-template-columns:repeat(4,minmax(0,1fr))}.settings-nav{overflow-y:hidden;max-height:none}
  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select,.search-field input{font-size:16px!important}
  .scene-workspace{display:block;min-height:0}.scene-master{position:static;max-height:none;border:0;padding:0}.scene-detail{display:none;padding:16px 0}.scene-list-row{grid-template-columns:84px minmax(0,1fr);min-height:104px;padding:12px}
- #scene-hub.scene-detail-open .scene-master,#scene-hub.scene-detail-open>.scene-library-head,#scene-hub.scene-detail-open>.scene-search,#scene-hub.scene-detail-open>.scene-filter-bar{display:none}.scene-detail-open .scene-detail{display:block}
+ #scene-hub.scene-detail-open .scene-master,#scene-hub.scene-detail-open>.scene-library-head,#scene-hub.scene-detail-open>.scene-search,#scene-hub.scene-detail-open>.scene-filter-bar,#scene-hub.scene-detail-open>[data-learning-selection="scenes"]{display:none}.scene-detail-open .scene-detail{display:block}
  .scene-workbench>header{flex-wrap:wrap;gap:8px}.scene-back{display:flex;align-items:center;gap:4px;border:0;background:none;padding-left:0}.scene-back svg{width:18px;height:18px}.scene-workbench h2{order:3;flex-basis:100%;font-size:20px}.scene-workbench>header .scene-actions{margin-left:auto}
  .scene-study-content{grid-template-columns:minmax(0,1fr);gap:16px}.scene-study-quote{font-size:18px}.scene-study-content img,.scene-study-content video{max-height:220px}
  .scene-query-footer{align-items:start}.scene-query-footer>button{min-height:44px}.scene-word-chip button{width:40px;height:40px}.scene-result-row .icon-btn{min-width:44px;min-height:44px}

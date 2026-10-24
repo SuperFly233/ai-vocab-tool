@@ -25,6 +25,7 @@ const files = [
   'scene-ui.js',
   'scene-preview.js',
   'scene-workspace.js',
+  'scene-organization.js',
   'scene-study.js',
   'anki-bridge-ui.js',
   'learning-content.js',
@@ -33,6 +34,8 @@ const files = [
   'fushi-workspace.js',
   'experience-ui.js',
   'row-navigation.js',
+  'input-suggestions.js',
+  'suggestion-worker.js',
   'dictionary-ui.js',
   'request-ui.js',
   'styles.css',
@@ -40,6 +43,8 @@ const files = [
   'site.webmanifest',
   'vendor/supabase.js',
   'vendor/supabase.LICENSE',
+  'vendor/word-list/words.txt',
+  'vendor/word-list/LICENSE',
 ];
 
 await rm(dist, { recursive: true, force: true });

@@ -65,6 +65,12 @@ const sceneLocal={...local,sceneLibrary:[scene]},sceneRemote={...remote,sceneLib
 expect(context.mergeSettings(sceneLocal,sceneRemote).sceneLibrary[0].quote==='New quote','Independent scene content uses per-scene clocks');
 expect(JSON.stringify(context.mergeSettings(sceneLocal,sceneRemote).sceneLibrary)===JSON.stringify(context.mergeSettings(sceneRemote,sceneLocal).sceneLibrary),'Scene libraries converge in both directions');
 expect(context.mergeSettings(sceneLocal,{...remote,sceneLibraryTombstones:[{key:scene.id,deletedAt:newer}]}).sceneLibrary.length===0,'Independent scene deletion cannot revive from a stale device');
+const organizationLocal={...local,sceneOrganization:{'group-a':{favorite:{value:false,updatedAt:newer},folders:{value:[],updatedAt:newer}}}},organizationRemote={...remote,sceneOrganization:{'group-a':{favorite:{value:true,updatedAt:old},folders:{value:['folder_old'],updatedAt:old},pinned:{value:true,updatedAt:newer}}}};
+const organized=context.mergeSettings(organizationLocal,organizationRemote);
+expect(organized.sceneOrganization['group-a'].favorite.value===false&&organized.sceneOrganization['group-a'].folders.value.length===0,'Newer scene favorite and folder clears survive cloud merge');
+expect(organized.sceneOrganization['group-a'].pinned.value===true,'Independent scene pin clock survives other metadata changes');
+expect(JSON.stringify(organized.sceneOrganization)===JSON.stringify(context.mergeSettings(organizationRemote,organizationLocal).sceneOrganization),'Scene organization cloud merge is commutative');
+expect(context.mergeSettings(organizationLocal,remote).sceneOrganization['group-a'].favorite.updatedAt===newer,'Legacy settings without scene organization do not clear it');
 
 if(failures.length){
   console.error(`Production settings check failed (${failures.length}):`);

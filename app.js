@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.37.2',
+  version:'0.39.0',
   releaseDate:'2026-10-24',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.39.0',date:'2026-10-24',title:'场景与词条统一整理、快捷学习',items:['场景支持独立收藏、置顶、共用收藏夹和混合多选整理；取消收藏不会改动关联词条。','纯文字场景优先录入，保存与查询明确分开；Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入词组篮。','已有词条与英语离线联想共用输入菜单，不上传未提交输入；拼写候选不静默纠错。','混合收藏可回顾场景与词条，词条学习状态和场景关联状态独立保存。收藏夹创建、改名使用就地输入，不再使用浏览器原生输入框。','修复显式收藏夹 ID 被旧标签逻辑转换；删除收藏夹只移除分类，保留学习内容。截图识别与语录索引仍独立推进。']},
   {version:'0.37.2',date:'2026-10-24',title:'顶部布局与整行打开',items:['修复首页吸顶搜索栏被顶部遮挡层截住，隐藏导航不再参与占位。','关联词条、查询任务、历史与收藏复用整行打开规则；独立控件、选字和拖动不误跳转，标题支持键盘打开。','场景收藏与快捷学习升级分阶段推进，本次先交付稳定入口。']},
   {
     version:'0.37.1',date:'2026-10-24',title:'流式译文与场景双向导航',
@@ -1867,6 +1868,7 @@ function normalizeSettings(raw={}){
     hintsHidden,
     tooltipsHidden,
     rememberViewFilters:normalizeBooleanSetting(source.rememberViewFilters,true),
+    wordSuggestions:normalizeBooleanSetting(source.wordSuggestions,true),
     viewPreferences:ViewPreferences.records(source.viewPreferences),
     readingNav:['top','left','off'].includes(source.readingNav)?source.readingNav:'top',
     mediaAutoplay:source.mediaAutoplay===true,
@@ -1874,6 +1876,8 @@ function normalizeSettings(raw={}){
     mediaTools:['auto','always','hidden'].includes(source.mediaTools)?source.mediaTools:'auto',
     sceneLibrary:SceneData.reconcile(source.sceneLibrary,source.sceneLibraryTombstones).items,
     sceneLibraryTombstones:SceneData.reconcile(source.sceneLibrary,source.sceneLibraryTombstones).tombstones,
+    sceneOrganization:SceneData.mergeOrganization(source.sceneOrganization),
+    entryLearning:SceneData.mergeOrganization(source.entryLearning),
     toastMode,
     toastPosition,
     modelPrompt,
@@ -2028,6 +2032,7 @@ function mergeSettings(localRaw,remoteRaw){
     hintsHidden:preferLocalSettings?local.hintsHidden:remote.hintsHidden,
     tooltipsHidden:preferLocalSettings?local.tooltipsHidden:remote.tooltipsHidden,
     rememberViewFilters:preferLocalSettings?local.rememberViewFilters:remote.rememberViewFilters,
+    wordSuggestions:preferLocalSettings?local.wordSuggestions:remote.wordSuggestions,
     viewPreferences:ViewPreferences.merge(local.viewPreferences,remote.viewPreferences),
     readingNav:preferLocalSettings?local.readingNav:remote.readingNav,
     mediaAutoplay:preferLocalSettings?local.mediaAutoplay:remote.mediaAutoplay,
@@ -2035,6 +2040,8 @@ function mergeSettings(localRaw,remoteRaw){
     mediaTools:preferLocalSettings?local.mediaTools:remote.mediaTools,
     sceneLibrary:[...(local.sceneLibrary||[]),...(remote.sceneLibrary||[])],
     sceneLibraryTombstones:[...(local.sceneLibraryTombstones||[]),...(remote.sceneLibraryTombstones||[])],
+    sceneOrganization:SceneData.mergeOrganization(local.sceneOrganization,remote.sceneOrganization),
+    entryLearning:SceneData.mergeOrganization(local.entryLearning,remote.entryLearning),
     toastMode:preferLocalSettings?local.toastMode:remote.toastMode||local.toastMode,
     toastPosition:preferLocalSettings?local.toastPosition:remote.toastPosition||local.toastPosition,
     modelPrompt:SettingsData.selectPreferredValue(local.modelPrompt,remote.modelPrompt,preferLocalSettings),
@@ -2381,7 +2388,7 @@ function mergeHistoryItems(localHistory,remoteHistory){
     const foldersField=HistoryData.resolveMutableField(
       existing.folderIds,existing.foldersUpdatedAt,
       normalized.folderIds,normalized.foldersUpdatedAt,
-      mergeFolderIds(existing.folderIds,normalized.folderIds,existing.tags,normalized.tags),
+      mergeFolderIds(existing.folderIds,normalized.folderIds,normalizeTags(existing.tags).map(legacyTagFolderId),normalizeTags(normalized.tags).map(legacyTagFolderId)),
     );
     const fragmentPinData=HistoryData.mergeFragmentPins(
       existing.fragmentPins,existing.fragmentPinTombstones,
@@ -2437,10 +2444,7 @@ function mergeTags(...groups){
   return uniq(groups.flatMap(normalizeTags)).sort((a,b)=>a.localeCompare(b));
 }
 function mergeFolderIds(...groups){
-  return uniq(groups.flatMap(group=>{
-    if(Array.isArray(group))return group.every(item=>String(item||'').startsWith('tag_')||String(item||'').startsWith('folder_'))?normalizeFolderIds(group):normalizeTags(group).map(legacyTagFolderId);
-    return normalizeFolderIds(group);
-  })).sort((a,b)=>a.localeCompare(b)).slice(0,64);
+  return uniq(groups.flatMap(normalizeFolderIds)).sort((a,b)=>a.localeCompare(b)).slice(0,64);
 }
 function stableHistoryId(left={},right={}){
   const leftId=left.id;
@@ -5098,9 +5102,9 @@ function openFolderSelectModal(context={}){
   const type=context.type||'history';
   const historyId=Number(context.historyId||0);
   const item=historyId?getHistory().find(row=>Number(row.id)===historyId):null;
-  const selected=type==='lookup'?lookupFolderIds:item?itemFolderIds(item):[];
+  const selected=type==='scene'&&context.sceneIds?.length===1?SceneOrganization.folderIds(context.sceneIds[0]):type==='lookup'?lookupFolderIds:item?itemFolderIds(item):[];
   if(type==='history'&&!item)return notify('记录已被删除。','info','收藏夹');
-  folderSelectContext={type,historyId,historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected),initialIds:normalizeSelectableFolderIds(selected),returnFocus:document.activeElement};
+  folderSelectContext={type,historyId,sceneIds:context.sceneIds||[],targets:context.targets||[],owner:cloudUser?.id||'local',historyIds:type==='batch'?[...historySelection.ids]:[],selectedIds:normalizeSelectableFolderIds(selected),initialIds:normalizeSelectableFolderIds(selected),returnFocus:document.activeElement};
   document.getElementById('folder-select-search').value='';
   document.getElementById('folder-selector-create-name').value='';
   renderFolderSelectModal();
@@ -5184,6 +5188,13 @@ function saveFolderSelection(){
   if(!folderSelectContext)return;
   updateFolderSelectDraft();
   const ids=normalizeSelectableFolderIds(folderSelectContext.selectedIds);
+  if(['scene','learning'].includes(folderSelectContext.type)){
+    const context=folderSelectContext;
+    if(context.owner!==(cloudUser?.id||'local'))return notify('账号已切换，未保存。','warn','收藏夹');
+    const targets=context.type==='scene'?context.sceneIds.map(id=>({type:'scene',id})):context.targets;
+    if(SceneOrganization.apply(targets,'folders',ids,targets.length===1&&context.type==='scene'?context.initialIds:null))closeFolderSelectModal();
+    return;
+  }
   if(folderSelectContext.type==='batch'){
     if(!ids.length)return notify('请至少选择一个收藏夹。','info','批量添加');
     if(addSelectedHistoryToFolders(folderSelectContext.historyIds,ids))closeFolderSelectModal();
@@ -5368,6 +5379,7 @@ async function openPinnedFragment(historyId,key){
   }));
 }
 function renderFoldersView(){
+  if(preserveInlineNameEditor())return;
   if(!els.folderSidebar||!els.folderHistoryList)return;
   ensureFolderVisible();
   const folders=folderStats();
@@ -5432,6 +5444,7 @@ function renderFoldersView(){
   document.getElementById('folder-sort').value=folderState.sort;
   const matchingFolders=folderState.query?folders.filter(folder=>LearningTools.matches(folder.name,folderState.query)):[];
   document.getElementById('folder-match-list').innerHTML=matchingFolders.map(folder=>`<button class="folder-match" onclick="openFolderView(${jsArg(folder.id)})">${icon(folder.id===FOLDER_INSIGHTS_ID?'bookmark':'folder')}<span>${escapeHTML(folder.name)}</span><small>${folder.count}</small></button>`).join('');
+  globalThis.SceneOrganization?.enhance(els.folderHistoryList);
 }
 function openFoldersRoot(button=document.getElementById('nav-folders')){
   folderState.detailOpen=false;
@@ -5446,6 +5459,7 @@ function closeFolderDetail(){
   if(folderIdFromPath())window.history.replaceState({view:'folders'},'',`${VIEW_ROUTES.folders}${location.search}${location.hash}`);
 }
 function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getSettings().historyTimeMode){
+  if(item.__scene)return SceneOrganization.row(item);
   const normalized=normalizeHistoryItem(item);
   const summary=historyEntrySummary(normalized);
   const meta=historyEntryMeta(normalized,labelMode);
@@ -5453,7 +5467,7 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
   const versionText=rollCount>1?`${rollCount} 个版本`:'';
   const fragmentCount=normalized.fragmentPins.length;
   return `
-    <div class="history-item ${normalized.favorite?'favorite-item':''}" data-open-row onclick="RowNavigation.open(event,()=>openHistoryModal(${Number(item.id)}))">
+    <div class="history-item ${normalized.favorite?'favorite-item':''}" data-learning-entry="${Number(item.id)}" data-open-row onclick="RowNavigation.open(event,()=>openHistoryModal(${Number(item.id)}))">
       <div class="history-copy">
         <div class="history-word"><a data-row-link href="/history?entry=${Number(item.id)}">${escapeHTML(historyDisplayTitle(normalized))}</a></div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
@@ -5866,9 +5880,12 @@ function filterByHistoryFolder(folderId,event){
   rerenderHistoryFromStart();
 }
 function folderStats(){
-  return getHistoryDerived().stats;
+  const stats=getHistoryDerived().stats.map(row=>({...row}));
+  if(globalThis.SceneOrganization)for(const {scene} of SceneUI.sceneGroups())for(const id of SceneOrganization.folderIds(scene.groupId)){const row=stats.find(row=>row.id===id);if(row)row.count++}
+  return stats;
 }
 function renderFolderManager(){
+  if(preserveInlineNameEditor())return;
   if(!els.folderManager)return;
   const folders=folderStats();
   if(!folders.length){
@@ -5912,32 +5929,68 @@ function openFolderView(folderId){
   const route=`${VIEW_ROUTES.folders}/${encodeURIComponent(value)}`;
   if(location.pathname!==route)window.history.pushState({view:'folders',folderId:value,fromFolderRoot:true},'',`${route}${location.search}${location.hash}`);
 }
-async function createFavoriteFolder(){
-  const name=String(window.prompt('新建收藏夹名称：','')||'').trim();
-  if(!name)return;
-  createFavoriteFolderRecord(name);
+let inlineNameEditor=null;
+function preserveInlineNameEditor(){
+  if(!inlineNameEditor)return false;
+  if(inlineNameEditor.owner!==(cloudUser?.id||'local')){inlineNameEditor.form.remove();inlineNameEditor=null;return false}
+  return true;
 }
-async function renameFavoriteFolder(folderId){
+function editInlineName({host,label,value='',valid=()=>true,save}){
+  if(inlineNameEditor){inlineNameEditor.input.focus({preventScroll:true});return}
+  const form=document.createElement('form');form.className='inline-name-editor';
+  form.innerHTML=`<label><span>${escapeHTML(label)}</span><input aria-label="${escapeAttr(label)}" maxlength="60" autocomplete="off" value="${escapeAttr(value)}"></label><button class="icon-btn" type="submit" aria-label="保存名称" data-tip="保存">${icon('check')}</button><button class="icon-btn" type="button" aria-label="取消编辑名称" data-tip="取消">${icon('x')}</button><p role="status"></p>`;
+  const input=form.querySelector('input'),owner=cloudUser?.id||'local',head=host.querySelector(':scope>.folder-sidebar-head,:scope>.folder-manager-head');if(head)head.after(form);else host.append(form);inlineNameEditor={form,input,owner};
+  let composing=false,submitBlockedUntil=0;input.addEventListener('compositionstart',()=>{composing=true});input.addEventListener('compositionend',()=>{composing=false;submitBlockedUntil=performance.now()+120});
+  const close=()=>{form.remove();inlineNameEditor=null;renderFoldersView();renderFolderManager()};
+  const discard=async()=>{
+    const draft=input.value;
+    if(draft!==value&&!await askConfirm('放弃尚未保存的名称？','取消名称编辑'))return;
+    close();
+    if(draft!==value)notify('名称修改未保存。','info','编辑',true,{label:'撤销',run:()=>{
+      if(owner!==(cloudUser?.id||'local')||!valid())return notify('账号或收藏夹已有变化，未恢复旧名称草稿。','warn','撤销');
+      if(inlineNameEditor)return notify('已有正在编辑的名称，未覆盖当前输入。','info','撤销');
+      folderState.detailOpen=false;showView('folders',null,{focus:false});
+      editInlineName({host:els.folderSidebar,label,value,valid,save});inlineNameEditor.input.value=draft;
+    }});
+  };
+  form.querySelector('[type="button"]').onclick=discard;
+  form.onkeydown=event=>{if(event.isComposing||event.keyCode===229)return;if(event.key==='Escape'){event.stopPropagation();event.preventDefault();discard()}};
+  form.onsubmit=event=>{
+    event.preventDefault();const error=form.querySelector('[role="status"]');
+    if(composing||(document.activeElement===input&&performance.now()<submitBlockedUntil))return;
+    if(owner!==(cloudUser?.id||'local')||!valid()){error.textContent='账号或收藏夹已变化，请取消后重新编辑。';return}
+    const name=input.value.trim();if(!name||name.length>60){error.textContent='名称需要 1–60 个字符。';return}
+    const current=inlineNameEditor;inlineNameEditor=null;
+    try{if(save(name)===false){inlineNameEditor=current;error.textContent='未能保存，输入仍保留，请重试。';return}form.remove();renderFoldersView();renderFolderManager()}
+    catch(issue){inlineNameEditor=current;error.textContent=issue.message||'未能保存，请重试。'}
+  };
+  input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.isComposing||composing||event.keyCode===229||performance.now()<submitBlockedUntil))event.preventDefault()});
+  form.scrollIntoView({block:'nearest',behavior:'instant'});input.focus({preventScroll:true});input.select();
+}
+function createFavoriteFolder(){
+  const host=document.activeElement?.closest('.folder-sidebar-head,.folder-manager-head')?.parentElement||(folderState.detailOpen?els.folderContentHead:els.folderSidebar);
+  editInlineName({host,label:'新收藏夹名称',save:name=>Boolean(createFavoriteFolderRecord(name))});
+}
+function renameFavoriteFolder(folderId){
   const folder=folderById(folderId);
   if(!folder||folder.system)return;
-  const next=window.prompt(`把收藏夹「${folder.name}」重命名为：`,folder.name);
-  if(next===null)return;
-  const name=String(next||'').trim();
-  if(!name)return notify('收藏夹名称不能为空。','bad','收藏夹');
-  const settings=getSettings();
-  const now=new Date().toISOString();
-  const folders=upsertFavoriteFolder({...folder,name,updatedAt:now},settings.favoriteFolders);
-  if(!setSettings({...settings,favoriteFolders:folders,updatedAt:now}))return;
-  renderFolderManager();
-  renderFoldersView();
-  notify(`已重命名为「${name}」。`,'good','收藏夹');
+  const host=document.activeElement?.closest('.folder-tab,.tag-manager-item,.folder-content-head')||els.folderContentHead;
+  editInlineName({host,label:'收藏夹名称',value:folder.name,valid:()=>JSON.stringify(folderById(folderId))===JSON.stringify(folder),save:name=>{
+    const duplicate=folderCatalog().find(item=>item.id!==folderId&&normalizeSearch(item.name)===normalizeSearch(name));
+    if(duplicate)throw new Error('已有同名收藏夹，请换一个名称。');
+    if(name===folder.name)return true;
+    const settings=getSettings(),now=new Date().toISOString(),folders=upsertFavoriteFolder({...folder,name,updatedAt:now},settings.favoriteFolders);
+    return setSettings({...settings,favoriteFolders:folders,updatedAt:now});
+  }});
 }
 async function deleteFavoriteFolder(folderId){
+  const owner=cloudUser?.id||'local';
   const folder=folderById(folderId);
   if(!folder||folder.system)return;
   const count=folderStats().find(item=>item.id===folder.id)?.count||0;
-  const mode=await askFolderDeleteMode(folder,count);
+  const mode=await askConfirm(`删除收藏夹「${folder.name}」？仅移除分类关系，其中的场景、词条及其他学习内容都会保留。`,'删除收藏夹')?'folder':null;
   if(!mode)return;
+  if(owner!==(cloudUser?.id||'local')||JSON.stringify(folderById(folderId))!==JSON.stringify(folder))return notify('账号或收藏夹已有变化，请重新确认。','warn','收藏夹');
   const now=new Date().toISOString();
   const currentHistory=getHistory();
   const memberKeys=new Set(currentHistory.filter(item=>itemFolderIds(item).includes(folder.id)).map(historyIdentityKey));
@@ -5964,11 +6017,13 @@ async function deleteFavoriteFolder(folderId){
   renderFolderManager();
   renderFoldersView();
   notify(mode==='records'?`已删除「${folder.name}」及其中 ${count} 条记录。`:`已移除收藏夹「${folder.name}」，记录已保留。`,'good','收藏夹',true,{label:'撤销',run:()=>{
+    if(owner!==(cloudUser?.id||'local'))return notify('账号已切换，未撤销。','warn','撤销');
     const live=getSettings(),clock=new Date(Math.max(Date.now(),Date.parse(now)+1)).toISOString();
     if(live.favoriteFolders.some(row=>row.id===folder.id))return notify('收藏夹已有新修改，未覆盖。','info','撤销');
+    if(live.favoriteFolderTombstones.find(row=>row.key===folder.id)?.deletedAt!==now)return notify('收藏夹删除状态已有变化，未覆盖。','info','撤销');
     const members=memberKeys;
     const current=getHistory(),present=new Set(current.map(historyIdentityKey));
-    const restored=current.map(item=>members.has(historyIdentityKey(item))?{...item,folderIds:[...new Set([...(item.folderIds||[]),folder.id])],foldersUpdatedAt:clock,updatedAt:clock}:item);
+    const restored=current.map(item=>members.has(historyIdentityKey(item))&&item.foldersUpdatedAt===now?{...item,folderIds:[...new Set([...(item.folderIds||[]),folder.id])],foldersUpdatedAt:clock,updatedAt:clock}:item);
     restored.push(...deletedItems.filter(item=>!present.has(historyIdentityKey(item))).map(item=>({...item,updatedAt:clock})));
     if(setHistoryAndSettings(restored,{...live,favoriteFolders:[...live.favoriteFolders,{...folder,updatedAt:clock}],favoriteFolderTombstones:live.favoriteFolderTombstones.filter(row=>row.key!==folder.id),updatedAt:clock},{revive:true})){renderFolderManager();renderFoldersView()}
   }});
@@ -7572,11 +7627,12 @@ function speakText(text,language='',event){
     notify('设备无法启动朗读。','bad','朗读失败');
   }
 }
-function filteredFolderEntries(folderId=folderState.activeId,items=historyForFolder(folderId)){
+function filteredFolderEntries(folderId=folderState.activeId,items=historyForFolder(folderId),contentType=folderState.contentType||'all'){
   if(folderSearchIsGlobal())items=getHistory().filter(item=>itemFolderIds(item).length);
   let entries;
   if(!folderSearchIsGlobal()&&folderId===FOLDER_INSIGHTS_ID)entries=pinnedFragmentsFromHistory(items).filter(entry=>LearningTools.matches([entry.sourceTitle,searchableFragment(entry.pin)],folderState.query));
   else entries=items.filter(item=>LearningTools.matches([item.query,historyDisplayTitle(item),latestHistoryResult(item),item.note,item.tags,normalizeHistoryItem(item).scenes.map(scene=>[scene.title,scene.quote,scene.translation,scene.note,scene.sourceTitle,scene.chapter,scene.timeRange]),normalizeHistoryItem(item).fragmentPins.map(searchableFragment),itemFolders(item).map(folder=>folder.name)],folderState.query));
+  if(globalThis.SceneOrganization)return SceneOrganization.folderEntries(folderId,entries,contentType);
   return [...entries].sort((a,b)=>{
     if(folderState.sort==='title')return historyCollator.compare(a.sourceTitle||historyDisplayTitle(a),b.sourceTitle||historyDisplayTitle(b));
     const field=folderState.sort==='created'?'createdAt':'updatedAt';
@@ -7589,7 +7645,8 @@ function setFolderSearchScope(value){folderState.searchScope=value==='current'?'
 function setFolderSort(value){folderState.sort=['title','created'].includes(value)?value:'updated';folderState.visibleCount=folderBatchSize();rememberViewPreference('folders');renderFoldersView()}
 function exportVisibleFolderJSON(){
   const entries=filteredFolderEntries();
-  downloadText('Lexi-favorites.json',JSON.stringify(entries,null,2));
+  const output=entries.some(item=>item.__scene)?{format:'lexi-learning-collection',version:1,items:entries.map(item=>item.__scene?{type:'scene',scene:item.__scene.scene,entryIds:item.__scene.links.map(row=>row.id),organization:getSettings().sceneOrganization[item.__scene.scene.groupId]||{}}:{type:'entry',entry:item,learning:getSettings().entryLearning[String(item.id)]||{}})}:entries;
+  downloadText('Lexi-favorites.json',JSON.stringify(output,null,2));
   notify(`已导出当前列表 ${entries.length} 条记录。`,'good','收藏夹');
 }
 function searchFolder(value){
@@ -7606,9 +7663,14 @@ function clearFolderSearch(){
   document.getElementById('folder-search')?.focus();
 }
 function historyMarkdown(items){
-  return items.map(item=>LearningTools.resultMarkdown(latestHistoryResult(item),{
+  return items.map(item=>item.__scene?sceneCollectionMarkdown(item.__scene):LearningTools.resultMarkdown(latestHistoryResult(item),{
     title:historyDisplayTitle(item),origin:item.query,note:item.note,pins:normalizeHistoryItem(item).fragmentPins,
   })).join('\n---\n\n');
+}
+function sceneCollectionMarkdown({scene,links}){
+  const plain=value=>String(value||'').replace(/([\\`*_{}\[\]<>])/g,'\\$1');
+  const url=SceneData.sourceUrl(scene.sourceUrl);
+  return [`# ${plain(scene.title||scene.sourceTitle||'场景')}`,scene.quote.split('\n').map(line=>`> ${plain(line)}`).join('\n'),plain(scene.translation),plain([scene.sourceTitle,scene.chapter,scene.timeRange].filter(Boolean).join(' · ')),url?`[打开来源](${url.replaceAll(')','%29')})`:'',plain(scene.note),...links.map(item=>`- ${plain(historyDisplayTitle(item))}：${plain(SceneStudy.meaning(item))}`),scene.media.length?'素材请使用含原件的场景备份。':''].filter(Boolean).join('\n\n');
 }
 function exportCurrentMarkdown(scope='current'){
   if(scope==='modal'&&!syncModalDraftFromActiveTab('card'))return;
@@ -7715,11 +7777,12 @@ function startFolderReview(){
     const item=historyById.get(Number(entry.historyId));
     const source=getHistoryRolls(item).find(roll=>historyRollContentKey(roll)===entry.pin.sourceRollContentKey);
     return {id:entry.historyId,title:entry.sourceTitle,pin:entry.pin,result:source?.result||latestHistoryResult(item)};
-  }):entries.map(item=>({id:item.id,title:historyDisplayTitle(item),result:latestHistoryResult(item),contentKey:stableHash(historyRollContentKey(getHistoryRolls(item)[0]||{}))}));
-  reviewCards=LearningTools.reviewDeck(prepared);
+  }):entries.filter(item=>!item.__scene).map(item=>({id:item.id,title:historyDisplayTitle(item),result:latestHistoryResult(item),contentKey:stableHash(historyRollContentKey(getHistoryRolls(item)[0]||{}))}));
+  reviewCards=globalThis.SceneOrganization&&(folderSearchIsGlobal()||folderState.activeId!==FOLDER_INSIGHTS_ID)?SceneOrganization.reviewCards(entries):LearningTools.reviewDeck(prepared);
   if(!reviewCards.length)return notify('当前列表没有可复习内容。','info','复习');
-  const sourceKey=`${folderSearchIsGlobal()?'all':folderState.activeId}\0${normalizeSearch(folderState.query)}`;
+  const sourceKey=`${folderSearchIsGlobal()?'all':folderState.activeId}\0${normalizeSearch(folderState.query)}\0${folderState.contentType||'all'}\0${folderState.sort}`;
   reviewSession=LearningTools.restoreReview(reviewCards,sourceKey,readJSON(STORAGE_KEYS.reviewSession,{}));
+  reviewSession.owner=cloudUser?.id||'local';
   reviewReturnFocus=document.activeElement;
   stopSpeech();
   document.getElementById('review-modal').classList.add('open');
@@ -7736,6 +7799,7 @@ function closeReview(event){
   saveReviewSession();
   stopSpeech();
   document.getElementById('review-modal').classList.remove('open');
+  if(activeView==='folders')renderFoldersView();
   if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
   if(reviewReturnFocus?.isConnected)reviewReturnFocus.focus();
 }
@@ -7748,6 +7812,9 @@ function revealReview(){
 }
 function rateReview(rating){
   if(!reviewSession)return;
+  if(reviewSession.owner&&reviewSession.owner!==(cloudUser?.id||'local'))return notify('账号已切换，请重新开始回顾。','warn','回顾');
+  const card=reviewCards.find(item=>item.key===reviewSession.keys[reviewSession.index]);
+  if(globalThis.SceneOrganization&&!SceneOrganization.rate(card,rating))return;
   reviewSession=LearningTools.rateReview(reviewSession,rating);
   stopSpeech();
   saveReviewSession();
@@ -7787,6 +7854,7 @@ function renderReview(){
     return;
   }
   const card=reviewCards.find(item=>item.key===reviewSession.keys[reviewSession.index]);
+  if(globalThis.SceneOrganization?.renderSceneReview(card,body))return;
   body.innerHTML=`<div class="review-question"><div class="review-kicker">${escapeHTML(card.kind==='word'?'词条':fragmentKindLabel(card.kind))}</div><div class="entry-title-row"><h2>${escapeHTML(card.prompt)}</h2>${renderSpeechButton(card.prompt,card.language,'朗读词条')}</div>${card.cue?`<blockquote>${escapeHTML(card.cue)}</blockquote>`:''}<div class="review-answer" ${reviewSession.revealed?'':'hidden'}><h3>${escapeHTML(card.answer)}</h3>${card.example&&card.example!==card.cue?`<p>${escapeHTML(card.example)}</p>`:''}${card.translation?`<p>${escapeHTML(card.translation)}</p>`:''}</div></div><div class="review-controls"><button class="plain-btn review-reveal" aria-expanded="${reviewSession.revealed}" onclick="revealReview()">${reviewSession.revealed?'隐藏释义':'显示释义'}</button><div class="review-rating"><button class="plain-btn" onclick="rateReview('again')" ${reviewSession.revealed?'':'disabled'}>待巩固</button><button class="plain-btn primary-btn" onclick="rateReview('known')" ${reviewSession.revealed?'':'disabled'}>已掌握</button><button class="icon-btn" data-tip="跳过" aria-label="跳过" onclick="rateReview('skip')">${icon('skip-forward')}</button></div><button class="review-source" onclick="openReviewSource()">${icon('arrow-up-right')}<span>查看原词条</span></button></div>`;
   body.querySelector('.review-answer')?.insertAdjacentHTML('beforeend',SceneUI.renderReview(card));
 }
