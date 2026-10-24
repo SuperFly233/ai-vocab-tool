@@ -8,7 +8,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(t=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',t)},theme);
   await page.route('https://**/*',r=>new URL(r.request().url()).hostname===new URL(base).hostname?r.continue():r.abort());
-  await page.goto(base+'/scenes');await page.evaluate(async()=>{await appReady;await cloudInitPromise;syncAllToCloud=async()=>true});
+  await page.goto(base+'/scenes',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof SceneWorkspace!=='undefined'&&typeof RowNavigation!=='undefined');await page.evaluate(async()=>{await appReady;await cloudInitPromise;syncAllToCloud=async()=>true});
   await page.evaluate(()=>{
    const now=new Date().toISOString(),scene={id:'row-scene',groupId:'row-scene',quote:'We stayed for good.',translation:'我们永久留下。',media:[],createdAt:now,updatedAt:now};
    const result={meta:{query:'for good',language:'en'},headword:{title:'for good',coreMeaning:'永久地'},senses:Array.from({length:30},(_,i)=>({id:String(i),shortestLabel:'永久',meaning:'永久地留下',example:'We stayed for good.',translation:'我们永久留下。'})),collocations:[],confusions:[],register:{}};

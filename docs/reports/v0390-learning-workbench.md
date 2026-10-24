@@ -1,6 +1,8 @@
 # v0.39.0: Scene x Entry learning workbench
 
-Date: 2026-10-24. Candidate report, deployment verification pending.
+Date: 2026-10-24. Released; deployment verification passed within the scope below.
+
+本轮交付摘要：场景独立收藏／置顶、共用收藏夹、混合批量整理与回顾；纯文字场景录入、快捷保存、已有词条复用和离线联想；收藏夹就地新增／改名。24项中23项已实现或回归通过，工具栏“更多”菜单统一仍部分完成。语录库是已调研、未接入；截图识别和媒体编辑不包含在本版完成声明中。
 
 This release completes the scoped organization/quick-learning implementation after stage A v0.37.2. It does not release the separate screenshot preview or a Teyvat search index. No native Fushi/Anki operation, database migration, paid inference or private cloud-record write was performed in this iteration. Browser fixtures use isolated synthetic local data.
 
@@ -38,10 +40,12 @@ Summary: 23 acceptance units implemented or regression-passed, 1 partial (O3). R
 ## Verification
 
 - `npm run check`: passed at v0.39.0 (contracts, data, settings, storage, queue, sync, media API, icon subset).
-- `scripts/check-workbench-release.cjs`: final run in progress; includes organization data/UI, quick learning, row opening, bidirectional navigation, authoring, scene safety, mixed review, favorite boundaries, real local HTTP/SSE streaming, modal dismissal and control geometry.
+- `scripts/check-workbench-release.cjs`: passed; includes organization data/UI, quick learning, row opening, bidirectional navigation, authoring, scene safety, mixed review, favorite boundaries, real local HTTP/SSE streaming, modal dismissal and control geometry. Organization/quick-learning were rerun successfully after the final count/style changes.
 - Complete-card UI regression passed five widths x two themes using mocked task interfaces. Existing Anki behavior preserved; no actual new cards were written.
 - Browser widths320/390/768/1024/1440, light/dark. Motion additionally checks320/390/768/1440; modal checks390/1440. Relevant screenshots inspected manually; selected evidence retained below after final verification.
 - `git diff --check`: passed. No `window.prompt` remains in application JS. Folder names are inline forms; invalid/failed saves do not erase input.
+
+Inspected synthetic screenshots: [desktop favorites](evidence/v0390/favorites-1440-light.png), [mobile favorites](evidence/v0390/favorites-390-dark.png), [mobile mixed review](evidence/v0390/mixed-review-390-dark.png), [text-first editor](evidence/v0390/editor-390-light.png), [local spelling suggestion](evidence/v0390/suggestions-390-dark.png), [header regression](evidence/v0390/top-1440-light.png). Generated reference and actual screenshots are intentionally separate.
 
 ## Separate unfinished ledger
 
@@ -55,4 +59,10 @@ Physical iPhone, actual audio/video playback, real provider calls, authenticated
 
 ## Release
 
-Candidate v0.39.0; commit, independent preview, production resource hashes and URLs will be appended only after successful verification. Existing v0.37.2 production remains verified until then.
+Source commit `7d1a131614857eabe01a5e6204489af7eac36500`, pushed to main. Independent preview https://33e1923f.ai-vocab-tool.pages.dev / https://learning-workbench.ai-vocab-tool.pages.dev . Production https://ebd58f4b.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev . Same verified build, no production-only runtime changes.
+
+Both deployments: all42 static SHA256 values match local dist; unauthenticated task interface401; isolated390/1440 history/folders/scenes/settings, top masking, scroll action and independent settings checks pass. Actual preview organization, quick-learning and whole-row tests pass320/390/768/1024/1440 in both themes. Production additionally passes390dark mixed organization, folder selection, bilingual marks, Undo and inline naming. Fixtures do not write private cloud data.
+
+Network notes: initial direct resource verification timed out; the same test passed through the existing environment proxy. One browser full-load wait timed out; quick-learning/row tests now wait for DOM plus explicit application readiness and retain all interaction assertions. The complete deployed suites then passed. First production upload failed with a connectivity error; one bounded same-build retry succeeded. No user network configuration or provider routing changed.
+
+Screenshot preview merge/retest/deployment remains pending, not silently marked done. O3 also remains partial. These are explicit remaining delivery steps, not evidence of full24-unit completion.

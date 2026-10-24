@@ -10,7 +10,7 @@ Use flat mixed lists, light blue title-link hover, familiar folder navigation, a
 ## Delivery
 
 - A: v0.37.2 released, code4d149cf, immutable production15c0a33b. All37 static hashes, authentication gate and live five-width/two-theme regression passed.
-- B/C: v0.39.0 candidate deliberately leaves v0.38 screenshot work separate. Scene organization, mixed folders, selection, text-first capture, offline suggestions, explicit reuse/query and mixed review are implemented. Final release regression and deployment are in progress; see the detailed report below.
+- B/C: v0.39.0 released, code7d1a131, preview33e1923f, productionebd58f4b. Both42 static hashes/auth gates pass; local release suite and actual preview five-width/two-theme organization/quick-learning/row tests pass. Production390/1440 views and390dark organization pass. Deliberately leaves v0.38 screenshot work separate. O3 remains partial; see report.
 
 ## Acceptance ledger
 
