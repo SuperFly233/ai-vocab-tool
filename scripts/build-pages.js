@@ -22,6 +22,8 @@ const files = [
   'scene-data.js',
   'scene-media.js',
   'ui-overlays.js',
+  'ui-consistency.js',
+  'ui-consistency.css',
   'scene-ui.js',
   'scene-preview.js',
   'scene-workspace.js',

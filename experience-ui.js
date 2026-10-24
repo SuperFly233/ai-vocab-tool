@@ -191,7 +191,8 @@
       revealNavItem(nav,nav.querySelector('[aria-current="location"]'));
     }
     const compact=document.body.classList.contains('home-scrolled');
-    const topbar=document.querySelector('.topbar'),sidebar=innerWidth>900?document.querySelector('.sidebar'):null,query=compact?document.querySelector('#view-home.active .editor-pane'):null;
+    root.HomeSticky?.sync();
+    const topbar=document.querySelector('.topbar'),sidebar=innerWidth>900?document.querySelector('.sidebar'):null,query=compact?document.querySelector('#home-compact-bar'):null;
     const visibleBottom=node=>{if(!node)return 0;const style=getComputedStyle(node),rect=node.getBoundingClientRect();return style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0||rect.height<=0?0:Math.max(0,rect.bottom)};
     // Compact home replaces the navigation; its hidden geometry must not mask the query.
     const headerBottom=compact?0:Math.max(visibleBottom(topbar),visibleBottom(sidebar));
@@ -204,7 +205,7 @@
     scheduled=false;enhanceSearch();enhanceBrowseTools();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
     for(const summary of document.querySelectorAll('.scene-library>summary,.scene-more-media>summary'))if(!summary.querySelector('svg'))summary.insertAdjacentHTML('afterbegin',icon('chevron-down'));
     for(const card of document.querySelectorAll('.scene-illustrated'))if(ratios.has(card.dataset.sceneId))card.style.setProperty('--scene-media-width',`${ratios.get(card.dataset.sceneId)}%`);
-    root.SceneOrganization?.enhance();
+    root.SceneOrganization?.enhance();root.SharedUI?.enhance();
     updateCurrent();if(activeView==='settings')updateSettingsNavActive();updateScrollTop();
   }
   const schedule=()=>{if(!scheduled){scheduled=true;requestAnimationFrame(refresh)}};

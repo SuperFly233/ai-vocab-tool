@@ -1,4 +1,5 @@
 const assert=require('node:assert/strict');
+const {clickCommand}=require('./browser-command.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
@@ -26,6 +27,7 @@ const server=require('./browser-test-server.cjs').createServer();
       await page.goto(`http://127.0.0.1:${server.address().port}`);
       await page.waitForFunction(()=>typeof renderResult==='function');
       const click=async locator=>{
+        if(!await locator.isVisible())return clickCommand(page,locator);
         await locator.evaluate(node=>node.scrollIntoView({block:'center',behavior:'instant'}));
         await page.waitForTimeout(260);
         try{

@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.39.0',
+  version:'0.39.1',
   releaseDate:'2026-10-24',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.39.1',date:'2026-10-24',title:'界面与交互统一收口',items:['批量选择回到标题工具栏，修复多选条目错位；收藏统一到收藏夹选择器，按上下文移除重复操作。','场景列表使用紧凑缩略图、标题、摘要与日期；今年省略年份，列表不再堆叠创建和修改的完整时间。','共用更多菜单和保存底栏，保留键盘、移动视口与账号保护；原有学习、导出和制卡能力继续保留。','首页吸顶条保持 64px，查询编辑和队列独立展开；修复左右布局结果窄列和滚动占位。截图、语录索引及媒体编辑仍单列待办。']},
   {version:'0.39.0',date:'2026-10-24',title:'场景与词条统一整理、快捷学习',items:['场景支持独立收藏、置顶、共用收藏夹和混合多选整理；取消收藏不会改动关联词条。','纯文字场景优先录入，保存与查询明确分开；Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入词组篮。','已有词条与英语离线联想共用输入菜单，不上传未提交输入；拼写候选不静默纠错。','混合收藏可回顾场景与词条，词条学习状态和场景关联状态独立保存。收藏夹创建、改名使用就地输入，不再使用浏览器原生输入框。','修复显式收藏夹 ID 被旧标签逻辑转换；删除收藏夹只移除分类，保留学习内容。截图识别与语录索引仍独立推进。']},
   {version:'0.37.2',date:'2026-10-24',title:'顶部布局与整行打开',items:['修复首页吸顶搜索栏被顶部遮挡层截住，隐藏导航不再参与占位。','关联词条、查询任务、历史与收藏复用整行打开规则；独立控件、选字和拖动不误跳转，标题支持键盘打开。','场景收藏与快捷学习升级分阶段推进，本次先交付稳定入口。']},
   {
@@ -2918,7 +2919,7 @@ function syncHomeStickySpacer(){
       els.workspace?.style.removeProperty('--home-sticky-height');
       return;
     }
-    const height=document.querySelector('#view-home .editor-pane')?.getBoundingClientRect().height||0;
+    const height=document.querySelector('#home-compact-bar')?.getBoundingClientRect().height||64;
     if(height)els.workspace?.style.setProperty('--home-sticky-height',`${Math.ceil(height+14)}px`);
   });
 }
@@ -4926,7 +4927,7 @@ function renderHistory(){
         ${renderHistoryFolders(normalized)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
-          ${historyTimeMetaHTML(normalized,timeMode)}
+          ${compactHistoryTimeHTML(normalized,timeMode,historyState.sort)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
           ${fragmentCount?`<em class="history-fragment-count">${icon('bookmark')} ${fragmentCount} 个片段</em>`:''}
         </div>
@@ -5123,7 +5124,7 @@ function closeFolderSelectModal(event){
 function renderFolderSelectModal(){
   if(!folderSelectContext||!els.folderSelectList)return;
   const selected=new Set(normalizeSelectableFolderIds(folderSelectContext.selectedIds));
-  const catalog=folderCatalog().filter(folder=>folder.selectable!==false);
+  const catalog=folderCatalog().filter(folder=>folder.selectable!==false).sort((a,b)=>Number(b.id===FOLDER_LIKED_ID)-Number(a.id===FOLDER_LIKED_ID));
   const statsMap=new Map(folderStats().map(folder=>[folder.id,folder.count]));
   const isLookup=folderSelectContext.type==='lookup';
   const isBatch=folderSelectContext.type==='batch';
@@ -5474,7 +5475,7 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
         ${renderHistoryFolders(normalized,true)}
         <div class="history-meta">
           ${meta.map(label=>`<span>${escapeHTML(label)}</span>`).join('')}
-          ${historyTimeMetaHTML(normalized,timeMode)}
+          ${compactHistoryTimeHTML(normalized,timeMode,folderState.sort)}
           ${versionText?`<em>${escapeHTML(versionText)}</em>`:''}
           ${fragmentCount?`<em class="history-fragment-count">${icon('bookmark')} ${fragmentCount} 个片段</em>`:''}
         </div>
@@ -5510,11 +5511,19 @@ function historyEntryMeta(item,labelMode=currentLabelMode()){
   const language=historyCanonicalValues(item,'language').map(value=>displayFieldLabel('language',value,labelMode)).filter(Boolean)[0];
   return [entryType,pos,direction,language].filter(Boolean);
 }
-function formatHistoryTime(value){
+function formatHistoryTime(value,precision='detail',now=new Date()){
   if(!value)return '';
   const date=new Date(value);
   if(Number.isNaN(date.getTime()))return '';
-  return date.toLocaleString('zh-CN',{hour12:false});
+  const options={month:'2-digit',day:'2-digit',...(date.getFullYear()!==now.getFullYear()?{year:'numeric'}:{})};
+  if(precision!=='list')Object.assign(options,{hour:'2-digit',minute:'2-digit',hour12:false});
+  return date.toLocaleString('zh-CN',options);
+}
+function compactHistoryTimeHTML(item={},mode=getSettings().historyTimeMode,sort='updated'){
+  const key=mode==='created'||mode==='both'&&sort==='created'?'createdAt':'updatedAt',value=item[key]||item.createdAt||item.updatedAt;
+  if(!formatHistoryTime(value,'list'))return '';
+  const full=['createdAt','updatedAt'].filter(field=>item[field]&&!Number.isNaN(new Date(item[field]).getTime())).map(field=>`${field==='createdAt'?'创建':'修改'} ${new Date(item[field]).toLocaleString('zh-CN',{hour12:false})}`).join(' · ');
+  return `<time class="compact-date" datetime="${escapeAttr(value)}" tabindex="0" aria-label="${escapeAttr(full)}" data-tip="${escapeAttr(full)}">${escapeHTML(formatHistoryTime(value,'list'))}</time>`;
 }
 function historyEdited(item={}){
   const created=new Date(item.createdAt||0).getTime();
@@ -7066,7 +7075,7 @@ function renderModalRollbar(item){
       ${rolls.map((roll,index)=>`
         <button class="roll-btn ${historyRollViewKey(roll,index)===String(modalRollId)?'active':''}" data-roll-index="${index}" data-roll-key="${escapeAttr(historyRollViewKey(roll,index))}" onclick="setModalRoll(${jsArg(historyRollViewKey(roll,index))})">
           <span>${escapeHTML(roll.name||`版本 ${rolls.length-index}`)}${index===0?' · 默认':''}</span>
-          <em>${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN',{hour12:false}))}</em>
+          <em>${escapeHTML(formatHistoryTime(roll.createdAt))}</em>
           <strong>${escapeHTML(roll.model||'未记录')}</strong>
           <span class="roll-grip" aria-hidden="true">${icon('grip-vertical')}</span>
         </button>
@@ -7152,14 +7161,13 @@ function renderVersionManager(){
   const item=modalVersionItem();
   if(!item)return;
   const rolls=getHistoryRolls(item);
-  document.getElementById('modal-versions-page').innerHTML=`<div class="version-manager-head"><h3>版本 <small>${rolls.length}</small></h3><div class="version-actions"><button type="button" class="icon-btn primary-icon" aria-label="预览整合全部版本" data-tip="预览整合全部版本" onclick="autoIntegrateVersions()" ${rolls.length<2?'disabled':''}>${icon('layers')}</button><label class="icon-btn version-import" data-tip="导入 JSON" aria-label="导入 JSON" tabindex="0">${icon('plus')}<input type="file" accept=".json,application/json" onchange="importModalVersion(this)"></label></div></div><div class="version-list">${rolls.map((roll,index)=>`<div class="version-row compact-version-row" data-version-id="${escapeAttr(roll.id)}"><div class="version-row-info"><button type="button" class="version-open" onclick="setModalRoll(${jsArg(historyRollViewKey(roll))})">${escapeHTML(roll.name||`版本 ${rolls.length-index}`)}${index===0?'<small>默认</small>':''}</button><input class="version-name" hidden aria-label="版本名称" value="${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" maxlength="60" onchange="renameModalVersion(${jsArg(roll.id)},this.value)"><small>${escapeHTML(roll.model||'未记录')} · ${escapeHTML(new Date(roll.createdAt).toLocaleString('zh-CN'))} · ${roll.result?.senses?.length||0} 义项</small></div><button type="button" class="icon-btn" aria-label="更多版本操作" data-tip="更多版本操作" onclick="openVersionOptions(this,${jsArg(roll.id)})">${icon('ellipsis')}</button></div>`).join('')}</div><div id="version-integration"></div>`;
+  document.getElementById('modal-versions-page').innerHTML=`<div class="version-manager-head"><h3>版本 <small>${rolls.length}</small></h3><div class="version-actions"><button type="button" class="icon-btn primary-icon" aria-label="预览整合全部版本" data-tip="预览整合全部版本" onclick="autoIntegrateVersions()" ${rolls.length<2?'disabled':''}>${icon('layers')}</button><label class="icon-btn version-import" data-tip="导入 JSON" aria-label="导入 JSON" tabindex="0">${icon('plus')}<input type="file" accept=".json,application/json" onchange="importModalVersion(this)"></label></div></div><div class="version-list">${rolls.map((roll,index)=>`<div class="version-row compact-version-row" data-version-id="${escapeAttr(roll.id)}"><div class="version-row-info"><button type="button" class="version-open" onclick="setModalRoll(${jsArg(historyRollViewKey(roll))})">${escapeHTML(roll.name||`版本 ${rolls.length-index}`)}${index===0?'<small>默认</small>':''}</button><input class="version-name" hidden aria-label="版本名称" value="${escapeAttr(roll.name||`版本 ${rolls.length-index}`)}" maxlength="60" onchange="renameModalVersion(${jsArg(roll.id)},this.value)"><small>${escapeHTML(roll.model||'未记录')} · ${escapeHTML(formatHistoryTime(roll.createdAt))} · ${roll.result?.senses?.length||0} 义项</small></div><button type="button" class="icon-btn" aria-label="更多版本操作" data-tip="更多版本操作" onclick="openVersionOptions(this,${jsArg(roll.id)})">${icon('ellipsis')}</button></div>`).join('')}</div><div id="version-integration"></div>`;
   renderVersionMergePreview();
 }
 function openVersionOptions(anchor,id){
-  let menu=document.getElementById('version-options');if(!menu){menu=document.createElement('div');menu.id='version-options';menu.className='version-options';menu.setAttribute('popover','auto');document.body.append(menu)}
-  const rolls=getHistoryRolls(modalVersionItem());
-  menu.innerHTML=`<button type="button" onclick="document.getElementById('version-options').hidePopover();editModalVersionName(${jsArg(id)})">${icon('pencil')}重命名</button><button type="button" onclick="document.getElementById('version-options').hidePopover();setDefaultModalVersion(${jsArg(id)})" ${String(rolls[0]?.id)===String(id)?'disabled':''}>${icon('star')}设为默认</button><button type="button" class="danger-row" onclick="document.getElementById('version-options').hidePopover();deleteModalVersions([${jsArg(id)}])" ${rolls.length<2?'disabled':''}>${icon('trash-2')}删除版本</button>`;
-  menu.showPopover();const rect=anchor.getBoundingClientRect();menu.style.left=`${Math.max(12,Math.min(innerWidth-menu.offsetWidth-12,rect.right-menu.offsetWidth))}px`;menu.style.top=`${Math.max(12,rect.bottom+menu.offsetHeight<innerHeight?rect.bottom+6:rect.top-menu.offsetHeight-6)}px`;
+  const item=modalVersionItem();if(!item)return;const rolls=getHistoryRolls(item);
+  const guarded=action=>()=>{if(modalVersionItem()?.id!==item.id||!getHistoryRolls(modalVersionItem()).some(roll=>String(roll.id)===String(id)))return notify('词条或版本已变化，请重新打开菜单。','warn','版本');action()};
+  SharedUI.menu(anchor,[{label:'重命名',icon:'pencil',run:guarded(()=>editModalVersionName(id))},{label:'设为默认',icon:'panel-top',disabled:String(rolls[0]?.id)===String(id),run:guarded(()=>setDefaultModalVersion(id))},{label:'删除版本',icon:'trash-2',danger:true,disabled:rolls.length<2,run:guarded(()=>deleteModalVersions([id]))}]);
 }
 function editModalVersionName(id){
   const row=[...document.querySelectorAll('[data-version-id]')].find(node=>node.dataset.versionId===String(id));if(!row)return;

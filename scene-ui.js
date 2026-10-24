@@ -56,7 +56,7 @@
       return {added:added.length,skipped,items,undo};
   }
   function action(name,label,attributes=''){
-    const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'star',hero:'star',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
+    const glyph={add:'image-plus','new-library':'image-plus',edit:'pencil',remove:'trash-2',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'panel-top',hero:'images',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
   }
   function assets(items=[]){
@@ -183,9 +183,10 @@
     if(!item){
       const footer=layer.querySelector('footer');footer.querySelector('[data-scene-action="standalone"]')?.remove();
       const saveButton=footer.querySelector('[data-scene-action="save"]');saveButton.textContent='保存场景';
-      const queryButton=document.createElement('button');queryButton.type='button';queryButton.className='plain-btn';queryButton.dataset.sceneAction='save-query';queryButton.textContent='保存并查询';saveButton.before(queryButton);
-      const words=layer.querySelector('[name="lookupTerms"]'),update=()=>queryButton.disabled=!words.value.trim();words.addEventListener('input',update);update();
-      const manual=footer.querySelector('[data-scene-action="manual"]');if(manual){const more=document.createElement('details');more.className='scene-editor-more';more.innerHTML='<summary>更多</summary>';manual.before(more);more.append(manual)}
+      const manual=footer.querySelector('[data-scene-action="manual"]');manual?.remove();
+      const more=document.createElement('button');more.type='button';more.className='icon-btn';more.dataset.editorMore='';more.setAttribute('aria-label','更多保存方式');more.dataset.tip='更多保存方式';more.innerHTML=icon('ellipsis');footer.append(more);
+      more.onclick=()=>{const terms=SceneData.highlights(layer.querySelector('[name="lookupTerms"]').value);SharedUI.menu(more,[terms.length?{label:`保存并查询 ${terms.length} 个词组`,icon:'search',run:()=>saveAndQuery()}:null,manual?{label:'保存为自建词条…',icon:'file-text',run:()=>save(true)}:null])};
+      const words=layer.querySelector('[name="lookupTerms"]'),update=()=>more.hidden=!manual&&!SceneData.highlights(words.value).length;words.addEventListener('input',update);update();
     }
     layer.querySelector('.scene-editor').classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
     if(!editor.newScene)layer.querySelector('.scene-editor>header>div').insertAdjacentHTML('beforeend',timeMeta(scene));

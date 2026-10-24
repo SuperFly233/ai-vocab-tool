@@ -1,4 +1,5 @@
 const assert=require('node:assert/strict');
+const {clickCommand}=require('./browser-command.cjs');
 const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
 const server=require('./browser-test-server.cjs').createServer();
 (async()=>{let browser;try{
@@ -6,9 +7,9 @@ const server=require('./browser-test-server.cjs').createServer();
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true}),page=await context.newPage();page.setDefaultTimeout(12000);
  await page.addInitScript(()=>localStorage.setItem('ai_vocab_tool_offline_mode','1'));await page.route('https://**/*',route=>route.abort());
  await page.goto(`http://127.0.0.1:${server.address().port}/scenes`);await page.waitForFunction(()=>typeof SceneStudy!=='undefined');
- await page.evaluate(async()=>{const now=new Date().toISOString();setSettings({...getSettings(),sceneLibrary:[{id:'safe',groupId:'safe',quote:'Shared scene.',createdAt:now,updatedAt:now}]});for(const query of ['one','two'])saveLookupResult({query,result:{meta:{query},headword:{title:query,coreMeaning:'test'},senses:[],collocations:[],register:{},confusions:[]}});await SceneStudy.associate('safe',getHistory().map(row=>row.id));SceneWorkspace.select('safe')});
+ await page.evaluate(async()=>{await appReady;await cloudInitPromise;const now=new Date().toISOString();setSettings({...getSettings(),sceneLibrary:[{id:'safe',groupId:'safe',quote:'Shared scene.',createdAt:now,updatedAt:now}]});for(const query of ['one','two'])saveLookupResult({query,result:{meta:{query},headword:{title:query,coreMeaning:'test'},senses:[],collocations:[],register:{},confusions:[]}});await SceneStudy.associate('safe',getHistory().map(row=>row.id));SceneWorkspace.select('safe')});
  const ids=await page.evaluate(()=>getHistory().map(row=>row.id));
- await page.locator('.scene-detail [data-scene-action="edit"]').click();await page.locator('[name="quote"]').fill('Stale draft');
+ await clickCommand(page,page.locator('.scene-detail [data-scene-action="edit"]'));await page.locator('[name="quote"]').fill('Stale draft');
  await page.evaluate(()=>{const rows=getSettings().sceneLibrary.map(scene=>({...scene,quote:'Remote update',updatedAt:new Date(Date.now()+1000).toISOString()}));setSettings({...getSettings(),sceneLibrary:rows})});
  await page.locator('#scene-editor-form [data-scene-action="save"]').click();assert.equal(await page.evaluate(()=>getSettings().sceneLibrary[0].quote),'Remote update');assert.ok((await page.locator('#scene-editor').innerText()).includes('其他位置更新'));
  await page.locator('[data-scene-action="close"]').click();await page.locator('#confirm-ok').click();
@@ -17,7 +18,7 @@ const server=require('./browser-test-server.cjs').createServer();
  await page.evaluate(id=>SceneStudy.update(id,'safe',{exampleHighlights:['Shared']},{undo:false}),ids[0]);await page.locator('.toast-action').last().click();assert.equal(await page.evaluate(id=>SceneStudy.state(getHistory().find(row=>row.id===id),'safe'),ids[0]),'review','Undo cannot overwrite later association edit');
  await page.evaluate(id=>SceneStudy.setState(id,'safe','mastered'),ids[0]);await page.evaluate(()=>{cloudUser={id:'other-account'}});await page.locator('.toast-action').last().click();await page.evaluate(()=>{cloudUser=null});assert.equal(await page.evaluate(id=>SceneStudy.state(getHistory().find(row=>row.id===id),'safe'),ids[0]),'mastered','Undo checks account');
  await page.evaluate(()=>{SceneWorkspace.render();SceneWorkspace.select('safe')});
- await page.locator('.scene-detail>.scene-workbench>header [data-scene-action="remove"]').click();await page.locator('#confirm-ok').click();assert.equal(await page.evaluate(()=>getSettings().sceneLibrary.length),0);assert.equal(await page.evaluate(()=>getHistory().filter(row=>SceneStudy.link(row,'safe')).length),2,'Deleting independent scene preserves links');
+ await clickCommand(page,page.locator('.scene-detail>.scene-workbench>header [data-scene-action="remove"]'));await page.locator('#confirm-ok').click();assert.equal(await page.evaluate(()=>getSettings().sceneLibrary.length),0);assert.equal(await page.evaluate(()=>getHistory().filter(row=>SceneStudy.link(row,'safe')).length),2,'Deleting independent scene preserves links');
  await page.evaluate(id=>{const item=getHistory().find(row=>row.id===id),scene=SceneStudy.link(item,'safe'),now=new Date(Date.now()+3000).toISOString();setHistory(getHistory().map(row=>row.id===id?{...row,scenes:[],sceneTombstones:[{key:scene.id,deletedAt:now}],updatedAt:now}:row))},ids[1]);await page.locator('.toast-action').last().click();assert.equal(await page.evaluate(()=>getSettings().sceneLibrary.length),1);assert.equal(await page.evaluate(()=>getHistory().filter(row=>SceneStudy.link(row,'safe')).length),1,'Independent undo does not resurrect another deleted link');
  await page.evaluate(id=>{window.__setHistory=setHistory;setHistory=()=>false;let error='';try{SceneStudy.setState(id,'safe','new')}catch(e){error=e.message}setHistory=__setHistory;window.__saveError=error},ids[0]);assert.ok((await page.evaluate(()=>__saveError)).includes('保存失败'));assert.equal(await page.evaluate(id=>SceneStudy.state(getHistory().find(row=>row.id===id),'safe'),ids[0]),'mastered');
  assert.ok(await page.evaluate(()=>getSettings().sceneLibraryTombstones.every(row=>row.key&&row.deletedAt)));
