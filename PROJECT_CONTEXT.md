@@ -1,12 +1,14 @@
 # Project Context
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
 
-- v0.38 intake PREVIEW in feat/capture-intake-preview: account-scoped original-file/draft persistence, explicit random-image validation, browser-CORS vision transport, manual quote/translation/highlight/source/term review and current-scene save/query. Real provider vision acceptance, default-mode settings, canonical source/Teyvat index, automatic save, derivatives/GIF/video edits and full-data IndexedDB remain pending. Use docs/reports/v038-intake-preview.md and broad release ledger. Do not deploy this partial branch over production as a completed v0.38 release.
+- v0.37.1 RELEASED2026-10-24: code3631d1b29de329b58133786d980fe7d405978803, production https://d05e4fb5.ai-vocab-tool.pages.dev, preview https://e5000fbf.ai-vocab-tool.pages.dev. All36 resource hashes/auth gate and actual deployed five-width/two-theme four-item regression pass. Stream collocations now include partial translation; mobile back is start-aligned; running/waiting tasks open existing home progress/queue without resubmission; entry titles link to precise scene groups through draft-safe close/Undo. Gated real local HTTP/SSE and shared motion/modal tests pass. No database, Anki/Fushi/native changes or real model calls. Screenshot branch feat/capture-intake-preview07ba5d6 is now backed up remotely; keep its incomplete capabilities separate. See docs/reports/v0371-navigation.md. Physical iPhone remains untested.
+
+- Screenshot intake PREVIEW in feat/capture-intake-preview: account-scoped original-file/draft persistence, explicit random-image validation, browser-CORS vision transport, manual quote/translation/highlight/source/term review and current-scene save/query. Real provider vision acceptance, default-mode settings, canonical source/Teyvat index, automatic save, derivatives/GIF/video edits and full-data IndexedDB remain pending. Use docs/reports/v038-intake-preview.md and broad release ledger. Do not deploy this partial branch over production as a completed v0.38 release. v0.37.1 common fixes merged into preview separately on2026-10-24.
 
 - v0.37.0 RELEASED: code07a1516ff689dfeeb75985ef1487eef08f2c6cc6, production https://94a97c8b.ai-vocab-tool.pages.dev; all36 static hashes, authenticated v4 health and isolated390/1440 navigation passed. Bridge0.4 final-byte portable ZIP passed actual dedicated-deck acceptance; release https://github.com/SuperFly233/ai-vocab-tool/releases/tag/v0.37.0, SHA2560257c69323d08cd0c0f35aa027567fae599fec07fbd7a4ac5447a7d7c1d6ebee matches remote. Native tray appearance remains unverified. User confirmed Mac Edge direct requests recovered on2026-10-23; cause not established. The candidate notes below are historical. Continue approved screenshot intake/vision/source/media work, not another full-site redesign.
 

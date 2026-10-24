@@ -184,12 +184,16 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.37.0',
-  releaseDate:'2026-10-23',
+  version:'0.37.1',
+  releaseDate:'2026-10-24',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {
+    version:'0.37.1',date:'2026-10-24',title:'流式译文与场景双向导航',
+    items:['修复固定搭配在流式生成中漏掉译文行的问题，半句译文到达即可显示，不必等查询结束。','手机场景返回按钮固定靠左；查询中词条可点击回首页查看当前进度，等待项可打开原队列，不重复发起查询。','词条中的场景标题可回到对应场景；跳转遵守未保存编辑的确认与撤销规则，不丢草稿。截图学习仍保持独立预览，不混入本次正式修复。'],
+  },
   {
     version:'0.37.0',date:'2026-10-23',title:'完整释义制卡与连接助手',
     items:['首页、历史和收藏可直接制卡；当前版本核心义及全部正文默认选中，可独立调整，场景与词典按需带入。','使用独立 Lexi Learning v3 模板和不可变完整内容快照，不改已有 Lapis、Fushi 或旧卡片。网页完整预览并确认后才写入。','Bridge 0.4 提供正式版本、托盘、单实例及暂停接单，普通启动不弹浏览器；直连错误区分离线与未取得可读响应，不自动改走云端。截图识别和轻编辑尚在后续阶段。'],
@@ -3992,7 +3996,7 @@ async function readFollowupStream(response,onDelta,onStatus=null){
 }
 async function modelRequest(endpoint,payload,{signal}={}){
   if(/^https:\/\/ai\.hybgzs\.com(?::443)?\//i.test(String(payload.apiUrl||''))){
-    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.37.0');
+    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.37.1');
     if(client.canDirect(payload)){if(endpoint==='analyze')globalThis.RequestUI?.route?.('browser');return client.request(endpoint,payload,{signal})}
     throw new Error('黑与白直连地址需使用 https://ai.hybgzs.com/v1/chat/completions，并填写自己的 API Key；未改走云端。');
   }
@@ -4595,6 +4599,7 @@ function renderLookupStreamItems(items,type){
         <div class="item-title"><mark>${streamValue(item.phrase,'搭配生成中')}</mark>${item.note?`<span class="chip">${escapeHTML(item.note)}</span>`:''}</div>
         <div class="line"><b>语意</b><span>${streamValue(item.meaning)}</span></div>
         <div class="line"><b>例句</b><span>${streamValue(item.example)}</span></div>
+        <div class="line"><b>译文</b><span>${streamValue(item.translation)}</span></div>
       </div>
     </div>`;
     return `<div class="item stream-item">

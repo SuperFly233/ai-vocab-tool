@@ -1,6 +1,6 @@
 # Screenshot learning: first preview checkpoint
 
-Production remains v0.37.0. This branch is an independent preview of part of the approved v0.38 scope, not a completed v0.38 release.
+Production is v0.37.1. This branch is an independent preview of part of the approved v0.38 scope, not a completed v0.38 release. The common streaming/navigation fixes have been merged into this preview separately; screenshot features remain absent from production.
 
 ## Implemented
 

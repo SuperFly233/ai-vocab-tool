@@ -2,6 +2,8 @@
 
 Approved scope: full-content cards and screenshot learning, 6 reliability / 6 refinements / 6 additions. Status below is evidence, not a completion claim.
 
+2026-10-24: production v0.37.1 delivers the four separately requested stream/navigation fixes (docs/reports/v0371-navigation.md). Common fixes also merged into the independent intake branch. This does not complete the pending source/index/media milestones below.
+
 ## Release order
 
 1. v0.37.0 + Bridge 0.4: complete cards, unchanged old protocols, production migration, actual portable acceptance and dedicated-deck acceptance.
