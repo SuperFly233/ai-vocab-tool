@@ -32,6 +32,7 @@ const files = [
   'learning-card.css',
   'fushi-workspace.js',
   'experience-ui.js',
+  'row-navigation.js',
   'dictionary-ui.js',
   'request-ui.js',
   'styles.css',

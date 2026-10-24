@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.37.1',
+  version:'0.37.2',
   releaseDate:'2026-10-24',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.37.2',date:'2026-10-24',title:'顶部布局与整行打开',items:['修复首页吸顶搜索栏被顶部遮挡层截住，隐藏导航不再参与占位。','关联词条、查询任务、历史与收藏复用整行打开规则；独立控件、选字和拖动不误跳转，标题支持键盘打开。','场景收藏与快捷学习升级分阶段推进，本次先交付稳定入口。']},
   {
     version:'0.37.1',date:'2026-10-24',title:'流式译文与场景双向导航',
     items:['修复固定搭配在流式生成中漏掉译文行的问题，半句译文到达即可显示，不必等查询结束。','手机场景返回按钮固定靠左；查询中词条可点击回首页查看当前进度，等待项可打开原队列，不重复发起查询。','词条中的场景标题可回到对应场景；跳转遵守未保存编辑的确认与撤销规则，不丢草稿。截图学习仍保持独立预览，不混入本次正式修复。'],
@@ -4913,10 +4914,10 @@ function renderHistory(){
     const versionText=rollCount>1?`${rollCount} 个版本`:'';
     const fragmentCount=normalized.fragmentPins.length;
     return `
-    <div class="history-item ${historySelection.active?'selectable':''} ${historySelection.ids.has(Number(item.id))?'selected':''}" role="button" tabindex="0" onclick="handleHistoryItemClick(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+    <div class="history-item ${historySelection.active?'selectable':''} ${historySelection.ids.has(Number(item.id))?'selected':''}" data-open-row onclick="RowNavigation.open(event,()=>handleHistoryItemClick(${Number(item.id)}))">
       ${historySelection.active?`<button class="history-select-btn" type="button" aria-label="选择 ${escapeAttr(historyDisplayTitle(normalized))}" aria-pressed="${historySelection.ids.has(Number(item.id))}" onclick="event.stopPropagation();toggleHistorySelection(${Number(item.id)})">${icon(historySelection.ids.has(Number(item.id))?'square-check':'square')}</button>`:''}
       <div class="history-copy">
-        <div class="history-word">${escapeHTML(historyDisplayTitle(normalized))}</div>
+        <div class="history-word"><a data-row-link href="/history?entry=${Number(item.id)}">${escapeHTML(historyDisplayTitle(normalized))}</a></div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
         ${renderHistoryFolders(normalized)}
         <div class="history-meta">
@@ -5452,9 +5453,9 @@ function renderFolderHistoryItem(item,labelMode=currentLabelMode(),timeMode=getS
   const versionText=rollCount>1?`${rollCount} 个版本`:'';
   const fragmentCount=normalized.fragmentPins.length;
   return `
-    <div class="history-item ${normalized.favorite?'favorite-item':''}" role="button" tabindex="0" onclick="openHistoryModal(${Number(item.id)})" onkeydown="handleHistoryItemKey(event,${Number(item.id)})">
+    <div class="history-item ${normalized.favorite?'favorite-item':''}" data-open-row onclick="RowNavigation.open(event,()=>openHistoryModal(${Number(item.id)}))">
       <div class="history-copy">
-        <div class="history-word">${escapeHTML(historyDisplayTitle(normalized))}</div>
+        <div class="history-word"><a data-row-link href="/history?entry=${Number(item.id)}">${escapeHTML(historyDisplayTitle(normalized))}</a></div>
         ${summary?`<div class="history-summary">${escapeHTML(summary)}</div>`:''}
         ${renderHistoryFolders(normalized,true)}
         <div class="history-meta">

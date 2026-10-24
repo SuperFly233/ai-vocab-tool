@@ -87,7 +87,7 @@
     if(tasksHost&&tasksHost.dataset.content!==taskHTML){
       tasksHost.dataset.content=taskHTML;tasksHost.innerHTML=taskHTML;
       tasksHost.querySelectorAll('[data-retry-scene]').forEach(button=>button.onclick=()=>SceneUI.retrySceneTask(button.dataset.retryScene));
-      tasksHost.querySelectorAll('[data-open-scene-task]').forEach(button=>button.onclick=()=>{
+      tasksHost.querySelectorAll('[data-open-scene-task]').forEach(button=>{button.dataset.rowLink='';RowNavigation.bind(button.closest('.scene-result-row'),()=>{
         const task=all.get(button.dataset.openSceneTask);if(!task)return;
         const matches=request=>request?.sceneGroupId===scene.groupId&&normalize(request.query)===normalize(task.request.query);
         const running=activeLookupRequest&&matches(activeLookupRequest),queued=lookupQueue.find(matches);
@@ -96,11 +96,11 @@
         if(!running){lookupQueueExpanded=true;renderLookupQueue()}
         const target=running?els.resultCard:els.lookupQueue?.querySelector(`[data-queue-id="${Number(queued.id)}"]`)||els.lookupQueue;
         requestAnimationFrame(()=>target?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
-      });
+      })});
     }
-    const html=links.map(item=>{const associated=SceneStudy.link(item,scene.groupId),study=SceneStudy.state(item,scene.groupId);return `<div class="scene-result-row scene-study-row" data-history-id="${esc(item.id)}" data-scene-id="${esc(associated.id)}"><div class="scene-linked-copy"><strong>${esc(historyDisplayTitle(item))}</strong><p>${esc(SceneStudy.meaning(item))}</p><span class="scene-task-state" data-status="complete">已完成</span></div><select data-study-entry="${esc(item.id)}" aria-label="${esc(historyDisplayTitle(item))} 学习状态">${Object.entries(SceneStudy.labels).map(([key,label])=>`<option value="${key}" ${key===study?'selected':''}>${label}</option>`).join('')}</select><div class="scene-link-actions"><button class="icon-btn" data-highlight-entry="${esc(item.id)}" aria-label="编辑关联高亮" data-tip="编辑此词条的场景高亮">${icon('pencil')}</button><button class="icon-btn" data-open-entry="${esc(item.id)}" aria-label="打开 ${esc(historyDisplayTitle(item))}" data-tip="打开词条">${icon('arrow-up-right')}</button>${SceneUI.action('remove','移除此词条的场景关联')}</div></div>`}).join('')||'<p class="scene-empty-text">尚未关联词条</p>';
+    const html=links.map(item=>{const associated=SceneStudy.link(item,scene.groupId),study=SceneStudy.state(item,scene.groupId);return `<div class="scene-result-row scene-study-row" data-history-id="${esc(item.id)}" data-scene-id="${esc(associated.id)}"><div class="scene-linked-copy"><strong><a data-row-link data-open-entry="${esc(item.id)}" href="/history?entry=${encodeURIComponent(item.id)}">${esc(historyDisplayTitle(item))}</a></strong><p>${esc(SceneStudy.meaning(item))}</p><span class="scene-task-state" data-status="complete">已完成</span></div><select data-study-entry="${esc(item.id)}" aria-label="${esc(historyDisplayTitle(item))} 学习状态">${Object.entries(SceneStudy.labels).map(([key,label])=>`<option value="${key}" ${key===study?'selected':''}>${label}</option>`).join('')}</select><div class="scene-link-actions"><button class="icon-btn" data-highlight-entry="${esc(item.id)}" aria-label="编辑关联高亮" data-tip="编辑此词条的场景高亮">${icon('pencil')}</button>${SceneUI.action('remove','移除此词条的场景关联')}</div></div>`}).join('')||'<p class="scene-empty-text">尚未关联词条</p>';
     if(host.dataset.content===html)return;host.dataset.content=html;host.innerHTML=html;
-    host.querySelectorAll('[data-open-entry]').forEach(button=>button.onclick=()=>openHistoryModal(button.dataset.openEntry));
+    host.querySelectorAll('[data-open-entry]').forEach(link=>RowNavigation.bind(link.closest('.scene-result-row'),()=>openHistoryModal(link.dataset.openEntry)));
     host.querySelectorAll('[data-study-entry]').forEach(select=>select.onchange=()=>{try{SceneStudy.setState(select.dataset.studyEntry,scene.groupId,select.value)}catch(error){showError(error.message);renderTasks(group)}});
     host.querySelectorAll('[data-highlight-entry]').forEach(button=>button.onclick=()=>SceneStudy.openHighlights(button.dataset.highlightEntry,scene.groupId));
   }

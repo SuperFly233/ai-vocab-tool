@@ -65,3 +65,10 @@ Portable releases require a bounded isolated runtime self-test and a manifest of
 Card review keeps the confirmation area visible independently of its scrolling content. Show only changed owned fields, readable before/after text and explicit excerpt truncation. Validate every card's dictionary and media before batch approval, including cards not currently displayed. Card audio verification must not accidentally inherit image/video-only authoring restrictions.
 
 External-source pickers keep routine outcomes and guarded undo inside the active window; after closure, renew the actionable toast instead of covering phone close controls. Persist request identities and selected IDs in account-scoped session state, not raw source bodies or shared searches. Discard undo must compare the later session revision as well as the account. Empty real source lists are valid evidence for empty-state handling, never proof of a real nonempty import; do not fabricate external records to complete acceptance.
+# Shared learning interaction contract (2026-10-24)
+
+- Whole-row navigation: title, summary and blank surface open the same target. Secondary controls remain independent. Selection, pointer movement and cancelled touch gestures never open a row. Use a real keyboard-accessible title link; hover changes title color/underline, not outer geometry.
+- Header ownership: compact home replaces navigation. Hidden headers never contribute mask geometry; page entry animations must not retain a stacking context trapping fixed search controls.
+- Organization: scenes and entries share folders but never implicitly share favorite or learning state. Scene featured placement is not a global pin.
+- Multiline Enter remains newline; IME confirmation is never submit. Explicit queries alone call the API.
+

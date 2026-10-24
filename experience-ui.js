@@ -189,11 +189,15 @@
       nav.querySelectorAll('button').forEach(button=>{const active=button.dataset.readTarget===selected?.id;button.classList.toggle('active',active);if(active)button.setAttribute('aria-current','location');else button.removeAttribute('aria-current')});
       revealNavItem(nav,nav.querySelector('[aria-current="location"]'));
     }
-    const topbar=document.querySelector('.topbar'),sidebar=innerWidth>900?document.querySelector('.sidebar'):null,query=document.body.classList.contains('home-scrolled')?document.querySelector('#view-home.active .editor-pane'):null;
-    document.documentElement.style.setProperty('--app-header-mask-height',`${Math.max(0,topbar?.getBoundingClientRect().bottom||0,sidebar?.getBoundingClientRect().bottom||0)}px`);
+    const compact=document.body.classList.contains('home-scrolled');
+    const topbar=document.querySelector('.topbar'),sidebar=innerWidth>900?document.querySelector('.sidebar'):null,query=compact?document.querySelector('#view-home.active .editor-pane'):null;
+    const visibleBottom=node=>{if(!node)return 0;const style=getComputedStyle(node),rect=node.getBoundingClientRect();return style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0||rect.height<=0?0:Math.max(0,rect.bottom)};
+    // Compact home replaces the navigation; its hidden geometry must not mask the query.
+    const headerBottom=compact?0:Math.max(visibleBottom(topbar),visibleBottom(sidebar));
+    document.documentElement.style.setProperty('--app-header-mask-height',`${headerBottom}px`);
     const tools=document.querySelector('.view.active .scene-browse-tools,.view.active .folder-toolbar,.view.active .history-tools');
     document.documentElement.style.setProperty('--browse-tools-height',`${tools?.getBoundingClientRect().height||0}px`);
-    document.documentElement.style.setProperty('--app-top',`${Math.max(0,topbar?.getBoundingClientRect().bottom||0,sidebar?.getBoundingClientRect().bottom||0,query?.getBoundingClientRect().bottom||0)}px`);
+    document.documentElement.style.setProperty('--app-top',`${Math.max(headerBottom,visibleBottom(query))}px`);
   }
   function refresh(){
     scheduled=false;enhanceSearch();enhanceBrowseTools();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
