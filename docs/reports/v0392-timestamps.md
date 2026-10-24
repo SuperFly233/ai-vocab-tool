@@ -10,3 +10,9 @@ Small correction to the approved shared date component, not a layout redesign. U
 - Existing five-width/two-theme consistency, data/storage/sync/queue/media contracts and build are checked before publishing. Deployment evidence recorded below after verification.
 
 Physical iPhone remains untested. No model, Fushi or Anki operation is included.
+
+## Deployment
+
+Source `ec7c6ee3bef21dd7d21fdd4108c3a5c620f1aefe` pushed. Preview https://73495f06.ai-vocab-tool.pages.dev ; production https://48e30758.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev . Both44 static hashes and authenticated-only integration gate match;390/1440 page checks and320/390/1440 light/dark timestamp interactions pass on deployed assets. Existing five-width/two-theme consistency and `npm run check` pass locally.
+
+Shared correction merged into isolated screenshot preview `dc941d663cf406f6db08dabf10a9da5eb4e80567`, deployed https://d15ce409.ai-vocab-tool.pages.dev . Changed app/styles/index/manifest hashes and six deployed timestamp viewport/theme cases pass; capture contracts pass. No screenshot feature promoted to production. Main checkout and44-file build restored.
