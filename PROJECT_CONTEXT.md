@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+v0.41 capture parity complete: merge0d72f46, https://d86d6e3b.ai-vocab-tool.pages.dev,144 hashes/auth and deployed390dark multilingual/retry checks passed; local capture five-width/two-theme/data/contracts/icons passed. Capture remains isolated from production.
+
 - v0.41.0 RELEASED: runtime83e3895/release d2267f0, production https://157b00db.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev, final preview https://1edd629b.ai-vocab-tool.pages.dev.140 exact hashes/auth passed; initial preview five-width/two-theme suite, final preview390dark and production390dark/1440light passed. Line/caret-aware autocomplete, removable term chips and default-on basic reference independent of AI/PC snapshots. Public ECDICT38,103 EN-ZH, JMdict common22,647 JA-EN, CC-CEDICT125,314 ZH-EN records, lazy hash-checked shards and bounded CacheStorage. No third-party typed-query lookup or AI calls from selection. Apple native dictionary extraction not implemented; physical iPhone untested. Design docs/design/multilingual-v041-reference.png; report docs/reports/v0410-multilingual.md. Existing quick-learning/expanded-popup/scene safety/PC dictionary/motion/modal/learning regressions passed. No native apps/real paid model changes. Capture parity remains a separate next step.
 
 v0.40.1 preview parity complete: capture mergef82a8ef/docs2147a95, https://2f3eaf13.ai-vocab-tool.pages.dev,48 hashes/auth and deployed1440dark expanded-editor tests passed; local five-width/two-theme capture regression passed. Main restored,44 static files, no capture module in dist. No widening of the learning-feature scope.
