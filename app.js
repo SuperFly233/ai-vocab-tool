@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.39.1',
+  version:'0.39.2',
   releaseDate:'2026-10-24',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.39.2',date:'2026-10-24',title:'列表时间与详情提示',items:['共用列表时间显示日期与小时、分钟，今年省略年份。','时间提示明确分为创建、修改两行，保留完整年份和秒数，不再混在一行内自动折断。']},
   {version:'0.39.1',date:'2026-10-24',title:'界面与交互统一收口',items:['批量选择回到标题工具栏，修复多选条目错位；收藏统一到收藏夹选择器，按上下文移除重复操作。','场景列表使用紧凑缩略图、标题、摘要与日期；今年省略年份，列表不再堆叠创建和修改的完整时间。','共用更多菜单和保存底栏，保留键盘、移动视口与账号保护；原有学习、导出和制卡能力继续保留。','首页吸顶条保持 64px，查询编辑和队列独立展开；修复左右布局结果窄列和滚动占位。截图、语录索引及媒体编辑仍单列待办。']},
   {version:'0.39.0',date:'2026-10-24',title:'场景与词条统一整理、快捷学习',items:['场景支持独立收藏、置顶、共用收藏夹和混合多选整理；取消收藏不会改动关联词条。','纯文字场景优先录入，保存与查询明确分开；Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入词组篮。','已有词条与英语离线联想共用输入菜单，不上传未提交输入；拼写候选不静默纠错。','混合收藏可回顾场景与词条，词条学习状态和场景关联状态独立保存。收藏夹创建、改名使用就地输入，不再使用浏览器原生输入框。','修复显式收藏夹 ID 被旧标签逻辑转换；删除收藏夹只移除分类，保留学习内容。截图识别与语录索引仍独立推进。']},
   {version:'0.37.2',date:'2026-10-24',title:'顶部布局与整行打开',items:['修复首页吸顶搜索栏被顶部遮挡层截住，隐藏导航不再参与占位。','关联词条、查询任务、历史与收藏复用整行打开规则；独立控件、选字和拖动不误跳转，标题支持键盘打开。','场景收藏与快捷学习升级分阶段推进，本次先交付稳定入口。']},
@@ -5516,15 +5517,15 @@ function formatHistoryTime(value,precision='detail',now=new Date()){
   if(!value)return '';
   const date=new Date(value);
   if(Number.isNaN(date.getTime()))return '';
-  const options={month:'2-digit',day:'2-digit',...(date.getFullYear()!==now.getFullYear()?{year:'numeric'}:{})};
-  if(precision!=='list')Object.assign(options,{hour:'2-digit',minute:'2-digit',hour12:false});
-  return date.toLocaleString('zh-CN',options);
+  const pad=number=>String(number).padStart(2,'0');
+  const year=precision==='full'||date.getFullYear()!==now.getFullYear()?`${date.getFullYear()}/`:'';
+  return `${year}${pad(date.getMonth()+1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}${precision==='full'?`:${pad(date.getSeconds())}`:''}`;
 }
 function compactHistoryTimeHTML(item={},mode=getSettings().historyTimeMode,sort='updated'){
   const key=mode==='created'||mode==='both'&&sort==='created'?'createdAt':'updatedAt',value=item[key]||item.createdAt||item.updatedAt;
   if(!formatHistoryTime(value,'list'))return '';
-  const full=['createdAt','updatedAt'].filter(field=>item[field]&&!Number.isNaN(new Date(item[field]).getTime())).map(field=>`${field==='createdAt'?'创建':'修改'} ${new Date(item[field]).toLocaleString('zh-CN',{hour12:false})}`).join(' · ');
-  return `<time class="compact-date" datetime="${escapeAttr(value)}" tabindex="0" aria-label="${escapeAttr(full)}" data-tip="${escapeAttr(full)}">${escapeHTML(formatHistoryTime(value,'list'))}</time>`;
+  const full=['createdAt','updatedAt'].filter(field=>formatHistoryTime(item[field])).map(field=>`${field==='createdAt'?'创建':'修改'} ${formatHistoryTime(item[field],'full')}`).join('\n');
+  return `<time class="compact-date" datetime="${escapeAttr(value)}" tabindex="0" aria-label="${escapeAttr(full)}" data-tip-kind="timestamp" data-tip="${escapeAttr(full)}">${escapeHTML(formatHistoryTime(value,'list'))}</time>`;
 }
 function historyEdited(item={}){
   const created=new Date(item.createdAt||0).getTime();
