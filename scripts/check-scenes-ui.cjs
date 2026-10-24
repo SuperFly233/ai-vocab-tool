@@ -51,7 +51,7 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     const data=new DataTransfer();data.items.add(new File([new Uint8Array(bytes)],'duplicate.png',{type:'image/png'}));
     document.querySelector('#scene-editor').dispatchEvent(new DragEvent('drop',{dataTransfer:data,bubbles:true,cancelable:true}));
    },[...png]);
-   await page.waitForFunction(()=>!document.querySelector('[data-scene-action="manual"]').disabled);
+   await page.waitForFunction(()=>!document.querySelector('[data-scene-action="save"]').disabled);
    assert.equal(await page.locator('.scene-file-row').count(),2,'Drop duplicate is deduplicated by content');
    await page.locator('.scene-file-row').nth(1).locator('[data-scene-action="hero"]').click();
    await page.locator('.scene-file-grip').first().press('ArrowDown');
@@ -60,7 +60,8 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
    await page.locator('[name="timeRange"]').fill('00:07:18 – 00:07:20');
    await page.locator('[name="sourceUrl"]').fill('https://example.com/watch?t=438');
    if(process.env.QA_SCREENSHOTS){fs.mkdirSync(process.env.QA_SCREENSHOTS,{recursive:true});await page.screenshot({path:path.join(process.env.QA_SCREENSHOTS,`scene-editor-${width}-${theme}.png`)})}
-   await page.locator('[data-scene-action="manual"]').click();
+   await page.getByRole('button',{name:'更多保存方式',exact:true}).click();
+   await page.getByRole('menuitem',{name:'保存为自建词条…',exact:true}).click();
    await page.waitForSelector('#scene-editor',{state:'detached'});
    await page.waitForSelector('.scene-record');
    await page.locator('.scene-record').scrollIntoViewIfNeeded();

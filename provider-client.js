@@ -1,5 +1,5 @@
 import { modelEvents } from './model-stream.js?v=0.36.2';
-import { safeParseJSON,lookupUserPrompt,followupMessages } from './provider-contract.js?v=0.36.2';
+import { safeParseJSON,lookupUserPrompt,followupMessages } from './provider-contract.js?v=0.40.0';
 import { upstreamFailure } from './upstream-error.js?v=0.36.2';
 
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','X-Lexi-Request-Path':'browser'}});
@@ -41,7 +41,7 @@ async function request(endpoint,payload,{signal}={}){
   }
   let messages,max_tokens,temperature;
   if(endpoint==='analyze'){messages=[{role:'system',content:payload.systemPrompt?.trim()||await defaultPrompt()},{role:'user',content:lookupUserPrompt(payload)}];max_tokens=9000;temperature=.2}
-  else if(endpoint==='followup'){messages=followupMessages(payload,String(payload.question||'').trim());max_tokens=1800;temperature=.3}
+  else if(endpoint==='followup'){messages=followupMessages(payload,String(payload.question||'').trim());max_tokens=payload.purpose==='scene-title'?128:1800;temperature=payload.purpose==='scene-title'?0.1:0.3}
   else{messages=[{role:'system',content:'Return exactly OK.'},{role:'user',content:'ping'}];max_tokens=4;temperature=0}
   const upstream=await send({model,temperature,max_tokens,stream:stream&&endpoint!=='test-profile',...(!stream&&endpoint==='analyze'?{response_format:{type:'json_object'}}:{}),messages});
   if(!upstream.ok)return failure(upstream);

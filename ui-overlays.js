@@ -172,7 +172,7 @@
     node.querySelector('header button')?.addEventListener('click',event=>{event.stopImmediatePropagation();node.requestClose()},true);
     dialogDismissers.set(node,node.requestClose);
   }
-  globalThis.UIOverlays={raiseNotifications,guardDialog,confirmDiscard,topDialog};
+  globalThis.UIOverlays={raiseNotifications,guardDialog,confirmDiscard,topDialog,hideFieldHint};
   document.addEventListener('close',event=>{
     if(event.target.tagName==='DIALOG'&&event.target.contains(notifications)){document.body.append(notifications);raiseNotifications()}
   },true);

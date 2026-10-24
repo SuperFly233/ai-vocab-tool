@@ -1,5 +1,13 @@
 # UI SOP / Persistent User Preferences
 
+## Editor Context and Lightweight Disclosure (2026-10-25)
+
+- Home scene capture owns one word/phrase, direction and focus group above media. Standalone capture keeps optional multi-term input; do not duplicate the same lookup state.
+- Pair each quote/translation with its highlight editor; selection actions appear only after selection, without replacing the native copy menu. Media pick targets are whole rectangles, not nested pill buttons.
+- Single-value selects use the shared themed listbox and keyboard behavior. Keep native data/listeners, but never expose OS dropdown presentation or duplicate arrows.
+- Folder selectors retain a folder icon even when their label is hidden. Query expansion is a lightweight edge disclosure, never a peer primary command beside search; sticky height remains bounded.
+- Empty scene titles may reuse an explicitly configured text profile, not guessed vision capability. No image transmission, provider fallback or hidden query. Failure preserves drafts; title requests obey account, object and cancellation guards.
+
 ## Unified Commands and Compact Lists (2026-10-24)
 
 - Selection mode has two levels: the header right shows ONLY a shared neutral-weight count (已选 N 条) and a text cancel command; ordinary header actions hide during selection. A compact bar above rows separates selection controls (all/partial/clear) from selected-content actions with a divider. Never interleave count/cancel with folder/export/destructive controls. Use one shared typography and geometry across history/favorites/scenes. All means the current filtered set including unloaded pages; export selected means only selected identities, including those retained outside the current filter. Context decides which commands exist: personal-favorite removal is unfavorite, not a second duplicate action. Low-frequency commands use a vertical more menu.
