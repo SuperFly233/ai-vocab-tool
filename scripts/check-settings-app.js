@@ -41,6 +41,10 @@ const legacy={
 };
 
 const first=context.normalizeSettings(legacy);
+expect(context.normalizeSettings({}).basicDictionary===true,'Basic dictionary defaults on for existing accounts');
+expect(context.normalizeSettings({basicDictionary:'false'}).basicDictionary===false,'Legacy boolean strings respect dictionary preference');
+expect(context.mergeSettings({updatedAt:old,basicDictionary:true},{updatedAt:newer,basicDictionary:false}).basicDictionary===false,'Newer cloud dictionary disable survives normalization and merge');
+expect(context.mergeSettings({updatedAt:newer,basicDictionary:false},{updatedAt:old,basicDictionary:true}).basicDictionary===false,'Older cloud settings cannot re-enable the dictionary');
 expect(context.normalizeSettings({rememberViewFilters:'false'}).rememberViewFilters===false,'Legacy string false disables filter memory');
 expect(context.normalizeSettings({}).rememberViewFilters===true,'Filter memory defaults on for existing accounts');
 expect(context.normalizeSettings({hintsHidden:true}).tooltipsHidden===false,'Hiding editor hints must not hide hover tooltips');

@@ -26,6 +26,7 @@ const server=require('./browser-test-server.cjs').createServer();
       await page.route('https://**/*',route=>route.abort());
       await page.goto(`http://127.0.0.1:${server.address().port}`);
       await page.waitForFunction(()=>typeof renderResult==='function');
+      await page.evaluate(async()=>{await appReady;await cloudInitPromise});
       const click=async locator=>{
         if(!await locator.isVisible())return clickCommand(page,locator);
         await locator.evaluate(node=>node.scrollIntoView({block:'center',behavior:'instant'}));
