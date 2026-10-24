@@ -1,6 +1,6 @@
 # Screenshot learning: first preview checkpoint
 
-Production is v0.37.1. This branch is an independent preview of part of the approved v0.38 scope, not a completed v0.38 release. The common streaming/navigation fixes have been merged into this preview separately; screenshot features remain absent from production.
+Production is v0.39.1. This branch is an independent preview of part of the approved v0.38 scope, not a completed v0.38 release. Common streaming/navigation, organization/quick-learning and consistency fixes have been merged into this preview separately; screenshot features remain absent from production.
 
 ## Implemented
 
@@ -24,6 +24,12 @@ Production is v0.37.1. This branch is an independent preview of part of the appr
 Real provider vision acceptance; settings-level synchronized default/manual vision modes; canonical source records/aliases; Teyvat incremental quotation matching/coverage; reliable automatic scene saving and lookup; image/GIF/video crop/trim/resize and assistant fallback; AI crop proposals/confirmed derivatives; full history/settings IndexedDB migration. Physical iPhone, actual media playback, Anki cloud sync and native-tray popup appearance remain unverified.
 
 Keep these limits visible in the delivery ledger. Do not call a mocked vision response real recognition, manual scene confirmation automatic source matching, or a preview deployment production release.
+
+## v0.39.1 common-fix roll-forward
+
+Merge `6afcd567cda2c49c475a2ebc56c8224560e75d71` preserves screenshot metadata/import, adds the new organization and shared UI modules, and regenerates a73-icon subset including capture. No wholesale old-file replacement. `npm run check`, capture contracts, local five-width/two-theme intake and consistency suites, and synthetic vision concurrency pass after merge. Inspected synthetic390dark and1440light intake screenshots.
+
+Deployment: https://dea72f94.ai-vocab-tool.pages.dev / https://capture-v038-preview.ai-vocab-tool.pages.dev .48 deployed static hashes match; integration gate returns401,390/1440 view checks pass. Deployed five-width/two-theme intake interactions and390dark shared consistency pass. One earlier attempt failed with `ERR_CONNECTION_CLOSED` while loading a new scene page, before any capture operation; one bounded retry via the stable alias passed completely. No network/security settings changed. Synthetic evidence: [phone](evidence/v0391/capture-390-dark.png), [desktop](evidence/v0391/capture-1440-light.png).
 
 ## Preview rollout, 2026-10-24
 
