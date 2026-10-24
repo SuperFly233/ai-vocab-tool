@@ -21,8 +21,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
   if(width===390&&theme==='dark'){
    await page.evaluate(()=>openFolderView('liked'));await page.locator('[data-folder-content-type]').selectOption('all');await page.locator('[data-learning-selection="folders"] [data-select-mode]').click();
    for(const checkbox of await page.locator('#folder-history-list .learning-row-check input').all())await checkbox.check();
-   assert.ok((await page.locator('[data-learning-selection="folders"]').textContent()).includes('已选 2 项'));
-   await page.locator('[data-learning-selection="folders"] [data-bulk="folders"]').click();await page.locator('#folder-select-list input[value="travel"]').check();await page.evaluate(()=>{globalThis.__selectionContext=structuredClone({...folderSelectContext,returnFocus:null});saveFolderSelection()});
+   assert.ok((await page.locator('[data-learning-selection="folders"]').textContent()).includes('已选 2 条'));
+   await page.locator('[data-selection-tools="folders"] [data-bulk="folders"]').click();await page.locator('#folder-select-list input[value="travel"]').check();await page.evaluate(()=>{globalThis.__selectionContext=structuredClone({...folderSelectContext,returnFocus:null});saveFolderSelection()});
    assert.ok(await page.evaluate(()=>getHistory()[0].folderIds.includes('travel')),JSON.stringify(await page.evaluate(()=>({context:__selectionContext,history:getHistory().map(i=>({id:i.id,folderIds:i.folderIds})),scene:SceneOrganization.state('one')}))));assert.ok(await page.evaluate(()=>SceneOrganization.state('one').folderIds.includes('travel')));
    await page.locator('[data-learning-selection="folders"] [data-select-mode]').click();
    await page.evaluate(()=>startFolderReview());assert.equal(await page.evaluate(()=>reviewCards.length),2);await page.locator('#review-content .review-reveal').click();await page.screenshot({path:'tmp/dialog-qa/organization/mixed-review-390-dark.png',animations:'disabled'});

@@ -109,17 +109,27 @@
   function enhanceSelection(scope){
     const rootNode=document.querySelector(scope==='scenes'?'#scene-hub':'#folder-panel'),heading=rootNode?.querySelector(scope==='scenes'?'.scene-library-head':'.folder-content-head');if(!heading)return;
     if(scope==='folders'&&folderSelectionContext!==folderState.activeId){folderSelectionContext=folderState.activeId;selections.folders.clear();mode.folders=false}
+    if(scope==='folders'&&folderState.activeId===FOLDER_INSIGHTS_ID&&!folderSearchIsGlobal()){mode.folders=false;selections.folders.clear();rootNode.querySelector('[data-learning-selection="folders"]')?.remove();rootNode.querySelector('[data-selection-tools="folders"]')?.remove();heading.classList.remove('selection-header-active');return}
     const sceneIds=new Set(SceneUI.sceneGroups().map(row=>row.scene.groupId)),entryIds=new Set(getHistory().map(item=>String(item.id)));
     for(const value of selections[scope]){const target=targetFromKey(value);if(!(target.type==='scene'?sceneIds:entryIds).has(target.id))selections[scope].delete(value)}
     let bar=rootNode.querySelector(`[data-learning-selection="${scope}"]`);if(!bar){bar=document.createElement('div');bar.className='learning-selection-bar';bar.dataset.learningSelection=scope;(heading.querySelector(':scope>.folder-head-actions,:scope>.scene-actions')||heading).append(bar)}
     const selected=selections[scope],personal=scope==='folders'&&!folderSearchIsGlobal()&&folderState.activeId===FOLDER_LIKED_ID,custom=scope==='folders'&&!folderSearchIsGlobal()&&![FOLDER_INSIGHTS_ID,FOLDER_LIKED_ID].includes(folderState.activeId);
     const command=(action,label,name)=>SharedUI.command(label,name,`data-bulk="${action}"`);
-    const html=SharedUI.command(mode[scope]?'退出多选':'批量选择',mode[scope]?'x':'square-check',`data-select-mode aria-pressed="${mode[scope]}"`)+(mode[scope]?`<span role="status">已选 ${selected.size} 项</span>${SharedUI.command('全选筛选结果','square-check','data-select-all')}${command('folders','添加到收藏夹','folder-plus')}${personal?command('unfavorite','取消收藏','star-off'):custom?command('remove-folder','移出当前收藏夹','folder-minus'):''}${SharedUI.command('更多批量操作','ellipsis','data-bulk-more')}`:'');
+    const html=mode[scope]?SharedUI.selectionSession(selected.size,'data-select-mode aria-pressed="true"'):SharedUI.command('批量选择','square-check','data-select-mode aria-pressed="false"');
+    let tools=rootNode.querySelector(`[data-selection-tools="${scope}"]`);if(!tools){tools=document.createElement('div');tools.className='batch-selection-toolbar';tools.dataset.selectionTools=scope;rootNode.querySelector(scope==='scenes'?'.scene-workspace':'#folder-history-list').before(tools)}tools.hidden=!mode[scope];
+    const toolHTML=SharedUI.selectionGroups(`<label class="selection-all"><input type="checkbox" data-select-all aria-label="全选筛选结果"><span>全选</span></label>${SharedUI.command('清空选择','rotate-ccw','data-clear-selection')}`,`${command('folders','添加到收藏夹','folder-plus')}${personal?command('unfavorite','取消收藏','star-off'):custom?command('remove-folder','移出当前收藏夹','folder-minus'):''}${SharedUI.command('更多操作','ellipsis','data-bulk-more')}`);
     const context=`${folderState.activeId}:${folderSearchIsGlobal()}`;
     if(bar.dataset.content!==html||bar.dataset.owner!==owner()||bar.dataset.context!==context){bar.dataset.content=html;bar.dataset.owner=owner();bar.dataset.context=context;const account=owner();bar.innerHTML=html;bar.querySelector('[data-select-mode]').onclick=()=>{if(account!==owner())return;mode[scope]=!mode[scope];if(!mode[scope])selected.clear();enhanceSelection(scope)};
-      bar.querySelector('[data-select-all]')?.addEventListener('click',()=>{if(account!==owner())return;const rows=scope==='scenes'?SceneWorkspace.filteredGroups().map(g=>({type:'scene',id:g.scene.groupId})):filteredFolderEntries().filter(item=>!item.pin).map(item=>({type:item.__scene?'scene':'entry',id:item.__scene?.scene.groupId||String(item.id)}));for(const target of rows)selected.add(key(target));enhanceSelection(scope)});
-      const more=bar.querySelector('[data-bulk-more]');if(more)more.onclick=()=>SharedUI.menu(more,[!personal?{label:'取消收藏',icon:'star-off',disabled:!selected.size,run:()=>{if(apply([...selected].map(targetFromKey),'unfavorite')){selected.clear();enhanceSelection(scope)}}}:null,scope==='folders'?{label:'导出当前列表 JSON',icon:'download',run:()=>exportVisibleFolderJSON()}:null]);
-      bar.querySelectorAll('[data-bulk]').forEach(button=>{button.disabled=!selected.size;button.onclick=()=>{
+    }
+    const candidates=()=>scope==='scenes'?SceneWorkspace.filteredGroups().map(g=>({type:'scene',id:g.scene.groupId})):filteredFolderEntries().filter(item=>!item.pin).map(item=>({type:item.__scene?'scene':'entry',id:item.__scene?.scene.groupId||String(item.id)}));
+    if(tools.dataset.content!==toolHTML||tools.dataset.owner!==owner()||tools.dataset.context!==context){tools.dataset.content=toolHTML;tools.dataset.owner=owner();tools.dataset.context=context;tools.innerHTML=toolHTML;const account=owner();
+      tools.querySelector('[data-select-all]').onchange=event=>{if(account!==owner())return;for(const target of candidates()){if(event.target.checked)selected.add(key(target));else selected.delete(key(target))}enhanceSelection(scope)};
+      tools.querySelector('[data-clear-selection]').onclick=()=>{if(account!==owner())return;selected.clear();enhanceSelection(scope)};
+      const more=tools.querySelector('[data-bulk-more]');if(more)more.onclick=()=>SharedUI.menu(more,[!personal?{label:'取消收藏',icon:'star-off',disabled:!selected.size,run:()=>{if(apply([...selected].map(targetFromKey),'unfavorite')){selected.clear();enhanceSelection(scope)}}}:null,{label:'导出所选 JSON',icon:'download',disabled:!selected.size,run:()=>{
+        if(scope==='scenes'){SceneStudy.exportList(SceneUI.sceneGroups().filter(g=>selected.has(key({type:'scene',id:g.scene.groupId}))),'json');return}
+        const records=[...selected].map(targetFromKey).map(t=>{if(t.type==='entry')return getHistory().find(row=>String(row.id)===t.id);const current=group(t.id);return current?{__scene:current}:null}).filter(Boolean);exportVisibleFolderJSON(records,true);
+      }}]);
+      tools.querySelectorAll('[data-bulk]').forEach(button=>{button.onclick=()=>{
         if(account!==owner())return notify('账号已切换，请重新选择。','warn','整理');const targets=[...selected].map(targetFromKey),operation=button.dataset.bulk;if(!targets.length)return;
         if(operation==='folders'){openFolderSelectModal({type:'learning',targets});return}
         if(operation==='remove-folder'&&(!folderState.activeId||folderState.activeId===FOLDER_INSIGHTS_ID||folderSearchIsGlobal()))return notify('请先打开具体收藏夹。','info','整理');
@@ -127,6 +137,7 @@
         if(apply(targets,action,operation==='remove-folder'?[folderState.activeId]:[])){selected.clear();enhanceSelection(scope)};
       }});
     }
+    const candidatesNow=candidates(),chosen=candidatesNow.filter(target=>selected.has(key(target))).length,all=tools.querySelector('[data-select-all]');all.checked=Boolean(candidatesNow.length&&chosen===candidatesNow.length);all.indeterminate=chosen>0&&chosen<candidatesNow.length;all.disabled=!candidatesNow.length;tools.querySelector('[data-clear-selection]').disabled=!selected.size;tools.querySelectorAll('[data-bulk]').forEach(button=>button.disabled=!selected.size);heading.classList.toggle('selection-header-active',mode[scope]);
     const rows=scope==='scenes'?rootNode.querySelectorAll('.scene-list-row'):rootNode.querySelectorAll('.history-item[data-learning-entry],.history-item[data-scene-favorite]');
     for(const row of rows){
       const target=scope==='scenes'?{type:'scene',id:row.dataset.selectScene}:row.dataset.sceneFavorite?{type:'scene',id:row.dataset.sceneFavorite}:{type:'entry',id:row.dataset.learningEntry};
