@@ -1,6 +1,6 @@
 # Multilingual Suggestions and Basic Dictionary
 
-Status: implementation, not released.
+Status: released v0.41.0; see docs/reports/v0410-multilingual.md for source, deployment and evidence.
 
 ## Design
 
