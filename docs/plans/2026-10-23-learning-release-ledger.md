@@ -4,7 +4,7 @@ Approved scope: full-content cards and screenshot learning, 6 reliability / 6 re
 
 ## Reconciled status, 2026-10-24
 
-The older per-item entries below are historical checkpoints, not the latest screenshot implementation status. Source of truth for the independent preview is `feat/capture-intake-preview:docs/reports/v038-intake-preview.md` (source70ce777, docs9b0ebf5), URL https://capture-v038-preview.ai-vocab-tool.pages.dev . Production is now v0.39.0; screenshot intake remains separate and has not yet received the full v0.39.0 roll-forward.
+The older per-item entries below are historical checkpoints, not the latest screenshot implementation status. Source of truth for the independent preview is `feat/capture-intake-preview:docs/reports/v038-intake-preview.md` (source70ce777, docs9b0ebf5), URL https://capture-v038-preview.ai-vocab-tool.pages.dev . Production is now v0.39.1; screenshot intake remains separate and its common-fix roll-forward is being verified separately.
 
 | Workstream | Verified status | Remaining delivery |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ The older per-item entries below are historical checkpoints, not the latest scre
 | Media editing | Not delivered | Image crop/resize, animated GIF crop/trim, video crop/trim/resize with audio, bounded processing/fallback |
 | AI crop assistance | Not delivered | Suggested boxes, user confirmation and deterministic recoverable derivatives |
 | Storage | Diagnostic logs migrated losslessly | History/settings IndexedDB migration; physical phone acceptance |
-| Current scene/entry iteration | Stage A v0.37.2 and organization/quick-learning v0.39.0 released;42 hashes and live acceptance | 23/24 implemented or regression-passed; O3 more-menu consolidation partial. Screenshot branch merge/retest still pending; report ../reports/v0390-learning-workbench.md |
+| Current scene/entry iteration | Stage A v0.37.2, organization/quick-learning v0.39.0 and consistency closure v0.39.1 released;44 hashes and live acceptance | Previous O3 more-menu consolidation now implemented and version/row/editor regressions pass. Screenshot branch merge/retest still pending; report ../reports/v0391-consistency.md |
 
 Do not silently drop any row when delivering a newer UI iteration. No scheduled promise or automatic next release is implied; unfinished work must remain visible.
 

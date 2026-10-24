@@ -32,7 +32,11 @@ This release implements the approved UI closure, not the remaining OCR, quotatio
 
 ## Release verification
 
-Pending independent-preview and production deployment. Source commit, immutable URLs, resource hashes and screenshot-preview roll-forward will be recorded only after verification.
+- Source commit `e2936d265f7d25940042b2d354cfbbb5e142702a`, pushed to main.
+- Independent preview: https://298bcaed.ai-vocab-tool.pages.dev / https://consistency-v0391.ai-vocab-tool.pages.dev .44 static hashes, authenticated-only integration gate,390/1440 page checks and full five-width/two-theme consistency suite passed on deployed resources.
+- Production: https://ai-vocab-tool.pages.dev , immutable https://6b034d2d.ai-vocab-tool.pages.dev .44 hashes,401 gate,390/1440 views and390dark consistency suite passed after release.
+- Evidence: [mobile scene list](evidence/v0391/scenes-390-dark.png), [mixed multiselect](evidence/v0391/mixed-selection-1440-light.png), [mobile editor](evidence/v0391/editor-320-light.png), [split-layout query panel](evidence/v0391/sticky-split-1440-dark.png).
+- Screenshot-preview roll-forward pending a separate merge and acceptance; unfinished capture stays out of production.
 
 ## Limits and remaining ledger
 
