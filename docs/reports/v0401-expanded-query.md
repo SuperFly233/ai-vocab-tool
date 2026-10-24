@@ -1,6 +1,6 @@
 # v0.40.1 Expanded Query Fix
 
-Status: candidate verification, not yet deployed.
+Status: released2026-10-25; production acceptance passed.
 
 ## Reproduction and Cause
 
@@ -20,4 +20,7 @@ This is a focused correction to the existing compact-editor design, not a new de
 
 check-expanded-query.cjs:320/390/768/1024/1440, both themes, top/split,1/3/20 input lines,0/3/20 FULLY EXPANDED queued tasks, live growth/shrink, close/reopen and return-top restoration. No global overflow hiding, no native app/data change, no paid model call. Physical iPhone not tested.
 
-Preview/production hashes, screenshots and commits are recorded after actual deployment.
+- Source9146c673a1c8e6591a091619ad942d86e1a2396d. Preview https://4bf176dc.ai-vocab-tool.pages.dev:44 hashes/auth and complete expanded-state matrix passed. Extra2048dark local case passed.
+- Production https://db7211c9.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev:44 hashes/auth,1440dark and390light expanded-state tests passed with1/3/20 inputs and fully expanded queues. Versioned cache references bumped to0.40.1.
+- npm check/build, motion and nested modal/dirty-Undo regressions passed. No fake lookup/model requests or private data changes.
+- Inspected synthetic [before](v0401/before.png) and [after](v0401/after.png) screenshots, including the20-task queue and mobile popup. The previous bar-only acceptance gap is now a permanent SOP/test requirement.

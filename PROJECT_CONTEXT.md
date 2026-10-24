@@ -6,7 +6,7 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
-- v0.40.1 CANDIDATE: reproduced expanded Home editor at1440px, single input104px, panel1400x252, radius999. Fix content-driven44–136px input,880px popup width cap,8px wrapper corners, bounded expanded queue and no duplicated actions. Keep64px sticky shell and original input/task state. New check-expanded-query.cjs covers actual popup geometry and live growth/shrink, not just sticky bar. No new features/native/model operations.
+- v0.40.1 RELEASED: source9146c673a1c8e6591a091619ad942d86e1a2396d, preview https://4bf176dc.ai-vocab-tool.pages.dev, production https://db7211c9.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev.44 hashes/auth both passed. Actual expanded-popup matrix passed five widths/two themes/top+split/1,3,20 lines and expanded queues; production1440dark/390light passed. Previously one line reserved104px, radius999, full1400px panel; now content-driven44–136px,8px corners,880px width cap and bounded scrolling without duplicate commands. Motion/modal/data regressions pass. Report docs/reports/v0401-expanded-query.md. No paid/native operations; physical iPhone untested.
 
 Screenshot roll-forward for v0.40 is complete (supersedes pending wording in the release paragraph): merge5a6a9c6, fixturec37b89e/docs e5f4b05, independent https://1c277218.ai-vocab-tool.pages.dev,48 hashes/auth and deployed five-width/two-theme capture plus390dark editor pass. Main restored with44-file build; test-only fixture correction289b563. Capture remains excluded from production; real vision/source/index/media acceptance still pending.
 
