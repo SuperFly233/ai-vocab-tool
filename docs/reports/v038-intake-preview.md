@@ -27,6 +27,8 @@ Keep these limits visible in the delivery ledger. Do not call a mocked vision re
 
 ## v0.39.1 common-fix roll-forward
 
+Follow-up v0.39.3: merge `ba9063424792dafd8073045ad84087849d70454f` carries the two-level selection UI, paged/filtered all-checkbox and selected-only export corrections. Independent https://70d72f75.ai-vocab-tool.pages.dev . Seven changed assets match local hashes; deployed390dark shared selection passes. Capture contracts and five-width/two-theme local intake pass after merge. One local selection renderer exited after the capture matrix; one isolated retry passed without code/network changes. No system blue screen or native Fushi/Anki operation was observed. This renderer failure is recorded, not diagnosed as fixed.
+
 Follow-up v0.39.2: merge `dc941d663cf406f6db08dabf10a9da5eb4e80567` carries minute list timestamps and explicit two-line full-time hints. Independent deployment https://d15ce409.ai-vocab-tool.pages.dev . Four changed assets (app/styles/index/manifest) match local hashes; capture contracts and320/390/1440 light/dark timestamp interactions pass locally and deployed. No new recognition capability is enabled.
 
 Merge `6afcd567cda2c49c475a2ebc56c8224560e75d71` preserves screenshot metadata/import, adds the new organization and shared UI modules, and regenerates a73-icon subset including capture. No wholesale old-file replacement. `npm run check`, capture contracts, local five-width/two-theme intake and consistency suites, and synthetic vision concurrency pass after merge. Inspected synthetic390dark and1440light intake screenshots.
