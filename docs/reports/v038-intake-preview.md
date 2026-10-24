@@ -24,3 +24,7 @@ Production is v0.37.1. This branch is an independent preview of part of the appr
 Real provider vision acceptance; settings-level synchronized default/manual vision modes; canonical source records/aliases; Teyvat incremental quotation matching/coverage; reliable automatic scene saving and lookup; image/GIF/video crop/trim/resize and assistant fallback; AI crop proposals/confirmed derivatives; full history/settings IndexedDB migration. Physical iPhone, actual media playback, Anki cloud sync and native-tray popup appearance remain unverified.
 
 Keep these limits visible in the delivery ledger. Do not call a mocked vision response real recognition, manual scene confirmation automatic source matching, or a preview deployment production release.
+
+## Preview rollout, 2026-10-24
+
+Merged production v0.37.1 fixes into the independent preview in `70ce7770d2809d9f5e517e13431bccd94aa1fa09`. URL https://b3fe106a.ai-vocab-tool.pages.dev, alias https://capture-v038-preview.ai-vocab-tool.pages.dev . All40 static hashes and authentication gate match; deployed four-item navigation regression passes five widths/both themes. Capture contracts, five-width/both-theme capture UI and synthetic vision concurrency tests pass after merge. Real provider image recognition remains unverified. A separate read-only check confirms production still loads v0.37.1 without capture-ui.js. This is not a production v0.38 release.
