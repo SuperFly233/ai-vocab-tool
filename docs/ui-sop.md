@@ -1,5 +1,9 @@
 # UI SOP / Persistent User Preferences
 
+## Expanded Query Acceptance (2026-10-25)
+
+The64px sticky-bar assertion alone is insufficient. Measure and inspect its OPEN editor too: single input must not reserve batch height, input wrapper must not inherit999px pill corners, desktop popup must have a width cap, expanded queues scroll within bounds, and search/media commands must not be duplicated. Verify1/3/20 input lines, live growth AND shrink, expanded20-task queues, both Home layouts, all five widths and both themes. Closing must preserve state and remove temporary input sizing before returning to the normal editor.
+
 ## Editor Context and Lightweight Disclosure (2026-10-25)
 
 - Home scene capture owns one word/phrase, direction and focus group above media. Standalone capture keeps optional multi-term input; do not duplicate the same lookup state.

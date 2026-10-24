@@ -66,10 +66,15 @@
     document.querySelectorAll('.scene-record>header>.scene-actions').forEach(node=>more(node,'[data-organize="pin"],[data-scene-action="feature"],[data-scene-action="edit"],[data-scene-action="remove"]'));
   }
   root.SharedUI={menu,closeMenu,command,more,enhance,enhanceSelects,selectionSession,selectionGroups};
-  let pane=null,bar=null,compact=false;
+  let pane=null,bar=null,compact=false,inputSizeKey='',inputHeightBeforePopup=null;
+  function fitHomeInput(){
+    if(!pane?.matches(':popover-open'))return;
+    const input=els.query,key=JSON.stringify([input.value,input.clientWidth]);if(inputSizeKey===key)return;inputSizeKey=key;if(inputHeightBeforePopup===null)inputHeightBeforePopup=input.style.height;
+    input.style.height='44px';input.style.height=`${Math.max(44,Math.min(136,input.scrollHeight))}px`;
+  }
   function homeDisclosure(expanded){bar?.querySelector('[data-home-query]')?.setAttribute('aria-expanded',String(expanded));const trigger=bar?.querySelector('[data-home-options]');if(trigger){trigger.setAttribute('aria-expanded',String(expanded));trigger.setAttribute('aria-label',expanded?'收起查询选项':'展开查询选项');trigger.innerHTML=icon(expanded?'chevron-up':'chevron-down')}}
-  function closeHome(focus=false){if(pane?.matches(':popover-open'))pane.hidePopover();homeDisclosure(false);if(focus)bar?.querySelector('[data-home-query]').focus({preventScroll:true})}
-  function openHome(focus=true){if(!compact)return;lookupOptionsExpanded=true;applyLookupOptionsState();if(!pane.matches(':popover-open'))pane.showPopover();homeDisclosure(true);if(focus)els.query.focus({preventScroll:true})}
+  function closeHome(focus=false){if(pane?.matches(':popover-open'))pane.hidePopover();if(pane&&inputHeightBeforePopup!==null){if(inputHeightBeforePopup)els.query.style.height=inputHeightBeforePopup;else els.query.style.removeProperty('height');inputHeightBeforePopup=null}inputSizeKey='';homeDisclosure(false);if(focus)bar?.querySelector('[data-home-query]').focus({preventScroll:true})}
+  function openHome(focus=true){if(!compact)return;lookupOptionsExpanded=true;applyLookupOptionsState();if(!pane.matches(':popover-open'))pane.showPopover();fitHomeInput();homeDisclosure(true);if(focus)els.query.focus({preventScroll:true})}
   function syncHome(){
     if(!bar)return;const next=document.body.classList.contains('home-scrolled')&&activeView==='home';
     if(next!==compact){compact=next;bar.hidden=!compact;if(compact)pane.setAttribute('popover','manual');else{closeHome();pane.removeAttribute('popover')}}
@@ -78,9 +83,10 @@
     const count=bar.querySelector('[data-home-count]'),label=[lines.length>1?`${lines.length} 条输入`:'',lookupQueue.length?`${lookupQueue.length} 条等待`:''].filter(Boolean).join(' · ');if(count.textContent!==label)count.textContent=label;count.hidden=!label;
     const b=bar.getBoundingClientRect(),v=root.visualViewport,bottom=(v?.offsetTop||0)+(v?.height||innerHeight);pane.style.setProperty('--query-panel-top',`${b.bottom+8}px`);pane.style.setProperty('--query-panel-height',`${Math.max(80,bottom-b.bottom-24)}px`);
     els.workspace.style.setProperty('--home-sticky-height',`${Math.ceil(b.height+18)}px`);
+    fitHomeInput();
   }
   document.addEventListener('DOMContentLoaded',async()=>{
-    await appReady;await cloudInitPromise;pane=document.querySelector('#view-home .editor-pane');bar=document.createElement('div');bar.id='home-compact-bar';bar.className='home-compact-bar';bar.hidden=true;
+    await appReady;await cloudInitPromise;pane=document.querySelector('#view-home .editor-pane');els.query.addEventListener('input',fitHomeInput);bar=document.createElement('div');bar.id='home-compact-bar';bar.className='home-compact-bar';bar.hidden=true;
     bar.innerHTML='<button type="button" class="compact-query-summary" data-home-query aria-label="展开查询输入与队列" aria-expanded="false"><span data-home-summary></span><small data-home-count hidden></small></button>'+command('添加场景或词条','image-plus','data-home-scene')+command('查询','search','data-home-run')+'<button type="button" class="compact-query-disclosure" data-home-options aria-label="展开查询选项" aria-expanded="false" aria-controls="home-query-panel">'+icon('chevron-down')+'</button>';pane.id='home-query-panel';pane.before(bar);
     bar.querySelector('[data-home-query]').onclick=()=>pane.matches(':popover-open')?closeHome(true):openHome();bar.querySelector('[data-home-options]').onclick=()=>pane.matches(':popover-open')?closeHome():openHome(false);bar.querySelector('[data-home-scene]').onclick=()=>document.querySelector('.query-actions [data-scene-action="open"]').click();bar.querySelector('[data-home-run]').onclick=()=>runLookup();syncHome();
   });
