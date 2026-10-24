@@ -36,7 +36,7 @@ This release implements the approved UI closure, not the remaining OCR, quotatio
 - Independent preview: https://298bcaed.ai-vocab-tool.pages.dev / https://consistency-v0391.ai-vocab-tool.pages.dev .44 static hashes, authenticated-only integration gate,390/1440 page checks and full five-width/two-theme consistency suite passed on deployed resources.
 - Production: https://ai-vocab-tool.pages.dev , immutable https://6b034d2d.ai-vocab-tool.pages.dev .44 hashes,401 gate,390/1440 views and390dark consistency suite passed after release.
 - Evidence: [mobile scene list](evidence/v0391/scenes-390-dark.png), [mixed multiselect](evidence/v0391/mixed-selection-1440-light.png), [mobile editor](evidence/v0391/editor-320-light.png), [split-layout query panel](evidence/v0391/sticky-split-1440-dark.png).
-- Screenshot-preview roll-forward pending a separate merge and acceptance; unfinished capture stays out of production.
+- Screenshot-preview roll-forward completed separately: merge `6afcd567cda2c49c475a2ebc56c8224560e75d71`, evidence docs `de44c46`. Independent https://dea72f94.ai-vocab-tool.pages.dev / https://capture-v038-preview.ai-vocab-tool.pages.dev .48 static hashes/auth gate,390/1440 views, deployed five-width/two-theme capture and390dark consistency pass; local capture/vision/consistency regressions pass. A remote connection interruption was resolved by one bounded alias retry, with no network/security changes. Unfinished capture remains absent from production. Checkout and build returned to main afterward.
 
 ## Limits and remaining ledger
 
