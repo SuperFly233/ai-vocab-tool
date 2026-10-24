@@ -17,7 +17,7 @@
   async function load(){
    summary.textContent='基础词典 · 读取中';reading.replaceChildren();
    try{const value=await request(query,'exact');if(!valid())return;summary.textContent='基础词典';
-    if(!value.items.length){summary.textContent=value.unsupported?'基础词典 · 当前语言暂无基础词库':'基础词典 · 当前基础词库未收录';const message=document.createElement('p');message.textContent='基础词库范围为英汉、日英和中英；未命中不代表其他词典没有此词。';reading.append(message);return}
+    if(!value.items.length){summary.textContent=value.partial?'基础词典 · 部分词库暂不可用':value.unsupported?'基础词典 · 当前语言暂无基础词库':'基础词典 · 当前基础词库未收录';const message=document.createElement('p');message.textContent=value.partial?'已读取来源未命中，但部分词库读取失败，暂不能确认是否收录。':'基础词库范围为英汉、日英和中英；未命中不代表其他词典没有此词。';reading.append(message);if(value.partial){const retry=document.createElement('button');retry.type='button';retry.className='plain-btn';retry.textContent='重试';retry.onclick=load;reading.append(retry)}return}
     summary.textContent='基础词典 · '+value.items[0].meaning.replace(/\s+/g,' ').slice(0,85)+(value.items[0].meaning.length>85?'…':'');
     if(value.partial){const warning=document.createElement('p');warning.textContent='部分基础词库暂不可用，当前仅显示已读取来源。';reading.append(warning)}
     for(const item of value.items){const row=document.createElement('section'),title=document.createElement('strong'),pronunciation=document.createElement('small'),meaning=document.createElement('p'),source=document.createElement('a');title.textContent=item.value;pronunciation.textContent=item.reading||'';meaning.textContent=item.meaning;source.href=item.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';source.textContent=`${item.source} · ${item.pair}${item.abridged?' · 节选':''}`;row.append(title,pronunciation,meaning,source);reading.append(row)}
