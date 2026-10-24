@@ -109,6 +109,7 @@
   function enhanceSelection(scope){
     const rootNode=document.querySelector(scope==='scenes'?'#scene-hub':'#folder-panel'),heading=rootNode?.querySelector(scope==='scenes'?'.scene-library-head':'.folder-content-head');if(!heading)return;
     if(scope==='folders'&&folderSelectionContext!==folderState.activeId){folderSelectionContext=folderState.activeId;selections.folders.clear();mode.folders=false}
+    if(scope==='folders'&&folderState.activeId===FOLDER_INSIGHTS_ID&&!folderSearchIsGlobal()){mode.folders=false;selections.folders.clear();rootNode.querySelector('[data-learning-selection="folders"]')?.remove();rootNode.querySelector('[data-selection-tools="folders"]')?.remove();heading.classList.remove('selection-header-active');return}
     const sceneIds=new Set(SceneUI.sceneGroups().map(row=>row.scene.groupId)),entryIds=new Set(getHistory().map(item=>String(item.id)));
     for(const value of selections[scope]){const target=targetFromKey(value);if(!(target.type==='scene'?sceneIds:entryIds).has(target.id))selections[scope].delete(value)}
     let bar=rootNode.querySelector(`[data-learning-selection="${scope}"]`);if(!bar){bar=document.createElement('div');bar.className='learning-selection-bar';bar.dataset.learningSelection=scope;(heading.querySelector(':scope>.folder-head-actions,:scope>.scene-actions')||heading).append(bar)}

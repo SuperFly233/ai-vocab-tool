@@ -9,11 +9,13 @@ Reference generated first, inspected, then implemented as real components: [desi
 | Area | Result |
 | --- | --- |
 | Header | History, mixed favorites and scenes show only `已选 N 条` and text `取消` while selecting. Ordinary header actions hide; cancel remains distinct from clearing selections. |
-| Selection controls | Above-list compact bar, native all-checkbox, partial state and explicit clear. All covers current filtered data, including unloaded pages. |
+| Selection controls | Above-list compact bar, native all-checkbox, partial state and explicit clear. All adds/removes current filtered data, including unloaded pages; outside-filter choices stay selected. Only clear clears every selection. |
 | Selected actions | Separate operation group/divider, context-specific folder/unfavorite/remove commands, vertical more menu for export and history deletion. Existing destructive confirmation and guarded Undo retained. |
 | Typography | Shared neutral13px/500 count and consistent cancel; no blue filled exit-circle or different scene/folder wording. Content remains left aligned. |
 | Export bug | Mixed favorites previously exported current list from its selection menu. Now selected-only entry/scene JSON uses current selected identities, retaining choices outside current filter; scene selection exports only chosen groups. Whole-list export remains separate outside selection. |
 | Compatibility | Existing folder metadata, account safety, paging, search, queue, timestamps, original media and Anki functions unchanged. No automatic merging of private duplicate records. |
+
+Fragment-only favorites keep their existing individual actions; a previously displayed unsupported bulk entry is removed rather than exposing zero selectable rows. Mobile favorites also replaces the old forced second-row action placement: count/cancel stay beside the heading, long folder titles ellipsize.
 
 ## Evidence
 
