@@ -1,6 +1,6 @@
 # v0.40 Scene Editor Candidate
 
-Status: implementation and verification in progress, not released.
+Status: released2026-10-25; evidence in docs/reports/v0400-scene-editor.md.
 
 ## Design First
 

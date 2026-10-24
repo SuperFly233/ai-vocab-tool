@@ -1,12 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
 
-- v0.40.0 CANDIDATE: scene editor context/order, selection-only highlights, shared themed single selects, configured text-only short titles with local fallback and draft guards, and home folder/disclosure semantics. Not released. Design docs/design/scene-editor-v040-reference.png; plan docs/plans/2026-10-24-scene-editor-v040.md. Screenshot/Teyvat/media backlog and inflict query/title identity remain pending. No real paid model/native software operations this iteration.
+- v0.40.0 RELEASED: code35ab4d1f488137ebaac9ad9d7fbb9ce8d2e5c6c4 (implementation0a6f368, final CSS5c2cb31). Preview https://b1882709.ai-vocab-tool.pages.dev (prior full matrix a45f9063), production https://615ebef2.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev. Both44 resource hashes/auth passed; preview five widths/two themes, production390dark/1440light new interactions passed. Scene editor context/order, selection-only highlights, shared themed single selects, configured text-only short titles/local fallback and guarded cancellation, home folder/disclosure semantics. Design docs/design/scene-editor-v040-reference.png; report docs/reports/v0400-scene-editor.md. Screenshot/Teyvat/media backlog and inflict identity remain pending. No paid model/native software operations; physical iPhone untested. Screenshot-branch roll-forward pending below.
 
 - v0.39.3 released: source e76487537f2c9fea5b49909747de682b976da083, preview https://cda0c847.ai-vocab-tool.pages.dev (44 hashes/auth, five-width two-theme selection), production https://eb5408ed.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev (44 hashes/auth,390/1440 views,390dark/1440light selection). Design-first two-level selection: header count/cancel only, above-list grouped controls/operations. Shared counts/type/color, paged all/partial/clear, retained off-filter identities, selected-only exports. Old organization/Undo, learning UI, consistency, motion and data contracts pass. Screenshot merge ba90634/docs67cc809 verified seven changed hashes/deployed390dark selection at https://70d72f75.ai-vocab-tool.pages.dev; local five-width/two-theme capture passed. Renderer exited once, isolated retry passed; no blue screen/native operation observed. Main checkout/build restored. Report docs/reports/v0393-selection.md. Inflict query/title mismatch remains separately investigated, not fixed or privately merged by this UI release.
 

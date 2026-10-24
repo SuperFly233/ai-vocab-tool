@@ -1,6 +1,6 @@
 # v0.40.0 Scene Editor and Home Controls
 
-Status: local verification passed; preview/production acceptance pending.
+Status: released2026-10-25; production verification passed.
 
 ## Implemented Scope
 
@@ -32,4 +32,9 @@ No paid text/vision calls, private records or native Anki/Fushi changes in this 
 
 ## Release
 
-Commit, preview URL, production URL and resource verification will be appended only after actual acceptance. Screenshot preview remains separate from production.
+- Implementation0a6f3686c5a47c0cbbdf56225c3c4e423b7a2e10; final production source35ab4d1f488137ebaac9ad9d7fbb9ce8d2e5c6c4 (last test-only commit after final CSS5c2cb31).
+- Preview https://a45f9063.ai-vocab-tool.pages.dev passed44 hashes/auth and complete new five-width/two-theme matrix. Final one-file CSS update preview https://b1882709.ai-vocab-tool.pages.dev passed44 hashes/auth and390dark full interactions, including actual scene dropdown selection.
+- Production https://615ebef2.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev:44 hashes match final dist; unauthenticated sync401;390dark/1440light editor, selection, mocked title/failure/cancel, dropdown, folder icon and64px sticky tests passed.
+- Extra reading workspace, folder boundaries and full authoring-polish regressions passed after updating old hidden-button tests to real menus. No application behavior was bypassed to make these tests pass.
+- Representative synthetic screenshots: [mobile editor](v0400/editor-mobile.png), [desktop editor](v0400/editor-desktop.png), [mobile dropdown](v0400/dropdown-mobile.png), [home](v0400/home-mobile.png).
+- Screenshot-preview roll-forward remains separately verified and will be recorded below; its unfinished capabilities are not part of production.
