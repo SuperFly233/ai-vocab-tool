@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.37.0",
+  "version": "0.37.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:scene-navigation": "node scripts/check-scene-navigation-hotfix.cjs",
     "check:diagnostic-storage": "node --check diagnostic-store.js && node scripts/check-diagnostic-storage.cjs",
     "check:provider-errors": "node --check provider-client.js && node scripts/check-upstream-errors.js",
     "check:provider-client": "node scripts/check-provider-client.cjs",

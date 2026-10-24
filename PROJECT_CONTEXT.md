@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.37.1 hotfix: stream collocations were parsed with translation but the temporary renderer omitted its row; restored. Mobile scene-back now start-aligned. Pending scene tasks navigate to current home progress/queue without new API calls; scene titles inside entries open their exact group through draft-safe modal dismissal. Five widths/two themes and real gated HTTP translation pass; publication verification pending. Preserve screenshot branch feat/capture-intake-preview (latest07ba5d6, local; remote may still fef3d5f due approval timeout) and independent preview alias. Do not merge unfinished screenshot features into this release.
 
 - v0.37.0 RELEASED: code07a1516ff689dfeeb75985ef1487eef08f2c6cc6, production https://94a97c8b.ai-vocab-tool.pages.dev; all36 static hashes, authenticated v4 health and isolated390/1440 navigation passed. Bridge0.4 final-byte portable ZIP passed actual dedicated-deck acceptance; release https://github.com/SuperFly233/ai-vocab-tool/releases/tag/v0.37.0, SHA2560257c69323d08cd0c0f35aa027567fae599fec07fbd7a4ac5447a7d7c1d6ebee matches remote. Native tray appearance remains unverified. User confirmed Mac Edge direct requests recovered on2026-10-23; cause not established. The candidate notes below are historical. Continue approved screenshot intake/vision/source/media work, not another full-site redesign.
 

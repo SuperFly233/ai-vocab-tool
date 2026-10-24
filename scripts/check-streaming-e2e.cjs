@@ -4,7 +4,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
 const staticServer=require('./browser-test-server.cjs').createServer();
 const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const close=server=>new Promise(resolve=>server.close(resolve));
-const result={meta:{query:'clock',language:'en'},headword:{title:'clock',coreMeaning:'注意到'},senses:[],collocations:[],register:{},confusions:[]};
+const result={meta:{query:'clock',language:'en'},headword:{title:'clock',coreMeaning:'注意到'},senses:[],collocations:[{phrase:'clock in',meaning:'打卡',example:'Please clock in.',translation:'请打卡。'}],register:{},confusions:[]};
 let release,ended=false,buffered=false;
 const upstream=http.createServer(async(req,res)=>{
  let input='';for await(const chunk of req)input+=chunk;
@@ -17,11 +17,11 @@ const upstream=http.createServer(async(req,res)=>{
  send({reasoning_content:'private thinking must not appear in the answer'});
  const lookup=payload.max_tokens===9000;
  if(lookup)assert.equal(payload.response_format,undefined,'Streaming must not activate gateway JSON buffering');
- send({content:lookup?'\u007b"headword":{"title":"clock","coreMeaning":"注意到"}':'First real network chunk'});
+ send({content:lookup?'\u007b"headword":{"title":"clock","coreMeaning":"注意到"},"collocations":[{"phrase":"clock in","meaning":"打卡","example":"Please clock in.","translation":"请打':'First real network chunk'});
  await new Promise(resolve=>{release=resolve});
  ended=true;
  // End without a frame delimiter to exercise the actual server parser.
- res.end(`data: ${JSON.stringify({choices:[{delta:{content:lookup?',"senses":[],"collocations":[],"register":{},"confusions":[],"meta":{"query":"clock","language":"en"}}':' and final chunk'}}]})}`);
+ res.end(`data: ${JSON.stringify({choices:[{delta:{content:lookup?'卡。"}],"senses":[],"register":{},"confusions":[],"meta":{"query":"clock","language":"en"}}':' and final chunk'}}]})}`);
 });
 (async()=>{
  let browser,appServer;
@@ -54,6 +54,7 @@ const upstream=http.createServer(async(req,res)=>{
    ended=false;release=null;
    await page.evaluate(()=>{window.__job=performLookup({query:'clock'})});
    await page.waitForFunction(()=>document.querySelector('#result-card .entry-core')?.textContent.includes('注意到'));
+   await page.waitForFunction(()=>[...document.querySelectorAll('#result-card .stream-block')].find(block=>block.querySelector('.block-title')?.textContent.includes('固定搭配'))?.textContent.includes('请打'));
    assert.equal(ended,false,'Visible lookup text must arrive before the upstream is allowed to complete');
    assert.equal(typeof release,'function');
    assert.equal(await page.evaluate(()=>getHistory().length),0);

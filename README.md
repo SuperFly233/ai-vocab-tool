@@ -4,6 +4,8 @@
 
 ## 最新进展
 
+- v0.37.1 修复流式搭配译文、手机场景返回对齐；补齐查询进度跳转和词条／场景双向导航，遵守编辑确认与撤销。截图学习保持独立预览，不混入本次正式修复。
+
 - v0.37.0 已发布：完整当前版本制卡、独立 Lexi Learning v3、网页确认及 Bridge 0.4。实际便携包通过专用牌库、重发跳过、更新撤销与重启验收；[下载 Windows 便携包](https://github.com/SuperFly233/ai-vocab-tool/releases/tag/v0.37.0)。生产36份资源哈希一致，真实托盘菜单外观、实体 iPhone 和 Anki 自身同步仍未验证。截图学习进展见 docs/plans/2026-10-23-learning-release-ledger.md。
 
 - v0.36.3 修复旧拦截日志挤满本地存储：完整日志迁至 IndexedDB，读回校验后才释放旧副本，历史和场景不删除；日志可完整导出。Chromium/WebKit 均通过真实容量、迁移失败回退、刷新及多页回归。大历史库整体仍在 localStorage，不能宣称无限扩容。见 docs/reports/v0363-diagnostic-storage.md。
