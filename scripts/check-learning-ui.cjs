@@ -1,4 +1,5 @@
 const assert=require('node:assert/strict');
+const {clickCommand}=require('./browser-command.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
@@ -26,6 +27,7 @@ const server=require('./browser-test-server.cjs').createServer();
       await page.goto(`http://127.0.0.1:${server.address().port}`);
       await page.waitForFunction(()=>typeof renderResult==='function');
       const click=async locator=>{
+        if(!await locator.isVisible())return clickCommand(page,locator);
         await locator.evaluate(node=>node.scrollIntoView({block:'center',behavior:'instant'}));
         await page.waitForTimeout(260);
         try{
@@ -197,8 +199,9 @@ const server=require('./browser-test-server.cjs').createServer();
       assert.ok((await page.locator('#toast-stack').textContent()).includes('JSON 错误'),'Invalid JSON prevents draft export');
       await page.locator('#modal-json-edit').fill(JSON.stringify(draft));
       await click(page.locator('#modal-visual-tab'));
-      await click(page.locator('[data-visual-kind="senses"] .drag-handle').first());
-      await click(page.locator('[data-visual-kind="senses"] .drag-handle').nth(1));
+      // Exercise the documented keyboard pick/place fallback, not a non-drag pointer tap.
+      await page.locator('[data-visual-kind="senses"] .drag-handle').first().press('Enter');
+      await page.locator('[data-visual-kind="senses"] .drag-handle').nth(1).press('Enter');
       assert.equal(await page.evaluate(()=>collectVisualResult().senses[0].shortestLabel),'计时','Visual reorder changes the collected data');
       await click(page.locator('#modal-visual-page button:has-text("保存可视化修改")'));
       await page.evaluate(()=>closeHistoryModal());
@@ -212,8 +215,8 @@ const server=require('./browser-test-server.cjs').createServer();
         showView('settings');
       });
       await click(page.locator('#api-profile-menu-toggle'));
-      await click(page.locator('[data-profile-id="profile_a"] .api-profile-drag'));
-      await click(page.locator('[data-profile-id="profile_b"] .api-profile-drag'));
+      await page.locator('[data-profile-id="profile_a"] .api-profile-drag').press('Enter');
+      await page.locator('[data-profile-id="profile_b"] .api-profile-drag').press('Enter');
       assert.deepEqual(await page.evaluate(()=>getSettings().apiProfileOrder),['profile_b','profile_a'],'Model configuration order persists');
       await page.reload();
       await page.waitForFunction(()=>typeof getSettings==='function');

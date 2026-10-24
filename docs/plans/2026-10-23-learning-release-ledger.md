@@ -2,7 +2,24 @@
 
 Approved scope: full-content cards and screenshot learning, 6 reliability / 6 refinements / 6 additions. Status below is evidence, not a completion claim.
 
-2026-10-24: production v0.37.1 delivers the four separately requested stream/navigation fixes (docs/reports/v0371-navigation.md). Common fixes also merged into the independent intake branch. This does not complete the pending source/index/media milestones below.
+## Reconciled status, 2026-10-24
+
+The older per-item entries below are historical checkpoints, not the latest screenshot implementation status. Source of truth for the independent preview is `feat/capture-intake-preview:docs/reports/v038-intake-preview.md` (source70ce777, docs9b0ebf5), URL https://capture-v038-preview.ai-vocab-tool.pages.dev . Production is now v0.39.1; screenshot intake remains separate and its common-fix roll-forward is being verified separately.
+
+| Workstream | Verified status | Remaining delivery |
+| --- | --- | --- |
+| Full AI cards / Bridge0.4 | Released; dedicated-deck/portable acceptance recorded | Physical iPhone, native tray popup appearance, actual Anki cloud sync unverified |
+| Selected screenshots | Preview with original-byte storage, review, guarded drafts and manual save/query; synthetic UI/vision tests | Real provider image acceptance and production release |
+| Vision configuration | Preview validates an explicitly selected profile using an image challenge | Synced default/manual mode settings |
+| Sources | Existing exact names can be reused | Canonical IDs/aliases, ambiguity review, no silent fuzzy merge |
+| Teyvat quotations | Read-only source/interface investigation; rechecked local0.10.2/9145b2a on2026-10-24 | Incremental bilingual index, coverage, exact/ambiguous evidence and source links; not connected |
+| Automatic learning | Structured manual review available in preview | Evidence-qualified automatic save/query; never automatic Anki approval |
+| Media editing | Not delivered | Image crop/resize, animated GIF crop/trim, video crop/trim/resize with audio, bounded processing/fallback |
+| AI crop assistance | Not delivered | Suggested boxes, user confirmation and deterministic recoverable derivatives |
+| Storage | Diagnostic logs migrated losslessly | History/settings IndexedDB migration; physical phone acceptance |
+| Current scene/entry iteration | Stage A v0.37.2, organization/quick-learning v0.39.0 and consistency closure v0.39.1 released;44 hashes and live acceptance | Previous O3 more-menu consolidation now implemented and version/row/editor regressions pass. Screenshot branch merge/retest still pending; report ../reports/v0391-consistency.md |
+
+Do not silently drop any row when delivering a newer UI iteration. No scheduled promise or automatic next release is implied; unfinished work must remain visible.
 
 ## Release order
 

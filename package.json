@@ -1,11 +1,13 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.37.1",
+  "version": "0.39.1",
   "private": true,
   "type": "module",
   "scripts": {
     "check:capture": "node --check capture-ui.js && node --check vision-client.js && node scripts/check-capture-data.cjs",
     "check:capture-ui": "node scripts/check-capture-ui.cjs && node scripts/check-capture-vision.cjs",
+    "check:workbench-release": "node scripts/check-workbench-release.cjs",
+    "check:organization-data": "node scripts/check-organization-data.js",
     "check:scene-navigation": "node scripts/check-scene-navigation-hotfix.cjs",
     "check:diagnostic-storage": "node --check diagnostic-store.js && node scripts/check-diagnostic-storage.cjs",
     "check:provider-errors": "node --check provider-client.js && node scripts/check-upstream-errors.js",

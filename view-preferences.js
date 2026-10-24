@@ -1,7 +1,7 @@
 (function(root){
  const scopeKeys=['word','meaning','example','collocation','confusion','other'];
  const filterKeys=['entryType','language','direction','pos','style','folder','time'];
- const defaults={history:{sort:'updated',sortDir:'desc',filtersOpen:false,searchScopes:scopeKeys,filters:Object.fromEntries(filterKeys.map(key=>[key,[]]))},folders:{sort:'updated',searchScope:'all'},scenes:{source:'',media:'',study:'',sort:'updated',group:'flat'}};
+ const defaults={history:{sort:'updated',sortDir:'desc',filtersOpen:false,searchScopes:scopeKeys,filters:Object.fromEntries(filterKeys.map(key=>[key,[]]))},folders:{sort:'updated',searchScope:'all',contentType:'all'},scenes:{source:'',media:'',study:'',sort:'updated',group:'flat',favorite:''}};
  const choice=(value,allowed,fallback)=>allowed.includes(value)?value:fallback;
  const strings=value=>Array.isArray(value)?[...new Set(value.filter(item=>typeof item==='string'&&item.length<=400))].sort().slice(0,40):[];
  function normalize(page,value={}){
@@ -9,8 +9,8 @@
    const scopes=strings(value.searchScopes).filter(key=>scopeKeys.includes(key));
    return {sort:choice(value.sort,['updated','created','text','language','rolls','followups'],'updated'),sortDir:choice(value.sortDir,['asc','desc'],'desc'),filtersOpen:value.filtersOpen===true,searchScopes:scopes.length?scopes:[...scopeKeys],filters:Object.fromEntries(filterKeys.map(key=>[key,strings(value.filters?.[key])]))};
   }
-  if(page==='folders')return {sort:choice(value.sort,['updated','created','title'],'updated'),searchScope:choice(value.searchScope,['all','current'],'all')};
-  if(page==='scenes')return {source:typeof value.source==='string'?value.source.slice(0,400):'',media:choice(value.media,['','image/','video/','text'],''),study:choice(value.study,['','new','review','mastered'],''),sort:choice(value.sort,['updated','created'],'updated'),group:choice(value.group,['flat','source'],'flat')};
+  if(page==='folders')return {sort:choice(value.sort,['updated','created','title'],'updated'),searchScope:choice(value.searchScope,['all','current'],'all'),contentType:choice(value.contentType,['all','entry','scene'],'all')};
+  if(page==='scenes')return {source:typeof value.source==='string'?value.source.slice(0,400):'',media:choice(value.media,['','image/','video/','text'],''),study:choice(value.study,['','new','review','mastered'],''),sort:choice(value.sort,['updated','created'],'updated'),group:choice(value.group,['flat','source'],'flat'),favorite:choice(value.favorite,['','favorite','pinned'],'')};
   return null;
  }
  function records(raw){

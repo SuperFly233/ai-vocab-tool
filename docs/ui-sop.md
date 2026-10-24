@@ -1,5 +1,14 @@
 # UI SOP / Persistent User Preferences
 
+## Unified Commands and Compact Lists (2026-10-24)
+
+- Selection lives in the header action track, never in a dedicated mostly-empty band. Use one shared icon pattern; preserve readable counts, accessible names and menu labels. Context decides which commands exist: personal-favorite removal is unfavorite, not a second duplicate action.
+- Collection entry is one folder picker with personal favorites first. Do not place independent favorite and folder commands beside each other. Preserve existing per-object data and guarded Undo.
+- Selection has explicit checkbox/content/action tracks. In selection mode, hide per-row actions. Cover mixed real-length text and checkbox alignment, not only root overflow. Clear missing identities and exit old selection when switching folder contexts.
+- Scene rows use56px thumbnails, title, one summary and one metadata line. Do not repeat favorite/pin state as both text and graphics. Dates in the current local year omit year; compact lists use a date, details use minute precision, full timestamps remain accessible and serialized timestamps stay unchanged.
+- Sticky home uses a64px summary bar. Original query controls and queue stay in one independently bounded panel, never stretch the capsule. Test top/split layout,1/3/20 queries and queues, scroll/resize and viewport keyboards. Results cannot fall into the vacated editor grid track.
+- Shared menus reposition on relevant scroll/resize, support arrows/Home/End/Tab/Escape and affect only the topmost layer. A stale menu must not act on detached controls or another account. Scene save footer has one primary action and an actual overflow menu; no exposed native disclosure triangle.
+
 ## Storage Failure Recovery
 
 2026-10-23: quota after a prior fix requires measuring storage categories, not repeatedly asking the user to clear data. Distinguish learning records from oversized diagnostics; never place HTML block pages or base64 in ordinary error UI. Migrate a legacy copy only after its destination transaction completes and exact read-back verifies it; failure must retain the original. Await asynchronous diagnostic writes before reporting cloud completion. Retain complete export even when the UI shows a bounded preview. Test real quota behavior in both Chromium and desktop WebKit, but keep physical iPhone unverified until tested. Moving logs alone is not a full history/settings migration or unlimited storage.
@@ -67,3 +76,14 @@ Portable releases require a bounded isolated runtime self-test and a manifest of
 Card review keeps the confirmation area visible independently of its scrolling content. Show only changed owned fields, readable before/after text and explicit excerpt truncation. Validate every card's dictionary and media before batch approval, including cards not currently displayed. Card audio verification must not accidentally inherit image/video-only authoring restrictions.
 
 External-source pickers keep routine outcomes and guarded undo inside the active window; after closure, renew the actionable toast instead of covering phone close controls. Persist request identities and selected IDs in account-scoped session state, not raw source bodies or shared searches. Discard undo must compare the later session revision as well as the account. Empty real source lists are valid evidence for empty-state handling, never proof of a real nonempty import; do not fabricate external records to complete acceptance.
+# Shared learning interaction contract (2026-10-24)
+
+- Small create/rename actions use inline editable rows in the current list, not window.prompt. Enter saves single-line names, Escape uses the shared unchanged/dirty discard rules, failed saves retain the input. Restore discarded drafts only after account/object checks. Deleting a folder removes classification, not learning contents.
+- Scene and entry review states are independent. No blanket mastery for an unassociated scene. Local suggestion selection fills text only; model calls require explicit query. Personal history stays local until existing account synchronization, never goes to a suggestion service.
+- Keep the screenshot/source-index/media-editing backlog visible separately from each UI release. A source investigation, mock response or independent preview is never a claim of production integration.
+
+- Whole-row navigation: title, summary and blank surface open the same target. Secondary controls remain independent. Selection, pointer movement and cancelled touch gestures never open a row. Use a real keyboard-accessible title link; hover changes title color/underline, not outer geometry.
+- Header ownership: compact home replaces navigation. Hidden headers never contribute mask geometry; page entry animations must not retain a stacking context trapping fixed search controls.
+- Organization: scenes and entries share folders but never implicitly share favorite or learning state. Scene featured placement is not a global pin.
+- Multiline Enter remains newline; IME confirmation is never submit. Explicit queries alone call the API.
+

@@ -3,7 +3,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
 const base=process.env.QA_ORIGIN||'https://ai-vocab-tool.pages.dev',version=process.env.QA_VERSION||'0.35.1',capture=process.env.QA_SCREENSHOTS||'tmp/dialog-qa/v035-production',sha=value=>createHash('sha256').update(value).digest('hex');
 (async()=>{let browser;try{
  const files=fs.readdirSync('dist',{recursive:true}).filter(file=>fs.statSync(path.join('dist',file)).isFile());
- for(const file of files){const response=await fetch(`${base}/${file.replaceAll('\\','/')}`,{signal:AbortSignal.timeout(20000)});assert.equal(response.status,200,file);assert.equal(sha(Buffer.from(await response.arrayBuffer())),sha(fs.readFileSync(path.join('dist',file))),`${file} deployed hash`)}
+ for(const file of files){
+  console.log(`Checking deployed resource: ${file}`);
+  try{const response=await fetch(`${base}/${file.replaceAll('\\','/')}`,{signal:AbortSignal.timeout(20000)});assert.equal(response.status,200,file);assert.equal(sha(Buffer.from(await response.arrayBuffer())),sha(fs.readFileSync(path.join('dist',file))),`${file} deployed hash`)}catch(error){throw new Error(`Deployed resource ${file}: ${error.message}`,{cause:error})}
+ }
  const enabled=process.env.QA_PRODUCTION_ENABLED==='1';
  const gate=await fetch(`${base}/api/anki-jobs`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'health'}),signal:AbortSignal.timeout(20000)});assert.equal(gate.status,enabled?401:503);if(!enabled)assert.equal((await gate.json()).enabled,false);
  console.log(`Production static verification: ${files.length} hashes match; external gate ${enabled?'requires authentication':'closed'}.`);
