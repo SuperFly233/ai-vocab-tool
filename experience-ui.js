@@ -71,7 +71,7 @@
     reading.insertAdjacentHTML('beforeend',row('浏览目录','首页结果与词条详情共用此位置；左侧目录在手机上改为顶部。',`<div class="seg" data-preference="readingNav">${[['top','顶部'],['left','左侧'],['off','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
     reading.insertAdjacentHTML('beforeend',row('记住各页筛选与排序','历史、收藏、场景分别保存，刷新及云同步后恢复；不保存临时搜索文字。关闭后恢复默认。','<label class="capsule-switch"><input id="remember-view-filters" type="checkbox" role="switch" onchange="setRememberViewFilters(this.checked)"><span>记住</span></label>'));
     document.getElementById('remember-view-filters').checked=getSettings().rememberViewFilters!==false;
-    reading.insertAdjacentHTML('beforeend',row('输入联想','已有词条优先；英语补全和拼写候选在本机匹配，不发送输入内容。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="wordSuggestions" aria-label="输入联想"><span>开启</span></label>')+row('快捷保存','原句等多行输入保留 Enter 换行；场景编辑 Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入。','<span class="setting-shortcut">Ctrl / Cmd + Enter</span>'));
+    reading.insertAdjacentHTML('beforeend',row('输入联想','个人词条优先，支持英语及中日基础词库；仅下载本站词库分片，不向第三方发送查询文字。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="wordSuggestions" aria-label="输入联想"><span>开启</span></label>')+row('基础词典','候选显示可用词义，阅读区保留独立词典参考；不修改 AI 正文或本机词典快照。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="basicDictionary" aria-label="基础词典"><span>开启</span></label>')+row('快捷保存','原句等多行输入保留 Enter 换行；场景编辑 Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入。','<span class="setting-shortcut">Ctrl / Cmd + Enter</span>'));
     media.insertAdjacentHTML('beforeend',row('视频自动播放','尝试有声播放；浏览器限制时静音，并保留声音开关。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaAutoplay" aria-label="视频自动播放"><span>开启</span></label>')+row('视频播放控件','显示浏览器提供的进度、音量和全屏控件。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaControls" aria-label="视频原生控件"><span>显示</span></label>')+row('素材操作工具','设置放大、保存等操作的显示方式；不影响声音开关。',`<div class="seg" data-preference="mediaTools">${[['auto','自动'],['always','常显'],['hidden','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
     const nav=document.querySelector('.settings-nav');
     const categories=[
@@ -146,6 +146,7 @@
     return entries;
   }
   function enhance(container){
+    root.BasicDictionary?.install(container);
     if(!container?.querySelector('.entry-head')||container.querySelector('.lookup-stream')||document.body.classList.contains('lookup-busy'))return;
     let layout=container.querySelector(':scope>.reading-layout');
     if(!layout){
@@ -199,7 +200,7 @@
     document.documentElement.style.setProperty('--app-top',`${Math.max(headerBottom,visibleBottom(query))}px`);
   }
   function refresh(){
-    scheduled=false;enhanceSearch();enhanceBrowseTools();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
+    scheduled=false;enhanceSearch();enhanceBrowseTools();root.InputSuggestions?.refreshBaskets();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
     for(const summary of document.querySelectorAll('.scene-library>summary,.scene-more-media>summary'))if(!summary.querySelector('svg'))summary.insertAdjacentHTML('afterbegin',icon('chevron-down'));
     for(const card of document.querySelectorAll('.scene-illustrated'))if(ratios.has(card.dataset.sceneId))card.style.setProperty('--scene-media-width',`${ratios.get(card.dataset.sceneId)}%`);
     root.SceneOrganization?.enhance();root.SharedUI?.enhance();

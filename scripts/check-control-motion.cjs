@@ -24,7 +24,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
    document.body.append(host);
   });
   for(const id of ['plain','danger','icon','tab','seg','roll']){await stable(page.locator('#probe-'+id),id);await stable(page.locator('#probe-'+id),id+' keyboard focus',true)}await stable(page.locator('#probe-input'),'focused input',true);
-  await page.locator('#probe-icon').evaluate(n=>{n.classList.add('dragging');n.style.transform='translateX(14px)'});await page.locator('#probe-icon').hover();assert.equal(await page.locator('#probe-icon').evaluate(n=>Math.round(new DOMMatrixReadOnly(getComputedStyle(n).transform).m41)),14,'Hover must not override intentional drag transforms');
+  await page.locator('#probe-icon').evaluate(n=>{n.classList.add('dragging');n.style.transform='translateX(14px)'});await page.locator('#probe-icon').hover();await page.waitForFunction(()=>Math.round(new DOMMatrixReadOnly(getComputedStyle(document.getElementById('probe-icon')).transform).m41)===14);assert.equal(await page.locator('#probe-icon').evaluate(n=>Math.round(new DOMMatrixReadOnly(getComputedStyle(n).transform).m41)),14,'Hover must not override intentional drag transforms');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);console.log(`${width}px ${theme}: CSSOM motion contract, media choices, clipped control families, focus and preserved drag transform passed`);await context.close();
  }
 }finally{await browser?.close();await new Promise(r=>server.close(r))}})().catch(e=>{console.error(e);process.exitCode=1});

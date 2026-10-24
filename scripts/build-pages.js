@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, rm, writeFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 const root = process.cwd();
@@ -43,6 +43,8 @@ const files = [
   'input-suggestions.js',
   'suggestion-worker.js',
   'dictionary-ui.js',
+  'basic-dictionary.js',
+  'basic-dictionary-worker.js',
   'request-ui.js',
   'styles.css',
   'favicon.svg',
@@ -65,5 +67,7 @@ for (const file of files) {
 const retiredLucideTarget=join(dist,'vendor','lucide.min.js');
 await mkdir(dirname(retiredLucideTarget),{recursive:true});
 await writeFile(retiredLucideTarget,'/* Retired: project icons are generated in /icons.js. */\n','utf8');
+await mkdir(join(dist,'vendor/basic-dictionaries'),{recursive:true});
+for(const file of await readdir(join(root,'vendor/basic-dictionaries')))await copyFile(join(root,'vendor/basic-dictionaries',file),join(dist,'vendor/basic-dictionaries',file));
 
 console.log(`Cloudflare Pages static output written to ${dist}`);

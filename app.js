@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.40.1',
+  version:'0.41.0',
   releaseDate:'2026-10-25',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.41.0',date:'2026-10-25',title:'多语言联想与基础词典',items:['联想按光标所在行补全，保留前后词组；多行待查词显示可移除标签，不自动查询。','新增英语英汉、日语常用词日英、中文中英基础词库，个人词条优先，可用词义在候选中显示。','基础词典独立于 AI 和电脑词典，AI 失败时仍显示可用词义；默认开启，可在阅读设置关闭。词库按需分片校验加载。']},
   {version:'0.40.1',date:'2026-10-25',title:'修正吸顶后的展开面板',items:['展开区不再占满桌面宽度，单行输入按实际内容增高；清除继承的巨大胶囊圆角。','展开队列内部滚动，搜索和添加场景只保留吸顶条一套；关闭不会丢失输入或任务。']},
   {version:'0.40.0',date:'2026-10-25',title:'场景编辑与查询入口整理',items:['首页查词条件移入场景编辑顶部，独立场景保留可选多词输入；媒体整块添加，双语高亮与正文相邻。','空白标题复用配置的文字模型；无可用配置时采用本地短标题，失败保留草稿，不发送图片。','单选筛选统一使用自绘下拉，保留原有筛选与设置；划词后才出现加入高亮操作。','首页收藏夹增加文件夹图标，查询折叠改为边缘箭头，不再与搜索等重。']},
   {version:'0.39.3',date:'2026-10-24',title:'多选状态与操作分层',items:['历史、收藏和场景右上角统一为已选数量与取消；控制选择和操作所选内容在列表上方分组显示。','全选支持当前筛选范围及未加载分页，显示部分选中；清空选择独立于退出，低频操作收进竖排更多菜单。','收藏和场景导出所选仅包含实际勾选项，保留跨筛选选择，不再把当前列表全部导出。']},
@@ -1875,6 +1876,7 @@ function normalizeSettings(raw={}){
     tooltipsHidden,
     rememberViewFilters:normalizeBooleanSetting(source.rememberViewFilters,true),
     wordSuggestions:normalizeBooleanSetting(source.wordSuggestions,true),
+    basicDictionary:normalizeBooleanSetting(source.basicDictionary,true),
     viewPreferences:ViewPreferences.records(source.viewPreferences),
     readingNav:['top','left','off'].includes(source.readingNav)?source.readingNav:'top',
     mediaAutoplay:source.mediaAutoplay===true,
@@ -2039,6 +2041,7 @@ function mergeSettings(localRaw,remoteRaw){
     tooltipsHidden:preferLocalSettings?local.tooltipsHidden:remote.tooltipsHidden,
     rememberViewFilters:preferLocalSettings?local.rememberViewFilters:remote.rememberViewFilters,
     wordSuggestions:preferLocalSettings?local.wordSuggestions:remote.wordSuggestions,
+    basicDictionary:preferLocalSettings?local.basicDictionary:remote.basicDictionary,
     viewPreferences:ViewPreferences.merge(local.viewPreferences,remote.viewPreferences),
     readingNav:preferLocalSettings?local.readingNav:remote.readingNav,
     mediaAutoplay:preferLocalSettings?local.mediaAutoplay:remote.mediaAutoplay,
@@ -3151,7 +3154,7 @@ function renderLookupError(query,error,stage='查询失败'){
   clearJSONTypewriter();
   const message=lookupErrorMessage(error);
   els.resultCard.innerHTML=`
-    <div class="lookup-state lookup-error">
+    <div class="lookup-state lookup-error" data-lookup-query="${escapeHTML(query)}">
       <div class="lookup-error-mark">!</div>
       <div>
         <div class="lookup-title">${escapeHTML(stage)}：${escapeHTML(query)}</div>
@@ -4007,7 +4010,7 @@ async function readFollowupStream(response,onDelta,onStatus=null){
 }
 async function modelRequest(endpoint,payload,{signal}={}){
   if(/^https:\/\/ai\.hybgzs\.com(?::443)?\//i.test(String(payload.apiUrl||''))){
-    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.40.1');
+    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.41.0');
     if(client.canDirect(payload)){if(endpoint==='analyze')globalThis.RequestUI?.route?.('browser');return client.request(endpoint,payload,{signal})}
     throw new Error('黑与白直连地址需使用 https://ai.hybgzs.com/v1/chat/completions，并填写自己的 API Key；未改走云端。');
   }
@@ -8868,6 +8871,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)stopSpeech(
 els.query?.addEventListener('input',handleQueryInput);
 document.querySelector('#view-home .editor-pane')?.addEventListener('click',focusHomeQueryFromSticky);
 els.query?.addEventListener('keydown',event=>{
+  if(event.isComposing||event.keyCode===229)return;
   if(event.key==='Enter'&&!event.shiftKey){
     event.preventDefault();
     runLookup();
