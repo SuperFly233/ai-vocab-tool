@@ -26,6 +26,9 @@ Fragment-only favorites keep their existing individual actions; a previously dis
 
 ## Release
 
-Pending deployed preview and production checks. Commit, resource hashes and URLs will be added after verification.
+- Source commits `34600d0` (shared UI), `c20d4b0` (off-filter selection) and final `e76487537f2c9fea5b49909747de682b976da083` (unsupported fragment guard), pushed to main.
+- Final independent preview https://cda0c847.ai-vocab-tool.pages.dev / https://selection-v0393.ai-vocab-tool.pages.dev:44 resources match local hashes, authentication gate401,390/1440 page checks and five-width/two-theme selection suite pass.
+- Production https://ai-vocab-tool.pages.dev , immutable https://eb5408ed.ai-vocab-tool.pages.dev:44 resource hashes/auth,390/1440 views,390dark and1440light selection including exact export/cancel pass.
+- Shared fix roll-forward to isolated screenshot preview pending separate merge/verification. No screenshot capability is promoted to production.
 
 Physical iPhone remains untested. This does not claim to fix the separately identified original-input/display-title lookup identity mismatch (`inflict`); no existing user records are merged or deleted in this UI release. Confirmation-based import/association/card pickers keep their existing explicit approval semantics rather than being turned into bulk browsing modes.
