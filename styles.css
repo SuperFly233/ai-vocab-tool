@@ -553,12 +553,6 @@ body.scene-viewing{overflow:hidden}
 .history-item.favorite-item:before{content:"";position:absolute;z-index:0;inset:-40% -18%;background:radial-gradient(circle at 18% 48%,color-mix(in srgb,var(--warn-soft) 46%,transparent) 0 2px,transparent 3px),radial-gradient(circle at 76% 22%,color-mix(in srgb,var(--warn) 38%,transparent) 0 1.5px,transparent 3px),linear-gradient(105deg,transparent 28%,color-mix(in srgb,var(--warn-soft) 44%,transparent) 44%,transparent 58%);opacity:.7;transform:translateX(-42%);animation:favoriteGleam 5.8s ease-in-out infinite;pointer-events:none}
 .history-item.favorite-item:after{content:"";position:absolute;z-index:0;right:88px;top:50%;width:42px;height:42px;background:radial-gradient(circle,color-mix(in srgb,var(--warn-soft) 72%,transparent) 0 2px,transparent 3px),linear-gradient(var(--warn),var(--warn)),linear-gradient(90deg,var(--warn),var(--warn));background-size:100% 100%,1px 100%,100% 1px;background-position:center;background-repeat:no-repeat;opacity:.34;filter:drop-shadow(0 0 10px color-mix(in srgb,var(--warn) 38%,transparent));transform:translateY(-50%) rotate(45deg) scale(.82);animation:favoriteTwinkle 2.8s ease-in-out infinite;pointer-events:none}
 .history-item.favorite-item>*{position:relative;z-index:1}
-.history-selection-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--line);padding:10px 0}
-.history-selection-bar[hidden]{display:none}
-.history-selection-bar strong{font-size:14px;color:var(--accent)}
-.history-selection-controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.history-selection-controls .plain-btn{padding:5px 10px;font-size:13px;min-height:36px}
-.history-selection-controls .icon-btn{width:36px;min-width:36px;height:36px}
 .history-item.selectable{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px}
 .history-item.selectable .history-actions{display:none}
 .history-item.selected{background:var(--accent-bg)}
@@ -886,8 +880,6 @@ button:disabled{cursor:default;opacity:.45}
   .review-content{padding:20px;gap:20px}
   .review-question{min-height:150px}
   .review-question h2{font-size:24px}
-  .history-selection-bar{align-items:flex-start;flex-direction:column}
-  .history-selection-controls{gap:3px}
 }
 .modal-layer.open{display:grid}
 body.modal-open{overflow:hidden}

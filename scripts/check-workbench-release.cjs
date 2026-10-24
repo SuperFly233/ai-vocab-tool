@@ -1,6 +1,6 @@
 const {spawnSync}=require('node:child_process');
 const defaults=[
- 'check-organization-data.js','check-timestamp-ui.cjs','check-consistency-ui.cjs','check-scene-organization.cjs','check-quick-learning.cjs',
+ 'check-organization-data.js','check-selection-ui.cjs','check-timestamp-ui.cjs','check-consistency-ui.cjs','check-scene-organization.cjs','check-quick-learning.cjs',
  'check-learning-workbench.cjs','check-scene-navigation-hotfix.cjs',
  'check-scene-authoring-polish.cjs','check-scene-learning-safety.cjs',
  'check-learning-ui.cjs','check-favorites-boundaries.cjs','check-streaming-e2e.cjs',

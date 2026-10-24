@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.39.2" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.39.2" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.39.2">
-<link rel="stylesheet" href="/styles.css?v=0.39.2">
-<link rel="stylesheet" href="/ui-consistency.css?v=0.39.2">
-<link rel="stylesheet" href="/learning-card.css?v=0.39.2">
+<link rel="icon" href="/favicon.svg?v=0.39.3" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.39.3" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.39.3">
+<link rel="stylesheet" href="/styles.css?v=0.39.3">
+<link rel="stylesheet" href="/ui-consistency.css?v=0.39.3">
+<link rel="stylesheet" href="/learning-card.css?v=0.39.3">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -38,7 +38,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.39.2" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.39.3" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -55,7 +55,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.39.2" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.39.3" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -182,11 +182,13 @@
           <button class="icon-btn browse-reset" data-reset-browse="history" onclick="resetBrowsePreferences('history')" aria-label="重置历史筛选与排序" data-tip="重置筛选与排序"><i data-lucide="rotate-ccw"></i></button>
         </div>
       </div>
-      <div class="history-selection-bar" id="history-selection-bar" hidden>
+      <div class="history-selection-bar batch-selection-toolbar" id="history-selection-bar" hidden>
         <strong id="history-selection-count" aria-live="polite">已选 0 条</strong>
-        <div class="history-selection-controls">
-          <button class="plain-btn" id="history-select-matching" onclick="selectMatchingHistory()">全选筛选结果</button>
-          <button class="icon-btn" data-tip="清空选择" aria-label="清空选择" onclick="clearHistorySelection()"><i data-lucide="x"></i></button>
+        <div class="selection-controls" role="group" aria-label="控制选择">
+          <label class="selection-all"><input type="checkbox" id="history-select-matching" aria-label="全选筛选结果" onchange="this.checked?selectMatchingHistory():clearHistorySelection()"><span>全选</span></label>
+          <button class="icon-btn" data-tip="清空选择" aria-label="清空选择" onclick="clearHistorySelection()"><i data-lucide="rotate-ccw"></i></button>
+        </div>
+        <div class="selection-operations" role="group" aria-label="操作所选内容">
           <button class="icon-btn" data-needs-selection data-tip="批量加入收藏夹" aria-label="批量加入收藏夹" onclick="openFolderSelectModal({type:'batch'})"><i data-lucide="folder-plus"></i></button>
           <button class="icon-btn" data-needs-selection data-tip="导出所选 JSON" aria-label="导出所选 JSON" onclick="exportSelectedHistory()"><i data-lucide="download"></i></button>
           <button class="icon-btn" data-needs-selection data-tip="导出所选 Markdown" aria-label="导出所选 Markdown" onclick="exportSelectedHistory('markdown')"><i data-lucide="file-text"></i></button>
@@ -628,34 +630,34 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.39.2"></script>
-<script src="/icons.js?v=0.39.2"></script>
-<script src="/history-data.js?v=0.39.2"></script>
-<script src="/settings-data.js?v=0.39.2"></script>
-<script src="/view-preferences.js?v=0.39.2"></script>
-<script src="/storage-state.js?v=0.39.2"></script>
-<script src="/diagnostic-store.js?v=0.39.2"></script>
-<script src="/lookup-tasks.js?v=0.39.2"></script>
-<script src="/sync-state.js?v=0.39.2"></script>
-<script src="/learning-tools.js?v=0.39.2"></script>
-<script src="/scene-data.js?v=0.39.2"></script>
-<script src="/scene-media.js?v=0.39.2"></script>
-<script src="/ui-consistency.js?v=0.39.2"></script>
-<script src="/ui-overlays.js?v=0.39.2"></script>
-<script src="/scene-preview.js?v=0.39.2"></script>
-<script src="/scene-ui.js?v=0.39.2"></script>
-<script src="/row-navigation.js?v=0.39.2"></script>
-<script src="/app.js?v=0.39.2"></script>
-<script src="/scene-study.js?v=0.39.2"></script>
-<script src="/anki-bridge-ui.js?v=0.39.2"></script>
-<script src="/learning-content.js?v=0.39.2"></script>
-<script src="/learning-cards-ui.js?v=0.39.2"></script>
-<script src="/fushi-workspace.js?v=0.39.2"></script>
-<script src="/scene-workspace.js?v=0.39.2"></script>
-<script src="/scene-organization.js?v=0.39.2"></script>
-<script src="/dictionary-ui.js?v=0.39.2"></script>
-<script src="/experience-ui.js?v=0.39.2"></script>
-<script src="/input-suggestions.js?v=0.39.2"></script>
-<script src="/request-ui.js?v=0.39.2"></script>
+<script src="/vendor/supabase.js?v=0.39.3"></script>
+<script src="/icons.js?v=0.39.3"></script>
+<script src="/history-data.js?v=0.39.3"></script>
+<script src="/settings-data.js?v=0.39.3"></script>
+<script src="/view-preferences.js?v=0.39.3"></script>
+<script src="/storage-state.js?v=0.39.3"></script>
+<script src="/diagnostic-store.js?v=0.39.3"></script>
+<script src="/lookup-tasks.js?v=0.39.3"></script>
+<script src="/sync-state.js?v=0.39.3"></script>
+<script src="/learning-tools.js?v=0.39.3"></script>
+<script src="/scene-data.js?v=0.39.3"></script>
+<script src="/scene-media.js?v=0.39.3"></script>
+<script src="/ui-consistency.js?v=0.39.3"></script>
+<script src="/ui-overlays.js?v=0.39.3"></script>
+<script src="/scene-preview.js?v=0.39.3"></script>
+<script src="/scene-ui.js?v=0.39.3"></script>
+<script src="/row-navigation.js?v=0.39.3"></script>
+<script src="/app.js?v=0.39.3"></script>
+<script src="/scene-study.js?v=0.39.3"></script>
+<script src="/anki-bridge-ui.js?v=0.39.3"></script>
+<script src="/learning-content.js?v=0.39.3"></script>
+<script src="/learning-cards-ui.js?v=0.39.3"></script>
+<script src="/fushi-workspace.js?v=0.39.3"></script>
+<script src="/scene-workspace.js?v=0.39.3"></script>
+<script src="/scene-organization.js?v=0.39.3"></script>
+<script src="/dictionary-ui.js?v=0.39.3"></script>
+<script src="/experience-ui.js?v=0.39.3"></script>
+<script src="/input-suggestions.js?v=0.39.3"></script>
+<script src="/request-ui.js?v=0.39.3"></script>
 </body>
 </html>

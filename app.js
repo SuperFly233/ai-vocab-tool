@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.39.2',
+  version:'0.39.3',
   releaseDate:'2026-10-24',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.39.3',date:'2026-10-24',title:'多选状态与操作分层',items:['历史、收藏和场景右上角统一为已选数量与取消；控制选择和操作所选内容在列表上方分组显示。','全选支持当前筛选范围及未加载分页，显示部分选中；清空选择独立于退出，低频操作收进竖排更多菜单。','收藏和场景导出所选仅包含实际勾选项，保留跨筛选选择，不再把当前列表全部导出。']},
   {version:'0.39.2',date:'2026-10-24',title:'列表时间与详情提示',items:['共用列表时间显示日期与小时、分钟，今年省略年份。','时间提示明确分为创建、修改两行，保留完整年份和秒数，不再混在一行内自动折断。']},
   {version:'0.39.1',date:'2026-10-24',title:'界面与交互统一收口',items:['批量选择回到标题工具栏，修复多选条目错位；收藏统一到收藏夹选择器，按上下文移除重复操作。','场景列表使用紧凑缩略图、标题、摘要与日期；今年省略年份，列表不再堆叠创建和修改的完整时间。','共用更多菜单和保存底栏，保留键盘、移动视口与账号保护；原有学习、导出和制卡能力继续保留。','首页吸顶条保持 64px，查询编辑和队列独立展开；修复左右布局结果窄列和滚动占位。截图、语录索引及媒体编辑仍单列待办。']},
   {version:'0.39.0',date:'2026-10-24',title:'场景与词条统一整理、快捷学习',items:['场景支持独立收藏、置顶、共用收藏夹和混合多选整理；取消收藏不会改动关联词条。','纯文字场景优先录入，保存与查询明确分开；Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入词组篮。','已有词条与英语离线联想共用输入菜单，不上传未提交输入；拼写候选不静默纠错。','混合收藏可回顾场景与词条，词条学习状态和场景关联状态独立保存。收藏夹创建、改名使用就地输入，不再使用浏览器原生输入框。','修复显式收藏夹 ID 被旧标签逻辑转换；删除收藏夹只移除分类，保留学习内容。截图识别与语录索引仍独立推进。']},
@@ -7652,11 +7653,10 @@ function searchableFragment(pin={}){return [pin.title,pin.meaning,pin.example,pi
 function folderSearchIsGlobal(){return Boolean(folderState.query.trim()&&folderState.searchScope==='all')}
 function setFolderSearchScope(value){folderState.searchScope=value==='current'?'current':'all';if(value==='current')folderState.detailOpen=true;folderState.visibleCount=folderBatchSize();rememberViewPreference('folders');renderFoldersView()}
 function setFolderSort(value){folderState.sort=['title','created'].includes(value)?value:'updated';folderState.visibleCount=folderBatchSize();rememberViewPreference('folders');renderFoldersView()}
-function exportVisibleFolderJSON(){
-  const entries=filteredFolderEntries();
+function exportVisibleFolderJSON(entries=filteredFolderEntries(),selected=false){
   const output=entries.some(item=>item.__scene)?{format:'lexi-learning-collection',version:1,items:entries.map(item=>item.__scene?{type:'scene',scene:item.__scene.scene,entryIds:item.__scene.links.map(row=>row.id),organization:getSettings().sceneOrganization[item.__scene.scene.groupId]||{}}:{type:'entry',entry:item,learning:getSettings().entryLearning[String(item.id)]||{}})}:entries;
   downloadText('Lexi-favorites.json',JSON.stringify(output,null,2));
-  notify(`已导出当前列表 ${entries.length} 条记录。`,'good','收藏夹');
+  notify(`已导出${selected?'所选':'当前列表'} ${entries.length} 条记录。`,'good','收藏夹');
 }
 function searchFolder(value){
   folderState.query=String(value||'');
@@ -7733,7 +7733,9 @@ function renderHistorySelection(matches=[]){
   bar.hidden=!historySelection.active;
   document.getElementById('history-selection-count').textContent=`已选 ${historySelection.ids.size} 条`;
   bar.querySelectorAll('[data-needs-selection]').forEach(button=>{button.disabled=!historySelection.ids.size});
-  document.getElementById('history-select-matching').disabled=!matches.length;
+  const all=document.getElementById('history-select-matching'),selectedCount=matches.filter(item=>historySelection.ids.has(Number(item.id))).length;
+  all.disabled=!matches.length;all.checked=Boolean(matches.length&&selectedCount===matches.length);all.indeterminate=selectedCount>0&&selectedCount<matches.length;
+  bar.querySelector('[aria-label="清空选择"]').disabled=!historySelection.ids.size;
 }
 function exportSelectedHistory(format='json'){
   const items=selectedHistoryItems();

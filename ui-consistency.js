@@ -22,6 +22,8 @@
     if(event.target===document||event.target.contains?.(active.trigger)){const b=active.menu.getBoundingClientRect(),top=root.visualViewport?.offsetTop||0,bottom=top+(root.visualViewport?.height||innerHeight);active.menu.style.left=`${Math.max(12,Math.min(r.right-b.width,innerWidth-b.width-12))}px`;active.menu.style.top=`${Math.max(top+12,r.bottom+b.height+8<bottom?r.bottom+6:r.top-b.height-6)}px`}
   },true);
   const command=(label,name,attributes='')=>`<button type="button" class="icon-btn" aria-label="${escapeHTML(label)}" data-tip="${escapeHTML(label)}" ${attributes}>${icon(name)}</button>`;
+  const selectionSession=(count,attributes='')=>`<span class="selection-count" role="status">已选 ${count} 条</span><button type="button" class="selection-cancel" ${attributes}>取消</button>`;
+  const selectionGroups=(controls,actions)=>`<div class="selection-controls" role="group" aria-label="控制选择">${controls}</div><div class="selection-operations" role="group" aria-label="操作所选内容">${actions}</div>`;
   function more(container,selector){
     if(!container||container.querySelector(':scope>[data-shared-more]'))return;
     const nodes=[...container.querySelectorAll(selector)];if(!nodes.length)return;
@@ -31,13 +33,16 @@
   }
   function enhance(){
     const historyBar=document.getElementById('history-selection-bar'),head=document.querySelector('#view-history .section-head .action-row');
-    if(historyBar&&head&&historyBar.parentElement!==head)head.append(historyBar);
-    const all=document.getElementById('history-select-matching');if(all&&!all.dataset.compact){all.dataset.compact='';all.className='icon-btn';all.setAttribute('aria-label','全选筛选结果');all.dataset.tip='全选筛选结果';all.innerHTML=icon('square-check')}
-    more(historyBar?.querySelector('.history-selection-controls'),'button[aria-label^="导出"],button[aria-label="删除所选"]');
-    const toggle=document.getElementById('history-selection-toggle');if(toggle){const active=historySelection.active,label=active?'退出多选':'批量选择';if(toggle.getAttribute('aria-label')!==label){toggle.setAttribute('aria-label',label);toggle.dataset.tip=label;toggle.innerHTML=icon(active?'x':'square-check')}}
+    if(historyBar&&head){
+      let session=head.querySelector('[data-history-selection-session]');if(!session){session=document.createElement('div');session.className='selection-session';session.dataset.historySelectionSession='';session.innerHTML='<button type="button" class="selection-cancel">取消</button>';session.prepend(document.getElementById('history-selection-count'));session.querySelector('button').onclick=()=>toggleHistorySelectionMode();head.append(session)}
+      session.hidden=!historySelection.active;head.classList.toggle('selection-header-active',historySelection.active);
+      if(historyBar.parentElement===head)document.getElementById('history-list').before(historyBar);
+    }
+    more(historyBar?.querySelector('.selection-operations'),'button[aria-label^="导出"],button[aria-label="删除所选"]');
+    const toggle=document.getElementById('history-selection-toggle');if(toggle&&toggle.getAttribute('aria-label')!=='批量选择'){toggle.setAttribute('aria-label','批量选择');toggle.dataset.tip='批量选择';toggle.innerHTML=icon('square-check')}
     document.querySelectorAll('.scene-record>header>.scene-actions').forEach(node=>more(node,'[data-organize="pin"],[data-scene-action="feature"],[data-scene-action="edit"],[data-scene-action="remove"]'));
   }
-  root.SharedUI={menu,closeMenu,command,more,enhance};
+  root.SharedUI={menu,closeMenu,command,more,enhance,selectionSession,selectionGroups};
   let pane=null,bar=null,compact=false;
   function closeHome(focus=false){if(pane?.matches(':popover-open'))pane.hidePopover();bar?.querySelector('[data-home-query]')?.setAttribute('aria-expanded','false');if(focus)bar?.querySelector('[data-home-query]').focus({preventScroll:true})}
   function openHome(focus=true){if(!compact)return;lookupOptionsExpanded=true;applyLookupOptionsState();if(!pane.matches(':popover-open'))pane.showPopover();bar.querySelector('[data-home-query]').setAttribute('aria-expanded','true');if(focus)els.query.focus({preventScroll:true})}
