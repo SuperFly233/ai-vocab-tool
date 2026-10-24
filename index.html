@@ -185,7 +185,7 @@
       <div class="history-selection-bar batch-selection-toolbar" id="history-selection-bar" hidden>
         <strong id="history-selection-count" aria-live="polite">已选 0 条</strong>
         <div class="selection-controls" role="group" aria-label="控制选择">
-          <label class="selection-all"><input type="checkbox" id="history-select-matching" aria-label="全选筛选结果" onchange="this.checked?selectMatchingHistory():clearHistorySelection()"><span>全选</span></label>
+          <label class="selection-all"><input type="checkbox" id="history-select-matching" aria-label="全选筛选结果" onchange="selectMatchingHistory(this.checked)"><span>全选</span></label>
           <button class="icon-btn" data-tip="清空选择" aria-label="清空选择" onclick="clearHistorySelection()"><i data-lucide="rotate-ccw"></i></button>
         </div>
         <div class="selection-operations" role="group" aria-label="操作所选内容">

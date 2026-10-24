@@ -7715,8 +7715,8 @@ function toggleHistorySelection(id){
   else historySelection.ids.add(value);
   renderHistory();
 }
-function selectMatchingHistory(){
-  historySelection.ids=new Set(filterAndSortHistory(getHistory()).map(item=>Number(item.id)));
+function selectMatchingHistory(selected=true){
+  for(const item of filterAndSortHistory(getHistory())){if(selected)historySelection.ids.add(Number(item.id));else historySelection.ids.delete(Number(item.id))}
   renderHistory();
 }
 function clearHistorySelection(){
