@@ -1,5 +1,13 @@
 # UI SOP / Persistent User Preferences
 
+## Suggestions and Dictionary References (2026-10-25)
+
+- Autocomplete uses the caret's current segment, never rejects an entire multiline field or replaces its other terms. IME confirmation must not submit; Shift+Enter remains newline even while candidates are open.
+- Candidate meanings require actual personal/dictionary data; a spelling list alone is not a dictionary. Source labels identify real data and language pairs. Never invent bilingual glosses.
+- Batch chips derive from existing input, not a second unsynchronized draft. Adding/removing/selecting never calls AI or submits a queue automatically.
+- Basic dictionary is an independent, default-on reading preference, with explicit sources/licenses and bounded lazy public caches. Do not copy it into AI JSON/Anki automatically. AI-failure fallback must be visible before the error, not below a screenful of empty/error padding.
+- Installed PC dictionaries and native OS dictionaries are different capabilities. No fake web button for a native-only API; preserve system selection menus and state unverified/native limits explicitly.
+
 ## Expanded Query Acceptance (2026-10-25)
 
 The64px sticky-bar assertion alone is insufficient. Measure and inspect its OPEN editor too: single input must not reserve batch height, input wrapper must not inherit999px pill corners, desktop popup must have a width cap, expanded queues scroll within bounds, and search/media commands must not be duplicated. Verify1/3/20 input lines, live growth AND shrink, expanded20-task queues, both Home layouts, all five widths and both themes. Closing must preserve state and remove temporary input sizing before returning to the normal editor.

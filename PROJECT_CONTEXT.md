@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.41.0 CANDIDATE: line/caret-aware autocomplete, derived removable term chips, dictionary meanings and default-on basic reference independent of AI/PC snapshots. Public ECDICT38,103 EN-ZH, JMdict common22,647 JA-EN, CC-CEDICT125,314 ZH-EN records, lazy hash-checked shards and bounded own CacheStorage. No typed query sent to third-party lookup, no AI calls from selection. Apple dictionary is native UIKit, not a web extraction API; not implemented. Design docs/design/multilingual-v041-reference.png; plan docs/plans/2026-10-25-multilingual-basics.md. No native apps/real paid model changes.
+
 v0.40.1 preview parity complete: capture mergef82a8ef/docs2147a95, https://2f3eaf13.ai-vocab-tool.pages.dev,48 hashes/auth and deployed1440dark expanded-editor tests passed; local five-width/two-theme capture regression passed. Main restored,44 static files, no capture module in dist. No widening of the learning-feature scope.
 
 - v0.40.1 RELEASED: source9146c673a1c8e6591a091619ad942d86e1a2396d, preview https://4bf176dc.ai-vocab-tool.pages.dev, production https://db7211c9.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev.44 hashes/auth both passed. Actual expanded-popup matrix passed five widths/two themes/top+split/1,3,20 lines and expanded queues; production1440dark/390light passed. Previously one line reserved104px, radius999, full1400px panel; now content-driven44–136px,8px corners,880px width cap and bounded scrolling without duplicate commands. Motion/modal/data regressions pass. Report docs/reports/v0401-expanded-query.md. No paid/native operations; physical iPhone untested.

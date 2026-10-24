@@ -9,8 +9,9 @@ assert.ok(origin.hostname.endsWith('.ai-vocab-tool.pages.dev')||origin.hostname=
 const root=join(process.cwd(),'dist');
 async function* files(directory){for(const item of await readdir(directory,{withFileTypes:true})){const path=join(directory,item.name);if(item.isDirectory())yield* files(path);else yield path}}
 const digest=buffer=>createHash('sha256').update(buffer).digest('hex');let count=0;
-for await(const path of files(root)){
+const paths=[];for await(const path of files(root))paths.push(path);let next=0;
+await Promise.all(Array.from({length:4},async()=>{while(next<paths.length){const path=paths[next++];
  const name=relative(root,path).replaceAll('\\','/');const response=await fetch(new URL('/'+name,origin),{signal:AbortSignal.timeout(20000)});assert.equal(response.status,200,name);assert.equal(digest(Buffer.from(await response.arrayBuffer())),digest(await readFile(path)),`${name} bytes`);count++;
-}
+}}));
 const response=await fetch(new URL('/api/sync',origin),{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(20000)});assert.equal(response.status,401,'Unauthenticated sync rejected');
 console.log(`${origin.origin}: ${count} deployed file hashes match; sync authentication gate returns401.`);

@@ -1,0 +1,491 @@
+{
+  "version": 1,
+  "sources": {
+    "en": {
+      "name": "ECDICT",
+      "license": "MIT",
+      "url": "https://github.com/skywind3000/ECDICT",
+      "revision": "ab22ad36302cafc6349a050e2b60894855208055",
+      "file": "ecdict.csv",
+      "pair": "英汉",
+      "inputSha256": "d1ecbdf9ee2b920afb6f430ca6b6bb9f559588cf0dff86e04bd255f9390843cc",
+      "entries": 38103,
+      "shards": {
+        "01": {
+          "file": "en-01.json",
+          "bytes": 346486,
+          "sha256": "9085311ec9267d793c0929bdbbbca3f88a31e5393e5f897f13247561b6a76901"
+        },
+        "02": {
+          "file": "en-02.json",
+          "bytes": 313453,
+          "sha256": "777997e04270a03e389cc3389e296833d46a5462f1362dc344d6726a554e73fe"
+        },
+        "03": {
+          "file": "en-03.json",
+          "bytes": 530400,
+          "sha256": "faa197a18ff7a138066d96c9a1205093bba6bb704ae86c23187c876c5acf8395"
+        },
+        "04": {
+          "file": "en-04.json",
+          "bytes": 331499,
+          "sha256": "4a1197b767979f64bfc26d543af1c9df3e7cf5188d59a14a34aac72809c0c822"
+        },
+        "05": {
+          "file": "en-05.json",
+          "bytes": 231850,
+          "sha256": "2d581049f259b119ab84ed9dee599dd9ef3bebfad49dc2aafbe1cb50b5bb65ad"
+        },
+        "06": {
+          "file": "en-06.json",
+          "bytes": 242024,
+          "sha256": "64e5b588cd6d98e94fca50660d51bb916aee8fc9f5d8cfc3d01b7e0367eeb4c5"
+        },
+        "07": {
+          "file": "en-07.json",
+          "bytes": 185138,
+          "sha256": "5aae138eeb12188ee2e4337b7a96239386ca48b35a18a45bd5171c48be777471"
+        },
+        "08": {
+          "file": "en-08.json",
+          "bytes": 226726,
+          "sha256": "08d986038c35e499d70718fc108442ab5345d12d7830ad08a963856c11d6d022"
+        },
+        "09": {
+          "file": "en-09.json",
+          "bytes": 256843,
+          "sha256": "d73377d118e9398ed439243b6b76804db8ad795b7af872def8b122bc1102196d"
+        },
+        "10": {
+          "file": "en-10.json",
+          "bytes": 58738,
+          "sha256": "779a85ce526724d4ca0834db22d1b439ec6ec7a4c1f07e5538444945388510ec"
+        },
+        "11": {
+          "file": "en-11.json",
+          "bytes": 50404,
+          "sha256": "ec90dcec73cef7daa7d59229b89645c845e000e9a50e1552a03099bafff96e98"
+        },
+        "12": {
+          "file": "en-12.json",
+          "bytes": 192598,
+          "sha256": "6af9614099a325fb9bc2ab7316ab86c0917a276f22ad04087c364945e2854ef8"
+        },
+        "13": {
+          "file": "en-13.json",
+          "bytes": 329603,
+          "sha256": "e3edfe702e61b373a5f6986aac1f950653594ac23b37a007d6bc2100bb601980"
+        },
+        "14": {
+          "file": "en-14.json",
+          "bytes": 124387,
+          "sha256": "5341f56b6bd77f79d762517e01dba0afa9318255c6d493eee18373d7ac0ad556"
+        },
+        "15": {
+          "file": "en-15.json",
+          "bytes": 141442,
+          "sha256": "5eee307ca28bf30626313ec9416c18a3f9e4d50db0587900d9f25e15f999330b"
+        },
+        "16": {
+          "file": "en-16.json",
+          "bytes": 449566,
+          "sha256": "d6d972e2b93c3c6f8cabc6004565a5a292eb4f05349a92a25a9a13833b6a4c77"
+        },
+        "17": {
+          "file": "en-17.json",
+          "bytes": 24030,
+          "sha256": "6530df6d0bc96669d310dca741d033d2be161af96d8d1f95dfb9ccf30a2c94ae"
+        },
+        "18": {
+          "file": "en-18.json",
+          "bytes": 314399,
+          "sha256": "febf59ed803b493849e72525c7438e0980de2c410f3c5fb15c0fc56d9beee906"
+        },
+        "19": {
+          "file": "en-19.json",
+          "bytes": 629502,
+          "sha256": "e704f1ba78cdee5d1baefd981d183926477dce64c0ef5b23dadb52d448110255"
+        },
+        "20": {
+          "file": "en-20.json",
+          "bytes": 271147,
+          "sha256": "a0ab96d7512b4afb0d8e7cec5d01bf180216d1dfda8f574154888fcac14a7add"
+        },
+        "21": {
+          "file": "en-21.json",
+          "bytes": 163323,
+          "sha256": "64bbd6698ffbfc7388bfef76be55ce269bb8a52dbd38dad5bba55dcafd7b6c7b"
+        },
+        "22": {
+          "file": "en-22.json",
+          "bytes": 90430,
+          "sha256": "d2f2cb8c26dbc026b40d099073e72e98518fcf3e178eb21c6535ac47e0d34cd8"
+        },
+        "23": {
+          "file": "en-23.json",
+          "bytes": 156392,
+          "sha256": "7ecb56c3772f8053fd4f703b0f70a2abe392420ae5347648fd687b4de01aac45"
+        },
+        "24": {
+          "file": "en-24.json",
+          "bytes": 2701,
+          "sha256": "cba44f700f967a51785695713cca614106a85078244a392dc530ad4c44f4d647"
+        },
+        "25": {
+          "file": "en-25.json",
+          "bytes": 19136,
+          "sha256": "dd2fb253d53957c38f2304160310b42c68f5022a5fa75647ce722309a28aae57"
+        },
+        "26": {
+          "file": "en-26.json",
+          "bytes": 10243,
+          "sha256": "1f8e46fc2b23d8b22dd1a55ce4ab079370996e076d2e70026c420f3043c7f87a"
+        }
+      }
+    },
+    "ja": {
+      "name": "JMdict 常用词",
+      "license": "CC-BY-SA-4.0",
+      "url": "https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project",
+      "revision": "jmdict-simplified3.6.2+20261019180022",
+      "file": "jmdict.zip",
+      "pair": "日英",
+      "inputSha256": "d9a43b326561f9d88d7b1acc4cab5ea2b834d3634f119548c427ab2f772d7841",
+      "entries": 22647,
+      "shards": {
+        "00": {
+          "file": "ja-00.json",
+          "bytes": 266023,
+          "sha256": "85e7d9b29035351fda92a22a918588177d47cc8b1458a739b813163e636a286e"
+        },
+        "01": {
+          "file": "ja-01.json",
+          "bytes": 348413,
+          "sha256": "8adc3a4d68ba609a6de800490c9b514688004b9b7eed217d2d93c19abe733560"
+        },
+        "02": {
+          "file": "ja-02.json",
+          "bytes": 336607,
+          "sha256": "44e96de88a742ff4a90ce845954b3bb18a8543fd98dd5a7788a49f18a212fb68"
+        },
+        "03": {
+          "file": "ja-03.json",
+          "bytes": 140042,
+          "sha256": "28ec9c269b4514664683617f0fab24fd9e64e8c637a46d01b8a842d7e1ceabd4"
+        },
+        "04": {
+          "file": "ja-04.json",
+          "bytes": 374525,
+          "sha256": "04e6a2726ab06c7ef558e41abc982d5194c2cbba4cf50b21f139c77ce9072efc"
+        },
+        "05": {
+          "file": "ja-05.json",
+          "bytes": 153764,
+          "sha256": "cddfdec334637c3a3a38bd75db2a7bcd331ac6df7671b3fdcff2dc08f190e243"
+        },
+        "06": {
+          "file": "ja-06.json",
+          "bytes": 326485,
+          "sha256": "1914f0020c5560a8d333aec07902ee4d1bf146f112845fdd43f9fe5c20469e8f"
+        },
+        "07": {
+          "file": "ja-07.json",
+          "bytes": 176856,
+          "sha256": "4fa0ea1fca97b5d4b6c5b471c22b6c98ae7d77b32ca398f879a84412e9ad1781"
+        },
+        "08": {
+          "file": "ja-08.json",
+          "bytes": 402476,
+          "sha256": "946185a3b05315b33ea7b79199c264b4ea3b57db90a8f1034d9b873ffabdc392"
+        },
+        "09": {
+          "file": "ja-09.json",
+          "bytes": 239902,
+          "sha256": "ecc2c0e2209266f4412030836d9f64b21e10c01ca6425d34b3d01e1fed4db61a"
+        },
+        "10": {
+          "file": "ja-10.json",
+          "bytes": 494364,
+          "sha256": "267a765ca055675329ea328a2f101d61b49a717579194b378b7842d639ea49ee"
+        },
+        "11": {
+          "file": "ja-11.json",
+          "bytes": 558536,
+          "sha256": "54eb6817299dcff6406f1386ccfee9d4714db74defe9de11236fe721a0d94baf"
+        },
+        "12": {
+          "file": "ja-12.json",
+          "bytes": 242086,
+          "sha256": "f9edfb3b63f8b139edd88db45abfd0c34d07af21ef92916d259f690332dded9e"
+        },
+        "13": {
+          "file": "ja-13.json",
+          "bytes": 409273,
+          "sha256": "37e4dbf1906de1541a36aec35c711d255cb683f9b6ce5ddb8ceb993b2eb85a6c"
+        },
+        "14": {
+          "file": "ja-14.json",
+          "bytes": 189977,
+          "sha256": "b074b45c36d2d8fee2b2ad03023ce56ca7f2bd768c241f00ee9f57eb0a256a43"
+        },
+        "15": {
+          "file": "ja-15.json",
+          "bytes": 414174,
+          "sha256": "31a34d1101dc878f0108f158bb4fce4a560ea46b5f3390498cdd0977ca450c51"
+        },
+        "16": {
+          "file": "ja-16.json",
+          "bytes": 217646,
+          "sha256": "0018b8e6bfebb70e95c257d11843688096724363ad7bf1b9c228cae8ac6c76de"
+        },
+        "17": {
+          "file": "ja-17.json",
+          "bytes": 258268,
+          "sha256": "1e4e308ddf3003ff922ec53f31642ac64620314032e99eec8800f866a6e78dd7"
+        },
+        "18": {
+          "file": "ja-18.json",
+          "bytes": 274342,
+          "sha256": "11431fddc045b9556c81301bc5e632d4a9a619ed802f19df2560084bc27fcd18"
+        },
+        "19": {
+          "file": "ja-19.json",
+          "bytes": 371787,
+          "sha256": "74be61635c08feb767028343458e96a1d8bee99a5b707aee34440d263dc1bea8"
+        },
+        "20": {
+          "file": "ja-20.json",
+          "bytes": 190966,
+          "sha256": "c2ebb1f66d4a233e3faadb13735fb6442b2e2932631bc3f460dfe255481d53f1"
+        },
+        "21": {
+          "file": "ja-21.json",
+          "bytes": 421186,
+          "sha256": "f72125874d04acc5a24d13441bec2b5efedff5677a64afdaaf3a7d605a9219aa"
+        },
+        "22": {
+          "file": "ja-22.json",
+          "bytes": 191880,
+          "sha256": "ebfb11b009f46f678a6cc9a46c7d3b9cb02295fc4c06b155a04779eaa77dbd2c"
+        },
+        "23": {
+          "file": "ja-23.json",
+          "bytes": 508713,
+          "sha256": "45f721890b1fbf91e251c958ce4e55bacb1e81863f56a2a3df8ac8cdccca5592"
+        },
+        "24": {
+          "file": "ja-24.json",
+          "bytes": 313437,
+          "sha256": "e2ff73977171eb81f54eff1580a8e514d3a8f70af198580b01ddf02e1ffd54bb"
+        },
+        "25": {
+          "file": "ja-25.json",
+          "bytes": 245761,
+          "sha256": "c727a95a7441a20af3d4bf9f6f31d83606843ec385a8dc4e56fc977333ef40c2"
+        },
+        "26": {
+          "file": "ja-26.json",
+          "bytes": 200649,
+          "sha256": "c983400d0f7684cbc66340557676364190a1b92cd4a2722e7445de041a20b346"
+        },
+        "27": {
+          "file": "ja-27.json",
+          "bytes": 317224,
+          "sha256": "9e19fe837b91bde402a58d416be50a087580735a918efcf72f143cce4d14a380"
+        },
+        "28": {
+          "file": "ja-28.json",
+          "bytes": 176612,
+          "sha256": "533285784dd859646e85edb8c1b58cb5ac25d234e11a8438ded7fd8141f50cb1"
+        },
+        "29": {
+          "file": "ja-29.json",
+          "bytes": 250912,
+          "sha256": "f49fbd087d04b3f18c461bd14218d2ae2c6f51a14130fa39b2c3b57f0b816f10"
+        },
+        "30": {
+          "file": "ja-30.json",
+          "bytes": 201206,
+          "sha256": "33f4ec356ac4063338900a7cd704b49347fc9fea7166b8e10a0f58550985ebae"
+        },
+        "31": {
+          "file": "ja-31.json",
+          "bytes": 323197,
+          "sha256": "38f491d8c10b64de027e6aa7ced4b18ee0508a6b69bc868e9f530d6b892b47b6"
+        }
+      }
+    },
+    "zh": {
+      "name": "CC-CEDICT",
+      "license": "CC-BY-SA-4.0",
+      "url": "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
+      "revision": "download2026-10-25",
+      "file": "cedict.txt.gz",
+      "pair": "中英",
+      "inputSha256": "e6e14c761ebc1e66ae2ad7b08fc4c577d6927472bb059d70db6111f0c06abee9",
+      "entries": 125314,
+      "shards": {
+        "00": {
+          "file": "zh-00.json",
+          "bytes": 998230,
+          "sha256": "5af1947c5253ab5abbd7bfcb02f3b949a971e67ad166926ed736347b825fd9cf"
+        },
+        "01": {
+          "file": "zh-01.json",
+          "bytes": 1005415,
+          "sha256": "fe8aa65410fac33e76d23486935357804a9536a80e061d874ebafce252e6211e"
+        },
+        "02": {
+          "file": "zh-02.json",
+          "bytes": 724531,
+          "sha256": "18a8d227b4782d5f57e167c69d89216b0cfdbb3b6c4609465974946a20f43eec"
+        },
+        "03": {
+          "file": "zh-03.json",
+          "bytes": 906187,
+          "sha256": "3468b5b98cae31d7295ef60a239e47faad74a50df4249a63d4cc1c8cf94d1fe3"
+        },
+        "04": {
+          "file": "zh-04.json",
+          "bytes": 701096,
+          "sha256": "237a6f17b9a93bbed90cd7eeb8b3c5ff8c4effad7108b19ab08c11af802403cd"
+        },
+        "05": {
+          "file": "zh-05.json",
+          "bytes": 979925,
+          "sha256": "3b574d806190e80ca011928ab8e9169a4d66b3822ad22353af04c8c2e2bdbd59"
+        },
+        "06": {
+          "file": "zh-06.json",
+          "bytes": 816488,
+          "sha256": "f1de05fe884614dca15582073e2d20d20722eea09075e04cbb3ec1027df312dc"
+        },
+        "07": {
+          "file": "zh-07.json",
+          "bytes": 1015624,
+          "sha256": "ded67c370d08bef93e83aaf828efc583fc76190d27c342a8f005f9730c12c8b9"
+        },
+        "08": {
+          "file": "zh-08.json",
+          "bytes": 934243,
+          "sha256": "d7b83c412def1fccdc4471984dcb73e2311133f1cfc0527dd038ce263cf469c2"
+        },
+        "09": {
+          "file": "zh-09.json",
+          "bytes": 1224286,
+          "sha256": "e684b0a7deed62f900732fd35095593c3c3fabc89e51e4aaf791c7aad0e9042f"
+        },
+        "10": {
+          "file": "zh-10.json",
+          "bytes": 989061,
+          "sha256": "f18e05a9ad1acd67b3ec3114131900ecc39af7d3953821045c231559fff4f8f1"
+        },
+        "11": {
+          "file": "zh-11.json",
+          "bytes": 1078678,
+          "sha256": "f2622790f5060cf51db6d89972b314367ac4527c4dd1092372d658be4bcd7779"
+        },
+        "12": {
+          "file": "zh-12.json",
+          "bytes": 1009303,
+          "sha256": "f90590b3552f465993ae06f3fc5419d1e6d0f272f07958172d6bae6a6edf3739"
+        },
+        "13": {
+          "file": "zh-13.json",
+          "bytes": 1352827,
+          "sha256": "62f061b69845d12aeaccd4ce5b547a10428cea78486dd4272e6178cfe718ec1b"
+        },
+        "14": {
+          "file": "zh-14.json",
+          "bytes": 874182,
+          "sha256": "31f69f608eb62b8f67bf40f4b12fca72e30b619af3c6e669f404d128e812af41"
+        },
+        "15": {
+          "file": "zh-15.json",
+          "bytes": 956831,
+          "sha256": "cbcbf533582b6a494cbffae0a625b8223be91ae78e0735ee15797ae4dd056682"
+        },
+        "16": {
+          "file": "zh-16.json",
+          "bytes": 977540,
+          "sha256": "aef35b66755a8514cfce1fd459b2ed3ba39f0469a5d0084c714c43b0c5bcc66c"
+        },
+        "17": {
+          "file": "zh-17.json",
+          "bytes": 1160596,
+          "sha256": "7a85108fcad303bef13e2bcb4626628fa24e2e9603d12c7046d3f3fd00954e96"
+        },
+        "18": {
+          "file": "zh-18.json",
+          "bytes": 791625,
+          "sha256": "8ce4103b532c0cf683cd3b01f326dcd5f98998fcc58699e13e8a75594228216a"
+        },
+        "19": {
+          "file": "zh-19.json",
+          "bytes": 890114,
+          "sha256": "38ca3e5ea993390b608c3f04331907d70d12ae08596312f373c90c9aecbb7ebf"
+        },
+        "20": {
+          "file": "zh-20.json",
+          "bytes": 940012,
+          "sha256": "8573fc7cfcf3e3b4c3d9db2dbf000a0f46031d7355a46242b4ed453415283e9b"
+        },
+        "21": {
+          "file": "zh-21.json",
+          "bytes": 692520,
+          "sha256": "3e87537d39644ee1c12ae8598e886af3158735048856711a2516408bf62134cc"
+        },
+        "22": {
+          "file": "zh-22.json",
+          "bytes": 774225,
+          "sha256": "5e325952feab6dcc2f60a1ed136aa618272c753dd496ac2262399b825dafdd0a"
+        },
+        "23": {
+          "file": "zh-23.json",
+          "bytes": 1044149,
+          "sha256": "2b8fc7f19c73382255c1806d97cf07a73a3650526c10150f225f8d62e7f1a2a9"
+        },
+        "24": {
+          "file": "zh-24.json",
+          "bytes": 910543,
+          "sha256": "fa285b1a02c3e941d91b52376b70840fb52f7b25d92e79a44533e238770f6929"
+        },
+        "25": {
+          "file": "zh-25.json",
+          "bytes": 811415,
+          "sha256": "d997db3ba5634933462e4ec746320b515f9d3ecc079cb1e8e86fe07346d71320"
+        },
+        "26": {
+          "file": "zh-26.json",
+          "bytes": 962974,
+          "sha256": "1eaab828cbe5ae09b7271ca4ded70a262e79648101fbfdc6596d9a243f663f83"
+        },
+        "27": {
+          "file": "zh-27.json",
+          "bytes": 923862,
+          "sha256": "defc39a95cb6bc91e2fd6ca957b6bb1893372f8aa97ff5c2453478ecf6734bb7"
+        },
+        "28": {
+          "file": "zh-28.json",
+          "bytes": 728471,
+          "sha256": "d9ebbf549d7d7d0883a7b577a29bda2f911e1249579ea815d79b12aedb5ec93d"
+        },
+        "29": {
+          "file": "zh-29.json",
+          "bytes": 922099,
+          "sha256": "f096fa95811c541e421ef710569c9fa0ccb288cbf045ecea00d31154b13c76b3"
+        },
+        "30": {
+          "file": "zh-30.json",
+          "bytes": 910057,
+          "sha256": "64a1a8d2b8cb68e72d6f664ea51fa6f225699a33a191936f56c343c655a294d7"
+        },
+        "31": {
+          "file": "zh-31.json",
+          "bytes": 1051740,
+          "sha256": "fc62b8c0905d397ff822398b56e524947706b3c4c8a0fa15ff127848bed258c9"
+        }
+      }
+    }
+  }
+}

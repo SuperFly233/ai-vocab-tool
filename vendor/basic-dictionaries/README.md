@@ -1,0 +1,11 @@
+# Basic Dictionary Data
+
+The JSON shards contain independently licensed dictionary data, not AI definitions or the user's installed Oxford/Fushi dictionary. They are abridged basic references, not complete replacement dictionaries. No examples/audio/illustrations or commercial dictionary branding is redistributed.
+
+- English: ECDICT, skywind3000 and contributors, MIT. Revision ab22ad36302cafc6349a050e2b60894855208055. See ECDICT-LICENSE.txt. Selected entries have BNC/current-frequency rank up to30000, study tags or Collins frequency markers; these markers are used for selection, not a claim the content is from Collins. Source https://github.com/skywind3000/ECDICT .
+- Japanese: JMdict English common-only via scriptin/jmdict-simplified3.6.2+20261019180022. Copyright James William Breen and the Electronic Dictionary Research and Development Group. These files are the property of the Electronic Dictionary Research and Development Group, and are used in conformance with the Group's licence. Source https://www.edrdg.org/edrdg/licence.html and https://github.com/scriptin/jmdict-simplified . CC-BY-SA-4.0.
+- Chinese: CC-CEDICT, Paul Denisowski, MDBG and contributors. Download2026-10-25 from https://www.mdbg.net/chinese/dictionary?page=cc-cedict . The actual downloaded header and current download page specify CC-BY-SA-4.0 (older wiki pages describe3.0). CC-BY-SA-4.0.
+
+All ja-*.json and zh-*.json derived data are distributed under CC-BY-SA-4.0; full terms in CC-BY-SA-4.0.txt, https://creativecommons.org/licenses/by-sa/4.0/ . English shards retain MIT. Changes: filter English/common Japanese entries, normalize aliases, shard by initial character, cap long glosses at2000 Unicode characters and mark excerpts. No claim of Chinese translations for Japanese glosses: Japanese is Japanese-English; Chinese is Chinese-English.
+
+manifest.json records exact input SHA256, counts, sizes and output hashes. Rebuild with scripts/build-basic-dictionaries.py from the recorded downloaded sources. Source files are not bundled with the application; derived shards and licenses are public static assets. Only the needed shards are downloaded. Browser cache is best effort and can be removed by browser storage maintenance; no private learning data is stored in this cache.
