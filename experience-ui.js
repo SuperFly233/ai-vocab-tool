@@ -35,10 +35,7 @@
   }
   const measuredBrowseTools=new WeakSet(),browseSizeObserver=new ResizeObserver(()=>schedule());
   function enhanceBrowseTools(){
-    document.querySelectorAll('.folder-toolbar select,.scene-filter-bar select').forEach(select=>{
-      if(select.parentElement.classList.contains('browse-select'))return;
-      const wrapper=document.createElement('span');wrapper.className='browse-select';select.before(wrapper);wrapper.append(select);wrapper.insertAdjacentHTML('beforeend',icon('chevron-down'));
-    });
+    root.SharedUI?.enhanceSelects();
     document.querySelectorAll('.history-tools,.folder-toolbar,.scene-browse-tools').forEach(node=>{if(!measuredBrowseTools.has(node)){measuredBrowseTools.add(node);browseSizeObserver.observe(node)}});
   }
   const ratios=new Map(),mediaObserver=new IntersectionObserver(entries=>{

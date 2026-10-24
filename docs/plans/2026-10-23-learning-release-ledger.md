@@ -4,7 +4,7 @@ Approved scope: full-content cards and screenshot learning, 6 reliability / 6 re
 
 ## Reconciled status, 2026-10-24
 
-The older per-item entries below are historical checkpoints, not the latest screenshot implementation status. Source of truth for the independent preview is `feat/capture-intake-preview:docs/reports/v038-intake-preview.md` (merge6afcd56, docsde44c46), URL https://capture-v038-preview.ai-vocab-tool.pages.dev . Production is now v0.39.1; screenshot intake remains separate. Common-fix roll-forward passed48 static hashes/auth, deployed five-width/two-theme capture and390dark consistency; synthetic vision locally passes.
+The older per-item entries below are historical checkpoints, not the latest screenshot implementation status. Source of truth for independent preview is `feat/capture-intake-preview:docs/reports/v038-intake-preview.md` (latest common-fix mergeba90634, docs67cc809), URL https://capture-v038-preview.ai-vocab-tool.pages.dev . Production is now v0.39.3; screenshot intake remains separate. Original full48-resource verification is recorded; latest roll-forward passed seven changed hashes/deployed390dark selection and local five-width/two-theme capture. Real vision acceptance remains unverified.
 
 | Workstream | Verified status | Remaining delivery |
 | --- | --- | --- |
@@ -17,7 +17,8 @@ The older per-item entries below are historical checkpoints, not the latest scre
 | Media editing | Not delivered | Image crop/resize, animated GIF crop/trim, video crop/trim/resize with audio, bounded processing/fallback |
 | AI crop assistance | Not delivered | Suggested boxes, user confirmation and deterministic recoverable derivatives |
 | Storage | Diagnostic logs migrated losslessly | History/settings IndexedDB migration; physical phone acceptance |
-| Current scene/entry iteration | Stage A v0.37.2, organization/quick-learning v0.39.0 and consistency closure v0.39.1 released;44 hashes and live acceptance | Previous O3 more-menu consolidation implemented; version/row/editor regressions pass. Common fixes merged/retested on screenshot preview without promoting its unfinished features; report ../reports/v0391-consistency.md |
+| Current scene/entry iteration | Stage A v0.37.2, organization/quick-learning v0.39.0, consistency v0.39.1, timestamps v0.39.2 and selection v0.39.3 released;44 hashes and live acceptance | Previous O3 more-menu consolidation implemented; latest two-level selection, paged all/partial/clear and selected-only export tested. Common fixes merged/retested separately; report ../reports/v0393-selection.md |
+| Lookup identity | Code mismatch found: main origin-only lookup vs scene unique-title matching; two displayed inflict records reported by user | Verify original inputs/languages and implement safe shared matching; do not silently merge private IDs, associations or records merely because titles match |
 
 Do not silently drop any row when delivering a newer UI iteration. No scheduled promise or automatic next release is implied; unfinished work must remain visible.
 

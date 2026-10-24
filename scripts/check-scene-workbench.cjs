@@ -39,7 +39,8 @@ const server=require('./browser-test-server.cjs').createServer();
    await page.locator('[name="quote"]').fill('I clocked the detail.');
    await page.locator('#scene-editor').dispatchEvent('click');
    assert.ok(await page.locator('#scene-editor').isVisible(),'Editor backdrop cannot dismiss draft');
-   await page.locator('[data-scene-action="manual"]').click();
+   await page.getByRole('button',{name:'更多保存方式',exact:true}).click();
+   await page.getByRole('menuitem',{name:'保存为自建词条…',exact:true}).click();
    await page.waitForSelector('.scene-record');
    await page.evaluate(()=>{
     const item=getHistory()[0],now=new Date().toISOString();
