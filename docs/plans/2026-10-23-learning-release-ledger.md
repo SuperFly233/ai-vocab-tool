@@ -8,7 +8,7 @@ Production0.43.0 / Bridge0.4.1: onboarding/install released at runtime3ad2df9, p
 
 | Pending unit | Dependency | Acceptance | Next step / evidence |
 | --- | --- | --- | --- |
-| Production screenshots | Selected actual vision profile | Real image probe, review/save/query/card-preview lifecycle | Existing isolated preview and synthetic tests; actual channel still required |
+| Production screenshots | Saved claude-sonnet-5 channel now verified | Review/save/query/card-preview lifecycle and production gates | Actual browser random-digit and bilingual synthetic-image tests pass; default/manual settings and full production path still pending, see ../reports/v043-vision-channel.md |
 | Teyvat index / canonical sources | Incremental bilingual corpus and source version | Coverage visible, exact unique evidence vs ambiguity | Existing API investigation, not connected |
 | Automatic save/query | Structural checks plus independent source evidence | Explicit bounded opt-in, ambiguous items held | No automatic Anki approval; not delivered |
 | Reviewed consolidation | Shared identity and conflict preview | Atomic versions/folders/links/tombstones, guarded undo | Previously approved phase B still pending |
