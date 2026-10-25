@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.42.2',
+  version:'0.43.0',
   releaseDate:'2026-10-25',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.0',date:'2026-10-25',title:'站内上手与连接核对',items:['原帮助入口提供四组可重播教程、安装连接和常见问题；首次只询问一次，进度仅保存在本机当前账号。','教程高亮真实控件并使用只读示例，不调用模型、不写学习记录；退出恢复页面与位置，未保存草稿不强制关闭。','站内提供正式助手下载、更新步骤、官方软件入口、程序与数据目录说明及真实电脑诊断；未完成事项有独立验收账本。']},
   {version:'0.42.2',date:'2026-10-25',title:'连接助手更新与诊断',items:['同源正式发布清单提供版本、便携包和校验值；区分电脑实际登记版本与服务端协议能力。','更新和首次连接采用一致引导；云任务与 Anki 为必需项，Fushi 和词典可选，诊断超过两分钟需重新检查。','Bridge 0.4.1 保留旧协议与任务恢复，活动批次阻止误退出或改连接；不改既有模板和复习进度。']},
   {version:'0.42.1',date:'2026-10-25',title:'场景查询侧重点隔离',items:['队列只把用户侧重点回填到首页与场景编辑器，模型专用的原句上下文不再残留。','刷新恢复、失败重试保留独立用户要求；仅修正与已存任务完全对应的旧草稿，不根据文字关键词误删。']},
   {version:'0.42.0',date:'2026-10-25',title:'旧词条审核补遗',items:['历史与收藏的更多菜单提供结构缺项检查，扫描不调用模型，内容简短不视为缺陷。','明确选择分区后生成可编辑建议，本机草稿支持刷新恢复；采用后新增版本，原文、场景关联和收藏保留。','写入失败保留建议，并发更新与账号切换阻止采用；撤销校验后续修改，不改变既有制卡快照。']},
@@ -1446,6 +1447,7 @@ function renderAuthGate(){
     els.storageStatus.textContent=(globalThis.DiagnosticStore?.available?'历史与设置 localStorage，诊断日志 IndexedDB':'localStorage，本机本浏览器记录')+(cloudUser?' · Supabase 自动同步':'。');
   }
   if(!couldEnter&&canEnterApp())focusQueryInput();
+  window.dispatchEvent(new Event('lexi-auth-context'));
   if(canEnterApp())scheduleRecoveredLookups();
 }
 function authRedirectTo(){

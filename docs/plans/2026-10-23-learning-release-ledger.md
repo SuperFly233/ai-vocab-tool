@@ -2,6 +2,20 @@
 
 Approved scope: full-content cards and screenshot learning, 6 reliability / 6 refinements / 6 additions. Status below is evidence, not a completion claim.
 
+## Current checkpoint,2026-10-25
+
+Production0.43.0 / Bridge0.4.1: onboarding/install released at runtime3ad2df9, preview4288e978 and production59372862;149 hashes/auth401 and deployed tutorial matrix pass. See ../reports/v0430-onboarding.md. Actual portable synthetic-deck acceptance and matching remote ZIP digest remain from0.42.2; no native binary change this stage. This changes no screenshot/Teyvat/media completion claim. Current approved order: verified screenshot recognition -> Teyvat attribution and evidence-qualified automatic learning -> reviewed duplicate consolidation -> history/settings IndexedDB -> non-destructive media editing -> confirmed AI crop. User selected saved Claude Sonnet5 for the real synthetic vision test. Older version/order statements below are historical checkpoints, not current production truth.
+
+| Pending unit | Dependency | Acceptance | Next step / evidence |
+| --- | --- | --- | --- |
+| Production screenshots | Selected actual vision profile | Real image probe, review/save/query/card-preview lifecycle | Existing isolated preview and synthetic tests; actual channel still required |
+| Teyvat index / canonical sources | Incremental bilingual corpus and source version | Coverage visible, exact unique evidence vs ambiguity | Existing API investigation, not connected |
+| Automatic save/query | Structural checks plus independent source evidence | Explicit bounded opt-in, ambiguous items held | No automatic Anki approval; not delivered |
+| Reviewed consolidation | Shared identity and conflict preview | Atomic versions/folders/links/tombstones, guarded undo | Previously approved phase B still pending |
+| Large history/settings storage | Account-aware transactions/readback | Fail-safe migration, reload/multi-tab/backup/sync | Logs migrated only; learning/settings migration pending |
+| Image/GIF/video editing | Recoverable derivatives and bounded resources | Decodable outputs, animation/duration/audio preserved | Not delivered; current media display is not editing |
+| AI crop | Media editor and verified vision | Preview/adjust/confirm, deterministic copy, restore original | Not delivered |
+
 ## Reconciled status, 2026-10-24
 
 The older per-item entries below are historical checkpoints, not the latest screenshot implementation status. Source of truth for independent preview is `feat/capture-intake-preview:docs/reports/v038-intake-preview.md` (latest common-fix mergeba90634, docs67cc809), URL https://capture-v038-preview.ai-vocab-tool.pages.dev . Production is now v0.39.3; screenshot intake remains separate. Original full48-resource verification is recorded; latest roll-forward passed seven changed hashes/deployed390dark selection and local five-width/two-theme capture. Real vision acceptance remains unverified.

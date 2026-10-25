@@ -187,7 +187,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
     }catch{if(node.isConnected){node.dataset.unavailable='true';node.dataset.tip='缩略图暂不可用，点击打开原素材';node.setAttribute('aria-label','缩略图暂不可用')}}
   }
   function render(){
-    const host=document.getElementById('scene-hub');if(!host)return;restoreAccount();setup(host);
+    const host=document.getElementById('scene-hub');if(!host)return;restoreAccount();setup(host);host.querySelector('.scene-search').dataset.helpTarget='scene-search';
     const actions=host.querySelector('.scene-library-head .scene-actions'),primary=actions.querySelector('.scene-add-command');if(primary&&actions.firstElementChild!==primary)actions.prepend(primary);
     const groups=SceneUI.sceneGroups(),sources=[...new Set(groups.map(row=>row.scene.sourceTitle).filter(Boolean))].sort();
     const organize=id=>root.SceneOrganization?.state(id)||{favorite:false,pinned:false};

@@ -21,7 +21,7 @@
   const node=dialog('发送到 Anki'),body=node.querySelector('.scene-dialog-body'),account=cloudUser?.id;
   try{
    const devices=await request('devices');if(!node.isConnected)return;
-   if(!devices.length){body.innerHTML='<p>尚未登记电脑。请先启动 Anki Bridge、登录同一账号并登记这台电脑。</p>';return}
+   if(!devices.length){body.innerHTML='<p>尚未登记电脑。请启动 Windows 连接助手，登录同一账号并登记。</p><button class="plain-btn" data-help-open="connect">安装与连接</button>';return}
    const links=group.links.filter(item=>!entryId||String(item.id)===String(entryId));
    if(!links.length){body.innerHTML='<p>先为场景关联一个词条，再选择需要学习的内容。</p>';return}
    const entries=links.map(item=>{const scene=SceneStudy.link(item,groupId),result=displayedResultForHistory(item.id,item),bound=scene.targetKey?findFragmentInResult(result,'sense',scene.targetKey):null;return {item,meanings:[...(bound?[{name:'场景绑定义项',value:bound.meaning||''}]:[]),{name:'核心义',value:SceneStudy.meaning(item)},...(result?.senses||[]).map((sense,i)=>({name:`义项 ${i+1} · ${sense.shortestLabel||''}`,value:sense.meaning||''}))]}});
@@ -107,6 +107,7 @@
  document.addEventListener('click',event=>{const button=event.target.closest('[data-send-anki]');if(!button)return;const parent=button.closest('[data-history-id][data-scene-id]');if(!parent)return;const item=getHistory().find(item=>String(item.id)===parent.dataset.historyId),scene=SceneData.reconcile(item?.scenes||getSettings().sceneLibrary,item?.sceneTombstones||getSettings().sceneLibraryTombstones).items.find(scene=>scene.id===parent.dataset.sceneId);if(scene)openGroup(scene.groupId,item?.id||'')});
  document.getElementById('anki-task-manager')?.addEventListener('click',manage);
  async function connections(){
+  if(root.LearningHelp)return LearningHelp.open('connect');
   const node=dialog('学习联动'),body=node.querySelector('.scene-dialog-body');
   body.innerHTML=`<section data-release-guide><p>正在核对正式发布…</p></section><div class="integration-status-list"><section><h3>连接顺序</h3><p>Windows 助手登录同一账号 → 登记电脑 → 打开 Anki 并检查连接 → 在此网页预览、核对牌库后确认。</p><p>普通制卡需要云任务和 Anki；Fushi 与本机词典是可选来源。手机、Mac 不需要安装 Windows 程序。</p><button class="plain-btn" data-fushi-browser>${icon('book-open')}选取 Fushi 来源</button></section><section><h3>云端任务与接收电脑</h3><p data-integration-cloud>尚未检查</p><div data-integration-devices></div></section></div><footer><button class="plain-btn" data-check-integration>${icon('refresh-cw')}检查云端</button><button class="plain-btn" data-open-jobs>${icon('list')}查看任务</button></footer>`;
   let release=null;const showRelease=async()=>{try{release=await BridgeRelease.load();if(node.isConnected)body.querySelector('[data-release-guide]').innerHTML=BridgeRelease.guide(release)}catch{if(!node.isConnected)return;const host=body.querySelector('[data-release-guide]');host.innerHTML='<p>发布信息暂不可用，未提供未经校验的下载。</p><button class="plain-btn" data-retry-release>重试</button>';host.querySelector('button').onclick=showRelease}};showRelease();
