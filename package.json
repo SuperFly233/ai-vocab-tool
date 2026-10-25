@@ -1,9 +1,11 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.41.0",
+  "version": "0.41.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:home-scenes": "node scripts/check-home-scene-continuity.cjs",
+    "check:scene-maintenance": "node scripts/check-scene-maintenance.cjs",
     "check:basic-dictionaries": "node --check basic-dictionary.js && node --check basic-dictionary-worker.js && node scripts/check-basic-dictionaries.cjs",
     "check:multilingual-ui": "node scripts/check-multilingual-ui.cjs",
     "check:workbench-release": "node scripts/check-workbench-release.cjs",

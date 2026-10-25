@@ -29,6 +29,11 @@
   function sourceUrl(value){
     try{const url=new URL(text(value,2048));return ['https:','http:'].includes(url.protocol)&&!url.username&&!url.password?url.href:''}catch{return ''}
   }
+  function sameMediaScene(a,b,{ignoreTitle=false}={}){
+    if(!a?.media?.length||!b?.media?.length)return false;
+    const shape=scene=>({title:ignoreTitle?'':scene.title||'',...Object.fromEntries(['quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','targetKey'].map(key=>[key,scene[key]||''])),exampleHighlights:highlights(scene.exampleHighlights),translationHighlights:highlights(scene.translationHighlights),media:normalizeMedia(scene.media).map(ref=>ref.id),heroMedia:scene.heroMedia||[],externalSource:scene.externalSource||null});
+    return JSON.stringify(shape(a))===JSON.stringify(shape(b));
+  }
   function normalizeMedia(items=[]){
     const found=new Set();
     return (Array.isArray(items)?items:[]).flatMap(item=>{
@@ -133,5 +138,5 @@
   const putDraft=(key,value)=>transaction('drafts','readwrite',store=>store.put(value,key));
   const deleteDraft=key=>transaction('drafts','readwrite',store=>store.delete(key));
   const clearPreviews=()=>transaction('drafts','readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(String(cursor.key).startsWith('thumbnail-v1:'))cursor.delete();cursor.continue()};return null});
-  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,highlights,normalizeMedia,normalizeScene,reconcile,mergeOrganization,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
+  root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,highlights,sameMediaScene,normalizeMedia,normalizeScene,reconcile,mergeOrganization,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
 })(globalThis);

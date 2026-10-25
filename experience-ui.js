@@ -36,6 +36,7 @@
   const measuredBrowseTools=new WeakSet(),browseSizeObserver=new ResizeObserver(()=>schedule());
   function enhanceBrowseTools(){
     root.SharedUI?.enhanceSelects();
+    for(const page of ['history','folders']){const button=document.querySelector(`[data-reset-browse="${page}"]`),state=page==='history'?historyState:folderState,current=ViewPreferences.normalize(page,state),defaults=ViewPreferences.normalize(page,ViewPreferences.defaults[page]);if(page==='history'){delete current.filtersOpen;delete defaults.filtersOpen}if(button)button.hidden=!state.query&&JSON.stringify(current)===JSON.stringify(defaults)}
     document.querySelectorAll('.history-tools,.folder-toolbar,.scene-browse-tools').forEach(node=>{if(!measuredBrowseTools.has(node)){measuredBrowseTools.add(node);browseSizeObserver.observe(node)}});
   }
   const ratios=new Map(),mediaObserver=new IntersectionObserver(entries=>{
@@ -74,6 +75,7 @@
     reading.insertAdjacentHTML('beforeend',row('输入联想','个人词条优先，支持英语及中日基础词库；仅下载本站词库分片，不向第三方发送查询文字。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="wordSuggestions" aria-label="输入联想"><span>开启</span></label>')+row('基础词典','候选显示可用词义，阅读区保留独立词典参考；不修改 AI 正文或本机词典快照。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="basicDictionary" aria-label="基础词典"><span>开启</span></label>')+row('快捷保存','原句等多行输入保留 Enter 换行；场景编辑 Ctrl／Cmd＋Enter 保存，待查单行 Enter 加入。','<span class="setting-shortcut">Ctrl / Cmd + Enter</span>'));
     media.insertAdjacentHTML('beforeend',row('视频自动播放','尝试有声播放；浏览器限制时静音，并保留声音开关。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaAutoplay" aria-label="视频自动播放"><span>开启</span></label>')+row('视频播放控件','显示浏览器提供的进度、音量和全屏控件。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaControls" aria-label="视频原生控件"><span>显示</span></label>')+row('素材操作工具','设置放大、保存等操作的显示方式；不影响声音开关。',`<div class="seg" data-preference="mediaTools">${[['auto','自动'],['always','常显'],['hidden','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
     const nav=document.querySelector('.settings-nav');
+    media.insertAdjacentHTML('beforeend',row('场景标题','默认不调用模型；选择 AI 文字标题时仅使用已填写的文字，不自动识别图片。',`<select data-preference="sceneTitleMode" aria-label="默认场景标题方式">${[['text','原句摘要'],['source','来源与时间'],['manual','手动填写'],['ai','AI 文字标题']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select>`));
     const categories=[
       ['settings-model','模型生成','scan-search','API、模型配置与查询规则','接口 key prompt 模型'],
       ['settings-experience','界面布局','monitor','主题、首页布局与移动工具栏','主题 深色 浅色 首页 手机'],
@@ -117,8 +119,8 @@
       search.querySelector('[role="status"]').textContent=query?`${matches} 项`:'';empty.hidden=!query||matches>0;
       updateSettingsNavActive();
     });
-    document.querySelectorAll('[data-preference]').forEach(control=>control.addEventListener(control.tagName==='INPUT'?'change':'click',event=>{
-      const key=control.dataset.preference,value=control.tagName==='INPUT'?control.checked:event.target.closest('[data-value]')?.dataset.value;
+    document.querySelectorAll('[data-preference]').forEach(control=>control.addEventListener(['INPUT','SELECT'].includes(control.tagName)?'change':'click',event=>{
+      const key=control.dataset.preference,value=control.tagName==='INPUT'?control.checked:control.tagName==='SELECT'?control.value:event.target.closest('[data-value]')?.dataset.value;
       if(value!==undefined)savePreference(key,value);
     }));
   }
@@ -200,7 +202,7 @@
     document.documentElement.style.setProperty('--app-top',`${Math.max(headerBottom,visibleBottom(query))}px`);
   }
   function refresh(){
-    scheduled=false;enhanceSearch();enhanceBrowseTools();root.InputSuggestions?.refreshBaskets();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
+    scheduled=false;enhanceSearch();enhanceBrowseTools();root.InputSuggestions?.refreshBaskets();root.SceneUI?.renderHome();enhance(document.getElementById('result-card'));enhance(document.getElementById('modal-card-page'));
     for(const summary of document.querySelectorAll('.scene-library>summary,.scene-more-media>summary'))if(!summary.querySelector('svg'))summary.insertAdjacentHTML('afterbegin',icon('chevron-down'));
     for(const card of document.querySelectorAll('.scene-illustrated'))if(ratios.has(card.dataset.sceneId))card.style.setProperty('--scene-media-width',`${ratios.get(card.dataset.sceneId)}%`);
     root.SceneOrganization?.enhance();root.SharedUI?.enhance();
@@ -211,6 +213,7 @@
     document.body.dataset.mediaTools=settings.mediaTools||'auto';
     document.querySelectorAll('[data-preference]').forEach(control=>{
       if(control.tagName==='INPUT')control.checked=Boolean(settings[control.dataset.preference]);
+      else if(control.tagName==='SELECT')control.value=settings[control.dataset.preference]||'text';
       else control.querySelectorAll('[data-value]').forEach(button=>{const selected=button.dataset.value===settings[control.dataset.preference];button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected))});
     });
     document.querySelectorAll('.reading-layout').forEach(layout=>layout.dataset.position=settings.readingNav||'top');

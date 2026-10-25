@@ -57,6 +57,8 @@ Do not silently drop any row when delivering a newer UI iteration. No scheduled 
 
 ## Design decisions
 
+2026-10-25 maintenance follow-up: scene title/translation reviewed supplementation is implemented as a scoped first step in v0.41.1; it does NOT complete legacy entry long-form expansion, image-derived scene descriptions/originals, canonical source matching, or existing private duplicate-record migration. Those remain explicit pending tasks. Model-free naming is the default; AI text naming is opt-in. See docs/plans/2026-10-25-home-scene-continuity.md.
+
 Use generated reference for batch list/detail hierarchy, visible footer and mobile detail navigation. Reject its invented canonical source, mandatory per-item copy controls, and optional-original checkbox: originals are ALWAYS retained. Keep actual existing icons/themes, show real match evidence and source coverage; do not display synthetic reference content as verified results. Do not bundle generated reference as application background.
 
 ## Mac direct report
