@@ -8,6 +8,7 @@ const proposal=D.parse(JSON.stringify({...result,privateExtension:undefined,head
 const composed=D.compose(result,proposal,['summary','examples'],'original input');
 assert.equal(composed.headword.title,'skewer');assert.equal(composed.meta.origin,'personal-origin');assert.equal(composed.privateExtension.retain,true);assert.equal(composed.senses[0].translation,'她把蔬菜串起来。');assert.deepEqual(plain(composed.senses[0].exampleHighlights),['skewered']);
 assert.equal(result.headword.summary,'','No original mutation');
+assert.equal(D.validate(result,'x'.repeat(2000)).headword.title,'skewer','Long original input is not constrained by the card Origin field');
 assert.throws(()=>D.compose(result,{...proposal,senses:[]},['examples']),/顺序/);
 assert.throws(()=>D.parse('{"__proto__":{}}'),/结构/);
 assert.throws(()=>D.parse('x'.repeat(220001)),/220KB/);

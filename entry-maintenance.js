@@ -59,7 +59,7 @@
       host.querySelectorAll('[data-entry-open]').forEach(button=>button.onclick=()=>{active=button.dataset.entryOpen;node.dataset.detail='';list();preview();changed()});counts();
     }
     function input(path,label,value){return '<label><span>'+esc(label)+'</span><textarea data-entry-field="'+path+'" aria-label="'+esc(label)+'">'+esc(value)+'</textarea></label>'}
-    function originalView(row){try{return LearningContent.render(LearningContent.snapshot({...row.original,headword:{...row.original.headword,title:row.original.headword?.title||row.title}},D.keys,row.origin))}catch{return '<p>旧内容的结构或长度无法直接预览。原文仍保留，可导出本机建议备份；不会自动裁剪或改写。</p>'}}
+    function originalView(row){try{return LearningContent.render(LearningContent.snapshot({...row.original,headword:{...row.original.headword,title:row.original.headword?.title||row.title}},D.keys,''))}catch{return '<p>旧内容的结构或长度无法直接预览。原文仍保留，可导出本机建议备份；不会自动裁剪或改写。</p>'}}
     function preview(){
       const row=records.find(row=>row.id===active),host=node.querySelector('.entry-maintenance-preview');if(!row){host.innerHTML='<p>当前范围没有待补遗词条。</p>';return}
       const settings=currentApiSettings(),model=settings.model||configInfo?.model||'未配置';

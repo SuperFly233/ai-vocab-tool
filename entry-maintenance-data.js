@@ -10,7 +10,7 @@
   }
   function validate(result,origin=''){
     if(bytes(result)>220000)throw Error('正文超过 220KB，未截断；请先缩小补遗范围。');
-    return root.LearningContent.normalize({version:1,result,selected:keys,origin}).result;
+    return root.LearningContent.normalize({version:1,result,selected:keys,origin:''}).result;
   }
   function parse(answer,origin=''){
     if(typeof answer!=='string'||new TextEncoder().encode(answer).length>220000)throw Error('模型返回超过 220KB 或格式无效，未截断。');
