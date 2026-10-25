@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+v0.42.1 capture parity completed: mergeb74907f/docsa2dbb7c, https://12c4b39d.ai-vocab-tool.pages.dev;147 hashes/auth and four deployed focus flows pass, local capture five-width/two-theme/contracts pass. Main restored with143 files/72 icons and no capture module. Supersedes pending-parity text below.
+
 - v0.42.1 RELEASED focus hotfix00a3541c8eb07733b5840926af5e5a6f761c66bc: previewcff44aa4/production5f3f9a0f,143 hashes/auth plus390/1440 light/dark synthetic flows passed. SceneUI formerly mixed user focus with injected scene context in request.note; editor copied it back into Home/new-scene lookupNote. Persist optional userNote, use LookupTasks.editorNote for editor/legacy recovery, preserve actual model note/signature, retain focus/direction in retry. npm check and Home390dark pass. No actual model/private/native changes. Not planned stage B consolidation; B/C remain pending. Capture parity next.
 
 v0.42.0 capture parity completed separately: merge2fcdea2/docs619197b, https://055838f2.ai-vocab-tool.pages.dev,147 hashes/auth and deployed390dark supplementation passed; local capture five widths/both themes, synthetic vision/data and shared supplementation passed. Main restored with143 static files/72 icons and no capture-ui.js; C remains unaccepted for production.
