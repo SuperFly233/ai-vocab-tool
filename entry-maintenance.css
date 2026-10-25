@@ -27,6 +27,7 @@
 .entry-maintenance-proposal{border-top:2px solid var(--accent);padding-top:12px}
 .entry-maintenance-fields{border:0;border-bottom:1px solid var(--line);margin:0 0 18px;padding:0 0 12px;min-width:0}
 .entry-maintenance-fields legend{font-weight:700;padding:0 0 8px}.entry-maintenance-fields label{display:block;font-size:14px;margin:8px 0}
+.entry-maintenance-fields:has(>label>textarea[data-entry-field^="headword."])>label>span{display:none}
 .entry-maintenance-fields textarea{display:block;width:100%;box-sizing:border-box;min-height:70px;resize:vertical;font:inherit;font-size:16px;font-weight:400;padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--text);background:var(--bg)}
 .entry-maintenance-item{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
 .entry-maintenance-ai{font-size:13px;color:var(--accent);margin:0 0 12px}
