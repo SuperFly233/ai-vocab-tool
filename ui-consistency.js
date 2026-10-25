@@ -10,7 +10,7 @@
     if(active?.trigger===trigger){closeMenu();return}closeMenu(false);
     const box=document.createElement('div');box.id=`shared-menu-${++menuSequence}`;box.className=`shared-action-menu${kind==='select'?' shared-select-menu':''}`;box.setAttribute('popover','manual');box.setAttribute('role',kind==='select'?'listbox':'menu');box.setAttribute('aria-label',trigger.getAttribute('aria-label')||'更多操作');trigger.setAttribute('aria-controls',box.id);
     const account=typeof cloudUser==='undefined'?'local':cloudUser?.id||'local';
-    items.filter(Boolean).forEach(item=>{const button=document.createElement('button');button.type='button';button.setAttribute('role',kind==='select'?'option':'menuitem');if(kind==='select')button.setAttribute('aria-selected',String(Boolean(item.selected)));button.disabled=Boolean(item.disabled);button.className=item.danger?'danger-icon':'';button.innerHTML=(kind==='select'?'':icon(item.icon||'ellipsis'))+'<span>'+escapeHTML(item.label)+'</span>';button.onclick=()=>{closeMenu(false);if(account!==(cloudUser?.id||'local'))return notify('账号已切换，请重新打开。','warn','操作');item.run()};box.append(button)});
+    items.filter(Boolean).forEach(item=>{const button=document.createElement('button');button.type='button';button.setAttribute('role',kind==='select'?'option':'menuitem');if(kind==='select')button.setAttribute('aria-selected',String(Boolean(item.selected)));button.disabled=Boolean(item.disabled);button.className=item.danger||kind!=='select'&&['trash-2','star-off','folder-minus','bookmark-x'].includes(item.icon)?'danger-icon':'';button.innerHTML=(kind==='select'?'':icon(item.icon||'ellipsis'))+'<span>'+escapeHTML(item.label)+'</span>';button.onclick=()=>{closeMenu(false);if(account!==(cloudUser?.id||'local'))return notify('账号已切换，请重新打开。','warn','操作');item.run()};box.append(button)});
     if(!box.childElementCount)return;(trigger.closest('dialog[open]')||document.body).append(box);box.showPopover();active={menu:box,trigger,kind};trigger.setAttribute('aria-expanded','true');trigger.setAttribute('aria-haspopup',kind==='select'?'listbox':'menu');
     positionMenu();(box.querySelector('[aria-selected="true"]:not(:disabled)')||box.querySelector('button:not(:disabled)'))?.focus({preventScroll:true});
   }
@@ -55,6 +55,7 @@
     trigger.onclick=event=>{event.stopPropagation();menu(trigger,nodes.filter(node=>node.isConnected&&(!node.matches('[data-fushi-browser]')||document.body.classList.contains('integrations-ready'))).map(node=>({label:node.getAttribute('aria-label')||node.dataset.tip||node.textContent.trim(),icon:node.querySelector('svg')?.dataset.lucide||'ellipsis',disabled:node.disabled,danger:node.classList.contains('danger-icon'),run:()=>node.isConnected?node.click():notify('内容已变化，请重新打开菜单。','warn','操作')})))};
   }
   function enhance(){
+    document.querySelectorAll('button:has(svg[data-lucide="trash-2"]),button[data-scene-action="remove"],button[data-scene-action="detach"]').forEach(button=>button.classList.add('danger-icon'));
     const historyBar=document.getElementById('history-selection-bar'),head=document.querySelector('#view-history .section-head .action-row');
     if(historyBar&&head){
       let session=head.querySelector('[data-history-selection-session]');if(!session){session=document.createElement('div');session.className='selection-session';session.dataset.historySelectionSession='';session.innerHTML='<button type="button" class="selection-cancel">取消</button>';session.prepend(document.getElementById('history-selection-count'));session.querySelector('button').onclick=()=>toggleHistorySelectionMode();head.append(session)}
@@ -79,7 +80,7 @@
     if(!bar)return;const next=document.body.classList.contains('home-scrolled')&&activeView==='home';
     if(next!==compact){compact=next;bar.hidden=!compact;if(compact)pane.setAttribute('popover','manual');else{closeHome();pane.removeAttribute('popover')}}
     if(!compact)return;
-    const lines=els.query.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),text=lines[0]||'输入单词、短语或句子',summary=bar.querySelector('[data-home-summary]');if(summary.textContent!==text)summary.textContent=text;
+const lines=homeQueryTerms(),text=lines[0]||'输入单词、短语或句子',summary=bar.querySelector('[data-home-summary]');if(summary.textContent!==text)summary.textContent=text;
     const count=bar.querySelector('[data-home-count]'),label=[lines.length>1?`${lines.length} 条输入`:'',lookupQueue.length?`${lookupQueue.length} 条等待`:''].filter(Boolean).join(' · ');if(count.textContent!==label)count.textContent=label;count.hidden=!label;
     const b=bar.getBoundingClientRect(),v=root.visualViewport,bottom=(v?.offsetTop||0)+(v?.height||innerHeight);pane.style.setProperty('--query-panel-top',`${b.bottom+8}px`);pane.style.setProperty('--query-panel-height',`${Math.max(80,bottom-b.bottom-24)}px`);
     els.workspace.style.setProperty('--home-sticky-height',`${Math.ceil(b.height+18)}px`);

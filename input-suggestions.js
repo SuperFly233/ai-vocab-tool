@@ -66,7 +66,7 @@
   function refreshBaskets(){
     document.querySelectorAll('#query-input,#scene-editor [name="lookupTerms"],#scene-editor [name="entryTitle"]').forEach(input=>{
       let node=baskets.get(input);if(!node||!node.isConnected){node=document.createElement('div');node.className='input-term-basket';node.setAttribute('aria-label','待查询词组');if(input.id==='query-input')input.closest('.query-row').before(node);else input.closest('.scene-field').before(node);baskets.set(input,node)}
-      if(node.dataset.value===input.value)return;node.dataset.value=input.value;node.replaceChildren();const terms=input.id==='query-input'?input.value.split(/\r?\n/).map(value=>value.trim()).filter(Boolean):SceneData.highlights(input.value);node.hidden=terms.length<2;
+      if(node.dataset.value===input.value)return;node.dataset.value=input.value;node.replaceChildren();const terms=input.id==='query-input'?homeQueryTerms(input.value):SceneData.highlights(input.value);node.hidden=terms.length<2;
       terms.slice(0,20).forEach((term,index)=>{const chip=document.createElement('span'),label=document.createElement('span'),remove=document.createElement('button');chip.className='input-term-chip';label.textContent=term;remove.type='button';remove.setAttribute('aria-label',`移除词组：${term}`);remove.innerHTML=icon('x');remove.onclick=event=>{event.preventDefault();event.stopPropagation();const next=[...terms];next.splice(index,1);input.value=next.join('\n');input.dispatchEvent(new Event('input',{bubbles:true}));close();input.focus({preventScroll:true});root.UIOverlays?.hideFieldHint?.()};chip.append(label,remove);node.append(chip)});
       if(terms.length>20){const count=document.createElement('small');count.textContent=`另 ${terms.length-20} 项`;node.append(count)}
     });

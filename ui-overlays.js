@@ -148,7 +148,7 @@
     if(!document.querySelector('dialog:modal'))return askConfirm(message,'放弃修改');
     return new Promise(resolve=>{
       const node=document.createElement('dialog');node.className='scene-study-dialog draft-confirm';
-      node.innerHTML='<header><h2>放弃修改？</h2></header><div class="scene-dialog-body"><p></p><footer><button class="plain-btn" data-keep>继续编辑</button><button class="plain-btn primary-btn" data-discard>放弃修改</button></footer></div>';
+      node.innerHTML='<header><h2>放弃修改？</h2></header><div class="scene-dialog-body"><p></p><footer><button class="plain-btn" data-keep>继续编辑</button><button class="plain-btn danger-btn" data-discard>放弃修改</button></footer></div>';
       node.querySelector('p').textContent=message;node.querySelector('[data-keep]').onclick=()=>node.close('keep');node.querySelector('[data-discard]').onclick=()=>node.close('discard');
       node.onclose=()=>{const result=node.returnValue==='discard';node.remove();resolve(result)};document.body.append(node);node.showModal();
     });
