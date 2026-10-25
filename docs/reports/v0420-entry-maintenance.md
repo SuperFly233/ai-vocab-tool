@@ -2,7 +2,7 @@
 
 ## Status
 
-Stage A implemented and locally verified; preview/production acceptance pending. This is6 of the approved18 units, not the entire v0.42 plan. Stage B duplicate consolidation and C real-provider screenshot release remain pending. No private history, Anki/Fushi data or actual paid model was changed by these tests.
+Stage A released and verified on preview/production. This is6 of the approved18 units, not the entire v0.42 plan. Stage B duplicate consolidation and C real-provider screenshot release remain pending. No private history, Anki/Fushi data or actual paid model was changed by these tests.
 
 | Unit | Result | Evidence |
 | --- | --- | --- |
@@ -29,4 +29,25 @@ Physical iPhone and authenticated multi-device synchronization were not exercise
 
 ## Release
 
-Pending preview and production evidence; do not interpret candidate source version as production deployment.
+Implementation131e769; final runtime7e209f7ab0f720fb09a25d18af578bd60b6841d3, pushed to main. Preview https://222e74a0.ai-vocab-tool.pages.dev passed143 exact file hashes/auth and five-width/two-theme synthetic interactions. Final feedback-only preview https://84de530e.ai-vocab-tool.pages.dev passed143 hashes/auth and390dark including the actual favorites menu. Production https://0bddb7dd.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev passed143 hashes/auth and390dark/1440light full synthetic flows. Source and worker changes deployed, not just a static mockup.
+
+Initial preview56438cb8 failed during1024light reload because server configuration could still be null; corrected before production and covered by explicit null injection on every final matrix reload. Individual retry count/no-overwrite confirmation tested. Empty or oversized legacy structures display a safe explanation instead of crashing the dialog. Long Origin inputs are not truncated or incorrectly subjected to the Anki card's400-character Origin constraint.
+
+Actual screenshots: [phone](v0420/entry-mobile.png), [desktop](v0420/entry-desktop.png).
+
+## Remaining12 units
+
+| Unit | State |
+| --- | --- |
+| B1 shared lookup identity | Pending; existing inflict mismatch not fixed by supplementation |
+| B2 duplicate evidence list | Pending |
+| B3 reviewed entry consolidation | Pending |
+| B4 reviewed scene/reference consolidation | Pending |
+| B5 atomic trace/tombstone synchronization | Pending |
+| B6 reviewed consolidation undo | Pending |
+| C1 safe capture-preview integration | Pending production delivery; keep isolated |
+| C2 configured/manual vision preferences | Pending |
+| C3 actual provider image acceptance | Pending; no credentials requested or paid request made |
+| C4 batch image recognition/review | Independent preview exists, not production delivery |
+| C5 confirmed canonical sources and saved learning flow | Partial preview only; canonical identity/aliases pending |
+| C6 full screenshot lifecycle/production release | Pending |
