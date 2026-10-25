@@ -43,6 +43,7 @@ class State:
         self.next_announcement = 0
         self.paused = threading.Event()
         self.latest_diagnostics = {}
+        self.diagnostics_checked = 0
         self.worker_done = threading.Event()
 
     def save_config(self):
@@ -57,6 +58,8 @@ class State:
         owner = self.cloud.current()['owner']
         if self.config.get('owner') != owner:
             self.active = None
+            self.latest_diagnostics = {}
+            self.diagnostics_checked = 0
             accounts = self.config.setdefault('accounts', {})
             accounts.setdefault(owner, str(uuid.uuid4()))
             self.config.update(owner=owner, deviceId=accounts[owner], deck='Lexi 验收')
@@ -382,10 +385,10 @@ def create_app(state, port, token):
 
     @app.get('/assets/{name}')
     def asset(name: str):
-        if name not in ('connection.js', 'style.css', 'icons.js', 'favicon.svg'):
+        if name not in ('connection.js', 'style.css', 'icons.js', 'favicon.svg', 'bridge-release.js', 'bridge-connection.css'):
             return Response(status_code=404)
         path = ASSETS / name
-        if name in ('icons.js', 'favicon.svg') and not path.exists():
+        if name in ('icons.js', 'favicon.svg', 'bridge-release.js', 'bridge-connection.css') and not path.exists():
             path = Path(__file__).resolve().parents[3] / name
         return FileResponse(path)
 
@@ -393,6 +396,10 @@ def create_app(state, port, token):
     def api(action: str, body: dict):
         with state.lock:
             try:
+                if action in ('login', 'logout', 'config', 'detect-anki', 'shutdown') and state.active:
+                    raise BridgeError('仍有已领取批次。请先暂停接单，在网页完成或明确取消剩余项，再继续此操作。')
+                if action == 'release':
+                    return state.cloud.release()
                 if action == 'login':
                     state.active = None
                     state.cloud.login(str(body.get('email', '')), str(body.get('password', '')))
@@ -400,17 +407,19 @@ def create_app(state, port, token):
                     return {'ok': True}
                 if action == 'logout':
                     state.active = None
+                    state.latest_diagnostics = {}
+                    state.diagnostics_checked = 0
                     state.cloud.logout()
                     return {'ok': True}
                 if action == 'status':
                     owner = state.bind_account()
-                    return {'version': __version__, 'owner': owner,'paused':state.paused.is_set(), 'workerError': state.worker_error, 'config': {k: state.config[k] for k in ['deviceId', 'name', 'port', 'deck']}}
+                    return {'version': __version__, 'owner': owner, 'active': bool(state.active), 'paused':state.paused.is_set(), 'workerError': '连接待检查' if state.worker_error else '', 'config': {k: state.config[k] for k in ['deviceId', 'name', 'port', 'deck']}}
                 if action == 'pause':
                     if body.get('paused') is True:state.paused.set()
                     else:state.paused.clear()
                     return {'paused':state.paused.is_set()}
                 if action == 'diagnostics-export':
-                    return {'version':__version__,'payloadVersions':[1,2,3,4],'paused':state.paused.is_set(),'checks':{k:{'ok':v.get('ok') is True,'message':v.get('message','')} for k,v in state.latest_diagnostics.items()}}
+                    return {'version':__version__,'payloadVersions':[1,2,3,4],'paused':state.paused.is_set(),'checkedAt':state.latest_diagnostics.get('checkedAt'),'checks':{k:{'ok':v.get('ok') is True} for k,v in state.latest_diagnostics.items() if isinstance(v,dict)}}
                 if action == 'register':
                     state.bind_account()
                     return state.cloud.call('register', deviceId=state.config['deviceId'], name=state.config['name'],bridgeVersion=__version__,payloadVersions=[1,2,3,4])
@@ -446,6 +455,8 @@ def create_app(state, port, token):
                     if body.get('key'):
                         state.cloud.vault.put('anki-key', str(body['key']))
                     state.config.update(port=port_value, name=name, deck=deck)
+                    state.latest_diagnostics = {}
+                    state.diagnostics_checked = 0
                     state.save_config()
                     state.active = None
                     return {'ok': True}

@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const scope={URL,console};vm.createContext(scope);vm.runInContext(fs.readFileSync('bridge-release.js','utf8'),scope);
+const contract=scope.BridgeRelease,manifest=JSON.parse(fs.readFileSync('bridge-release.json','utf8'));
+assert.equal(contract.validate(manifest),manifest);
+for(const change of [{url:manifest.url.replace('github.com','githubXcom')},{url:manifest.url+'?redirect=evil'},{sha256:'x'.repeat(64)},{size:0},{payloadVersions:[4]}])assert.throws(()=>contract.validate({...manifest,...change}));
+assert.match(contract.comparison('0.3.0','0.4.1'),/可更新/);assert.match(contract.comparison('0.4.1','0.4.1'),/无需/);assert.match(contract.comparison(undefined,'0.4.1'),/尚未/);
+const now=Date.now(),checks={checkedAt:new Date(now).toISOString(),deviceName:'<script>private</script>',cloud:{ok:true},anki:{ok:true,detail:{profile:'test'}},fushi:{ok:false},dictionary:{ok:false}};
+assert.match(contract.diagnosticsHTML(checks,now),/基础制卡必需/);assert.doesNotMatch(contract.diagnosticsHTML(checks,now),/<script>/);
+assert.match(contract.diagnosticsHTML(checks,now+121000),/需重新检查/);assert.match(contract.diagnosticsHTML({...checks,checkedAt:undefined},now),/检查时间未知/);
+assert.match(contract.diagnosticsHTML({...checks,anki:{ok:false,message:'AnkiConnect 认证失败，secret private'}},now),/核对本地密钥/);assert.doesNotMatch(contract.diagnosticsHTML({...checks,anki:{ok:false,message:'AnkiConnect 认证失败，secret private'}},now),/secret private/);
+assert.match(contract.guide(manifest,'0.3.0'),/_internal/);assert.match(contract.guide(manifest),/Anki 自身同步/);
+console.log('Bridge release contract passed: official URLs, hash/size, actual versions, optional dependencies, expiry and safe HTML.');

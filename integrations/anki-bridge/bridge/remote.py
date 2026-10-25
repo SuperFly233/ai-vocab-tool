@@ -1,4 +1,7 @@
 """Website-requested, bounded operations. Never executes arbitrary commands or paths."""
+from datetime import datetime, timezone
+import time
+from . import __version__
 from .core import BridgeError, digest, undo_one
 from .dictionary import lookup
 
@@ -69,9 +72,14 @@ def diagnose(state):
         rows=state.fushi.call('dictionaries').get('dictionaries')
         if not isinstance(rows,list):raise BridgeError('词典列表格式不兼容。')
         names=[row['name'] for row in rows if isinstance(row,dict) and row.get('enabled') is True and isinstance(row.get('name'),str) and 1<=len(row['name'])<=200]
-        result['dictionary']={'ok':True,'names':names[:50]}
+        result['dictionary']={'ok':bool(names),'names':names[:50]}
     except BridgeError as error:
         result['dictionary']={'ok':False,'message':str(error)}
+    result.update(checkedAt=datetime.now(timezone.utc).isoformat(),
+                  deviceName=state.config['name'], deviceId=state.config['deviceId'],
+                  helperVersion=__version__)
+    state.latest_diagnostics = result
+    state.diagnostics_checked = time.monotonic()
     return result
 
 

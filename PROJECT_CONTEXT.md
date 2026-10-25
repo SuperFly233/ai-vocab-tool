@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+- v0.42.2 / Bridge0.4.1 release acceptance: shared verified release contract, manual update/onboarding, real device version vs server protocol, optional Fushi/dictionary and120-second diagnostics, active-batch exit/config guards. Additive helper041 migration applied and grants verified;54 Python, PGlite/API, five-width/two-theme website/helper and actual portable synthetic-deck acceptance passed. Final shared diagnostic copy refined; package must be rehashed and actual acceptance repeated before publication. Stage B consolidation and C production vision remain pending. See docs/plans/2026-10-25-bridge-update.md.
+
 v0.42.1 capture parity completed: mergeb74907f/docsa2dbb7c, https://12c4b39d.ai-vocab-tool.pages.dev;147 hashes/auth and four deployed focus flows pass, local capture five-width/two-theme/contracts pass. Main restored with143 files/72 icons and no capture module. Supersedes pending-parity text below.
 
 - v0.42.1 RELEASED focus hotfix00a3541c8eb07733b5840926af5e5a6f761c66bc: previewcff44aa4/production5f3f9a0f,143 hashes/auth plus390/1440 light/dark synthetic flows passed. SceneUI formerly mixed user focus with injected scene context in request.note; editor copied it back into Home/new-scene lookupNote. Persist optional userNote, use LookupTasks.editorNote for editor/legacy recovery, preserve actual model note/signature, retain focus/direction in retry. npm check and Home390dark pass. No actual model/private/native changes. Not planned stage B consolidation; B/C remain pending. Capture parity next.

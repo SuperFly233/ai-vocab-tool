@@ -100,6 +100,22 @@ class Cloud:
     def call(self, action, **args):
         return self.post('/api/anki-jobs', {'action': action, 'args': args})['data']
 
+    def release(self):
+        # Public metadata only: never forward the user's cloud authorization.
+        try:
+            with self.http.stream('GET', self.origin + '/bridge-release.json', timeout=5) as response:
+                if response.status_code != 200:
+                    raise BridgeError('暂时无法读取正式发布清单，请稍后重试。')
+                chunks, size = [], 0
+                for chunk in response.iter_bytes():
+                    size += len(chunk)
+                    if size > 32768:
+                        raise BridgeError('正式发布清单超限。')
+                    chunks.append(chunk)
+                return json.loads(b''.join(chunks))
+        except (httpx.HTTPError, ValueError):
+            raise BridgeError('暂时无法读取正式发布清单，请检查网络后重试。') from None
+
     def media(self, ref):
         manifest = self.post('/api/media', {'action': 'manifest', 'id': ref['id']}).get('manifest')
         if not manifest or manifest.get('size') != ref['size'] or manifest.get('mime') != ref['mime']:

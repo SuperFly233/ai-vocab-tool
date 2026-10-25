@@ -44,9 +44,11 @@ version_file=OUT/'windows-version.txt'
 version_tuple=tuple(int(v) for v in __version__.split('.'))+(0,)
 version_file.write_text("VSVersionInfo(ffi=FixedFileInfo(filevers="+repr(version_tuple)+",prodvers="+repr(version_tuple)+",mask=0x3f,flags=0,OS=0x40004,fileType=1,subtype=0,date=(0,0)),kids=[StringFileInfo([StringTable('040904B0',[StringStruct('CompanyName','Lexi'),StringStruct('FileDescription','Lexi 连接助手'),StringStruct('ProductName','Lexi 连接助手'),StringStruct('FileVersion','"+__version__+"'),StringStruct('ProductVersion','"+__version__+"'),StringStruct('OriginalFilename','"+EXECUTABLE+"')])]),VarFileInfo([VarStruct('Translation',[1033,1200])])])",'utf-8')
 runtime_data = []
+for shared in ('bridge-release.js', 'bridge-connection.css'):
+    runtime_data += ['--add-data', str(ROOT / shared) + ';web']
 certificate_policy = Path(sys.base_prefix) / 'Lib' / 'codex-rejected-cas.pem'
 if certificate_policy.is_file():
-    runtime_data = ['--add-data', str(certificate_policy) + ';.']
+    runtime_data += ['--add-data', str(certificate_policy) + ';.']
 try:
     with (OUT / 'portable-build.log').open('w', encoding='utf-8') as log:
         result = subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--console' if diagnostic else '--noconsole', '--name', NAME, '--icon',str(HERE/'web/app-icon.ico'),'--version-file',str(version_file), '--specpath', str(OUT), '--workpath', str(OUT / 'work'), '--distpath', str(OUT), '--paths', str(HERE), '--add-data', str(HERE / 'web') + ';web', '--add-data', str(ROOT / 'learning-card.css') + ';web', '--add-data', str(ROOT / 'icons.js') + ';web', '--add-data', str(ROOT / 'favicon.svg') + ';web', '--hidden-import', 'keyring.backends.Windows','--hidden-import','pystray._win32', *runtime_data, str(HERE / 'run.py')], cwd=ROOT, timeout=180, stdout=log, stderr=subprocess.STDOUT)

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "version": "0.4.0",
+  "payloadVersions": [1, 2, 3, 4],
+  "platform": "windows-x64",
+  "url": "https://github.com/SuperFly233/ai-vocab-tool/releases/download/v0.37.0/LexiAnkiBridge-0.4.0-Windows-portable.zip",
+  "releaseUrl": "https://github.com/SuperFly233/ai-vocab-tool/releases/tag/v0.37.0",
+  "size": 24993671,
+  "sha256": "0257c69323d08cd0c0f35aa027567fae599fec07fbd7a4ac5447a7d7c1d6ebee",
+  "entrypoint": "LexiConnect.exe"
+}

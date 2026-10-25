@@ -1,0 +1,16 @@
+.bridge-update-guide,.bridge-device{padding-block:16px;border-bottom:1px solid var(--border-color,rgba(128,128,128,.25));min-width:0}
+.bridge-update-guide h3,.bridge-device h4{margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.bridge-update-guide p,.bridge-device p{margin:8px 0;overflow-wrap:anywhere}
+.bridge-update-guide summary{cursor:pointer;padding-block:10px}
+.bridge-update-guide li{margin-block:8px}
+.bridge-update-guide ol{padding-inline-start:24px;margin-inline:0}
+.bridge-checksum{display:block;overflow-wrap:anywhere;white-space:normal;font-size:12px}
+.integration-status-list .connection-state{padding-block:12px;border-bottom:1px solid var(--border-color,rgba(128,128,128,.25));display:grid;gap:6px}
+.connection-state small{font-weight:400;font-size:13px}
+.connection-state[data-ok=false] span{color:var(--muted-color,inherit)}
+.connection-helper #bridge-diagnostics>p{grid-column:1/-1;font-size:13px;color:var(--muted);margin:0}
+.connection-helper #release-guide{margin-bottom:24px}
+.connection-helper .bridge-update-guide h3{font-size:18px}
+.connection-helper dialog{max-width:min(460px,calc(100% - 32px));border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:20px}
+.connection-helper dialog::backdrop{background:rgba(0,0,0,.4)}
+.connection-helper dialog footer{display:flex;gap:8px;justify-content:flex-end}

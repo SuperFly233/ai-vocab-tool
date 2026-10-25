@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from bridge.app import State,create_app
+from bridge import __version__
 from bridge.core import Anki,BridgeError,card_fields,MODEL as OLD_MODEL
 from bridge.learning import MODEL,validate,render
 from test_bridge import FakeCloud,card
@@ -29,7 +30,7 @@ class LearningTests(unittest.TestCase):
     def test_pause_and_public_identity_are_bounded(self):
         with tempfile.TemporaryDirectory() as temp:
             state=State(Path(temp),cloud=FakeCloud());client=TestClient(create_app(state,3000,'fixture'),base_url='http://127.0.0.1:3000');headers={'Origin':'http://127.0.0.1:3000','X-Bridge-Token':'fixture'}
-            value=client.get('/api/info').json();self.assertEqual(value['version'],'0.4.0');self.assertNotIn('owner',value)
+            value=client.get('/api/info').json();self.assertEqual(value['version'],__version__);self.assertNotIn('owner',value)
             self.assertEqual(client.post('/api/pause',headers=headers,json={'paused':True}).json(),{'paused':True});self.assertTrue(state.paused.is_set())
             self.assertEqual(client.post('/api/pause',json={'paused':False}).status_code,403)
             export=client.post('/api/diagnostics-export',headers=headers,json={}).json();self.assertNotIn('owner',export);self.assertNotIn('config',export)

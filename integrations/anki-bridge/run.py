@@ -28,6 +28,8 @@ if __name__ == '__main__':
         assert (ASSETS / 'icons.js').is_file()
         assert (ASSETS / 'app-icon.png').is_file()
         assert (ASSETS / 'learning-card.css').is_file()
+        assert (ASSETS / 'bridge-release.js').is_file()
+        assert (ASSETS / 'bridge-connection.css').is_file()
         Vault()
         ssl.create_default_context(cafile=certifi.where())
         if sys.stdout:print('Self-test: runtime and dictionary sanitizer ready',flush=True)
