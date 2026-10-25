@@ -81,7 +81,7 @@
    });
   }
   UIOverlays.guardDialog(node,{initialState:{query,selected:[]},getState:()=>({query:body.querySelector('input').value,selected:[...results.querySelectorAll('input:checked')].map(input=>input.dataset.selection).sort()}),restore:state=>lookup(query,onSaved,{...state,context})});
-  try{const devices=await AnkiBridge.request('devices');if(!current())return;for(const device of devices)select.add(new Option(device.name,device.id));if(!devices.length){button.disabled=true;status.textContent='尚未登记电脑。请先在电脑学习伴侣中登录并登记。'}}catch(error){status.textContent=error.message;button.disabled=true}
+  try{const devices=await AnkiBridge.request('devices');if(!current())return;for(const device of devices)select.add(new Option(device.name,device.id));if(!devices.length){button.disabled=true;status.textContent='尚未登记电脑。请先在 Windows 连接助手中登录并登记。';const link=document.createElement('button');link.type='button';link.className='plain-btn';link.dataset.helpOpen='connect';link.textContent='安装与连接';status.append(link)}}catch(error){status.textContent=error.message;button.disabled=true}
   if(context)renderEntries(context.value,context.requestId,context.word,draft?.selected||[]);
   button.onclick=async()=>{
    if(pending)return;pending=true;button.disabled=true;
@@ -89,7 +89,7 @@
     if(!current())throw Error('账号已切换。');
     await FushiWorkspace.command(node,{deviceId:select.value,kind:'diagnostics'},async result=>{
      if(!current())return;
-     const catalog=result.dictionary;if(!catalog?.ok)throw Error(catalog?.message||'此电脑未返回词典列表，请更新学习伴侣。');
+     const catalog=result.dictionary;if(!catalog?.ok)throw Error(catalog?.message||'此电脑未返回词典列表，请在安装与连接中核对助手版本。');
      results.replaceChildren();const field=document.createElement('label');field.className='scene-field';const label=document.createElement('span');label.textContent='已安装的词典';const dictionaries=document.createElement('select');dictionaries.setAttribute('aria-label','已安装的词典');for(const name of catalog.names||[])dictionaries.add(new Option(name,name));field.append(label,dictionaries);
      const search=document.createElement('button');search.type='button';search.className='plain-btn primary-btn';search.textContent='查询词典';search.disabled=!dictionaries.options.length;results.append(field,search);
      search.onclick=async()=>{

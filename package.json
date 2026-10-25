@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.42.2",
+  "version": "0.43.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:learning-help": "node --check learning-help.js && node --check learning-help-data.js && node scripts/check-learning-help.cjs && node scripts/check-learning-help-safety.cjs",
     "check:bridge-release": "node --check bridge-release.js && node scripts/check-bridge-release.cjs",
     "check:bridge-connections": "node scripts/check-bridge-connections.cjs",
     "check:scene-query-focus": "node scripts/check-scene-query-focus.cjs",

@@ -64,6 +64,7 @@
   function topDialog(){return [...document.querySelectorAll('dialog[open]')].filter(node=>node.matches(':modal')).at(-1)||null}
   function dismissDialog(node){if(!node?.open)return;const dismiss=dialogDismissers.get(node);if(dismiss)dismiss();else node.close()}
   document.addEventListener('keydown',event=>{
+    if(globalThis.LearningHelp?.handleKey(event))return;
     if(event.key!=='Escape'||document.fullscreenElement)return;
     const dialog=topDialog();
     if(event.repeat&&(dialog||document.querySelector('.modal-layer.open,.confirm-layer.open'))){event.preventDefault();event.stopImmediatePropagation();return}

@@ -1,5 +1,5 @@
 import { modelEvents } from './model-stream.js?v=0.36.2';
-import { safeParseJSON,lookupUserPrompt,followupMessages } from './provider-contract.js?v=0.42.2';
+import { safeParseJSON,lookupUserPrompt,followupMessages } from './provider-contract.js?v=0.43.0';
 import { upstreamFailure } from './upstream-error.js?v=0.36.2';
 
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','X-Lexi-Request-Path':'browser'}});

@@ -1,0 +1,68 @@
+.learning-help-dialog[open]{width:min(900px,calc(100% - 32px));max-width:900px;height:min(850px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);padding:0;display:flex;flex-direction:column}
+.learning-help-dialog>header{padding:18px 24px;flex:none;border-bottom:1px solid var(--line)}
+.learning-help-dialog>header h2{font-size:20px;margin:0}
+.learning-help-dialog>.scene-dialog-body{padding:0;min-height:0;flex:1;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}
+.help-tabs{display:flex;border-bottom:1px solid var(--line);padding:0 20px;gap:20px}
+.help-tabs button{appearance:none;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:14px 0;font:inherit;font-weight:600;cursor:pointer;min-height:48px}
+.help-tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
+.help-content{padding:20px 24px;min-width:0;overflow:auto;overscroll-behavior:contain}
+.help-intro{color:var(--muted);margin:0 0 16px;font-size:15px}
+.help-note{font-size:13px;line-height:1.65;color:var(--muted);overflow-wrap:anywhere}
+.help-tour-list>section{display:grid;grid-template-columns:32px minmax(0,1fr) 44px;gap:14px;align-items:center;border-bottom:1px solid var(--line);padding:20px 0;min-width:0}
+.help-topic-icon{color:var(--accent);display:grid;place-items:center}
+.help-topic-icon svg{width:24px;height:24px}
+.help-tour-list h3{font-size:17px;margin:0 0 6px}
+.help-tour-list p{font-size:14px;color:var(--muted);margin:0 0 5px;line-height:1.6}
+.help-tour-list small{font-size:12px;color:var(--soft)}
+.help-tour-list .icon-btn{width:44px;height:44px}
+.help-install{padding:18px 0;border-top:1px solid var(--line)}
+.help-install h3{font-size:18px;margin:0 0 12px}
+.help-install p{line-height:1.7;overflow-wrap:anywhere}
+.help-install details{padding:12px 0;font-size:14px}
+.help-install summary,.help-faq summary{cursor:pointer;font-weight:600}
+.help-install-steps{padding-inline-start:24px;margin:12px 0;font-size:15px;line-height:1.7}
+.help-install-steps li{margin:10px 0}
+.help-platform{display:inline-flex;max-width:100%;margin:0 0 8px}
+.help-platform button[aria-pressed=true]{color:var(--accent);background:var(--accent-bg)}
+.help-check-shortcut{display:flex;margin:8px 0 12px;font-size:14px}
+.help-official-links{display:flex;gap:12px 20px;flex-wrap:wrap;font-size:14px;margin-top:10px}
+.help-official-links a{color:var(--accent)}
+.help-check-actions{display:flex;gap:10px;flex-wrap:wrap}
+.help-install .scene-field{margin-block:16px}
+.help-install .lexi-select{max-width:100%;width:100%}
+.help-install .connection-state{border-bottom:1px solid var(--line);padding:12px 0;display:grid;gap:6px;font-size:14px}
+.help-install .connection-state small{font-weight:400;color:var(--muted)}
+.help-readiness{font-size:14px;color:var(--muted)}
+.help-readiness[data-ready=true]{color:var(--good)}
+.help-faq{border-bottom:1px solid var(--line);padding:16px 0;font-size:15px;line-height:1.7}
+.help-faq p{color:var(--muted);margin:10px 0 0}
+.help-ledger>section{border-top:1px solid var(--line);padding:14px 0}
+.help-ledger h3{font-size:16px;margin:8px 0}
+.help-ledger h3 small{font-size:12px;font-weight:400;color:var(--muted)}
+.learning-help-dialog>.scene-dialog-status:not(:empty){padding:12px 24px;border-top:1px solid var(--line);flex:none;max-height:110px;overflow:auto}
+.learning-welcome{position:fixed;inset:auto 24px 24px auto;margin:0;width:min(360px,calc(100vw - 32px));max-width:none;padding:18px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);box-shadow:var(--shadow);font:15px/1.6 var(--font-ui)}
+.learning-welcome p{margin:6px 0 14px;color:var(--muted);font-size:14px}
+.learning-welcome>div{display:flex;gap:8px;flex-wrap:wrap}
+.learning-welcome .plain-btn{font-size:14px;min-height:40px;padding:8px 12px}
+.learning-tour-layer{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;padding:0;margin:0;border:0;background:transparent;color:var(--text);overflow:hidden;overscroll-behavior:contain;font-family:var(--font-ui)}
+.learning-tour-ring{position:fixed;border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 0 200vmax rgba(0,0,0,.52);pointer-events:none}
+.learning-tour-layer.tour-missing-target{background:rgba(0,0,0,.52)}
+.learning-tour-panel{position:fixed;background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:8px;box-shadow:var(--shadow);display:grid;grid-template-rows:auto minmax(0,1fr) auto;outline:none;min-width:0;font-size:15px;line-height:1.65}
+.learning-tour-panel>header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.learning-tour-panel>header .icon-btn{height:34px;width:34px;flex:none}
+.learning-tour-copy{overflow:auto;min-height:0;padding:14px 18px}
+.learning-tour-copy h2{font-size:18px;margin:0 0 8px;line-height:1.5}
+.learning-tour-copy p{margin:0 0 12px;overflow-wrap:anywhere}
+.learning-tour-example{border-left:3px solid var(--accent);padding:8px 12px;background:var(--accent-bg);margin:12px 0 0;border-radius:0 4px 4px 0}
+.learning-tour-example span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.learning-tour-example p{margin:0;font-size:14px}
+.learning-tour-panel>footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.learning-tour-panel>footer .plain-btn{font-size:14px;padding:8px 12px;min-height:40px}
+.learning-tour-panel>footer [data-tour-skip]{margin-right:auto}
+@media(max-width:600px){
+ .learning-help-dialog[open]{width:calc(100% - 16px);height:calc(100dvh - 24px);max-height:calc(100dvh - 24px)}
+ .learning-help-dialog>header{padding:14px 16px}.help-content{padding:16px}.help-tabs{padding:0 16px;gap:20px}
+ .help-tour-list>section{grid-template-columns:26px minmax(0,1fr) 40px;gap:10px;padding:16px 0}.help-tour-list h3{font-size:16px}.help-tour-list .icon-btn{height:40px;width:40px}
+ .learning-welcome{right:12px;bottom:calc(84px + env(safe-area-inset-bottom));width:calc(100vw - 24px)}
+ .help-check-actions>.plain-btn{flex:1}.learning-tour-copy{padding:12px 14px}
+}
