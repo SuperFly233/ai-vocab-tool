@@ -80,7 +80,7 @@
     if(!bar)return;const next=document.body.classList.contains('home-scrolled')&&activeView==='home';
     if(next!==compact){compact=next;bar.hidden=!compact;if(compact)pane.setAttribute('popover','manual');else{closeHome();pane.removeAttribute('popover')}}
     if(!compact)return;
-    const lines=els.query.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),text=lines[0]||'输入单词、短语或句子',summary=bar.querySelector('[data-home-summary]');if(summary.textContent!==text)summary.textContent=text;
+const lines=homeQueryTerms(),text=lines[0]||'输入单词、短语或句子',summary=bar.querySelector('[data-home-summary]');if(summary.textContent!==text)summary.textContent=text;
     const count=bar.querySelector('[data-home-count]'),label=[lines.length>1?`${lines.length} 条输入`:'',lookupQueue.length?`${lookupQueue.length} 条等待`:''].filter(Boolean).join(' · ');if(count.textContent!==label)count.textContent=label;count.hidden=!label;
     const b=bar.getBoundingClientRect(),v=root.visualViewport,bottom=(v?.offsetTop||0)+(v?.height||innerHeight);pane.style.setProperty('--query-panel-top',`${b.bottom+8}px`);pane.style.setProperty('--query-panel-height',`${Math.max(80,bottom-b.bottom-24)}px`);
     els.workspace.style.setProperty('--home-sticky-height',`${Math.ceil(b.height+18)}px`);
