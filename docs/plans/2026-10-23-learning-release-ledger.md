@@ -4,7 +4,7 @@ Approved scope: full-content cards and screenshot learning, 6 reliability / 6 re
 
 ## Current checkpoint,2026-10-25
 
-Production0.42.2 / Bridge0.4.1 was verified with actual portable synthetic-deck acceptance and matching remote ZIP digest.0.43.0 on-site onboarding/install is locally verified and awaiting preview/production. This changes no screenshot/Teyvat/media completion claim. Current approved order: onboarding -> verified screenshot recognition -> Teyvat attribution and evidence-qualified automatic learning -> reviewed duplicate consolidation -> history/settings IndexedDB -> non-destructive media editing -> confirmed AI crop. Older version/order statements below are historical checkpoints, not current production truth.
+Production0.43.0 / Bridge0.4.1: onboarding/install released at runtime3ad2df9, preview4288e978 and production59372862;149 hashes/auth401 and deployed tutorial matrix pass. See ../reports/v0430-onboarding.md. Actual portable synthetic-deck acceptance and matching remote ZIP digest remain from0.42.2; no native binary change this stage. This changes no screenshot/Teyvat/media completion claim. Current approved order: verified screenshot recognition -> Teyvat attribution and evidence-qualified automatic learning -> reviewed duplicate consolidation -> history/settings IndexedDB -> non-destructive media editing -> confirmed AI crop. User selected saved Claude Sonnet5 for the real synthetic vision test. Older version/order statements below are historical checkpoints, not current production truth.
 
 | Pending unit | Dependency | Acceptance | Next step / evidence |
 | --- | --- | --- | --- |
