@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const context=vm.createContext({TextEncoder,structuredClone});for(const file of ['learning-content.js','entry-maintenance-data.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context);
+const D=context.EntryMaintenanceData,plain=value=>JSON.parse(JSON.stringify(value));
+const result={meta:{language:'en',direction:'en-zh',origin:'personal-origin'},headword:{title:'skewer',coreMeaning:'串起',summary:''},senses:[{partOfSpeech:'verb',shortestLabel:'串起',meaning:'穿过物体',example:'',translation:'',exampleHighlights:[],translationHighlights:[]}],collocations:[],register:{},confusions:[],privateExtension:{retain:true}};
+assert.deepEqual(plain(D.scan(result)),['summary','examples','collocations','register','confusions']);
+assert.equal(D.scan({...result,headword:{...result.headword,summary:'短'}}).includes('summary'),false,'Short is not missing');
+const proposal=D.parse(JSON.stringify({...result,privateExtension:undefined,headword:{...result.headword,title:'UNTRUSTED NEW TITLE',summary:'A concise overview'},senses:[{...result.senses[0],example:'She skewered the vegetables.',translation:'她把蔬菜串起来。',exampleHighlights:['skewered'],translationHighlights:['串起来']}]}));
+const composed=D.compose(result,proposal,['summary','examples'],'original input');
+assert.equal(composed.headword.title,'skewer');assert.equal(composed.meta.origin,'personal-origin');assert.equal(composed.privateExtension.retain,true);assert.equal(composed.senses[0].translation,'她把蔬菜串起来。');assert.deepEqual(plain(composed.senses[0].exampleHighlights),['skewered']);
+assert.equal(result.headword.summary,'','No original mutation');
+assert.throws(()=>D.compose(result,{...proposal,senses:[]},['examples']),/顺序/);
+assert.throws(()=>D.parse('{"__proto__":{}}'),/结构/);
+assert.throws(()=>D.parse('x'.repeat(220001)),/220KB/);
+assert.throws(()=>D.parse(JSON.stringify({headword:{title:'skewer'}})),/分区/);
+assert.throws(()=>D.compose(result,proposal,['unknown']),/分区/);
+const changedSense={...proposal,senses:[{...proposal.senses[0],meaning:'different'}]};assert.equal(D.compose(result,changedSense,['senses']).senses[0].example,'','Do not invent examples when examples are unselected');
+console.log('Entry maintenance data: missing-not-short, structural bounds, selected-only composition, identity/extensions/highlights preserved, invalid rows rejected');
+import('../provider-contract.js').then(({followupMessages})=>{
+ const messages=followupMessages({purpose:'entry-supplement',origin:'skewer',result,sections:['summary','examples']},'补遗');
+ assert.equal(JSON.parse(messages[1].content).origin,'skewer');assert.ok(messages[0].content.includes('不声称引用'));
+ assert.throws(()=>followupMessages({purpose:'entry-supplement',sections:['unknown']},'补遗'),/分区/);
+ assert.throws(()=>followupMessages({purpose:'entry-supplement',sections:['summary'],result:{text:'x'.repeat(220001)}},'补遗'),/220KB/);
+ console.log('Supplement provider contract: explicit purpose/sections, provenance and no context truncation passed');
+}).catch(error=>{console.error(error);process.exitCode=1});

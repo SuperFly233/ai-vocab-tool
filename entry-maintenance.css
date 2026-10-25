@@ -1,0 +1,43 @@
+.entry-maintenance-dialog{position:fixed;inset:0;margin:auto;width:min(1120px,calc(100vw - 32px));height:min(850px,calc(100dvh - 32px));max-width:none;max-height:none;padding:0;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-sizing:border-box}
+.entry-maintenance-dialog[open]{display:flex;flex-direction:column}
+.entry-maintenance-dialog::backdrop{background:rgba(0,0,0,.48)}
+.entry-maintenance-dialog>header,.entry-maintenance-dialog>footer{display:flex;align-items:center;gap:12px;padding:14px 18px;flex:none}
+.entry-maintenance-dialog>header{border-bottom:1px solid var(--line);justify-content:space-between}
+.entry-maintenance-dialog h2{font-size:20px;margin:0}.entry-maintenance-dialog h3{font-size:18px;margin:0 0 10px}
+.entry-maintenance-dialog>footer{border-top:1px solid var(--line);justify-content:flex-end;flex-wrap:wrap}
+.entry-maintenance-count{margin-right:auto;font-size:14px;color:var(--muted)}
+.entry-maintenance-layout{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:0;flex:1}
+.entry-maintenance-list{overflow:auto;border-right:1px solid var(--line);padding:10px}
+.entry-maintenance-choice{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:start;gap:8px;padding:12px 8px;border-bottom:1px solid var(--line)}
+.entry-maintenance-choice.active{background:var(--accent-bg)}
+.entry-maintenance-choice>input{margin-top:4px;width:18px;height:18px}
+.entry-maintenance-choice>button{padding:0;border:0;background:none;text-align:left;color:inherit;min-width:0;cursor:pointer}
+.entry-maintenance-choice strong,.entry-maintenance-choice small{display:block;overflow-wrap:anywhere}.entry-maintenance-choice small{margin-top:4px;color:var(--muted);font-size:13px}
+.entry-maintenance-preview{min-width:0;overflow:auto;padding:18px}
+.entry-maintenance-intro,.entry-maintenance-model,.entry-maintenance-status{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.entry-maintenance-intro{margin:0 0 12px}.entry-maintenance-model{margin:0 0 14px}
+.entry-maintenance-status{margin:0;padding:8px 18px;max-height:100px;overflow:auto;flex:none}
+.entry-maintenance-sections{display:flex;gap:8px 16px;flex-wrap:wrap;margin:12px 0 18px}
+.entry-maintenance-sections label{display:flex;align-items:center;gap:6px;font-size:14px}
+.entry-maintenance-original{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+.entry-maintenance-original p{white-space:pre-wrap;overflow-wrap:anywhere}
+.entry-maintenance-original .lexi-learning{padding:8px 0;margin:0;background:none}
+.entry-maintenance-original .learning-section{margin:8px 0;padding:8px 0}
+.entry-maintenance-original .learning-item{margin:6px 0;padding:0}
+.entry-maintenance-proposal{border-top:2px solid var(--accent);padding-top:12px}
+.entry-maintenance-fields{border:0;border-bottom:1px solid var(--line);margin:0 0 18px;padding:0 0 12px;min-width:0}
+.entry-maintenance-fields legend{font-weight:700;padding:0 0 8px}.entry-maintenance-fields label{display:block;font-size:14px;margin:8px 0}
+.entry-maintenance-fields textarea{display:block;width:100%;box-sizing:border-box;min-height:70px;resize:vertical;font:inherit;font-size:16px;font-weight:400;padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--text);background:var(--bg)}
+.entry-maintenance-item{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
+.entry-maintenance-ai{font-size:13px;color:var(--accent);margin:0 0 12px}
+.entry-maintenance-back{display:none}
+@media(max-width:600px){
+ .entry-maintenance-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px)}
+ .entry-maintenance-layout{grid-template-columns:minmax(0,1fr)}
+ .entry-maintenance-list{border-right:0}.entry-maintenance-preview{display:none;padding:14px}
+ .entry-maintenance-dialog[data-detail] .entry-maintenance-list{display:none}.entry-maintenance-dialog[data-detail] .entry-maintenance-preview{display:block}
+ .entry-maintenance-back{display:inline-flex;margin-bottom:12px}
+ .entry-maintenance-dialog>header,.entry-maintenance-dialog>footer{padding:10px 12px;gap:8px}
+ .entry-maintenance-count{width:100%;margin:0}.entry-maintenance-dialog>footer>button{flex:1;min-width:0;font-size:14px}
+ .entry-maintenance-dialog>footer{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+}

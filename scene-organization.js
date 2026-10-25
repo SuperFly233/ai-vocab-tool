@@ -101,7 +101,8 @@
     document.querySelectorAll('.history-actions').forEach(node=>SharedUI.more(node,'button[aria-label="重新生成"],button[aria-label="删除"]'));
     document.querySelectorAll('.scene-workbench>header>.scene-actions,.scene-entry>header>.scene-actions,.scene-memory>header>.scene-actions').forEach(node=>SharedUI.more(node,'[data-organize="pin"],[data-scene-action="edit"],[data-scene-action="remove"],[data-scene-action="feature"]'));
     document.querySelectorAll('.scene-favorite-row>.scene-organize-actions').forEach(node=>SharedUI.more(node,'[data-organize="pin"]'));
-    document.querySelectorAll('.result-icons,.folder-head-actions').forEach(node=>SharedUI.more(node,'button[aria-label^="导出"],button[aria-label="复制 JSON"],button[aria-label="重命名收藏夹"]'));
+    root.EntryMaintenance?.enhanceControls();
+    document.querySelectorAll('.result-icons,.folder-head-actions').forEach(node=>SharedUI.more(node,'button[aria-label^="导出"],button[aria-label="复制 JSON"],button[aria-label="重命名收藏夹"],[data-entry-maintenance]'));
     document.querySelectorAll('.scene-library-head>.scene-actions').forEach(node=>SharedUI.more(node,'[data-fushi-browser],[data-scene-action="supplement"],[data-scene-action="import"],[data-scene-action="backup"],[data-scene-export]'));
   }
   const targetFromKey=value=>{const split=value.indexOf(':');return {type:value.slice(0,split),id:value.slice(split+1)}};

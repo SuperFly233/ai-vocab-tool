@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.41.1',
+  version:'0.42.0',
   releaseDate:'2026-10-25',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.42.0',date:'2026-10-25',title:'旧词条审核补遗',items:['历史与收藏的更多菜单提供结构缺项检查，扫描不调用模型，内容简短不视为缺陷。','明确选择分区后生成可编辑建议，本机草稿支持刷新恢复；采用后新增版本，原文、场景关联和收藏保留。','写入失败保留建议，并发更新与账号切换阻止采用；撤销校验后续修改，不改变既有制卡快照。']},
   {version:'0.41.1',date:'2026-10-25',title:'首页场景与多词查询衔接',items:['首页保存后保留可编辑的场景摘要，查询继续携带同一场景；支持多行逐词提交及已有词条复用。','按素材哈希和场景正文精确复用重复保存；同素材不同来源或笔记不会误合并。','纯素材场景不再保留空白文字列，首页批量词组显示独立状态与可打开的已有词条。']},
   {version:'0.41.0',date:'2026-10-25',title:'多语言联想与基础词典',items:['联想按光标所在行补全，保留前后词组；多行待查词显示可移除标签，不自动查询。','新增英语英汉、日语常用词日英、中文中英基础词库，个人词条优先，可用词义在候选中显示。','基础词典独立于 AI 和电脑词典，AI 失败时仍显示可用词义；默认开启，可在阅读设置关闭。词库按需分片校验加载。']},
   {version:'0.40.1',date:'2026-10-25',title:'修正吸顶后的展开面板',items:['展开区不再占满桌面宽度，单行输入按实际内容增高；清除继承的巨大胶囊圆角。','展开队列内部滚动，搜索和添加场景只保留吸顶条一套；关闭不会丢失输入或任务。']},
@@ -4012,7 +4013,7 @@ async function readFollowupStream(response,onDelta,onStatus=null){
 }
 async function modelRequest(endpoint,payload,{signal}={}){
   if(/^https:\/\/ai\.hybgzs\.com(?::443)?\//i.test(String(payload.apiUrl||''))){
-    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.41.1');
+    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.42.0');
     if(client.canDirect(payload)){if(endpoint==='analyze')globalThis.RequestUI?.route?.('browser');return client.request(endpoint,payload,{signal})}
     throw new Error('黑与白直连地址需使用 https://ai.hybgzs.com/v1/chat/completions，并填写自己的 API Key；未改走云端。');
   }
