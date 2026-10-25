@@ -1,6 +1,6 @@
 # v0.41.1 Home Scene Continuity and Maintenance
 
-Status: candidate; local acceptance passed, preview/production pending.
+Status: released2026-10-25; preview and production acceptance passed.
 
 ## Requests and Actual Scope
 
@@ -36,4 +36,7 @@ Physical iPhone, real paid text-model outputs, real media playback and Anki/Fush
 
 ## Release
 
-Deployment evidence will be added after preview and production checks.
+- Implementation af5cb5a; final runtime c020086d0847bfac0bc522682f1aac1465464ab6.
+- Preview https://171c2fba.ai-vocab-tool.pages.dev:140 hashes/auth plus both new full five-width/two-theme suites passed. Final whole-row build https://c2441bff.ai-vocab-tool.pages.dev:140 hashes/auth and390dark Home/maintenance suites passed.
+- Production https://7069a5e2.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev:140 exact resource hashes/auth401,390dark and1440light Home/maintenance passed. Tests remain synthetic and model responses mocked; not live-model quality or physical-phone proof.
+- Capture parity is handled separately; no unfinished capture module is shipped to production.
