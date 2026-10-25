@@ -19,3 +19,5 @@ Hydrated old Home drafts are repaired only when their note exactly equals a stor
 Released runtime00a3541c8eb07733b5840926af5e5a6f761c66bc. Preview https://cff44aa4.ai-vocab-tool.pages.dev and production https://5f3f9a0f.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev both pass143 exact static hashes/auth401 plus390/1440 light/dark focus flows. `npm run check` and existing Home scene390dark regression pass. No private user data/model/native app changes.
 
 This is a hotfix release, NOT completion of approved stage B duplicate consolidation. Stage B and C remain pending; their original proposed version numbers are superseded by this intervening hotfix.
+
+Capture parity mergeb74907f37e6f1d6b6fab68370e76ecefe364ba2b: https://12c4b39d.ai-vocab-tool.pages.dev passes147 hashes/auth and390/1440 light/dark focus flows. Local capture five-width/two-theme and data/contracts pass; existing capture import/dismiss adapters retained. Still not production recognition acceptance.
