@@ -102,7 +102,7 @@ export default async function handler(request, response) {
       body: JSON.stringify({
         model,
         temperature: payload.purpose==='scene-title'?0.1:0.3,
-        max_tokens: payload.purpose==='scene-title'?128:1800,
+        max_tokens: payload.purpose==='scene-title'?128:payload.purpose==='entry-supplement'?9000:1800,
         stream,
         messages: followupMessages(payload, question),
       }),

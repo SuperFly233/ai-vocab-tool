@@ -114,3 +114,7 @@ External-source pickers keep routine outcomes and guarded undo inside the active
 - Organization: scenes and entries share folders but never implicitly share favorite or learning state. Scene featured placement is not a global pin.
 - Multiline Enter remains newline; IME confirmation is never submit. Explicit queries alone call the API.
 
+# Legacy supplementation and consolidation
+
+Legacy checks are read-only and missing structure is not the same as short prose. AI suggestions are explicitly unverified until reviewed; never label generated prose as official dictionary/database evidence. Adopt supplementation into a new version, not over an old one. Compare stable canonical fingerprints (JSON key order after reload is not a content change), retain original fields, and tombstone removed supplemental versions on guarded undo. Drafts remain local and credential-free. Shared supplemental dialogs must explicitly center in the viewport, with list/detail behavior on phones and a persistent bounded confirmation footer. Duplicate consolidation is a separate reviewed operation, never an incidental side effect of supplementation.
+
