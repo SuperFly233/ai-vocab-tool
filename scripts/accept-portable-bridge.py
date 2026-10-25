@@ -26,9 +26,9 @@ if origin == ORIGIN and os.environ.get('QA_ALLOW_PRODUCTION') != 'dedicated-test
     raise RuntimeError('Production requires explicit dedicated-test-deck acceptance mode')
 run = str(uuid.uuid4())
 version = os.environ.get('QA_BRIDGE_VERSION', '0.3.0')
-if version not in ('0.3.0', '0.4.0'):
+if version not in ('0.3.0', '0.4.0', '0.4.1'):
     raise RuntimeError('Unsupported portable acceptance version')
-full_content = version == '0.4.0'
+full_content = version in ('0.4.0', '0.4.1')
 directory = ROOT / 'tmp' / 'anki-bridge-qa' / ('便携 验收 ' + run)
 directory.mkdir(parents=True)
 archive = ROOT / f'tmp/anki-bridge-build/LexiAnkiBridge-{version}-Windows-portable.zip'

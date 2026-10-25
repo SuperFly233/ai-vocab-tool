@@ -189,7 +189,11 @@
   if(kind==='undo'&&!await AnkiBridge.confirmIntent('只撤销此电脑记录的本批写入；已学习、被修改或来源不匹配的卡片将保留。取消剩余任务不会删除已建卡片。','安全撤销本批写入','确认安全撤销'))return;
   const node=AnkiBridge.dialog(kind==='diagnostics'?'电脑连接诊断':kind==='undo'?'本批撤销结果':'在 Anki 中打开'),body=node.querySelector('.scene-dialog-body');
   await command(node,{deviceId,kind,...(job?{jobId:job.id}:{}),...(kind==='undo'?{confirmed:true}:{}),...(cardKey?{cardKey}:{})},result=>{
-   if(kind==='diagnostics')body.innerHTML=`<div class="integration-status-list">${[['cloud','Lexi 云任务'],['anki','AnkiConnect'],['fushi','Fushi'],['dictionary','本机词典']].map(([key,label])=>{const row=result[key]||{ok:false,message:'未返回检测结果'};return `<section data-connection-ok="${row.ok===true}"><h3>${esc(label)}</h3><p>${row.ok===true?'可用':esc(row.message)}${row.ok===true&&row.detail?.profile?` · ${esc(row.detail.profile)}`:''}${key==='dictionary'&&row.ok===true?` · ${Array.isArray(row.names)?row.names.length:0} 本已启用`:''}</p></section>`}).join('')}</div>`;
+   if(kind==='diagnostics'){
+    if(result.deviceId&&result.deviceId!==deviceId)throw Error('电脑身份不匹配，请重新检查。');
+    const render=()=>{body.innerHTML='<div class="integration-status-list">'+BridgeRelease.diagnosticsHTML(result)+'</div><button class="plain-btn" data-recheck-device>重新检查这台电脑</button>';body.querySelector('button').onclick=()=>{node.close();remoteAction('diagnostics',deviceId)}};
+    render();const timer=setInterval(()=>{if(!document.hidden&&node.open)render()},10000);node.addEventListener('close',()=>clearInterval(timer),{once:true});
+   }
    else if(kind==='open_note'){if(result.opened!==true)throw new Error('电脑未确认打开笔记。');body.innerHTML='<p>已在接收电脑的 Anki 中打开。</p>'}
    else body.innerHTML=`<div class="anki-remote-results">${(result.rows||[]).map(row=>`<section><strong>${esc(job.payload.cards.find(card=>card.key===row.key)?.title||'关联卡片')}</strong><p>${esc(({undone:'已撤销',error:'未撤销',skipped:'保留原卡片'})[row.status]||row.status)}${row.message?` · ${esc(row.message)}`:''}</p></section>`).join('')||'<p>没有可安全撤销的本批记录。</p>'}</div>`;
   });

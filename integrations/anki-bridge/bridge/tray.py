@@ -1,5 +1,6 @@
 """Windows tray uses pystray's native event loop; no second learning editor."""
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -18,9 +19,10 @@ class ConnectorTray:
             pystray.MenuItem('打开 Lexi', lambda: webbrowser.open(state.cloud.origin), default=True),
             pystray.MenuItem('连接设置', lambda: webbrowser.open(settings_url)),
             pystray.MenuItem('检查连接', self.check),
+            pystray.MenuItem('更新与连接指南', lambda: webbrowser.open(settings_url + '&update=1')),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(lambda _: '恢复接单' if state.paused.is_set() else '暂停接单', self.pause),
-            pystray.MenuItem('退出', lambda: state.closed.set())))
+            pystray.MenuItem('退出', self.exit)))
 
     def status(self):
         if self.state.closed.is_set(): return '正在退出'
@@ -28,7 +30,15 @@ class ConnectorTray:
         if self.state.active: return '任务处理中'
         if self.state.worker_error: return '连接待检查'
         checks = self.state.latest_diagnostics
-        return '连接正常' if checks and all(row.get('ok') for row in checks.values()) else '已启动，待检查'
+        if time.monotonic() - self.state.diagnostics_checked > 120: return '需重新检查'
+        return '基础制卡连接正常' if all(checks.get(key, {}).get('ok') for key in ('cloud', 'anki')) else '连接待检查'
+
+    def exit(self):
+        self.state.paused.set()
+        if self.state.active:
+            webbrowser.open(self.settings_url)
+        else:
+            self.state.closed.set()
 
     def pause(self):
         if self.state.paused.is_set(): self.state.paused.clear()

@@ -10,6 +10,7 @@ from test_bridge import FakeAnki, FakeCloud, card
 
 temp = tempfile.TemporaryDirectory()
 cloud = FakeCloud()
+cloud.release = lambda: json.loads((Path(__file__).resolve().parents[3] / 'bridge-release.json').read_text('utf-8'))
 state = State(Path(temp.name), cloud=cloud)
 anki = FakeAnki()
 state.anki = lambda: anki
