@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check:bridge-release": "node --check bridge-release.js && node scripts/check-bridge-release.cjs",
+    "check:bridge-connections": "node scripts/check-bridge-connections.cjs",
     "check:scene-query-focus": "node scripts/check-scene-query-focus.cjs",
     "check:entry-maintenance-data": "node --check entry-maintenance.js && node scripts/check-entry-maintenance-data.cjs",
     "check:entry-maintenance": "node scripts/check-entry-maintenance.cjs",

@@ -10,3 +10,10 @@ assert.match(contract.diagnosticsHTML(checks,now+121000),/需重新检查/);asse
 assert.match(contract.diagnosticsHTML({...checks,anki:{ok:false,message:'AnkiConnect 认证失败，secret private'}},now),/核对本地密钥/);assert.doesNotMatch(contract.diagnosticsHTML({...checks,anki:{ok:false,message:'AnkiConnect 认证失败，secret private'}},now),/secret private/);
 assert.match(contract.guide(manifest,'0.3.0'),/_internal/);assert.match(contract.guide(manifest),/Anki 自身同步/);
 console.log('Bridge release contract passed: official URLs, hash/size, actual versions, optional dependencies, expiry and safe HTML.');
+if(process.env.QA_ORIGIN)(async()=>{
+ const origin=process.env.QA_ORIGIN,response=await fetch(origin+'/bridge-release.json',{cache:'no-store',signal:AbortSignal.timeout(15000)});assert.equal(response.status,200);
+ const remote=contract.validate(await response.json());assert.equal(remote.sha256,manifest.sha256);assert.equal(remote.version,manifest.version);
+ const anonymous=await fetch(origin+'/api/anki-jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'health'}),signal:AbortSignal.timeout(15000)});
+ assert.equal(anonymous.status,401,'Production task service is enabled but rejects unauthenticated clients');
+ console.log('Deployed Bridge release matches the verified ZIP; task authentication gate returns401.');
+})().catch(error=>{console.error(error);process.exitCode=1});
