@@ -711,7 +711,7 @@
   }
   function taskResult(request,status,message=''){
     if(!request.sceneGroupId&&!request.batchId)return;
-    restoreTasks();tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request:{query:request.query,sceneGroupId:request.sceneGroupId||request.batchId},status,message});
+    restoreTasks();tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request:{query:request.query,sceneGroupId:request.sceneGroupId||request.batchId,...(typeof request.userNote==='string'?{userNote:request.userNote}:{}),...(typeof request.direction==='string'?{direction:request.direction}:{})},status,message});
     try{sessionStorage.setItem(`lexi-scene-tasks:${taskOwner}`,JSON.stringify([...tasks.values()].slice(-200)))}catch{}
     if(activeView==='scenes')renderHub();
   }
@@ -739,7 +739,7 @@
     for(const query of queries){
       if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未继续提交场景任务。');
       try{
-      const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,note:[note,`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`].filter(Boolean).join('\n'),folderIds:lookupFolderIds};
+      const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,userNote:note,note:[note,`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`].filter(Boolean).join('\n'),folderIds:lookupFolderIds};
       const existing=findExisting(query,entryIds[normalizeSearch(query)]);
 if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(query))){const linked=await attachPending(existing.id,query,groupId);if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未更新任务状态。');taskResult(request,linked?'complete':'error',linked?'':'场景关联尚未完成');(linked?accepted:failed).push(query);continue}
       if(existing)request.existingId=existing.id;
@@ -753,7 +753,7 @@ if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(
   async function retrySceneTask(key){
     restoreTasks();
     const task=tasks.get(key);if(!task)return;
-    try{await queueSceneQueries(task.request.sceneGroupId,[task.request.query])}catch(error){taskResult(task.request,'error',error.message)}
+    try{await queueSceneQueries(task.request.sceneGroupId,[task.request.query],{note:LookupTasks.editorNote(task.request),direction:task.request.direction})}catch(error){taskResult(task.request,'error',error.message)}
   }
   function supplementVersion(id){const group=sceneGroups().find(group=>group.scene.groupId===id);return group?JSON.stringify([group.scene,group.links.map(item=>[item.id,scenes(item).filter(scene=>scene.groupId===id)])]):null}
   function applySupplement(changes,owner,{undo=false}={}){

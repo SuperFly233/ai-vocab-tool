@@ -5,6 +5,11 @@ const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 
 expect(typeof recoverRequests==='function','LookupTasks production module did not load');
+const sceneRequest={query:'skewer',sceneGroupId:'scene-test',userNote:'侧重口语',note:'侧重口语\n场景原句：Private synthetic quote'};
+expect(LookupTasks.editorNote(LookupTasks.normalizeRequest(sceneRequest))==='侧重口语','Scene editor must receive only explicit user focus, including after task serialization');
+expect(LookupTasks.editorNote({query:'legacy',sceneGroupId:'old',note:'场景原句：legacy'})==='','Legacy model-only scene context must not enter the editor');
+expect(LookupTasks.editorNote({query:'plain',note:'Keep my explicit focus'})==='Keep my explicit focus','Ordinary user-authored requirements must remain intact');
+expect(requestSignature(sceneRequest)===requestSignature({...sceneRequest,userNote:'display-only'}),'Editor-only focus field must not change model-request identity');
 const legacyBatch=recoverRequests({queue:[{query:'legacy phrase',batchId:'v28-batch',queuedAt:'2026-10-21T00:00:00.000Z'}]},[]);
 expect(legacyBatch.length===1&&legacyBatch[0].batchId==='v28-batch','Removing the batch page must not discard old queued requests');
 

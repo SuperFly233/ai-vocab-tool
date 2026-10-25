@@ -27,6 +27,7 @@
       existingId:request.existingId??null,
       direction:text(request.direction),
       note:text(request.note),
+      ...(typeof request.userNote==='string'?{userNote:text(request.userNote)}:{}),
       folderIds,
       queuedAt:text(request.queuedAt),
       startedAt:text(request.startedAt),
@@ -35,6 +36,12 @@
     };
     normalized.signature=requestSignature(normalized);
     return normalized;
+  }
+
+  function editorNote(request={}){
+    if(typeof request.userNote==='string')return text(request.userNote);
+    // Old scene tasks contain model-only context; it is unsafe to infer the user's text from it.
+    return text(request.sceneGroupId)?'':text(request.note);
   }
 
   function normalizeSnapshot(value={}){
@@ -96,5 +103,5 @@
     });
   }
 
-  root.LookupTasks=Object.freeze({requestSignature,normalizeRequest,normalizeSnapshot,recoverRequests,requestAlreadyCompleted,resolveCompletion});
+  root.LookupTasks=Object.freeze({requestSignature,normalizeRequest,normalizeSnapshot,recoverRequests,requestAlreadyCompleted,resolveCompletion,editorNote});
 })(typeof globalThis==='object'?globalThis:this);
