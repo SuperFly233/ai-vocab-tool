@@ -35,6 +35,8 @@ Initial preview56438cb8 failed during1024light reload because server configurati
 
 Actual screenshots: [phone](v0420/entry-mobile.png), [desktop](v0420/entry-desktop.png).
 
+Capture parity: merge2fcdea274079dae3ca8786356a3f1241b29fb79e at https://055838f2.ai-vocab-tool.pages.dev preserves importCapture/setDialogDismiss and includes the new supplementation modules. Local capture five-width/two-theme, synthetic vision contracts and390dark supplementation pass. Deployed147 exact hashes/auth and390dark supplementation pass. This is preview parity only, not C production acceptance.
+
 ## Remaining12 units
 
 | Unit | State |
