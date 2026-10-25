@@ -116,5 +116,7 @@ External-source pickers keep routine outcomes and guarded undo inside the active
 
 # Legacy supplementation and consolidation
 
+Query editor values and model-only context are different ownership domains. Scene instructions/quotes may be appended to a model request but must never be copied back as user focus. Persist explicit userNote independently through queue recovery and retry; retain the actual model request/signature. Repair legacy draft contamination only with exact stored-task evidence, never keyword-stripping user-authored text.
+
 Legacy checks are read-only and missing structure is not the same as short prose. AI suggestions are explicitly unverified until reviewed; never label generated prose as official dictionary/database evidence. Adopt supplementation into a new version, not over an old one. Compare stable canonical fingerprints (JSON key order after reload is not a content change), retain original fields, and tombstone removed supplemental versions on guarded undo. Drafts remain local and credential-free. Shared supplemental dialogs must explicitly center in the viewport, with list/detail behavior on phones and a persistent bounded confirmation footer. Duplicate consolidation is a separate reviewed operation, never an incidental side effect of supplementation.
 

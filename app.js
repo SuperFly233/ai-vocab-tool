@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.42.0',
+  version:'0.42.1',
   releaseDate:'2026-10-25',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.42.1',date:'2026-10-25',title:'场景查询侧重点隔离',items:['队列只把用户侧重点回填到首页与场景编辑器，模型专用的原句上下文不再残留。','刷新恢复、失败重试保留独立用户要求；仅修正与已存任务完全对应的旧草稿，不根据文字关键词误删。']},
   {version:'0.42.0',date:'2026-10-25',title:'旧词条审核补遗',items:['历史与收藏的更多菜单提供结构缺项检查，扫描不调用模型，内容简短不视为缺陷。','明确选择分区后生成可编辑建议，本机草稿支持刷新恢复；采用后新增版本，原文、场景关联和收藏保留。','写入失败保留建议，并发更新与账号切换阻止采用；撤销校验后续修改，不改变既有制卡快照。']},
   {version:'0.41.1',date:'2026-10-25',title:'首页场景与多词查询衔接',items:['首页保存后保留可编辑的场景摘要，查询继续携带同一场景；支持多行逐词提交及已有词条复用。','按素材哈希和场景正文精确复用重复保存；同素材不同来源或笔记不会误合并。','纯素材场景不再保留空白文字列，首页批量词组显示独立状态与可打开的已有词条。']},
   {version:'0.41.0',date:'2026-10-25',title:'多语言联想与基础词典',items:['联想按光标所在行补全，保留前后词组；多行待查词显示可移除标签，不自动查询。','新增英语英汉、日语常用词日英、中文中英基础词库，个人词条优先，可用词义在候选中显示。','基础词典独立于 AI 和电脑词典，AI 失败时仍显示可用词义；默认开启，可在阅读设置关闭。词库按需分片校验加载。']},
@@ -4014,7 +4015,7 @@ async function readFollowupStream(response,onDelta,onStatus=null){
 }
 async function modelRequest(endpoint,payload,{signal}={}){
   if(/^https:\/\/ai\.hybgzs\.com(?::443)?\//i.test(String(payload.apiUrl||''))){
-    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.42.0');
+    const client=globalThis.ProviderClient||await import('/provider-client.js?v=0.42.1');
     if(client.canDirect(payload)){if(endpoint==='analyze')globalThis.RequestUI?.route?.('browser');return client.request(endpoint,payload,{signal})}
     throw new Error('黑与白直连地址需使用 https://ai.hybgzs.com/v1/chat/completions，并填写自己的 API Key；未改走云端。');
   }
@@ -4327,13 +4328,13 @@ function applyLookupRequestToEditor(request){
   if(!request)return;
   if(els.query)els.query.value=request.query||'';
   if(els.direction)els.direction.value=request.direction||'';
-  if(els.note)els.note.value=request.note||'';
+  if(els.note)els.note.value=LookupTasks.editorNote(request);
   lookupFolderIds=normalizeSelectableFolderIds(request.folderIds||[]);
   renderLookupFolderPicker();
   updateEditorState();
 }
-async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,folderIds=[],recovered=false,sceneGroupId='',batchId=''}){
-  const request={query,existingId,sourceItem,direction,note,folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId,batchId};
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,userNote,folderIds=[],recovered=false,sceneGroupId='',batchId=''}){
+  const request={query,existingId,sourceItem,direction,note,...(typeof userNote==='string'?{userNote}:{}),folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId,batchId};
   const settings=currentApiSettings();
   lookupBusy=true;
   globalThis.SceneUI?.taskResult(request,'running');
@@ -8692,6 +8693,8 @@ function saveLookupDraft(){
 function hydrateLookupDraft(){
   const draft=readJSON(STORAGE_KEYS.lookupDraft,null);
   if(!draft||typeof draft!=='object')return;
+  const tasks=readJSON(STORAGE_KEYS.lookupTasks,null),sceneRequest=[tasks?.active,...(Array.isArray(tasks?.queue)?tasks.queue:[])].find(request=>request?.sceneGroupId&&typeof request.note==='string'&&request.note===draft.note);
+  if(sceneRequest)draft.note=LookupTasks.editorNote(sceneRequest);
   if(els.query&&!els.query.value)els.query.value=String(draft.query||'');
   if(els.direction&&!els.direction.value)els.direction.value=String(draft.direction||'');
   if(els.note&&!els.note.value)els.note.value=String(draft.note||'');
