@@ -6,6 +6,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+v0.42.0 capture parity completed separately: merge2fcdea2/docs619197b, https://055838f2.ai-vocab-tool.pages.dev,147 hashes/auth and deployed390dark supplementation passed; local capture five widths/both themes, synthetic vision/data and shared supplementation passed. Main restored with143 static files/72 icons and no capture-ui.js; C remains unaccepted for production.
+
 - v0.42.0 RELEASED stage A only: runtime7e209f7ab0f720fb09a25d18af578bd60b6841d3, production https://0bddb7dd.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev.143 hashes/auth plus390dark/1440light flows passed. Preview222e74a0 five widths/two themes; final84de530e143 hashes/auth and390dark favorites/section confirmation passed. Selected structured supplementation, editable proposals, local IndexedDB draft recovery, new default rolls retaining originals, guarded atomic save/undo. Tests synthetic/mocked AI only, no native/private records or real paid provider changed. Initial null-config reload failure fixed before release. Stage B safe duplicate consolidation and C actual-provider production vision are NOT delivered;12 remaining units itemized in docs/reports/v0420-entry-maintenance.md. Capture parity next, isolated.
 
 v0.41.1 capture parity complete: mergeece5a4b/docsfe227c5, https://813803e0.ai-vocab-tool.pages.dev;144 hashes/auth and deployed390dark Home/maintenance passed. Local capture five-width/two-theme/data/contracts and shared390dark passed. Main restored with140 files/72 icons, no capture-ui.js. Supersedes pending-parity wording below; unfinished capture remains isolated.
