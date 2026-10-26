@@ -764,14 +764,21 @@ if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(
     try{await queueSceneQueries(task.request.sceneGroupId,[task.request.query],{note:LookupTasks.editorNote(task.request),direction:task.request.direction})}catch(error){taskResult(task.request,'error',error.message)}
   }
   function supplementVersion(id){const group=sceneGroups().find(group=>group.scene.groupId===id);return group?JSON.stringify([group.scene,group.links.map(item=>[item.id,scenes(item).filter(scene=>scene.groupId===id)])]):null}
-  function applySupplement(changes,owner,{undo=false}={}){
+  function applySupplement(changes,owner,{undo=false,sourceOrganization=null}={}){
     if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未应用建议。');
     if(!Array.isArray(changes)||!changes.length||changes.length>20||new Set(changes.map(v=>v.id)).size!==changes.length)throw new Error('补遗每批1至20个不同场景，本批未保存。');
 const patches=new Map(),bases=new Map();for(const change of changes){if(!change.expected||supplementVersion(change.id)!==change.expected)throw new Error('场景或关联已有更新，请重新检查；本批未保存。');const base=sceneGroups().find(group=>group.scene.groupId===change.id).scene;bases.set(change.id,base);const patch=root.SceneAIData?SceneAIData.validatePatch(change.patch,base):Object.fromEntries(Object.entries(change.patch).filter(([key,value])=>['title','translation'].includes(key)&&typeof value==='string'&&value.length<=4000));patches.set(change.id,patch)}
     const now=new Date(Math.max(Date.now(),...changes.map(change=>(Date.parse(sceneGroups().find(group=>group.scene.groupId===change.id).scene.updatedAt)||0)+1))).toISOString(),settings=getSettings();
     const update=scene=>{if(!patches.has(scene.groupId))return scene;const patch={...patches.get(scene.groupId)},base=bases.get(scene.groupId);for(const key of ['exampleHighlights','translationHighlights'])if(JSON.stringify(scene[key])!==JSON.stringify(base[key]))delete patch[key];return {...scene,...patch,updatedAt:now}};
     const history=getHistory().map(item=>scenes(item).some(scene=>patches.has(scene.groupId))?{...item,scenes:scenes(item).map(update),updatedAt:new Date(Math.max(Date.parse(item.updatedAt)||0,Date.parse(now))).toISOString()}:item);
-    if(!setHistoryAndSettings(history,{...settings,sceneLibrary:library().map(update),updatedAt:now}))throw new Error('写入失败，本批未保存；建议仍保留。');
+    let organized=settings;
+    if(sourceOrganization){
+      if(JSON.stringify(settings.favoriteFolders)!==sourceOrganization.expectedFolders)throw new Error('收藏夹已有更新，本批未保存。');
+      const records=SceneData.mergeOrganization(settings.sceneOrganization),allowed=new Set([...folderCatalog().filter(f=>f.selectable!==false&&f.id!==FOLDER_LIKED_ID),...(sourceOrganization.folders||settings.favoriteFolders)].map(f=>f.id));
+      for(const change of changes){const entry=sourceOrganization.rows.find(r=>r.id===change.id);if(!entry||JSON.stringify(records[change.id]||{})!==entry.expected)throw new Error('分类已有更新，本批未保存。');if(!Array.isArray(entry.folderIds)||entry.folderIds.some(id=>!allowed.has(id)))throw new Error('收藏夹已不存在，本批未保存。');records[change.id]={...(records[change.id]||{}),folders:{value:[...new Set(entry.folderIds)],updatedAt:now},favorite:{value:entry.favorite||entry.folderIds.length>0,updatedAt:now}}}
+      organized={...settings,sceneOrganization:records,...(sourceOrganization.folders?{favoriteFolders:sourceOrganization.folders,favoriteFolderOrder:sourceOrganization.folders.map(f=>f.id),favoriteFolderOrderUpdatedAt:now}:{})};
+    }
+    if(!setHistoryAndSettings(history,{...organized,sceneLibrary:library().map(update),updatedAt:now}))throw new Error('写入失败，本批未保存；建议仍保留。');
     for(const item of history)if(item.scenes?.some(scene=>patches.has(scene.groupId)))refreshFragmentPinViews(item.id);
     renderHub();renderHome();syncPending();
   }

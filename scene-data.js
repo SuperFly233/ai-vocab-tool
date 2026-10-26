@@ -56,7 +56,8 @@
       ...Object.fromEntries(['capturedAt','importedAt','sourceCreatedAt'].filter(key=>time(origin[key])).map(key=>[key,origin[key]]))}:null;
     const learningTargets=Array.isArray(item.learningTargets)?item.learningTargets.filter(row=>row&&/^[\w-]{1,100}$/.test(row.id||'')&&typeof row.phrase==='string'&&row.phrase.trim()&&row.phrase.length<=200&&typeof row.meaning==='string'&&row.meaning.length<=2000).slice(0,20).map(row=>({id:row.id,phrase:row.phrase.trim(),meaning:row.meaning.trim(),kind:row.kind==='sentence'?'sentence':'phrase',provenance:['ai','entry'].includes(row.provenance)?row.provenance:'manual',...(typeof row.entryId==='string'&&row.entryId.length<=100?{entryId:row.entryId}:{})})):[];
     const analysis=item.aiAnalysis&&typeof item.aiAnalysis==='object'?{model:text(item.aiAnalysis.model,200),generatedAt:time(item.aiAnalysis.generatedAt)?item.aiAnalysis.generatedAt:'',translationOrigin:['visible','machine','manual','none'].includes(item.aiAnalysis.translationOrigin)?item.aiAnalysis.translationOrigin:'none',sourceEvidence:highlights(item.aiAnalysis.sourceEvidence),warnings:highlights(item.aiAnalysis.warnings)}:null;
-    return {id,groupId,...(Object.hasOwn(item,'learningTargets')?{learningTargets}:{}),...(Object.hasOwn(item,'aiAnalysis')?{aiAnalysis:analysis}:{}),...(externalSource?{externalSource}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
+    let sourceRef;try{if(Object.hasOwn(item,'sourceRef')&&root.SourceData)sourceRef=root.SourceData.reference(item.sourceRef)}catch{}
+    return {id,groupId,...(sourceRef!==undefined?{sourceRef}:{}),...(Object.hasOwn(item,'learningTargets')?{learningTargets}:{}),...(Object.hasOwn(item,'aiAnalysis')?{aiAnalysis:analysis}:{}),...(externalSource?{externalSource}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
       exampleHighlights:highlights(item.exampleHighlights),translationHighlights:highlights(item.translationHighlights),
       studyState:['new','review','mastered'].includes(item.studyState)?item.studyState:'new',studyUpdatedAt:time(item.studyUpdatedAt)?item.studyUpdatedAt:'',
       order:Number.isFinite(item.order)?item.order:time(item.createdAt),featured:typeof item.featured==='boolean'?item.featured:!item.targetKey,heroMedia:[...new Set(heroMedia)],
@@ -75,7 +76,7 @@
       const previous=found.get(item.id);
       const preferred=!previous||time(item.updatedAt)>time(previous.updatedAt)||(time(item.updatedAt)===time(previous.updatedAt)&&JSON.stringify(item)>JSON.stringify(previous))?item:previous;
       const study=!previous||time(item.studyUpdatedAt)>time(previous.studyUpdatedAt)||(time(item.studyUpdatedAt)===time(previous.studyUpdatedAt)&&item.studyState>previous.studyState)?item:previous;
-      const preserve={};for(const key of ['learningTargets','aiAnalysis'])if(!Object.hasOwn(preferred,key)){const fallback=Object.hasOwn(item,key)?item:previous;if(fallback&&Object.hasOwn(fallback,key))preserve[key]=fallback[key]}
+      const preserve={};for(const key of ['learningTargets','aiAnalysis','sourceRef'])if(!Object.hasOwn(preferred,key)){const fallback=Object.hasOwn(item,key)?item:previous;if(fallback&&Object.hasOwn(fallback,key))preserve[key]=fallback[key]}
       found.set(item.id,{...preferred,...preserve,studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
     }
     const kept=[];

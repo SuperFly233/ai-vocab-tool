@@ -1,9 +1,11 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.7",
+  "version": "0.43.8",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:sources": "node --check learning-store.js && node --check source-data.js && node --check source-workspace.js && node scripts/check-sources.cjs && node scripts/check-sources-api.cjs",
+    "check:sources-ui": "node scripts/check-source-workspace.cjs",
     "check:scene-ai": "node --check scene-ai.js && node --check scene-ai-client.js && node --check scene-ai-data.js && node scripts/check-scene-ai.cjs && node scripts/check-scene-ai-safety.cjs",
     "check:learning-help": "node --check learning-help.js && node --check learning-help-data.js && node scripts/check-learning-help.cjs && node scripts/check-learning-help-safety.cjs",
     "check:bridge-release": "node --check bridge-release.js && node scripts/check-bridge-release.cjs",

@@ -1,5 +1,7 @@
 # UI SOP / Persistent User Preferences
 
+Source/classification review: scan without model calls, separate original content from editable evidence, preserve stable source identity across renames, and never silently bind approximate names or aliases. Prepare folder changes in the same review draft; only explicit final adoption writes scene and organization atomically. Preserve drafts and refuse all writes on account/revision conflict. Current index coverage must be visible; directory size is not indexed body coverage.
+
 ## Association safety and asynchronous generation (2026-10-26)
 
 Unlink is not scene deletion. Bind the entry ID and association ID explicitly on the command; never infer a library-delete target from an ancestor. Preserve a standalone scene atomically with association removal, including legacy link-only groups. Removing the last association must preserve original media, contextual targets, text, notes and source. Guard confirmations/Undo with account/object revisions; failure must not partially unlink. Existing already-lost private data is not automatically restored without evidence.
