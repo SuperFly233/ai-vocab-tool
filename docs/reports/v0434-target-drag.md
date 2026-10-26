@@ -21,4 +21,12 @@ The user rejected visible up/down commands. Reuse the existing history/settings 
 
 ## Limits
 
+## Release Evidence
+
+- Runtime commit: `6dbe444`, pushed to main.
+- Production: https://88abd4ea.ai-vocab-tool.pages.dev and https://ai-vocab-tool.pages.dev.
+- Final preview and official domain:155 file hashes matched, sync/Anki unauthenticated requests returned401. Official390dark synthetic drag/keyboard/cancel/target-adoption/recovery flow passed.
+
+## Remaining Scope
+
 Synthetic browser fixtures, not physical iPhone testing. No paid model requests or Anki/Fushi changes in this correction. Canonical sources/Teyvat/classification and FSRS remain unfinished, tracked separately; source WIP checkpoint remains intact.
