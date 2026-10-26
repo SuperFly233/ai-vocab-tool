@@ -1,5 +1,13 @@
 # UI SOP / Persistent User Preferences
 
+## Association safety and asynchronous generation (2026-10-26)
+
+Unlink is not scene deletion. Bind the entry ID and association ID explicitly on the command; never infer a library-delete target from an ancestor. Preserve a standalone scene atomically with association removal, including legacy link-only groups. Removing the last association must preserve original media, contextual targets, text, notes and source. Guard confirmations/Undo with account/object revisions; failure must not partially unlink. Existing already-lost private data is not automatically restored without evidence.
+
+User requests direct-browser scene AI tasks to survive focus changes and saving, with a durable per-account/per-scene task pool and explicit recovery. Cloud execution deferred, not approved as a silent routing change. Results must remain reviewed suggestions, never overwrite another scene or subsequent edits. Shared loading feedback: visible spinner, current phase and compact total seconds; detailed per-stage metrics only on demand, not a paragraph of timing text. Preserve independent scene capture vs explicit lookup/API actions.
+
+Contextual target controls share stable IDs, visible1-based order, editable phrase/meaning, up/down/remove and explicit existing-entry choice in editor and pending review. Selection/reorder never calls a model. Explicit query selected targets produces/reuses full entries through the established queue; short contextual meaning and complete entry core remain distinct. Identity includes the actual scene group, not its title/quote; same-text scenes must not be confused. Never leave decorative nonfunctional candidate or reorder controls.
+
 ## Scene AI and contextual learning (2026-10-26)
 
 Use the newly drawn layout as the implementation baseline, not a decorative preliminary: compare same-size real screenshots, record justified responsive differences, preserve actual theme and control semantics, and never copy fake status or provenance. Scene targets represent a word/phrase/sentence's meaning in THIS context; dictionary and full-entry meanings are references. Automatic analysis follows explicit provider/cost consent, prepares drafts only and offers one concentrated editable Check before saving. Existing scenes are never analyzed merely by opening them. Preserve manual edits, originals and account/object identity; retry failed items without repeating successful model calls.
@@ -121,6 +129,8 @@ External-source pickers keep routine outcomes and guarded undo inside the active
 - Multiline Enter remains newline; IME confirmation is never submit. Explicit queries alone call the API.
 
 # Legacy supplementation and consolidation
+
+Reordering reuses the existing history/settings drag-handle, direct movement, sibling animation and bounded auto-scroll. Do not add separate visible up/down buttons to learning targets or parallel review surfaces. Pointer/touch cancellation restores order; keyboard alternatives live on the same grip. Reordering must preserve stable IDs, edits, selections and associations, never call the model. Test real dragging rather than clicking synthetic move commands.
 
 On-site onboarding: official download/setup/verification must be discoverable without a chat transcript. Tutorials ask once, remain skippable and replayable, separate basic learning from optional integrations, and use real anchors plus read-only synthetic examples. Never spend API usage, save a learning record, mark a connection ready or approve Anki writes merely from tutorial playback. Store tutorial progress only per local account/version, separate from learning/settings sync. Preserve dirty drafts and restore route/focus/scroll; account changes stop playback. Mobile callouts respect the visual viewport and safe area. Installed paths are recommendations unless actually known; download, registration, heartbeat and fresh diagnostics are distinct states. Keep the unfinished ledger visible with dependencies, evidence and acceptance criteria.
 

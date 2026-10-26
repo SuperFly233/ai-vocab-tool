@@ -2,7 +2,12 @@
 
 Last updated: 2026-10-26
 
+- v0.43.4 RELEASED6dbe444: previewd6139c03, production88abd4ea/official domain,155 hashes/auth401 and deployed390dark task flow pass. Remove visible up/down target commands in both editor and task pool. SharedUI.bindReorder reuses history/settings drag-handle CSS and direct movement helpers; pointer/touch/keyboard, cancel rollback, stable selection and no API calls. Five widths/two themes, safety, eight control/motion cases and npm check pass. Source phase follows this correction, not delivered here. Named source WIP stash remains untouched. Capture common-fix parity next.
+Urgent0.43.2 unlink hotfix RELEASED4bb1c98: preview7898f41d/productionec4de4bf,153 hashes and auth401 pass. Explicit entry/association command, atomic preservation for legacy link-only groups,20 responsive scenarios plus cancel/quota/account/concurrent/Undo tests. Source catalog/index/UI work is checkpointed in named git stash `wip source catalog and index before urgent unlink hotfix`; not integrated, migrated or shipped. Preserve it and finish after task release; never deploy that incomplete API accidentally. No private record restoration or native changes.
+
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
+
+- v0.43.3 RELEASED: runtime5e8ad7c, preview31b72fd4, production4d60537e / ai-vocab-tool.pages.dev;155 resource hashes/auth401 and deployed mobile390dark task flow pass. Local-account IndexedDB pool with Web Locks; direct runs survive visibility/save, explicit interrupted recovery, editable guarded proposals, no stored credentials/cloud execution. Numbered contextual targets reorder/edit/select existing entries/query through existing queue; full core and contextual meaning separate. Compact collapsed RequestUI/spinner; scene/entry supplementation shared indicator. Local10 widths/themes, safety/quota-before-and-after-response rescue, old sceneAI/safety390dark, entry-maintenance390dark,8motion and real local HTTP/SSE390/1440 pass; preview390dark/1440light pass. Source/classification shifts to0.43.4; FSRS0.44.0 UNIMPLEMENTED. Tasks local-only/exportable, not cross-device/closed-browser execution. Capture common-fix parity next; keep independent capture entry isolated.
 
 ## Current Goal
 

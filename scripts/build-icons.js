@@ -5,7 +5,7 @@ const iconNames=[
   'arrow-down','arrow-left','arrow-up','arrow-up-right','check','chevron-down','chevron-left','chevron-right','chevrons-up','maximize-2','pencil','scan-eye',
   'bookmark','bookmark-x','circle-alert','circle-check','circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical','info',
   'history','house','list','monitor','moon','plus','quote','refresh-cw','scan-search','scan-text','search','bell','highlighter',
-  'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','user-round','x',
+  'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','unlink','user-round','x',
   'volume-2','volume-x','images','image-plus','list-plus','sparkles','play','square','square-check','layers','file-text','shuffle','skip-forward','save','ellipsis','send','book-open','rotate-ccw','file-up','pin','star-off','folder-minus','panel-top','chevron-up',
 ];
 
@@ -18,7 +18,7 @@ for(const name of iconNames){
   icons[name]=definition;
 }
 
-const sourceText=(await Promise.all(['index.html','app.js','scene-ui.js','scene-workspace.js','scene-organization.js','scene-study.js','anki-bridge-ui.js','learning-cards-ui.js','entry-maintenance.js','fushi-workspace.js','experience-ui.js','request-ui.js','ui-consistency.js','input-suggestions.js','learning-help.js','scene-ai.js','capture-ui.js'].map(file=>readFile(resolve(file),'utf8')))).join('\n');
+const sourceText=(await Promise.all(['index.html','app.js','scene-ui.js','scene-workspace.js','scene-organization.js','scene-study.js','anki-bridge-ui.js','learning-cards-ui.js','entry-maintenance.js','fushi-workspace.js','experience-ui.js','request-ui.js','ui-consistency.js','input-suggestions.js','learning-help.js','scene-ai.js','scene-ai-tasks.js','capture-ui.js'].map(file=>readFile(resolve(file),'utf8')))).join('\n');
 const usedIcons=new Set([
   ...[...sourceText.matchAll(/data-lucide="([a-z0-9-]+)"/g)].map(match=>match[1]),
   ...[...sourceText.matchAll(/icon\('([a-z0-9-]+)'\)/g)].map(match=>match[1]),

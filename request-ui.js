@@ -6,15 +6,16 @@
     if(!state)return;const now=state.end||performance.now(),total=(now-state.start)/1000;
     const title=key=>key==='request'&&state.route==='browser'?'已发送 · 浏览器直连':titles[key];
     const first=state.events.find(event=>event.key==='first'),current=state.events.at(-1);
-    host.querySelector('summary').textContent=`${title(current.key)} · ${total.toFixed(1)}s${first?` · 首字 ${((first.time-state.start)/1000).toFixed(1)}s`:''}`;
+    host.dataset.running=String(!state.end);host.querySelector('[data-request-phase]').textContent=title(current.key);host.querySelector('[data-request-seconds]').textContent=`${total.toFixed(1)}s`;
+    host.querySelector('summary').title=state.events.map(event=>`${title(event.key)}：${((event.time-state.start)/1000).toFixed(1)}s`).join('\n')+(first?`\n首字：${((first.time-state.start)/1000).toFixed(1)}s`:'');
     const list=host.querySelector('ol');list.replaceChildren();
     state.events.forEach((event,index)=>{const row=document.createElement('li');row.textContent=`${title(event.key)} · +${((event.time-state.start)/1000).toFixed(1)}s${index===state.events.length-1&&!state.end?` · 已等待 ${((now-event.time)/1000).toFixed(1)}s`:''}`;list.append(row)});
   }
   root.RequestUI={
     route(mode){if(state){state.route=mode;render()}},
-    start(){clearInterval(timer);state={start:performance.now(),events:[],end:null};host.innerHTML='<summary></summary><ol></ol>';host.hidden=false;host.open=true;this.mark('prepare');timer=setInterval(render,250)},
+    start(){clearInterval(timer);state={start:performance.now(),events:[],end:null};host.innerHTML='<summary><span class="lexi-progress-spinner" aria-hidden="true"></span><span data-request-phase></span><small data-request-seconds></small>'+icon('chevron-down')+'</summary><ol></ol>';host.hidden=false;host.open=false;this.mark('prepare');timer=setInterval(render,250)},
     mark(key){if(!state||state.end||!titles[key]||state.events.at(-1)?.key===key||key==='first'&&state.events.some(event=>event.key==='first'))return;state.events.push({key,time:performance.now()});render()},
-    finish(ok){if(!state)return;this.mark(ok?'complete':'error');state.end=performance.now();clearInterval(timer);host.open=!ok;render()},
+    finish(ok){if(!state)return;this.mark(ok?'complete':'error');state.end=performance.now();clearInterval(timer);render()},
     snapshot(){return state?{...state,events:state.events.map(event=>({...event}))}:null},
   };
   const dot=document.createElement('button');dot.className='network-indicator';dot.type='button';dot.setAttribute('aria-label','网络状态');dot.dataset.state='checking';dot.dataset.tip='正在检测站点连接';dot.innerHTML='<span class="network-light" aria-hidden="true"></span>';

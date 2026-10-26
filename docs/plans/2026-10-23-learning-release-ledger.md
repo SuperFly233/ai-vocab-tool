@@ -4,6 +4,10 @@ Approved scope: full-content cards and screenshot learning, 6 reliability / 6 re
 
 ## Current checkpoint,2026-10-26
 
+0.43.4 corrects target sorting after user feedback: shared existing drag grip, no visible up/down commands, both editor and Check. This is not canonical source or FSRS delivery. Source phase version moves after0.43.4; its named WIP checkpoint remains intact. See ../reports/v0434-target-drag.md.
+
+Production0.43.3 RELEASED5e8ad7c, final preview31b72fd4/production4d60537e,155 hashes/auth401 and official mobile task flow passed. Direct-browser task pool, save/focus continuity and explicit recovery; numbered/editable contextual targets and explicit complete lookup. Hotfix0.43.2 is retained. Cloud task execution deferred by user. This interrupts original phase numbering: canonical sources/Teyvat/classification will be0.43.4, contextual FSRS remains0.44.0. Source work checkpointed in stash4b9b192, not migrated/deployed. Neither stage is complete. Separate capture intake, automatic evidence-qualified saving, consolidation, storage and media remain unchanged.
+
 Production0.43.1 / Bridge0.4.1: scene-editor image/text analysis, contextual targets, supplied-sense selection and reviewed scene supplementation are live; runtime4e74b3a, preview20da9ace, production169f8dc6.153 hashes/auth401 and production390dark smoke pass. Actual Sonnet synthetic image -> local scene -> existing entry -> card preview passed (Anki mocked; no private/native writes). See ../reports/v0431-scene-ai.md. This is approved stage A, not canonical source matching or FSRS scheduling. New approved order:0.43.2 canonical sources/Teyvat/classification ->0.44.0 contextual memory -> retained consolidation/storage/media/crop debt. Independent batch screenshot workspace remains preview-only.
 
 | Added pending unit | Dependency | Acceptance | Next step |
