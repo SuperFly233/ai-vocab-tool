@@ -138,7 +138,7 @@
     return `<section class="block scene-section" data-history-id="${esc(item.id)}"><div class="scene-section-head"><h3><button class="scene-hub-link" data-scene-action="hub" data-tip="打开场景库">场景记忆${all.length?` <small>${all.length}</small>`:''}</button></h3><div class="scene-actions">${all.length?action('backup','导出场景备份（含素材）'):''}${action('add','添加场景')}</div></div><div class="scene-record-list">${selected.map(scene=>renderCard(scene,item)).join('')}</div>${other.length?`<details class="scene-library"><summary>其他场景 · ${other.length}</summary><div class="scene-record-list">${other.map(scene=>renderCard(scene,item)).join('')}</div></details>`:''}</section>`;
   }
   const fieldHints={
-    title:['场景名称 · 可选','用于识别场景，不会修改词条标题。留空时按上方标题方式处理；只有 AI 文字标题调用模型，不会自动识别图片。','冬夜里的约定'],
+    title:['场景名称 · 可选','场景分析会一并建议名称，手动输入不会被覆盖。未采用建议且名称留空时，按名称留空时的选项处理；保存不额外调用模型。','冬夜里的约定'],
     entryTitle:['单词或词组','填写要学习的内容，多个词组可用顿号或换行分隔；与首页使用同一查询队列。','for good、stay'],
     lookupTerms:['待查词组 · 可选','填写想从场景学习的内容，多个用顿号或换行分隔；只有明确查询才发起查词，已有词条直接关联。标题仅在选择 AI 方式时调用模型。','for good、stay'],
     lookupDirection:['语言方向 · 可选','与首页的语言方向一致；留空由模型判断，只在明确查询时使用。','英语 → 中文'],
@@ -232,11 +232,10 @@
       </div><p id="scene-editor-status" role="status"></p><footer>${!item&&!standalone?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button><button type="button" class="plain-btn" data-scene-action="standalone">独立保存场景</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item||standalone?'保存场景':'随查词保存'}</button></footer></form></section>`;
     document.body.append(layer);document.body.classList.add('modal-open');
     const titleInput=layer.querySelector('[name="title"]'),titleField=titleInput.closest('label');
-    titleField.insertAdjacentHTML('beforebegin',`<label class="scene-field"><span>标题方式</span><select name="titleMode" aria-label="标题方式">${[['text','原句摘要'],['source','来源与时间'],['manual','手动填写'],['ai','AI 文字标题']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label>`);
+    titleField.insertAdjacentHTML('beforebegin',`<label class="scene-field"><span>名称留空时</span><select name="titleMode" aria-label="名称留空时">${[['text','使用原句摘要'],['source','使用来源与时间'],['manual','保持空白']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label>`);
     const titleMode=layer.querySelector('[name="titleMode"]');titleMode.value=getSettings().sceneTitleMode||'text';
     const titleRow=document.createElement('div');titleRow.className='scene-title-row';titleField.before(titleRow);titleRow.append(titleField,titleMode.closest('label'));
-    titleField.insertAdjacentHTML('beforeend',`<small class="scene-ai-marker" hidden>${icon('sparkles')}仅概括已填文字；读图请使用上方场景 AI</small>`);
-    const updateTitleMode=()=>{const ai=titleMode.value==='ai';titleField.classList.toggle('scene-ai-field',ai);titleField.querySelector('.scene-ai-marker').hidden=!ai;titleInput.placeholder=({text:'留空时提取原句摘要',source:'留空时使用来源和时间',manual:'可留空，不自动生成',ai:'留空时调用文字模型生成'})[titleMode.value]};titleMode.onchange=updateTitleMode;updateTitleMode();
+    const updateTitleMode=()=>{titleInput.placeholder=({text:'使用场景分析建议，或填写名称',source:'留空时使用来源和时间',manual:'可选，保持空白'})[titleMode.value]||'可选，填写场景名称'};titleMode.onchange=updateTitleMode;updateTitleMode();
     for(const [sourceKey,targetKey] of [['quote','exampleHighlights'],['translation','translationHighlights']])installSelectionAction(layer,sourceKey,targetKey);
     root.SharedUI?.enhanceSelects(layer);
     if(!item){
@@ -303,7 +302,7 @@
     }finally{setBusy(false);if(editor===editing&&added)editor.ai?.imported()}
   }
   async function close(force=false){
-    if(busy){if(!editor?.titleController)return;editor.titleCancelled=true;editor.titleController.abort();setBusy(false)}
+    if(busy)return;
     if(!editor)return;
     const form=document.querySelector('#scene-editor-form');
     const changed=editorState()!==editor.initial,closing=editor;
@@ -399,22 +398,13 @@
     if(text)return [...text].slice(0,32).join('')+([...text].length>32?'…':'');
     return `${scene.media[0]?.mime.startsWith('video/')?'视频':'图片'}场景 ${formatHistoryTime(new Date().toISOString())}`;
   }
-  async function generateSceneTitle(scene,editing,query){
+  function generateSceneTitle(scene,query){
     const mode=document.querySelector('#scene-editor [name="titleMode"]')?.value||getSettings().sceneTitleMode||'text';
     if(mode==='manual')return '';
     if(mode==='source')return `${scene.sourceTitle||'场景'} ${formatHistoryTime(scene.createdAt||new Date().toISOString())}`;
-    if(mode!=='ai')return localSceneTitle(scene,query);
-    const settings=currentApiSettings(),local=Boolean(settings.apiUrl&&settings.apiKey&&settings.model),environment=Boolean(cloudUser?.id)&&typeof configInfo!=='undefined'&&configInfo?.hasApiUrl&&configInfo?.hasApiKey&&configInfo?.model&&!settings.apiUrl&&!settings.apiKey;
-    if(!(scene.quote||scene.translation)||(!local&&!environment)){const error=new Error(scene.quote||scene.translation?'尚未配置可用文字模型；可改用原句摘要保存。':'请先用场景 AI 分析图片并核对原句，或手动填写文字。');error.sceneTitle=true;throw error}
-    const controller=new AbortController();editing.titleController=controller;editing.titleCancelled=false;document.querySelector('#scene-editor [data-scene-action="close"]').disabled=false;const timer=setTimeout(()=>controller.abort(),20000);status('正在生成场景标题…');
-    try{
-      const response=await modelRequest('followup',{purpose:'scene-title',question:'为以下场景生成短标题',scene:{quote:scene.quote,translation:scene.translation,sourceTitle:scene.sourceTitle,chapter:scene.chapter},stream:false,apiUrl:local?settings.apiUrl:'',apiKey:local?settings.apiKey:'',model:local?settings.model:configInfo.model},{signal:controller.signal});
-      const data=await response.json();controller.signal.throwIfAborted();if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);
-      const title=String(data.answer||'').trim();if(!title||[...title].length>48||/[\r\n<>`]/.test(title))throw new Error('模型没有返回有效的单行短标题。');return title;
-    }catch(error){const failure=new Error(error.name==='AbortError'?'标题生成已取消或超时，草稿仍保留。':`标题生成失败：${String(error.message||'请求异常').slice(0,240)}`);failure.sceneTitle=true;throw failure}
-    finally{clearTimeout(timer);if(editing.titleController===controller)editing.titleController=null}
+    return localSceneTitle(scene,query);
   }
-  async function save(manual=false,standalone=false,{skipTitle=false}={}){
+  async function save(manual=false,standalone=false){
     if(!editor||busy)return;
     try{editor.ai?.validate()}catch(error){status(error.message,true);return}
     if(editor.owner!==(cloudUser?.id||'local')){status('账号已切换，请关闭后重新打开场景。',true);return}
@@ -429,16 +419,13 @@
     if(!editor.historyId&&!editor.standalone&&!standalone&&!query){status('请填写词条。',true);return}
     const latest=scenes(historyItem(editor.historyId)).find(row=>row.id===scene.id);
     scene.updatedAt=new Date(Math.max(Date.now(),(Date.parse(latest?.updatedAt)||0)+1,(Date.parse(scene.updatedAt)||0)+1)).toISOString();
-    const editing=editor,unchanged=editorState();editing.titleCancelled=false;editing.ai?.saving();setBusy(true);
+    const editing=editor;editing.ai?.saving();setBusy(true);
     try{
       const duplicate=()=>editing.newScene&&(editing.standalone||standalone)?sceneGroups().find(group=>SceneData.sameMediaScene(scene,group.scene,{ignoreTitle:!form.get('title')?.trim()||editing.ai?.automaticTitle()})):null;
       let reused=duplicate();
       if(reused)scene=structuredClone(reused.scene);
-      if(!scene.title&&!skipTitle&&!reused){
-        const title=await generateSceneTitle(scene,editing,query);
-        if(editor!==editing||editing.titleCancelled)return;
-        if(editing.owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未保存其他账号的场景。');
-        if(editorState()!==unchanged)throw new Error('标题生成期间草稿已变化，请检查后重新保存。');
+      if(!scene.title&&!reused){
+        const title=generateSceneTitle(scene,query);
         scene.title=title;document.querySelector('#scene-editor [name="title"]').value=title;
       }
       if(editor!==editing||editing.owner!==(cloudUser?.id||'local'))throw new Error('账号或编辑对象已变化，未保存。');
@@ -466,7 +453,7 @@
       if(manual&&id){currentHistoryId=id;currentFollowups=historyItem(id)?.followups||[];renderResult(historyItem(id).result)}
       notify(id?'场景已保存。':'场景已暂存，查询完成后自动加入词条。','good','场景记忆');
       if(id&&cloudUser)syncScene(id,scene.id,false);
-    }catch(error){if(editor===editing&&!editing.titleCancelled){status(error.message,true);if(error.sceneTitle){const button=document.createElement('button');button.type='button';button.className='plain-btn';button.textContent='使用原句标题保存';button.onclick=()=>{if(editor!==editing)return;document.querySelector('#scene-editor [name="title"]').value=localSceneTitle(readForm(),query);save(manual,standalone,{skipTitle:true})};document.getElementById('scene-editor-status').append(button)}}}finally{if(editor===editing)setBusy(false)}
+    }catch(error){if(editor===editing)status(error.message,true)}finally{if(editor===editing)setBusy(false)}
   }
   let submittingSceneQueries=false;
   async function saveAndQuery(selectedTerms=null,entryIds={}){
