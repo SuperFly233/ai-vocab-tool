@@ -21,7 +21,15 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),{chromium}=requ
   assert.ok(Math.abs(geometry.capture.x-geometry.targets.x)<=1&&Math.abs(geometry.capture.width-geometry.targets.width)<=1,'Learning targets span the entire content width');assert.ok(geometry.targets.top>=geometry.capture.bottom-1,'Targets are outside the upper comparison grid');if(width>900)assert.ok(geometry.labelDelta<=1,'Original and highlight fields share one baseline');
   assert.ok(await page.locator('.scene-editor-body').evaluate(n=>n.scrollWidth<=n.clientWidth+1));assert.equal(await page.locator('.scene-context-meaning>header h3').textContent(),'学习重点');assert.equal(await page.locator('[data-target-move]').count(),0);
   assert.equal(await page.locator('.scene-target-existing .lexi-select').count(),4);assert.ok(await page.locator('.scene-target-existing .lexi-select').first().evaluate(n=>n.getBoundingClientRect().width>=150&&n.getBoundingClientRect().height>=30&&getComputedStyle(n).clipPath==='none'),'Hiding a redundant caption must not hide the enhanced selector');
-  const input=page.locator('[data-target-meaning]').first();await input.focus();const style=await input.evaluate(n=>({radius:getComputedStyle(n).borderRadius,left:getComputedStyle(n).borderLeftWidth,font:getComputedStyle(n).fontSize}));assert.equal(style.radius,'0px');assert.equal(style.left,'2px');assert.equal(style.font,'16px');
+  const input=page.locator('[data-target-meaning]').first();
+  for(const selector of ['[name=quote]','[name=translation]','[name=exampleHighlights]','[name=translationHighlights]','[name=note]','[data-target-phrase]','[data-target-meaning]']){
+   const field=page.locator(selector).first();await field.scrollIntoViewIfNeeded();await field.evaluate(n=>n.blur());
+   const read=()=>field.evaluate(n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect();return {radius:s.borderRadius,left:s.borderLeftWidth,right:s.borderRightWidth,top:s.borderTopWidth,bottom:s.borderBottomWidth,font:s.fontSize,outline:s.outlineWidth,width:r.width,height:r.height}});
+   const resting=await read();await field.hover();const hovered=await read();await field.focus();const focused=await read();
+   for(const style of [resting,hovered,focused]){assert.equal(style.radius,'0px');assert.equal(style.left,'0px');assert.equal(style.right,'0px');assert.equal(style.top,'0px');assert.equal(style.bottom,'1px');assert.equal(style.font,'16px');assert.equal(style.width,resting.width);assert.equal(style.height,resting.height)}
+   assert.equal(focused.outline,'0px');
+  }
+  await input.focus();
   await page.locator('.scene-context-meaning').scrollIntoViewIfNeeded();await page.screenshot({path:`tmp/scene-editor0435/targets-${width}-${theme}.png`});
   await require('./drag-target.cjs')(page,'[data-target-grip]',{touch:width<600});assert.equal(await page.locator('[data-target-phrase]').first().inputValue(),'even when');assert.equal(await page.locator('[data-target-meaning]').first().inputValue(),'即使在这种情况下');
   await input.fill('这是较长的语境解释。'.repeat(80));assert.ok(await page.locator('.scene-editor-body').evaluate(n=>n.scrollWidth<=n.clientWidth+1));await input.fill('即使在这种情况下');
