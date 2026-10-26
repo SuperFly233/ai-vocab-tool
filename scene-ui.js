@@ -215,7 +215,7 @@
     const titleInput=layer.querySelector('[name="title"]'),titleField=titleInput.closest('label');
     titleField.insertAdjacentHTML('beforebegin',`<label class="scene-field"><span>标题方式</span><select name="titleMode" aria-label="标题方式">${[['text','原句摘要'],['source','来源与时间'],['manual','手动填写'],['ai','AI 文字标题']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label>`);
     const titleMode=layer.querySelector('[name="titleMode"]');titleMode.value=getSettings().sceneTitleMode||'text';
-    titleField.insertAdjacentHTML('beforeend',`<small class="scene-ai-marker" hidden>${icon('sparkles')}AI 仅概括已填文字，不识别图片</small>`);
+    titleField.insertAdjacentHTML('beforeend',`<small class="scene-ai-marker" hidden>${icon('sparkles')}仅概括已填文字；读图请使用上方场景 AI</small>`);
     const updateTitleMode=()=>{const ai=titleMode.value==='ai';titleField.classList.toggle('scene-ai-field',ai);titleField.querySelector('.scene-ai-marker').hidden=!ai;titleInput.placeholder=({text:'留空时提取原句摘要',source:'留空时使用来源和时间',manual:'可留空，不自动生成',ai:'留空时调用文字模型生成'})[titleMode.value]};titleMode.onchange=updateTitleMode;updateTitleMode();
     for(const [sourceKey,targetKey] of [['quote','exampleHighlights'],['translation','translationHighlights']])installSelectionAction(layer,sourceKey,targetKey);
     root.SharedUI?.enhanceSelects(layer);
@@ -242,12 +242,12 @@
     layer.addEventListener('drop',event=>{event.preventDefault();layer.classList.remove('dragging');addFiles(event.dataTransfer.files)});
     layer.querySelector('form').addEventListener('submit',event=>{event.preventDefault();save(false,!editor?.historyId)});
     layer.addEventListener('keydown',event=>{if(event.isComposing||event.keyCode===229)return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();save(false,!editor?.historyId)}});
-    renderFiles();editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
+    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
   }
   function editorState(){
     const form=document.querySelector('#scene-editor-form');if(!form||!editor)return '';
     const fields=[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value]);
-    return JSON.stringify({fields,media:editor.scene.media,heroMedia:editor.scene.heroMedia});
+    return JSON.stringify({fields,media:editor.scene.media,heroMedia:editor.scene.heroMedia,learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis});
   }
   async function restoreEditor(snapshot){
     if((cloudUser?.id||'local')!==snapshot.owner)return notify('账号已切换，未恢复其他账号的草稿。','info','恢复草稿');
@@ -257,6 +257,7 @@
     await open(snapshot.standalone?'library':snapshot.historyId,snapshot.scene.targetKey,snapshot.newScene?'':snapshot.scene.id,{fromHome:snapshot.fromHome});
     if(!editor)return;
     editor.scene=structuredClone(snapshot.scene);
+    editor.ai?.reload(editor.scene);
     const form=document.querySelector('#scene-editor-form');
     for(const [name,value] of snapshot.fields){const input=form.elements.namedItem(name);if(input){if(input.type==='checkbox')input.checked=value;else input.value=value;if(input.tagName==='SELECT')input.dispatchEvent(new Event('change',{bubbles:true}))}}
     renderFiles();status('已恢复未保存的修改。');
@@ -279,7 +280,7 @@
         catch(error){errors.push(`${file.name||'文件'}：${error.message}`)}
       }
       renderFiles();status([added?`已添加 ${added} 个素材。`:'没有新增素材。',duplicates?`跳过 ${duplicates} 个完全相同的文件。`:'',reused?'已复用现有素材；内容完全相同的场景保存时会直接复用。':'',...errors].filter(Boolean).join(' '),Boolean(errors.length));
-    }finally{setBusy(false)}
+    }finally{setBusy(false);if(editor===editing&&added)editor.ai?.imported()}
   }
   async function close(force=false){
     if(busy){if(!editor?.titleController)return;editor.titleCancelled=true;editor.titleController.abort();setBusy(false)}
@@ -292,7 +293,7 @@
       if(editor!==closing)return;
       snapshot={historyId:editor.historyId,standalone:editor.standalone,fromHome:editor.fromHome,newScene:editor.newScene,base:editor.base,scene:structuredClone(editor.scene),owner:editor.owner,fields:[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value])};
     }
-    document.querySelector('#scene-editor')?.remove();editor=null;
+    editor.ai?.close();document.querySelector('#scene-editor')?.remove();editor=null;
     if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
     if(returnFocus?.isConnected)returnFocus.focus();
     if(snapshot)notify('已放弃未保存的场景修改。','info','场景',true,{label:'撤销',run:()=>restoreEditor(snapshot)});
@@ -300,7 +301,7 @@
   function saveToHistory(id,scene,{share=false,defaults=null}={}){
     const item=historyItem(id);if(!item)throw new Error('词条已被删除，场景尚未保存。');
     const data=SceneData.reconcile([...(item.scenes||[]).filter(row=>row.id!==scene.id),scene],item.sceneTombstones);
-    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','heroMedia','externalSource'];
+    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','heroMedia','externalSource','learningTargets','aiAnalysis'];
     const shared=Object.fromEntries(fields.map(key=>[key,scene[key]])),changed=[];
     const previousDefaults=defaults?library().find(row=>row.groupId===scene.groupId):null;
     // Only inherited values follow scene defaults; association-specific edits stay independent.
@@ -384,7 +385,7 @@
     if(mode==='source')return `${scene.sourceTitle||'场景'} ${formatHistoryTime(scene.createdAt||new Date().toISOString())}`;
     if(mode!=='ai')return localSceneTitle(scene,query);
     const settings=currentApiSettings(),local=Boolean(settings.apiUrl&&settings.apiKey&&settings.model),environment=Boolean(cloudUser?.id)&&typeof configInfo!=='undefined'&&configInfo?.hasApiUrl&&configInfo?.hasApiKey&&configInfo?.model&&!settings.apiUrl&&!settings.apiKey;
-    if(!(scene.quote||scene.translation)||(!local&&!environment)){const error=new Error(scene.quote||scene.translation?'尚未配置可用文字模型；可改用原句摘要保存。':'AI 文字标题需要原句或译文；图片识别尚未开放。');error.sceneTitle=true;throw error}
+    if(!(scene.quote||scene.translation)||(!local&&!environment)){const error=new Error(scene.quote||scene.translation?'尚未配置可用文字模型；可改用原句摘要保存。':'请先用场景 AI 分析图片并核对原句，或手动填写文字。');error.sceneTitle=true;throw error}
     const controller=new AbortController();editing.titleController=controller;editing.titleCancelled=false;document.querySelector('#scene-editor [data-scene-action="close"]').disabled=false;const timer=setTimeout(()=>controller.abort(),20000);status('正在生成场景标题…');
     try{
       const response=await modelRequest('followup',{purpose:'scene-title',question:'为以下场景生成短标题',scene:{quote:scene.quote,translation:scene.translation,sourceTitle:scene.sourceTitle,chapter:scene.chapter},stream:false,apiUrl:local?settings.apiUrl:'',apiKey:local?settings.apiKey:'',model:local?settings.model:configInfo.model},{signal:controller.signal});
@@ -395,6 +396,7 @@
   }
   async function save(manual=false,standalone=false,{skipTitle=false}={}){
     if(!editor||busy)return;
+    try{editor.ai?.validate()}catch(error){status(error.message,true);return}
     if(editor.owner!==(cloudUser?.id||'local')){status('账号已切换，请关闭后重新打开场景。',true);return}
     if(!editor.newScene&&JSON.stringify(findScene(editor.standalone?'library':editor.historyId,editor.scene.id))!==editor.base){status('场景已在其他位置更新或删除，请保留草稿文字，重新打开后编辑。',true);return}
     const form=new FormData(document.querySelector('#scene-editor-form'));
@@ -758,44 +760,17 @@ if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(
   function supplementVersion(id){const group=sceneGroups().find(group=>group.scene.groupId===id);return group?JSON.stringify([group.scene,group.links.map(item=>[item.id,scenes(item).filter(scene=>scene.groupId===id)])]):null}
   function applySupplement(changes,owner,{undo=false}={}){
     if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未应用建议。');
-const patches=new Map();for(const change of changes){if(!change.expected||supplementVersion(change.id)!==change.expected)throw new Error('场景或关联已有更新，请重新检查；本批未保存。');const patch={};for(const key of ['title','translation'])if(Object.hasOwn(change.patch,key)){const value=change.patch[key];if(typeof value!=='string'||value.length>(key==='title'&&!undo?48:4000))throw new Error('建议长度或格式无效，本批未保存。');patch[key]=value.trim()}patches.set(change.id,patch)}
+const patches=new Map(),bases=new Map();for(const change of changes){if(!change.expected||supplementVersion(change.id)!==change.expected)throw new Error('场景或关联已有更新，请重新检查；本批未保存。');const base=sceneGroups().find(group=>group.scene.groupId===change.id).scene;bases.set(change.id,base);const patch=root.SceneAIData?SceneAIData.validatePatch(change.patch,base):Object.fromEntries(Object.entries(change.patch).filter(([key,value])=>['title','translation'].includes(key)&&typeof value==='string'&&value.length<=4000));patches.set(change.id,patch)}
     const now=new Date(Math.max(Date.now(),...changes.map(change=>(Date.parse(sceneGroups().find(group=>group.scene.groupId===change.id).scene.updatedAt)||0)+1))).toISOString(),settings=getSettings();
-    const update=scene=>patches.has(scene.groupId)?{...scene,...patches.get(scene.groupId),updatedAt:now}:scene;
+    const update=scene=>{if(!patches.has(scene.groupId))return scene;const patch={...patches.get(scene.groupId)},base=bases.get(scene.groupId);for(const key of ['exampleHighlights','translationHighlights'])if(JSON.stringify(scene[key])!==JSON.stringify(base[key]))delete patch[key];return {...scene,...patch,updatedAt:now}};
     const history=getHistory().map(item=>scenes(item).some(scene=>patches.has(scene.groupId))?{...item,scenes:scenes(item).map(update),updatedAt:new Date(Math.max(Date.parse(item.updatedAt)||0,Date.parse(now))).toISOString()}:item);
     if(!setHistoryAndSettings(history,{...settings,sceneLibrary:library().map(update),updatedAt:now}))throw new Error('写入失败，本批未保存；建议仍保留。');
     for(const item of history)if(item.scenes?.some(scene=>patches.has(scene.groupId)))refreshFragmentPinViews(item.id);
     renderHub();renderHome();syncPending();
   }
   function openSupplement(restored=null){
-    const owner=cloudUser?.id||'local',generic=scene=>!scene.title||/^(?:未命名场景|图片场景|视频场景|场景\s+\d)/.test(scene.title);
-    const records=restored||sceneGroups().filter(({scene})=>generic(scene)||!scene.quote||!scene.translation).map(({scene})=>({id:scene.groupId,scene:structuredClone(scene),expected:supplementVersion(scene.groupId),selected:false,patch:null,useTitle:generic(scene),useTranslation:!scene.translation,status:!scene.quote&&!scene.translation?'缺少文字；不能从图片猜测原句':'待检查'}));
-    let selected=records[0]?.id,running=false,controller=null;const node=document.createElement('dialog');node.className='scene-study-dialog scene-supplement-dialog';node.id='scene-supplement';
-    node.innerHTML=`<header><h2>检查与补遗</h2><button type="button" class="icon-btn" aria-label="关闭检查与补遗">${icon('x')}</button></header><div class="scene-supplement-body"><nav class="supplement-list" aria-label="待补遗场景"></nav><section class="supplement-preview"></section></div><p class="supplement-status" role="status">已检查 ${records.length} 条待完善场景；未改动原内容。</p><footer><button type="button" class="plain-btn" data-supplement-select>选择前 20 条</button><button type="button" class="plain-btn scene-ai-command" data-supplement-generate>${icon('sparkles')}生成所选建议</button><button type="button" class="plain-btn primary-btn" data-supplement-apply>采用所选</button></footer>`;
-    document.body.append(node);node.showModal();const message=text=>node.querySelector('.supplement-status').textContent=text;
-    function list(){node.querySelector('.supplement-list').innerHTML=records.map(row=>`<div class="supplement-row ${row.id===selected?'active':''}"><input type="checkbox" aria-label="选择 ${esc(row.scene.title||'未命名场景')}" data-supplement-check="${esc(row.id)}" ${row.selected?'checked':''}><button type="button" data-supplement-row="${esc(row.id)}"><strong>${esc(row.scene.title||'未命名场景')}</strong><small>${esc(row.status)}</small></button></div>`).join('')||'<p>当前没有待补遗场景。</p>';node.querySelectorAll('[data-supplement-check]').forEach(box=>box.onchange=()=>{const row=records.find(row=>row.id===box.dataset.supplementCheck);if(box.checked&&records.filter(row=>row.selected).length>=20){box.checked=false;message('每批最多选择 20 条。');return}row.selected=box.checked});node.querySelectorAll('[data-supplement-row]').forEach(button=>button.onclick=()=>{selected=button.dataset.supplementRow;list();preview()})}
-    function preview(){const row=records.find(row=>row.id===selected),host=node.querySelector('.supplement-preview');if(!row){host.textContent='没有需要补充的内容。';return}host.innerHTML=`<h3>原内容</h3><p class="supplement-original">${esc(row.scene.quote||row.scene.translation||'仅有素材，图片识别尚未开放。请先补充原句，不能自动猜测。')}</p><p>${esc([row.scene.sourceTitle,row.scene.chapter].filter(Boolean).join(' · '))}</p><label class="scene-field"><span><input type="checkbox" data-use="title" ${row.useTitle?'checked':''}>采用标题</span><input name="suggestedTitle" maxlength="48" value="${esc(row.patch?.title??row.scene.title)}"></label><label class="scene-field"><span><input type="checkbox" data-use="translation" ${row.useTranslation?'checked':''}>采用译文（AI 生成时为机器翻译建议）</span><textarea name="suggestedTranslation" maxlength="4000" rows="5">${esc(row.patch?.translation??row.scene.translation)}</textarea></label>`;const update=()=>{row.patch={title:host.querySelector('[name=suggestedTitle]').value,translation:host.querySelector('[name=suggestedTranslation]').value};row.useTitle=host.querySelector('[data-use=title]').checked;row.useTranslation=host.querySelector('[data-use=translation]').checked;row.status='建议已编辑，尚未保存'};host.querySelectorAll('input,textarea').forEach(input=>input.oninput=update)}
-    node.querySelector('[data-supplement-select]').onclick=()=>{const clear=records.some(row=>row.selected);records.forEach((row,index)=>row.selected=!clear&&index<20);list()};
-    node.querySelector('[data-supplement-generate]').onclick=async()=>{
-      if(running)return;const chosen=records.filter(row=>row.selected&&!row.patch);if(!chosen.length){message('请选择待生成的记录；已有建议可直接编辑和采用。');return}
-      const settings=currentApiSettings(),local=Boolean(settings.apiUrl&&settings.apiKey&&settings.model),environment=Boolean(cloudUser?.id)&&configInfo?.hasApiUrl&&configInfo?.hasApiKey&&configInfo?.model&&!settings.apiUrl&&!settings.apiKey;if(!local&&!environment){message('尚未配置可用文字模型；仍可手动填写建议。');return}
-      running=true;let count=0;
-      for(const row of chosen){
-        if(!node.isConnected||owner!==(cloudUser?.id||'local'))break;
-        if(!row.scene.quote&&!row.scene.translation){row.status='缺少原句或译文，未调用模型';list();continue}
-        controller=new AbortController();const timer=setTimeout(()=>controller.abort(),20000);row.status='生成中';list();
-try{const response=await modelRequest('followup',{purpose:'scene-supplement',question:'补齐场景短标题和缺失译文，返回 JSON 建议',scene:Object.fromEntries(['title','quote','translation','sourceTitle','chapter'].map(key=>[key,row.scene[key]||''])),stream:false,apiUrl:local?settings.apiUrl:'',apiKey:local?settings.apiKey:'',model:local?settings.model:configInfo.model},{signal:controller.signal});const data=await response.json();controller.signal.throwIfAborted();if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);if(typeof data.answer!=='string'||data.answer.length>32000)throw new Error('模型返回内容过长或格式无效');const patch=JSON.parse(data.answer.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));if(!patch||Array.isArray(patch)||Object.keys(patch).some(key=>!['title','translation'].includes(key))||typeof patch.title!=='string'||patch.title.length>48||typeof patch.translation!=='string'||patch.translation.length>4000)throw new Error('模型未返回有效的标题和译文');if(!node.isConnected||owner!==(cloudUser?.id||'local'))break;if(!row.patch){row.patch=patch;row.status='AI 文字建议，待核对';if(selected===row.id)preview()}else row.status='保留生成期间的手动编辑';count++}
-        catch(error){if(node.isConnected)row.status=error.name==='AbortError'?'已取消或超时，可重试':String(error.message).slice(0,180)}finally{clearTimeout(timer);controller=null;list()}
-      }
-      running=false;if(node.isConnected)message(`本轮生成 ${count} 条建议，未保存到正式内容；失败项可重试。`);
-    };
-    node.querySelector('[data-supplement-apply]').onclick=()=>{
-      if(running){message('请等待生成结束后核对建议。');return}
-      const chosen=records.filter(row=>row.selected&&row.patch&&(row.useTitle||row.useTranslation));if(!chosen.length){message('请选择已有建议，并勾选要采用的字段。');return}
-      const changes=chosen.map(row=>({id:row.id,expected:row.expected,patch:{...(row.useTitle?{title:row.patch.title}:{}),...(row.useTranslation?{translation:row.patch.translation}:{})}}));
-      try{applySupplement(changes,owner);const undo=chosen.map(row=>({id:row.id,expected:supplementVersion(row.id),patch:{...(row.useTitle?{title:row.scene.title}:{}),...(row.useTranslation?{translation:row.scene.translation}:{})}}));node.close();notify(`已采用 ${chosen.length} 条场景建议。`,'good','补遗',true,{label:'撤销',run:()=>{try{applySupplement(undo,owner,{undo:true});notify('已撤销补遗。','info','补遗')}catch(error){notify(error.message,'warn','未撤销')}}})}catch(error){message(error.message)}
-    };
-    const snapshot=()=>records.filter(row=>row.selected||row.patch).map(row=>structuredClone(row));root.UIOverlays.guardDialog(node,{getState:snapshot,initialState:[],canRestore:()=>records.every(row=>supplementVersion(row.id)===row.expected),restore:values=>openSupplement(values)});
-    node.addEventListener('close',()=>{controller?.abort();node.remove()});list();preview();
+    if(root.SceneAI)return root.SceneAI.openSupplement(restored);
+    notify('场景 AI 模块尚未载入，请刷新后重试。','warn','检查与补遗');
   }
   function renderHub(){root.SceneWorkspace?.render()}
   function pickBackup(){
@@ -831,6 +806,6 @@ try{const response=await modelRequest('followup',{purpose:'scene-supplement',que
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,renderHome,homeScene,setHomeScene,openSupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+v0.43.1 candidate: scene-ai-data/client/UI/CSS integrated into existing scene editor (auto static-image analysis after configuration/cost consent, editable Check, independent contextual targets, credential-free IndexedDB drafts) and expanded shared batch maintenance. Replaces retired title/translation-only supplement UI. Six settings groups, stationary search/category and internal content scrolling; quantity+chevron atomic layout. Local contracts/10 viewport-theme cases, atomic failure/undo/concurrent edit/refresh/manual meaning/AI text title tests pass. Production remains0.43.0 until independent preview and real-channel acceptance pass. Approved subsequent phases0.43.2 canonical sources/Teyvat/classification and0.44.0 scene-target FSRS remain unimplemented; keep them in the ledger. See docs/plans/2026-10-25-scene-ai-context.md.
 
 Capture parity2026-10-25: merge d3eb331, https://9c430b3e.ai-vocab-tool.pages.dev,153 hashes/auth401; local/deployed capture5widths/themes, local synthetic vision, shared390dark tutorial/connection flows pass. Actual saved claude-sonnet-5 browser-direct random-digit and bilingual synthetic-image recognition passed using no-proxy-server, no private input or model fallback. See docs/reports/v043-vision-channel.md. Production screenshot feature still OFF; actual end-to-end learning/default profile/source gates remain.
 

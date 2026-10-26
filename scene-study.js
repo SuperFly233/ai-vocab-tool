@@ -6,7 +6,7 @@
   const entry=id=>getHistory().find(row=>String(row.id)===String(id));
   const link=(item,gid)=>records(item).find(scene=>scene.groupId===gid);
   const state=(item,gid)=>link(item,gid)?.studyState||'new';
-  const meaning=item=>displayedResultForHistory(item.id,item)?.headword?.coreMeaning||'';
+  const meaning=(item,gid='')=>{const scene=gid?link(item,gid):null,target=scene?.learningTargets?.find(v=>v.entryId===String(item.id)||[item.query,historyDisplayTitle(item)].some(text=>String(text||'').trim().toLocaleLowerCase()===v.phrase.toLocaleLowerCase()));return target?.meaning||displayedResultForHistory(item.id,item)?.headword?.coreMeaning||''};
   function refresh(id){if(id)refreshFragmentPinViews(id);root.SceneWorkspace?.render()}
   function update(id,gid,changes,{expected=null,undo=true,restore=null}={}){
     const item=entry(id),before=records(item).filter(scene=>scene.groupId===gid),account=owner();

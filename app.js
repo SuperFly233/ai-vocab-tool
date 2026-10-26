@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.0',
-  releaseDate:'2026-10-25',
+  version:'0.43.1',
+  releaseDate:'2026-10-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.1',date:'2026-10-26',title:'场景识别与语境核对',items:['场景编辑器接入指定模型读图和文字分析；明确配置与费用后，新静态图片可自动分析，先 Check 再保存。','新增独立语境目标与这里的意思；补遗扩展到正文、高亮、来源线索和语境义，保留版本保护、原子采用与撤销。','设置重组为六类，搜索与分类固定、内容独立滚动；修正短状态与箭头被挤换行。规范来源索引和间隔重复调度仍分阶段验收。']},
   {version:'0.43.0',date:'2026-10-25',title:'站内上手与连接核对',items:['原帮助入口提供四组可重播教程、安装连接和常见问题；首次只询问一次，进度仅保存在本机当前账号。','教程高亮真实控件并使用只读示例，不调用模型、不写学习记录；退出恢复页面与位置，未保存草稿不强制关闭。','站内提供正式助手下载、更新步骤、官方软件入口、程序与数据目录说明及真实电脑诊断；未完成事项有独立验收账本。']},
   {version:'0.42.2',date:'2026-10-25',title:'连接助手更新与诊断',items:['同源正式发布清单提供版本、便携包和校验值；区分电脑实际登记版本与服务端协议能力。','更新和首次连接采用一致引导；云任务与 Anki 为必需项，Fushi 和词典可选，诊断超过两分钟需重新检查。','Bridge 0.4.1 保留旧协议与任务恢复，活动批次阻止误退出或改连接；不改既有模板和复习进度。']},
   {version:'0.42.1',date:'2026-10-25',title:'场景查询侧重点隔离',items:['队列只把用户侧重点回填到首页与场景编辑器，模型专用的原句上下文不再残留。','刷新恢复、失败重试保留独立用户要求；仅修正与已存任务完全对应的旧草稿，不根据文字关键词误删。']},
@@ -1864,6 +1865,7 @@ function normalizeSettings(raw={}){
     ...DEFAULT_SETTINGS,
     ...source,
     updatedAt:sourceClock,
+    sceneAI:{auto:source.sceneAI?.auto!==false,useImage:source.sceneAI?.useImage!==false,mode:source.sceneAI?.mode==='manual'?'manual':'default',profileId:typeof source.sceneAI?.profileId==='string'?source.sceneAI.profileId.slice(0,200):'',updatedAt:SettingsData.normalizeClock(source.sceneAI?.updatedAt)},
     apiProfiles:profiles,
     apiProfileTombstones,
     apiProfileOrder,
@@ -2049,6 +2051,7 @@ function mergeSettings(localRaw,remoteRaw){
     wordSuggestions:preferLocalSettings?local.wordSuggestions:remote.wordSuggestions,
     basicDictionary:preferLocalSettings?local.basicDictionary:remote.basicDictionary,
     sceneTitleMode:preferLocalSettings?local.sceneTitleMode:remote.sceneTitleMode,
+    sceneAI:SettingsData.preferNewerItem(local.sceneAI,remote.sceneAI),
     viewPreferences:ViewPreferences.merge(local.viewPreferences,remote.viewPreferences),
     readingNav:preferLocalSettings?local.readingNav:remote.readingNav,
     mediaAutoplay:preferLocalSettings?local.mediaAutoplay:remote.mediaAutoplay,
@@ -8152,7 +8155,7 @@ function updateSettingsNavActive(){
   const sections=[...document.querySelectorAll('.settings-content .setting-group[id]')].filter(section=>!section.hidden);
   if(!sections.length)return;
   const nav=document.querySelector('.settings-nav'),mobile=window.matchMedia('(max-width:900px)').matches;
-  const guideTop=(mobile?nav.getBoundingClientRect().bottom:document.querySelector('.topbar').getBoundingClientRect().bottom)+24;
+  const guideTop=document.querySelector('.settings-content').getBoundingClientRect().top+24;
   let current=sections[0];
   sections.forEach(section=>{if(section.getBoundingClientRect().top<=guideTop)current=section});
   if(settingsNavLock&&performance.now()<settingsNavLock.until)current=sections.find(section=>section.id===settingsNavLock.id)||current;
@@ -8172,9 +8175,10 @@ function scrollToSettingsSection(id,button){
   settingsNavLock={id,until:performance.now()+1200};
   const nav=document.querySelector('.settings-nav'),offset=(innerWidth<=900?nav.getBoundingClientRect().height:0)+document.querySelector('.topbar').getBoundingClientRect().bottom+16;
   globalThis.ExperienceUI?.revealNavItem(nav,button);
-  window.scrollTo({top:scrollY+section.getBoundingClientRect().top-offset,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  const host=document.querySelector('.settings-content');host.scrollTo({top:host.scrollTop+section.getBoundingClientRect().top-host.getBoundingClientRect().top,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
 }
 function scrollSettingsToTop(){
+  document.querySelector('.settings-content')?.scrollTo({top:0,behavior:'smooth'});
   document.querySelector('.settings-page-head')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function applyLabelMode(mode){
