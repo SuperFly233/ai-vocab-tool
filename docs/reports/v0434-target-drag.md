@@ -19,13 +19,12 @@ The user rejected visible up/down commands. Reuse the existing history/settings 
 - Final independent preview: https://d6139c03.ai-vocab-tool.pages.dev (supersedes the earlier60ada98f/61fa7235 inspection builds). Final deployed mobile regression includes the row-local enhanced-selector assertion.
 - Screenshots inspected: [editor390dark](../screenshots/target-drag0434/editor-390-dark.png), [Check390dark](../screenshots/target-drag0434/check-390-dark.png), [Check1440light](../screenshots/target-drag0434/check-1440-light.png). Screenshot inspection caught the enhanced-selector wrapper remaining outside its target; enhancement now runs after row assembly, with a regression assertion.
 
-## Limits
-
 ## Release Evidence
 
 - Runtime commit: `6dbe444`, pushed to main.
 - Production: https://88abd4ea.ai-vocab-tool.pages.dev and https://ai-vocab-tool.pages.dev.
 - Final preview and official domain:155 file hashes matched, sync/Anki unauthenticated requests returned401. Official390dark synthetic drag/keyboard/cancel/target-adoption/recovery flow passed.
+- Isolated capture preview parity: merge `1bf5ed8`, https://6e881ec4.ai-vocab-tool.pages.dev,159 hashes and auth401; capture data,10 width/theme capture UI cases, synthetic vision lifecycle and local/deployed390dark common target flow passed. Capture-only intake remains outside production. Main checkout/build restored afterward.
 
 ## Remaining Scope
 

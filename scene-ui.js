@@ -156,7 +156,7 @@
     mediaName:['素材文件名','修改显示与下载文件名，不改素材内容、格式或哈希；保存场景后生效。','冬夜对白.png'],
   };
   function field(key,label,value='',multiline=false){
-    return `<label class="scene-field visual-field-hinted"><span>${label}</span>${multiline?`<textarea name="${key}" rows="${key==='note'?3:2}" maxlength="${key==='note'?12000:4000}">${esc(value)}</textarea>`:`<input name="${key}" value="${esc(value)}" maxlength="${key==='sourceUrl'?2048:4000}" ${key==='sourceUrl'?'type="url"':'type="text"'}>`}${visualHintHTML(key,fieldHints)}</label>`;
+    return `<label class="scene-field visual-field-hinted"><span>${label}</span>${multiline?`<textarea class="${['quote','translation','note','exampleHighlights','translationHighlights'].includes(key)?'content-editor':''}" name="${key}" rows="${key==='note'?3:2}" maxlength="${key==='note'?12000:4000}">${esc(value)}</textarea>`:`<input name="${key}" value="${esc(value)}" maxlength="${key==='sourceUrl'?2048:4000}" ${key==='sourceUrl'?'type="url"':'type="text"'}>`}${visualHintHTML(key,fieldHints)}</label>`;
   }
   function timeMeta(scene,mode='both'){
     const keys=mode==='created'?['createdAt']:mode==='updated'?['updatedAt']:['createdAt','updatedAt'];
@@ -223,9 +223,10 @@
       <form id="scene-editor-form"><div class="scene-editor-body">
       ${!item&&(!standalone||fromHome)?`<section class="scene-editor-section scene-query-context">${field('entryTitle','单词或词组',query,true)}<div class="scene-field-pair">${field('lookupDirection','语言方向（可选）',els.direction.value)}${field('lookupNote','侧重点（可选）',els.note.value)}</div></section>`:''}
       <section class="scene-editor-section scene-content-fields">
-      <div class="scene-drop" role="group" aria-label="场景素材"><button type="button" class="scene-drop-target" data-scene-action="pick">${icon('image-plus')}<strong>添加图片、GIF 或视频</strong><small>PNG / JPEG / GIF / WebP · MP4 / WebM · 每文件 20 MB</small></button><input id="scene-file-picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" multiple hidden><div id="scene-file-list"></div></div>
+      <div class="scene-capture-grid"><div class="scene-drop" role="group" aria-label="场景素材"><button type="button" class="scene-drop-target" data-scene-action="pick">${icon('image-plus')}<strong>添加图片、GIF 或视频</strong><small>PNG / JPEG / GIF / WebP · MP4 / WebM · 每文件 20 MB</small></button><input id="scene-file-picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" multiple hidden><div id="scene-file-list"></div></div><div class="scene-text-content">
       <div class="scene-field-pair">${field('quote','原句 / 场景内容',scene.quote,true)}${field('exampleHighlights','原句高亮（可选）',scene.exampleHighlights.join('\n'),true)}</div>
       <div class="scene-field-pair">${field('translation','译文（可选）',scene.translation,true)}${field('translationHighlights','译文高亮（可选）',scene.translationHighlights.join('\n'),true)}</div>
+      </div></div>
       ${!item&&standalone&&!fromHome?field('lookupTerms','待查词组（可选）','',true):''}</section>
       <section class="scene-editor-section scene-secondary-fields">${field('title','场景名称（可选）',scene.title)}${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" open><summary>${icon('chevron-down')}来源信息</summary>${sources.length?`<label class="scene-field"><span>最近来源</span><select id="scene-source-recent" aria-label="最近来源"><option value="">选择已用来源</option>${sources.map((source,index)=>`<option value="${index}">${esc([source.sourceTitle||source.sourceUrl||'来源',source.chapter,source.timeRange].filter(Boolean).join(' · ').slice(0,160))}</option>`).join('')}</select></label>`:''}<div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details></section>
       </div><p id="scene-editor-status" role="status"></p><footer>${!item&&!standalone?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button><button type="button" class="plain-btn" data-scene-action="standalone">独立保存场景</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item||standalone?'保存场景':'随查词保存'}</button></footer></form></section>`;
@@ -233,6 +234,7 @@
     const titleInput=layer.querySelector('[name="title"]'),titleField=titleInput.closest('label');
     titleField.insertAdjacentHTML('beforebegin',`<label class="scene-field"><span>标题方式</span><select name="titleMode" aria-label="标题方式">${[['text','原句摘要'],['source','来源与时间'],['manual','手动填写'],['ai','AI 文字标题']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label>`);
     const titleMode=layer.querySelector('[name="titleMode"]');titleMode.value=getSettings().sceneTitleMode||'text';
+    const titleRow=document.createElement('div');titleRow.className='scene-title-row';titleField.before(titleRow);titleRow.append(titleField,titleMode.closest('label'));
     titleField.insertAdjacentHTML('beforeend',`<small class="scene-ai-marker" hidden>${icon('sparkles')}仅概括已填文字；读图请使用上方场景 AI</small>`);
     const updateTitleMode=()=>{const ai=titleMode.value==='ai';titleField.classList.toggle('scene-ai-field',ai);titleField.querySelector('.scene-ai-marker').hidden=!ai;titleInput.placeholder=({text:'留空时提取原句摘要',source:'留空时使用来源和时间',manual:'可留空，不自动生成',ai:'留空时调用文字模型生成'})[titleMode.value]};titleMode.onchange=updateTitleMode;updateTitleMode();
     for(const [sourceKey,targetKey] of [['quote','exampleHighlights'],['translation','translationHighlights']])installSelectionAction(layer,sourceKey,targetKey);
