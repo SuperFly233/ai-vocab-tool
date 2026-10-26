@@ -2,6 +2,7 @@
 
 Last updated: 2026-10-26
 
+- v0.43.4 drag consistency correction: remove visible up/down target commands in both scene editor and task pool. SharedUI.bindReorder reuses history/settings drag-handle CSS and direct movement helpers; pointer/touch/keyboard, cancel rollback, stable target selection and no API calls. Source phase now follows this correction, not delivered as part of it. Named source WIP stash remains untouched. Release evidence follows after acceptance.
 Urgent0.43.2 unlink hotfix RELEASED4bb1c98: preview7898f41d/productionec4de4bf,153 hashes and auth401 pass. Explicit entry/association command, atomic preservation for legacy link-only groups,20 responsive scenarios plus cancel/quota/account/concurrent/Undo tests. Source catalog/index/UI work is checkpointed in named git stash `wip source catalog and index before urgent unlink hotfix`; not integrated, migrated or shipped. Preserve it and finish after task release; never deploy that incomplete API accidentally. No private record restoration or native changes.
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
