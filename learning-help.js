@@ -38,11 +38,11 @@
   ['截图识别、语录匹配与媒体编辑呢？','场景编辑器可配置指定模型分析静态图片，先核对再保存；不支持的通道会明确失败并保留原件。独立批量截图、Teyvat 来源索引、间隔重复调度、重复归并、存储迁移及媒体编辑继续按独立阶段验收。']
  ];
  function ledgerHTML(){return '<details class="help-faq help-ledger"><summary>未完成事项与验收条件</summary><p>依次收尾，未通过验收的能力不作为可用功能；以下均未完成。</p>'+LearningHelpData.ledger.map(row=>`<section><h3>${esc(row.title)} <small>待完成</small></h3><p>依赖：${esc(row.dependency)}</p><p>验收：${esc(row.acceptance)}</p><p>下一步：${esc(row.next)}</p><p class="help-note">证据边界：${esc(row.evidence)}</p></section>`).join('')+'</details>'}
- async function open(tab='tutorials'){
+ async function open(tab='about'){
   closeWelcome('seen');if(tour)endTour();
   if(!state().welcome){state().welcome='seen';persist()}
   if(help?.node.isConnected){help.change(tab);help.node.focus();return}
-  const origin=document.activeElement,node=AnkiBridge.dialog('帮助与教程'),body=node.querySelector('.scene-dialog-body'),account=owner();node.classList.add('learning-help-dialog');
+  const origin=document.activeElement,node=AnkiBridge.dialog('帮助与关于'),body=node.querySelector('.scene-dialog-body'),account=owner();node.classList.add('learning-help-dialog');
   body.innerHTML='<div class="help-tabs" role="tablist" aria-label="帮助主题"></div><section class="help-content" role="tabpanel"></section>';
   const tabs=body.querySelector('.help-tabs'),content=body.querySelector('.help-content');let generation=0,controller=null,closed=false,release=null,platform=/Windows/i.test(navigator.userAgentData?.platform||navigator.userAgent)?'windows':'remote',devices=[],deviceId='',currentRequest=null,pending=false,restoring=true,expiryTimer=null;
   const alive=()=>!closed&&node.isConnected&&owner()===account;
@@ -103,14 +103,15 @@
    content.querySelector('[data-help-tasks]').onclick=()=>{node.close();AnkiBridge.manage()};
    if(!release){const revision=generation;try{const value=await BridgeRelease.load();if(!alive()||revision!==generation)return;release=value;renderConnection()}catch{if(!alive()||revision!==generation)return;const host=content.querySelector('[data-help-release]');host.innerHTML='<p>正式发布清单暂不可用，未提供未经校验的下载。</p><button class="plain-btn" data-help-retry-release>重新获取</button>';host.querySelector('button').onclick=renderConnection}}
   }
-  function change(next='tutorials'){
-   stop();tab=['tutorials','connect','faq'].includes(next)?next:'tutorials';status(node,'');tabs.innerHTML=[['tutorials','使用教程'],['connect','安装连接'],['faq','常见问题']].map(([id,label])=>`<button type="button" role="tab" id="help-tab-${id}" aria-controls="help-content" aria-selected="${tab===id}" tabindex="${tab===id?0:-1}" data-help-tab="${id}">${label}</button>`).join('');content.id='help-content';content.setAttribute('aria-labelledby','help-tab-'+tab);content.scrollTop=0;
+  function change(next='about'){
+   stop();tab=['about','tutorials','connect','faq'].includes(next)?next:'about';status(node,'');tabs.innerHTML=[['about','关于'],['tutorials','使用教程'],['connect','安装连接'],['faq','常见问题']].map(([id,label])=>`<button type="button" role="tab" id="help-tab-${id}" aria-controls="help-content" aria-selected="${tab===id}" tabindex="${tab===id?0:-1}" data-help-tab="${id}">${label}</button>`).join('');content.id='help-content';content.setAttribute('aria-labelledby','help-tab-'+tab);content.scrollTop=0;
    tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>change(b.dataset.helpTab));
    if(tab==='connect')renderConnection();
-   else if(tab==='faq'){content.innerHTML=faqs.map(([q,a])=>`<details class="help-faq"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')+ledgerHTML()+'<button class="plain-btn" data-help-about>关于 Lexi</button>';content.querySelector('[data-help-about]').onclick=()=>{node.close();showView('about')}}
+   else if(tab==='about'){content.innerHTML='<div class="help-about"></div>';renderAbout(content.firstElementChild)}
+   else if(tab==='faq'){content.innerHTML=faqs.map(([q,a])=>`<details class="help-faq"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')+ledgerHTML()}
    else{content.innerHTML=tutorialsHTML();content.querySelectorAll('[data-start-tour]').forEach(b=>b.onclick=()=>{const id=b.dataset.startTour;if(busyEditor()){status(node,'请先处理当前编辑或弹窗，再开始跨页面教程；不会替你关闭草稿。');return}restoring=false;node.close();startTour(id,origin)})}
   }
-  tabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const keys=['tutorials','connect','faq'],at=keys.indexOf(tab),next=e.key==='Home'?0:e.key==='End'?2:(at+(e.key==='ArrowLeft'?2:1))%3;change(keys[next]);tabs.querySelector('[aria-selected=true]').focus()};
+  tabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const keys=['about','tutorials','connect','faq'],at=keys.indexOf(tab),next=e.key==='Home'?0:e.key==='End'?keys.length-1:(at+(e.key==='ArrowLeft'?keys.length-1:1))%keys.length;change(keys[next]);tabs.querySelector('[aria-selected=true]').focus()};
   const visibility=()=>{if(document.hidden){stop();updateCheck();if(currentRequest)setMessage('检查已暂停；返回后可继续检查原请求。')}else{renderDiagnostic();updateCheck()}};document.addEventListener('visibilitychange',visibility);
   node.addEventListener('close',()=>{closed=true;stop();document.removeEventListener('visibilitychange',visibility);if(help?.node===node)help=null;if(restoring&&origin?.isConnected)origin.focus({preventScroll:true})},{once:true});help={node,account,change};change(tab);
  }
@@ -147,7 +148,7 @@
   return false;
  }
  function authChanged(){if(tour&&(!eligible()||tour.account!==owner()))endTour(false);if(help&&help.account!==owner())help.node.close();if(welcome)welcome.remove();welcome=null;clearTimeout(promptTimer);if(eligible())promptTimer=setTimeout(offer,2500)}
- document.addEventListener('click',event=>{const button=event.target.closest('[data-help-open]');if(button){event.preventDefault();open(button.dataset.helpOpen||'tutorials')}});
+ document.addEventListener('click',event=>{const button=event.target.closest('[data-help-open]');if(button){event.preventDefault();open(button.dataset.helpOpen||'about')}});
  root.addEventListener('lexi-auth-context',authChanged);root.addEventListener('pagehide',()=>{endTour(false);help?.node.close();closeWelcome();clearTimeout(promptTimer)});root.addEventListener('popstate',()=>endTour(false));
  root.addEventListener('storage',event=>{if(event.key===storageKey(owner())){memory.delete(owner());if(welcome&&state().welcome){welcome.remove();welcome=null}}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){endTour(false);closeWelcome()}});

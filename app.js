@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.4',
+  version:'0.43.5',
   releaseDate:'2026-10-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.5',date:'2026-10-26',title:'场景编辑重设计与帮助入口统一',items:['素材与双语正文独立对照，学习重点改为通栏紧凑列表；目标片段、语境释义与已有词条选择对齐，不再留下右侧长列与左侧空白。','正文、释义及笔记使用轻边线编辑，名称与生成方式并排；搜索、选择器和保存仍是明确控件。','问号默认打开关于；关于、使用教程、安装连接和常见问题同级，复用真实版本与更新记录。']},
   {version:'0.43.4',date:'2026-10-26',title:'学习目标统一拖动排序',items:['移除学习目标独立的上移、下移按钮，编辑器与待核对任务统一使用历史编辑的拖动手柄、移动反馈和滚动行为。','拖动保留编号、勾选、手动含义及已有词条选择；取消恢复原顺序，不调用模型。键盘可聚焦手柄后使用方向键。']},
   {version:'0.43.3',date:'2026-10-26',title:'场景 AI 待核对任务与重点学习',items:['直连分析不因切换标签而取消；可先保存场景，结果留在按账号与场景隔离的待核对任务中。刷新中断需明确恢复，不自动重复计费。','重点块编号、编辑、上下排序和选择已有词条；明确查询所选后进入完整查词流程，语境义独立保留。','首页生成进度增加转圈，默认只显示当前阶段与总耗时；详细阶段折叠。场景及词条补遗共用加载指示。']},
   {version:'0.43.2',date:'2026-10-26',title:'解除关联不删除场景',items:['关联词条使用独立的解除关联操作，不再共用场景删除命令。','解除前原子保留独立场景；旧数据移除最后一个关联后，原句、笔记与素材仍可查看。','确认、撤销继续检查账号与对象变化；来源分类与语境记忆仍待独立验收。']},
@@ -6356,7 +6357,7 @@ function visualReadonlyField(id,label,value){
   return `<label class="setting-field visual-readonly"><span>${escapeHTML(label)}</span><input class="cloud-input" id="${id}" type="text" value="${escapeHTML(value)}" readonly></label>`;
 }
 function visualTextarea(id,label,value){
-  return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" id="${id}">${escapeHTML(value)}</textarea>${visualHintHTML(id)}</label>`;
+  return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(id)}"><span>${escapeHTML(label)}</span><textarea class="visual-input content-editor" id="${id}">${escapeHTML(value)}</textarea>${visualHintHTML(id)}</label>`;
 }
 function visualList(kind,title,items,renderer,id=''){
   return `<section class="visual-section"${id?` id="${id}"`:''} data-visual-section="${escapeAttr(kind)}">
@@ -6423,7 +6424,7 @@ function visualInlineField(key,label,value){
   return `<label class="setting-field visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><input class="cloud-input" data-field="${key}" type="text" value="${escapeHTML(value)}">${visualHintHTML(key)}</label>`;
 }
 function visualInlineTextarea(key,label,value){
-  return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><textarea class="visual-input" data-field="${key}">${escapeHTML(value)}</textarea>${visualHintHTML(key)}</label>`;
+  return `<label class="setting-field visual-wide visual-field-hinted" data-visual-hint="${escapeAttr(key)}"><span>${escapeHTML(label)}</span><textarea class="visual-input content-editor" data-field="${key}">${escapeHTML(value)}</textarea>${visualHintHTML(key)}</label>`;
 }
 function visualHintHTML(key,hints=VISUAL_FIELD_HINTS){
   const hint=hints[key]||['填写提示','按当前字段含义填写，保持简洁、准确，并能同步回 JSON。'];
@@ -8589,14 +8590,14 @@ function toggleAboutReleases(){
   renderAbout();
   requestAnimationFrame(()=>els.aboutContainer?.querySelector('.release-more-btn')?.focus({preventScroll:true}));
 }
-function renderAbout(){
-  if(!els.aboutContainer)return;
+function renderAbout(container=els.aboutContainer){
+  if(!container)return;
   const latest=CHANGELOG[0];
   const visibleReleases=aboutShowAllReleases?CHANGELOG:CHANGELOG.slice(0,ABOUT_RELEASE_LIMIT);
   const archivedCount=Math.max(0,CHANGELOG.length-ABOUT_RELEASE_LIMIT);
-  els.aboutContainer.innerHTML=`
+  container.innerHTML=`
     <header class="about-hero">
-      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=0.23.0" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
+      <div class="about-brand-lockup"><span class="about-brand-plate"><img src="/favicon.svg?v=${APP_INFO.version}" alt=""></span><div><span class="about-eyebrow">关于</span><h2>${escapeHTML(APP_INFO.name)}</h2></div></div>
       <p>面向写作、考试和日常阅读的词汇结构化查询工具。释义、搭配、例句、语体与辨析，都可以回看、整理和同步。</p>
       <div class="about-version"><span>当前版本</span><strong>v${escapeHTML(APP_INFO.version)}</strong><em>${escapeHTML(APP_INFO.releaseDate)}</em></div>
     </header>
@@ -8619,10 +8620,11 @@ function renderAbout(){
             <ul>${entry.items.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul>
           </details>
         `).join('')}
-        ${archivedCount?`<button class="release-more-btn ${aboutShowAllReleases?'active':''}" type="button" aria-expanded="${aboutShowAllReleases}" onclick="toggleAboutReleases()"><span>${aboutShowAllReleases?'收起较早版本':`查看更早的 ${archivedCount} 个版本`}</span>${icon('chevron-down')}</button>`:''}
+        ${archivedCount?`<button class="release-more-btn ${aboutShowAllReleases?'active':''}" type="button" aria-expanded="${aboutShowAllReleases}" data-about-releases><span>${aboutShowAllReleases?'收起较早版本':`查看更早的 ${archivedCount} 个版本`}</span>${icon('chevron-down')}</button>`:''}
       </div>
     </section>
   `;
+  container.querySelector('[data-about-releases]')?.addEventListener('click',()=>{aboutShowAllReleases=!aboutShowAllReleases;renderAbout(container);container.querySelector('[data-about-releases]')?.focus({preventScroll:true})});
 }
 function applyTheme(theme){
   document.documentElement.dataset.theme=theme==='auto'?'':theme;

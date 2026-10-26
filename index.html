@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f7f7f3">
 <title>Lexi酱</title>
-<link rel="icon" href="/favicon.svg?v=0.43.4" type="image/svg+xml">
-<link rel="shortcut icon" href="/favicon.svg?v=0.43.4" type="image/svg+xml">
-<link rel="manifest" href="/site.webmanifest?v=0.43.4">
-<link rel="stylesheet" href="/styles.css?v=0.43.4">
-<link rel="stylesheet" href="/ui-consistency.css?v=0.43.4">
-<link rel="stylesheet" href="/learning-card.css?v=0.43.4">
-<link rel="stylesheet" href="/entry-maintenance.css?v=0.43.4">
-<link rel="stylesheet" href="/bridge-connection.css?v=0.43.4">
-<link rel="stylesheet" href="/learning-help.css?v=0.43.4">
-<link rel="stylesheet" href="/scene-ai.css?v=0.43.4">
-<link rel="stylesheet" href="/scene-ai-tasks.css?v=0.43.4">
+<link rel="icon" href="/favicon.svg?v=0.43.5" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg?v=0.43.5" type="image/svg+xml">
+<link rel="manifest" href="/site.webmanifest?v=0.43.5">
+<link rel="stylesheet" href="/styles.css?v=0.43.5">
+<link rel="stylesheet" href="/ui-consistency.css?v=0.43.5">
+<link rel="stylesheet" href="/learning-card.css?v=0.43.5">
+<link rel="stylesheet" href="/entry-maintenance.css?v=0.43.5">
+<link rel="stylesheet" href="/bridge-connection.css?v=0.43.5">
+<link rel="stylesheet" href="/learning-help.css?v=0.43.5">
+<link rel="stylesheet" href="/scene-ai.css?v=0.43.5">
+<link rel="stylesheet" href="/scene-ai-tasks.css?v=0.43.5">
 </head>
 <body class="auth-required">
 <section class="auth-screen" id="auth-screen">
@@ -43,7 +43,7 @@
 
 <aside class="sidebar">
   <button class="brand" onclick="goHomeAndFocus()" aria-label="回到首页并聚焦搜索框">
-    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.43.4" alt=""></span>
+    <span class="brand-icon" aria-hidden="true"><img class="brand-mark" src="/favicon.svg?v=0.43.5" alt=""></span>
     <span class="brand-text">Lexi酱</span>
   </button>
   <nav class="nav">
@@ -52,7 +52,7 @@
     <button class="nav-item" data-view="folders" id="nav-folders" onclick="openFoldersRoot(this)"><i data-lucide="folder-heart"></i><span>收藏夹</span></button>
     <button class="nav-item" data-view="scenes" id="nav-scenes" onclick="showView('scenes',this)"><i data-lucide="images"></i><span>场景</span></button>
     <button class="nav-item mobile-utility-nav" data-view="settings" id="nav-settings" onclick="showView('settings',this)"><i data-lucide="settings-2"></i><span>设置</span></button>
-    <button class="nav-item mobile-utility-nav" id="nav-about" data-help-open="tutorials"><i data-lucide="circle-help"></i><span>帮助</span></button>
+    <button class="nav-item mobile-utility-nav" id="nav-about" data-help-open="about"><i data-lucide="circle-help"></i><span>帮助与关于</span></button>
   </nav>
   <div class="side-note">本地保存。登录后云端同步。</div>
 </aside>
@@ -60,7 +60,7 @@
 <main class="app">
   <div class="topbar">
     <div class="title-wrap">
-      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.43.4" alt=""></span>
+      <span class="topbar-brand-plate"><img class="topbar-brand-mark" src="/favicon.svg?v=0.43.5" alt=""></span>
       <div class="title-copy">
         <div class="app-title">Lexi酱</div>
         <div class="app-sub" id="app-sub">词汇结构化查询</div>
@@ -74,7 +74,7 @@
       </div>
       <nav class="utility-nav" aria-label="辅助功能">
         <button data-view="settings" data-tip="设置" onclick="showView('settings',this)" aria-label="设置"><i data-lucide="settings-2"></i></button>
-        <button id="site-help" data-help-open="tutorials" data-tip="帮助与教程" aria-label="帮助与教程"><i data-lucide="circle-help"></i></button>
+        <button id="site-help" data-help-open="about" data-tip="帮助与关于" aria-label="帮助与关于"><i data-lucide="circle-help"></i></button>
       </nav>
       <button class="account-btn" id="account-toggle" onclick="toggleAccountPanel()"><span class="account-avatar"><i data-lucide="user-round"></i></span><span id="account-toggle-label">账号</span></button>
     </div>
@@ -635,44 +635,44 @@
 
 <div class="toast-stack" id="toast-stack"></div>
 
-<script src="/vendor/supabase.js?v=0.43.4"></script>
-<script src="/icons.js?v=0.43.4"></script>
-<script src="/history-data.js?v=0.43.4"></script>
-<script src="/settings-data.js?v=0.43.4"></script>
-<script src="/view-preferences.js?v=0.43.4"></script>
-<script src="/storage-state.js?v=0.43.4"></script>
-<script src="/diagnostic-store.js?v=0.43.4"></script>
-<script src="/lookup-tasks.js?v=0.43.4"></script>
-<script src="/sync-state.js?v=0.43.4"></script>
-<script src="/learning-tools.js?v=0.43.4"></script>
-<script src="/scene-data.js?v=0.43.4"></script>
-<script src="/scene-media.js?v=0.43.4"></script>
-<script src="/ui-consistency.js?v=0.43.4"></script>
-<script src="/ui-overlays.js?v=0.43.4"></script>
-<script src="/scene-preview.js?v=0.43.4"></script>
-<script src="/scene-ui.js?v=0.43.4"></script>
-<script src="/row-navigation.js?v=0.43.4"></script>
-<script src="/app.js?v=0.43.4"></script>
-<script src="/scene-study.js?v=0.43.4"></script>
-<script src="/bridge-release.js?v=0.43.4"></script>
-<script src="/anki-bridge-ui.js?v=0.43.4"></script>
-<script src="/learning-content.js?v=0.43.4"></script>
-<script src="/learning-cards-ui.js?v=0.43.4"></script>
-<script src="/entry-maintenance-data.js?v=0.43.4"></script>
-<script src="/entry-maintenance.js?v=0.43.4"></script>
-<script src="/fushi-workspace.js?v=0.43.4"></script>
-<script src="/scene-workspace.js?v=0.43.4"></script>
-<script src="/scene-organization.js?v=0.43.4"></script>
-<script src="/dictionary-ui.js?v=0.43.4"></script>
-<script src="/basic-dictionary.js?v=0.43.4"></script>
-<script src="/experience-ui.js?v=0.43.4"></script>
-<script src="/input-suggestions.js?v=0.43.4"></script>
-<script src="/request-ui.js?v=0.43.4"></script>
-<script src="/learning-help-data.js?v=0.43.4"></script>
-<script src="/learning-help.js?v=0.43.4"></script>
-<script src="/scene-ai-data.js?v=0.43.4"></script>
-<script src="/scene-ai-client.js?v=0.43.4"></script>
-<script src="/scene-ai-tasks.js?v=0.43.4"></script>
-<script src="/scene-ai.js?v=0.43.4"></script>
+<script src="/vendor/supabase.js?v=0.43.5"></script>
+<script src="/icons.js?v=0.43.5"></script>
+<script src="/history-data.js?v=0.43.5"></script>
+<script src="/settings-data.js?v=0.43.5"></script>
+<script src="/view-preferences.js?v=0.43.5"></script>
+<script src="/storage-state.js?v=0.43.5"></script>
+<script src="/diagnostic-store.js?v=0.43.5"></script>
+<script src="/lookup-tasks.js?v=0.43.5"></script>
+<script src="/sync-state.js?v=0.43.5"></script>
+<script src="/learning-tools.js?v=0.43.5"></script>
+<script src="/scene-data.js?v=0.43.5"></script>
+<script src="/scene-media.js?v=0.43.5"></script>
+<script src="/ui-consistency.js?v=0.43.5"></script>
+<script src="/ui-overlays.js?v=0.43.5"></script>
+<script src="/scene-preview.js?v=0.43.5"></script>
+<script src="/scene-ui.js?v=0.43.5"></script>
+<script src="/row-navigation.js?v=0.43.5"></script>
+<script src="/app.js?v=0.43.5"></script>
+<script src="/scene-study.js?v=0.43.5"></script>
+<script src="/bridge-release.js?v=0.43.5"></script>
+<script src="/anki-bridge-ui.js?v=0.43.5"></script>
+<script src="/learning-content.js?v=0.43.5"></script>
+<script src="/learning-cards-ui.js?v=0.43.5"></script>
+<script src="/entry-maintenance-data.js?v=0.43.5"></script>
+<script src="/entry-maintenance.js?v=0.43.5"></script>
+<script src="/fushi-workspace.js?v=0.43.5"></script>
+<script src="/scene-workspace.js?v=0.43.5"></script>
+<script src="/scene-organization.js?v=0.43.5"></script>
+<script src="/dictionary-ui.js?v=0.43.5"></script>
+<script src="/basic-dictionary.js?v=0.43.5"></script>
+<script src="/experience-ui.js?v=0.43.5"></script>
+<script src="/input-suggestions.js?v=0.43.5"></script>
+<script src="/request-ui.js?v=0.43.5"></script>
+<script src="/learning-help-data.js?v=0.43.5"></script>
+<script src="/learning-help.js?v=0.43.5"></script>
+<script src="/scene-ai-data.js?v=0.43.5"></script>
+<script src="/scene-ai-client.js?v=0.43.5"></script>
+<script src="/scene-ai-tasks.js?v=0.43.5"></script>
+<script src="/scene-ai.js?v=0.43.5"></script>
 </body>
 </html>
