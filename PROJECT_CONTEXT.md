@@ -12,6 +12,8 @@ This file exists so a new Cursor/Codex conversation can continue without relying
 
 ## Current Goal
 
+Capture parity2026-10-26 after editor redesign: merge6f0cd1a, https://09f10cce.ai-vocab-tool.pages.dev / capture-v038-preview;159 hashes/auth401, capture data/10 width-theme UI/synthetic vision and local/deployed390light editor/About flows pass. Preserve importCapture, optional metadata, top-layer dismissal and all task/target safeguards. Main checkout/build restored155 resources/73 icons. Supersedes parity-next above; source WIP and all unfinished sources/FSRS debt remain separate.
+
 Capture parity2026-10-26 after drag correction: merge1bf5ed8, https://6e881ec4.ai-vocab-tool.pages.dev / capture-v038-preview,159 hashes/auth401 and deployed390dark target flow pass. Capture data,10 width/theme UI and synthetic vision lifecycle passed. importCapture, optional capture metadata, top-layer dismissal and new queryTargets/task behaviors retained;74 icon subset. Supersedes parity-next above. Main production remains155 resources/73 icons, restored checkout/build; named source WIP stash still intact. Sources/Teyvat/classification and FSRS remain incomplete.
 
 Capture parity2026-10-26 completed: merge2110c61, https://e824810e.ai-vocab-tool.pages.dev / capture-v038-preview,157 hashes/auth401; capture data, capture10 viewport/theme cases, synthetic vision lifecycle and common scene-AI390dark pass locally, deployed scene-AI390dark pass. Capture metadata, import hook and top-layer dismissal hook preserved alongside contextual targets. Supersedes parity-next wording below. Main production remains the scene-editor-only release; do not merge independent capture intake into main without its own gates.
