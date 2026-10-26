@@ -35,7 +35,7 @@
   ['为什么显示需重新检查？','心跳只说明最近在线。诊断超过120秒，或账号／电脑改变后，需要重新检查。未运行 Anki 和端口错误可能表现相同，不能仅凭网络拒绝武断区分。'],
   ['Fushi 或词典必须连上吗？','不必。普通制卡需要云任务与 Anki；Fushi 来源和已安装词典是可选能力。已有快照不等于电脑此刻在线。'],
   ['写入成功就是手机已经同步了吗？','不是。写入 Anki、Lexi 云端回执、Anki 自身云同步是不同阶段。取消剩余任务不会删除已经写入的卡片。'],
-  ['截图识别、语录匹配与媒体编辑呢？','正式识图通道、Teyvat 增量索引、可靠结果自动保存查词、重复归并、大容量存储迁移、媒体编辑和 AI 裁剪仍按独立阶段验收，不把预览或教程算作交付。']
+  ['截图识别、语录匹配与媒体编辑呢？','场景编辑器可配置指定模型分析静态图片，先核对再保存；不支持的通道会明确失败并保留原件。独立批量截图、Teyvat 来源索引、间隔重复调度、重复归并、存储迁移及媒体编辑继续按独立阶段验收。']
  ];
  function ledgerHTML(){return '<details class="help-faq help-ledger"><summary>未完成事项与验收条件</summary><p>依次收尾，未通过验收的能力不作为可用功能；以下均未完成。</p>'+LearningHelpData.ledger.map(row=>`<section><h3>${esc(row.title)} <small>待完成</small></h3><p>依赖：${esc(row.dependency)}</p><p>验收：${esc(row.acceptance)}</p><p>下一步：${esc(row.next)}</p><p class="help-note">证据边界：${esc(row.evidence)}</p></section>`).join('')+'</details>'}
  async function open(tab='tutorials'){

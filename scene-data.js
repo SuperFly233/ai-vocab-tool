@@ -32,7 +32,8 @@
   function sameMediaScene(a,b,{ignoreTitle=false}={}){
     if(!a?.media?.length||!b?.media?.length)return false;
     const shape=scene=>({title:ignoreTitle?'':scene.title||'',...Object.fromEntries(['quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','targetKey'].map(key=>[key,scene[key]||''])),exampleHighlights:highlights(scene.exampleHighlights),translationHighlights:highlights(scene.translationHighlights),media:normalizeMedia(scene.media).map(ref=>ref.id),heroMedia:scene.heroMedia||[],externalSource:scene.externalSource||null});
-    return JSON.stringify(shape(a))===JSON.stringify(shape(b));
+    const targets=scene=>(scene.learningTargets||[]).map(row=>[row.phrase,row.meaning,row.kind]);
+    return JSON.stringify([shape(a),targets(a)])===JSON.stringify([shape(b),targets(b)]);
   }
   function normalizeMedia(items=[]){
     const found=new Set();
@@ -54,7 +55,9 @@
       ...(['favorites','pending','staged'].includes(origin.scope)?{scope:origin.scope}:{}),
       ...Object.fromEntries(['capturedAt','importedAt','sourceCreatedAt'].filter(key=>time(origin[key])).map(key=>[key,origin[key]]))}:null;
     const captured=item.capture, capture=captured&&hashId(captured.assetId)?{assetId:captured.assetId,model:text(captured.model,200),profileId:text(captured.profileId,100),userInstruction:text(captured.userInstruction,2000),recognizedAt:time(captured.recognizedAt)?captured.recognizedAt:'',translationOrigin:['visible','machine','manual','none'].includes(captured.translationOrigin)?captured.translationOrigin:'none',sourceEvidence:(Array.isArray(captured.sourceEvidence)?captured.sourceEvidence:[]).slice(0,6).map(value=>text(value,300))}:null;
-    return {id,groupId,...(externalSource?{externalSource}:{}),...(capture?{capture}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
+    const learningTargets=Array.isArray(item.learningTargets)?item.learningTargets.filter(row=>row&&/^[\w-]{1,100}$/.test(row.id||'')&&typeof row.phrase==='string'&&row.phrase.trim()&&row.phrase.length<=200&&typeof row.meaning==='string'&&row.meaning.length<=2000).slice(0,20).map(row=>({id:row.id,phrase:row.phrase.trim(),meaning:row.meaning.trim(),kind:row.kind==='sentence'?'sentence':'phrase',provenance:['ai','entry'].includes(row.provenance)?row.provenance:'manual',...(typeof row.entryId==='string'&&row.entryId.length<=100?{entryId:row.entryId}:{})})):[];
+    const analysis=item.aiAnalysis&&typeof item.aiAnalysis==='object'?{model:text(item.aiAnalysis.model,200),generatedAt:time(item.aiAnalysis.generatedAt)?item.aiAnalysis.generatedAt:'',translationOrigin:['visible','machine','manual','none'].includes(item.aiAnalysis.translationOrigin)?item.aiAnalysis.translationOrigin:'none',sourceEvidence:highlights(item.aiAnalysis.sourceEvidence),warnings:highlights(item.aiAnalysis.warnings)}:null;
+    return {id,groupId,...(Object.hasOwn(item,'learningTargets')?{learningTargets}:{}),...(Object.hasOwn(item,'aiAnalysis')?{aiAnalysis:analysis}:{}),...(externalSource?{externalSource}:{}),...(capture?{capture}:{}),...Object.fromEntries(fields.map(key=>[key,text(item[key],key==='note'?12000:4000)])),
       exampleHighlights:highlights(item.exampleHighlights),translationHighlights:highlights(item.translationHighlights),
       studyState:['new','review','mastered'].includes(item.studyState)?item.studyState:'new',studyUpdatedAt:time(item.studyUpdatedAt)?item.studyUpdatedAt:'',
       order:Number.isFinite(item.order)?item.order:time(item.createdAt),featured:typeof item.featured==='boolean'?item.featured:!item.targetKey,heroMedia:[...new Set(heroMedia)],
@@ -74,7 +77,8 @@
       const preferred=!previous||time(item.updatedAt)>time(previous.updatedAt)||(time(item.updatedAt)===time(previous.updatedAt)&&JSON.stringify(item)>JSON.stringify(previous))?item:previous;
       const study=!previous||time(item.studyUpdatedAt)>time(previous.studyUpdatedAt)||(time(item.studyUpdatedAt)===time(previous.studyUpdatedAt)&&item.studyState>previous.studyState)?item:previous;
       const capture=preferred.capture||[item.capture,previous?.capture].find(value=>value&&preferred.media.some(ref=>ref.id===value.assetId));
-      found.set(item.id,{...preferred,...(capture?{capture}:{}),studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
+      const preserve={};for(const key of ['learningTargets','aiAnalysis'])if(!Object.hasOwn(preferred,key)){const fallback=Object.hasOwn(item,key)?item:previous;if(fallback&&Object.hasOwn(fallback,key))preserve[key]=fallback[key]}
+      found.set(item.id,{...preferred,...preserve,...(capture?{capture}:{}),studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
     }
     const kept=[];
     for(const item of found.values()){

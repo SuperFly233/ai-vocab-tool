@@ -13,7 +13,7 @@ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
   for(const width of [390,1440])for(const theme of ['light','dark']){
    const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];
    page.on('pageerror',error=>errors.push(error.message));
-   await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',theme)},theme);
+   await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');if(!localStorage.getItem('ai_vocab_tool_settings_v1'))localStorage.setItem('ai_vocab_tool_settings_v1',JSON.stringify({sceneAI:{auto:false}}));localStorage.setItem('ai_vocab_tool_theme',theme)},theme);
    await page.route('https://**/*',route=>route.abort());
    await page.goto(`http://127.0.0.1:${server.address().port}`);
    await page.waitForFunction(()=>typeof SceneUI!=='undefined'&&typeof renderResult==='function');

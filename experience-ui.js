@@ -6,6 +6,7 @@
     const native=root.UIOverlays?.topDialog(),layer=native||[...document.querySelectorAll('.modal-layer.open')].at(-1);
     if(document.querySelector('.confirm-layer.open')||native?.classList.contains('draft-confirm'))return {host:document.body,target:null};
     if(layer){const candidates=[...layer.querySelectorAll('.scene-dialog-body,.scene-editor-body,.modal-body,.scene-viewer-content')];return {host:layer,target:candidates.find(node=>node.scrollHeight>node.clientHeight+1)||null}}
+    if(activeView==='settings')return {host:document.body,target:document.querySelector('.settings-content')};
     return {host:document.body,target:document.scrollingElement};
   }
   function updateScrollTop(){
@@ -76,16 +77,21 @@
     media.insertAdjacentHTML('beforeend',row('视频自动播放','尝试有声播放；浏览器限制时静音，并保留声音开关。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaAutoplay" aria-label="视频自动播放"><span>开启</span></label>')+row('视频播放控件','显示浏览器提供的进度、音量和全屏控件。','<label class="capsule-switch"><input type="checkbox" role="switch" data-preference="mediaControls" aria-label="视频原生控件"><span>显示</span></label>')+row('素材操作工具','设置放大、保存等操作的显示方式；不影响声音开关。',`<div class="seg" data-preference="mediaTools">${[['auto','自动'],['always','常显'],['hidden','隐藏']].map(([value,label])=>`<button type="button" data-value="${value}">${label}</button>`).join('')}</div>`));
     const nav=document.querySelector('.settings-nav');
     reading.insertAdjacentHTML('beforeend',row('新手教程与安装','基础查词、场景收藏、Anki、Fushi；下载 Bridge、连接核对与常见问题。','<div class="setting-actions"><button class="plain-btn" data-help-open="tutorials">'+icon('play')+'使用教程</button><button class="plain-btn" data-help-open="connect">'+icon('download')+'安装与连接</button></div>'));
-    media.insertAdjacentHTML('beforeend',row('场景标题','默认不调用模型；选择 AI 文字标题时仅使用已填写的文字，不自动识别图片。',`<select data-preference="sceneTitleMode" aria-label="默认场景标题方式">${[['text','原句摘要'],['source','来源与时间'],['manual','手动填写'],['ai','AI 文字标题']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select>`));
+    media.insertAdjacentHTML('beforeend',row('场景标题','留空时按此方式命名；AI 文字标题仅概括文字，图片分析由场景 AI 单独配置。',`<select data-preference="sceneTitleMode" aria-label="默认场景标题方式">${[['text','原句摘要'],['source','来源与时间'],['manual','手动填写'],['ai','AI 文字标题']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select>`));
+    media.querySelectorAll(':scope>.setting-row').forEach(item=>reading.append(item));
+    document.querySelector('[data-preference="sceneTitleMode"]')?.closest('.setting-row')&&document.getElementById('settings-model').append(document.querySelector('[data-preference="sceneTitleMode"]').closest('.setting-row'));
+    const integration=document.getElementById('learning-integrations')?.closest('.setting-row');if(integration)media.append(integration);
+    notifications.querySelectorAll(':scope>.setting-row').forEach(item=>experience.append(item));notifications.remove();
+    document.querySelector('[data-help-open="tutorials"]')?.closest('.setting-row')&&document.getElementById('settings-maintenance').prepend(document.querySelector('[data-help-open="tutorials"]').closest('.setting-row'));
     const categories=[
-      ['settings-model','模型生成','scan-search','API、模型配置与查询规则','接口 key prompt 模型'],
-      ['settings-experience','界面布局','monitor','主题、首页布局与移动工具栏','主题 深色 浅色 首页 手机'],
-      ['settings-reading','阅读体验','book-open','内容显示、浏览目录与编辑提示','字体 标签 词性 时间 导航 提示'],
-      ['settings-media','场景媒体','images','视频播放与素材操作','图片 gif 视频 自动播放 声音 音量'],
-      ['settings-notifications','消息通知','bell','通知样式与显示位置','toast snackbar 提醒 弹窗'],
-      ['settings-data','数据同步','cloud','云端、备份与外部集成','备份 导入 导出 Anki 收藏夹'],
-      ['settings-maintenance','维护诊断','settings-2','日志、缓存与数据重置','缓存 清理 错误 日志 重置']
+      ['settings-reading','学习阅读','book-open','输入、内容显示、素材播放与阅读辅助','词义 学习 记忆 词典 字体 时间 媒体 图片 gif 视频 高亮 提示'],
+      ['settings-model','模型采集','scan-search','接口、生成规则与场景 AI 分析','接口 key prompt 模型 截图 识图 自动分析 语境义'],
+      ['settings-experience','界面交互','monitor','主题、布局、工具栏与通知','主题 深色 浅色 首页 手机 toast 提醒 消息'],
+      ['settings-media','联动制卡','images','电脑助手、Anki、Fushi 与连接检查','Bridge 下载 Anki Fushi 词典 设备 连接'],
+      ['settings-data','数据同步','cloud','账号同步、备份和恢复','备份 导入 导出 收藏夹 云端'],
+      ['settings-maintenance','帮助诊断','settings-2','教程、日志、缓存与维护','新手 下载 使用 安装 日志 清理 错误 重置']
     ];
+    const content=document.querySelector('.settings-content');for(const [id] of categories)content.append(document.getElementById(id));content.addEventListener('scroll',updateSettingsNavActive,{passive:true});
     nav.replaceChildren();
     for(const [id,label,glyph,description,keywords] of categories){
       const section=document.getElementById(id);section.dataset.searchKeywords=keywords;
@@ -97,7 +103,6 @@
     }
     const maintenance=document.getElementById('settings-maintenance');
     maintenance.append(...maintenance.querySelectorAll(':scope>.setting-row:has(.danger-btn)'));
-    const data=document.getElementById('settings-data');data.append(document.getElementById('anki-task-manager').closest('.setting-row'));
     const hintRow=document.getElementById('hints-hidden').closest('.setting-row');reading.append(hintRow,document.getElementById('tooltips-hidden').closest('.setting-row'),document.getElementById('visual-hints-pinned').closest('.setting-row'));
     hintRow.dataset.settingArea='提示辅助';
     document.getElementById('clear-scene-previews').closest('.setting-row').dataset.settingArea='本机维护';

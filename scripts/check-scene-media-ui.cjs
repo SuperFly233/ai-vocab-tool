@@ -9,7 +9,7 @@ const server=require('./browser-test-server.cjs').createServer();
   const chunks=new Map(),manifests=new Map();let corrupted=false,offline=false;
   async function open(){
    const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
-   await page.addInitScript(()=>localStorage.setItem('ai_vocab_tool_offline_mode','1'));
+   await page.addInitScript(()=>localStorage.setItem('ai_vocab_tool_offline_mode','1');if(!localStorage.getItem('ai_vocab_tool_settings_v1'))localStorage.setItem('ai_vocab_tool_settings_v1',JSON.stringify({sceneAI:{auto:false}})));
    await page.route('https://**/*',route=>route.abort());
    await page.route('**/api/media',async route=>{
     const data=route.request().postDataJSON();

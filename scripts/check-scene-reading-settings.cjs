@@ -13,7 +13,7 @@ const server=require('./browser-test-server.cjs').createServer();
   for(const width of (process.env.QA_WIDTHS||'320,390,1024,1440').split(',').map(Number))for(const theme of ['light','dark']){
    const context=await browser.newContext({viewport:{width,height:900},hasTouch:width<900,isMobile:width<900}),page=await context.newPage();page.setDefaultTimeout(12000);
    let unavailable=true,requests=0;
-   await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',theme)},theme);
+   await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');if(!localStorage.getItem('ai_vocab_tool_settings_v1'))localStorage.setItem('ai_vocab_tool_settings_v1',JSON.stringify({sceneAI:{auto:false}}));localStorage.setItem('ai_vocab_tool_theme',theme)},theme);
    await page.route('https://**/*',route=>route.abort());
    await page.route('**/api/media',route=>{
     requests++;const data=route.request().postDataJSON();

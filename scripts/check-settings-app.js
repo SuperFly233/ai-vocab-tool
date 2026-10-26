@@ -78,6 +78,11 @@ expect(organized.sceneOrganization['group-a'].pinned.value===true,'Independent s
 expect(JSON.stringify(organized.sceneOrganization)===JSON.stringify(context.mergeSettings(organizationRemote,organizationLocal).sceneOrganization),'Scene organization cloud merge is commutative');
 expect(context.mergeSettings(organizationLocal,remote).sceneOrganization['group-a'].favorite.updatedAt===newer,'Legacy settings without scene organization do not clear it');
 
+const aiLocal={...local,sceneAI:{profileId:'vision',auto:false,useImage:false,mode:'manual',updatedAt:newer}},aiRemote={...remote,sceneAI:{profileId:'old',auto:true,useImage:true,mode:'default',updatedAt:old}};
+expect(context.mergeSettings(aiLocal,aiRemote).sceneAI.auto===false,'Explicit AI auto-analysis off must sync');
+expect(JSON.stringify(context.mergeSettings(aiLocal,aiRemote).sceneAI)===JSON.stringify(context.mergeSettings(aiRemote,aiLocal).sceneAI),'Scene AI preferences use their own clock and converge');
+expect(context.mergeSettings(aiLocal,remote).sceneAI.profileId==='vision','Old settings without AI preferences must not clear the new choice');
+expect(!Object.hasOwn(context.normalizeSettings({...aiLocal,sceneAI:{...aiLocal.sceneAI,apiKey:'must-not-sync-here'}}).sceneAI,'apiKey'),'AI preference metadata cannot carry credentials');
 if(failures.length){
   console.error(`Production settings check failed (${failures.length}):`);
   failures.forEach(message=>console.error(`- ${message}`));

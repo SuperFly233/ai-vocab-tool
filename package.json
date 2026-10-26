@@ -1,11 +1,12 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.0",
+  "version": "0.43.1",
   "private": true,
   "type": "module",
   "scripts": {
     "check:capture": "node --check capture-ui.js && node --check vision-client.js && node scripts/check-capture-data.cjs",
     "check:capture-ui": "node scripts/check-capture-ui.cjs && node scripts/check-capture-vision.cjs",
+    "check:scene-ai": "node --check scene-ai.js && node --check scene-ai-client.js && node --check scene-ai-data.js && node scripts/check-scene-ai.cjs && node scripts/check-scene-ai-safety.cjs",
     "check:learning-help": "node --check learning-help.js && node --check learning-help-data.js && node scripts/check-learning-help.cjs && node scripts/check-learning-help-safety.cjs",
     "check:bridge-release": "node --check bridge-release.js && node scripts/check-bridge-release.cjs",
     "check:bridge-connections": "node scripts/check-bridge-connections.cjs",

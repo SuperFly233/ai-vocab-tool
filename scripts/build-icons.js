@@ -18,7 +18,7 @@ for(const name of iconNames){
   icons[name]=definition;
 }
 
-const sourceText=(await Promise.all(['index.html','app.js','scene-ui.js','scene-workspace.js','scene-organization.js','scene-study.js','capture-ui.js','anki-bridge-ui.js','learning-cards-ui.js','entry-maintenance.js','fushi-workspace.js','experience-ui.js','request-ui.js','ui-consistency.js','input-suggestions.js','learning-help.js'].map(file=>readFile(resolve(file),'utf8')))).join('\n');
+const sourceText=(await Promise.all(['index.html','app.js','scene-ui.js','scene-workspace.js','scene-organization.js','scene-study.js','anki-bridge-ui.js','learning-cards-ui.js','entry-maintenance.js','fushi-workspace.js','experience-ui.js','request-ui.js','ui-consistency.js','input-suggestions.js','learning-help.js','scene-ai.js','capture-ui.js'].map(file=>readFile(resolve(file),'utf8')))).join('\n');
 const usedIcons=new Set([
   ...[...sourceText.matchAll(/data-lucide="([a-z0-9-]+)"/g)].map(match=>match[1]),
   ...[...sourceText.matchAll(/icon\('([a-z0-9-]+)'\)/g)].map(match=>match[1]),

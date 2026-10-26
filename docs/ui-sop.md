@@ -1,5 +1,11 @@
 # UI SOP / Persistent User Preferences
 
+## Scene AI and contextual learning (2026-10-26)
+
+Use the newly drawn layout as the implementation baseline, not a decorative preliminary: compare same-size real screenshots, record justified responsive differences, preserve actual theme and control semantics, and never copy fake status or provenance. Scene targets represent a word/phrase/sentence's meaning in THIS context; dictionary and full-entry meanings are references. Automatic analysis follows explicit provider/cost consent, prepares drafts only and offers one concentrated editable Check before saving. Existing scenes are never analyzed merely by opening them. Preserve manual edits, originals and account/object identity; retry failed items without repeating successful model calls.
+
+Quantity plus chevron is one atomic short-status group. Layout containers may wrap; do not compress buttons into vertical text or hide overflow globally. Settings use six purpose-based groups, stationary search/category controls and independently scrolling contents. Preserve old controls/settings, distinct editing/hover hints, keyboard navigation and phone safe areas. Scene AI, canonical sources and scene-target FSRS have separate release gates; never advertise scheduling just because a review button exists.
+
 ## Suggestions and Dictionary References (2026-10-25)
 
 - Autocomplete uses the caret's current segment, never rejects an entire multiline field or replaces its other terms. IME confirmation must not submit; Shift+Enter remains newline even while candidates are open.

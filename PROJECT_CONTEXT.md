@@ -1,10 +1,12 @@
 # Project Context
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
 ## Current Goal
+
+- v0.43.1 RELEASED: runtime4e74b3a, final preview20da9ace, production169f8dc6 / ai-vocab-tool.pages.dev;153 hashes/auth401 and deployed390dark scene AI smoke pass. Existing scene editor now supports explicit-consent auto static-image/text analysis, editable Check, stable contextual targets, supplied-sense selection/provenance and local recoverable drafts. Expanded batch scene maintenance replaces retired title/translation-only UI; atomic adoption/Undo, account/object guards and cancel/late results tested. Six settings groups, internal scrolling/search and short-status grouping delivered; generated title differences no longer defeat exact-media/content dedupe. Actual claude-sonnet-5 image→local save→existing synthetic entry→card preview passed on initial0f032288; Anki mocked, no private/native writes, old core meaning preserved. See docs/reports/v0431-scene-ai.md. Stage0.43.2 canonical sources/Teyvat/classification and0.44.0 scene-target FSRS remain UNIMPLEMENTED; separate batch screenshot workspace remains preview-only. Capture common-fix parity next; do not merge capture-only features into production.
 
 Capture parity2026-10-25: merge d3eb331, https://9c430b3e.ai-vocab-tool.pages.dev,153 hashes/auth401; local/deployed capture5widths/themes, local synthetic vision, shared390dark tutorial/connection flows pass. Actual saved claude-sonnet-5 browser-direct random-digit and bilingual synthetic-image recognition passed using no-proxy-server, no private input or model fallback. See docs/reports/v043-vision-channel.md. Production screenshot feature still OFF; actual end-to-end learning/default profile/source gates remain.
 
