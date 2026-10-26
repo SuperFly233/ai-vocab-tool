@@ -154,11 +154,12 @@
       node.onclose=()=>{const result=node.returnValue==='discard';node.remove();resolve(result)};document.body.append(node);node.showModal();
     });
   }
-  function guardDialog(node,{getState,restore,canRestore=()=>true,initialState=getState()}){
+  function guardDialog(node,{getState,restore,canRestore=()=>true,initialState=getState(),beforeDismiss=()=>{}}){
     const baseline=JSON.stringify(initialState),account=cloudUser?.id||'local';let closing=false;
     node.requestClose=async()=>{
       if(closing)return;closing=true;
       try{
+        await beforeDismiss();
         const snapshot=structuredClone(getState()),changed=JSON.stringify(snapshot)!==baseline;
         if(changed&&!await confirmDiscard('未保存的修改将被放弃，关闭后可以撤销恢复。'))return;
         if(!node.isConnected)return;node.close();

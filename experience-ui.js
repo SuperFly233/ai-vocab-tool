@@ -6,6 +6,7 @@
     const native=root.UIOverlays?.topDialog(),layer=native||[...document.querySelectorAll('.modal-layer.open')].at(-1);
     if(document.querySelector('.confirm-layer.open')||native?.classList.contains('draft-confirm'))return {host:document.body,target:null};
     if(layer){const candidates=[...layer.querySelectorAll('.scene-dialog-body,.scene-editor-body,.modal-body,.scene-viewer-content')];return {host:layer,target:candidates.find(node=>node.scrollHeight>node.clientHeight+1)||null}}
+    if(activeView==='settings')return {host:document.body,target:document.querySelector('.settings-content')};
     return {host:document.body,target:document.scrollingElement};
   }
   function updateScrollTop(){
