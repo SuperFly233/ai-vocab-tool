@@ -7,4 +7,8 @@
 - Scene AI390light confirms one verification + one analysis includes title; safety suite verifies legacy preference normalization and zero title calls. Draft/account/version/atomic adoption/Undo/cancellation protections pass. Synthetic provider tests only, no private content/native writes.
 - [Desktop title row](../screenshots/title0436/title-1440-dark.png), [mobile title row](../screenshots/title0436/title-390-light.png). Uses the existing approved0.43.5 design; no separate new design/feature expansion.
 
-Preview/production and isolated-capture parity evidence follow after verification. Physical iPhone untested; canonical sources/Teyvat/FSRS and retained backlog are not delivered by this correction.
+Released runtime commit `db04cac`, pushed to main. Preview https://2af0653a.ai-vocab-tool.pages.dev: desktop1440dark/mobile390light flows and155 hashes/auth401 pass. Production https://9b6cd1e5.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev:155 hashes/auth401 and deployed1440dark title-alignment flow pass.
+
+Isolated capture parity: merge `6c9c246`, https://ea47b9c1.ai-vocab-tool.pages.dev / capture-v038-preview; capture data, synthetic vision,1440dark redesign and AI-safety checks pass.159 hashes/auth401 verified on retry after one transient fetch failure. Main checkout/155-resource build restored. No capture-only feature promoted into production.
+
+Physical iPhone untested; canonical sources/Teyvat/FSRS and retained backlog are not delivered by this correction.
