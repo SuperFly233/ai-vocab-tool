@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.5',
+  version:'0.43.6',
   releaseDate:'2026-10-26',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.6',date:'2026-10-26',title:'统一场景名称生成与对齐',items:['场景名称随场景分析一次返回，移除重复的标题AI按钮、文字模型模式及旧提示；保存不再另发标题请求。','名称与留空兜底选择器统一标签基线和44px控件高度；旧AI标题偏好与草稿兼容为原句摘要，已有名称不变。']},
   {version:'0.43.5',date:'2026-10-26',title:'场景编辑重设计与帮助入口统一',items:['素材与双语正文独立对照，学习重点改为通栏紧凑列表；目标片段、语境释义与已有词条选择对齐，不再留下右侧长列与左侧空白。','正文、释义及笔记使用轻边线编辑，名称与生成方式并排；搜索、选择器和保存仍是明确控件。','问号默认打开关于；关于、使用教程、安装连接和常见问题同级，复用真实版本与更新记录。']},
   {version:'0.43.4',date:'2026-10-26',title:'学习目标统一拖动排序',items:['移除学习目标独立的上移、下移按钮，编辑器与待核对任务统一使用历史编辑的拖动手柄、移动反馈和滚动行为。','拖动保留编号、勾选、手动含义及已有词条选择；取消恢复原顺序，不调用模型。键盘可聚焦手柄后使用方向键。']},
   {version:'0.43.3',date:'2026-10-26',title:'场景 AI 待核对任务与重点学习',items:['直连分析不因切换标签而取消；可先保存场景，结果留在按账号与场景隔离的待核对任务中。刷新中断需明确恢复，不自动重复计费。','重点块编号、编辑、上下排序和选择已有词条；明确查询所选后进入完整查词流程，语境义独立保留。','首页生成进度增加转圈，默认只显示当前阶段与总耗时；详细阶段折叠。场景及词条补遗共用加载指示。']},
@@ -1888,7 +1889,7 @@ function normalizeSettings(raw={}){
     rememberViewFilters:normalizeBooleanSetting(source.rememberViewFilters,true),
     wordSuggestions:normalizeBooleanSetting(source.wordSuggestions,true),
     basicDictionary:normalizeBooleanSetting(source.basicDictionary,true),
-    sceneTitleMode:['text','source','manual','ai'].includes(source.sceneTitleMode)?source.sceneTitleMode:'text',
+    sceneTitleMode:['text','source','manual'].includes(source.sceneTitleMode)?source.sceneTitleMode:'text',
     viewPreferences:ViewPreferences.records(source.viewPreferences),
     readingNav:['top','left','off'].includes(source.readingNav)?source.readingNav:'top',
     mediaAutoplay:source.mediaAutoplay===true,
