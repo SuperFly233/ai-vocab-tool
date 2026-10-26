@@ -411,7 +411,7 @@
     scene.updatedAt=new Date(Math.max(Date.now(),(Date.parse(latest?.updatedAt)||0)+1,(Date.parse(scene.updatedAt)||0)+1)).toISOString();
     const editing=editor,unchanged=editorState();editing.titleCancelled=false;setBusy(true);
     try{
-      const duplicate=()=>editing.newScene&&(editing.standalone||standalone)?sceneGroups().find(group=>SceneData.sameMediaScene(scene,group.scene,{ignoreTitle:!form.get('title')?.trim()})):null;
+      const duplicate=()=>editing.newScene&&(editing.standalone||standalone)?sceneGroups().find(group=>SceneData.sameMediaScene(scene,group.scene,{ignoreTitle:!form.get('title')?.trim()||editing.ai?.automaticTitle()})):null;
       let reused=duplicate();
       if(reused)scene=structuredClone(reused.scene);
       if(!scene.title&&!skipTitle&&!reused){
