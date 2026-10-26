@@ -5,7 +5,7 @@ const iconNames=[
   'arrow-down','arrow-left','arrow-up','arrow-up-right','check','chevron-down','chevron-left','chevron-right','chevrons-up','maximize-2','pencil','scan-eye',
   'bookmark','bookmark-x','circle-alert','circle-check','circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical','info',
   'history','house','list','monitor','moon','plus','quote','refresh-cw','scan-search','search','bell','highlighter',
-  'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','user-round','x',
+  'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','unlink','user-round','x',
   'volume-2','volume-x','images','image-plus','list-plus','sparkles','play','square','square-check','layers','file-text','shuffle','skip-forward','save','ellipsis','send','book-open','rotate-ccw','file-up','pin','star-off','folder-minus','panel-top','chevron-up',
 ];
 

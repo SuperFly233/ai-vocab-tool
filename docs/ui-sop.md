@@ -1,5 +1,11 @@
 # UI SOP / Persistent User Preferences
 
+## Association safety and asynchronous generation (2026-10-26)
+
+Unlink is not scene deletion. Bind the entry ID and association ID explicitly on the command; never infer a library-delete target from an ancestor. Preserve a standalone scene atomically with association removal, including legacy link-only groups. Removing the last association must preserve original media, contextual targets, text, notes and source. Guard confirmations/Undo with account/object revisions; failure must not partially unlink. Existing already-lost private data is not automatically restored without evidence.
+
+User requests direct-browser scene AI tasks to survive focus changes and saving, with a durable per-account/per-scene task pool and explicit recovery. Cloud execution deferred, not approved as a silent routing change. Results must remain reviewed suggestions, never overwrite another scene or subsequent edits. Shared loading feedback: visible spinner, current phase and compact total seconds; detailed per-stage metrics only on demand, not a paragraph of timing text. Preserve independent scene capture vs explicit lookup/API actions.
+
 ## Scene AI and contextual learning (2026-10-26)
 
 Use the newly drawn layout as the implementation baseline, not a decorative preliminary: compare same-size real screenshots, record justified responsive differences, preserve actual theme and control semantics, and never copy fake status or provenance. Scene targets represent a word/phrase/sentence's meaning in THIS context; dictionary and full-entry meanings are references. Automatic analysis follows explicit provider/cost consent, prepares drafts only and offers one concentrated editable Check before saving. Existing scenes are never analyzed merely by opening them. Preserve manual edits, originals and account/object identity; retry failed items without repeating successful model calls.

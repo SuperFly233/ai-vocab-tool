@@ -2,7 +2,11 @@
 
 Last updated: 2026-10-26
 
+Urgent0.43.2 unlink hotfix candidate: row unlink has explicit entry/scene IDs and distinct command, cannot call library delete. Link-only legacy groups acquire an independent scene in the same history/settings atomic commit before removal. Other links/entry unchanged, guarded confirmation and Undo. Source catalog/UI/index work exists untracked and is NOT integrated or production-ready. User additionally requests direct-browser persistent AI task pool: no cancel on tab blur, save while analysis continues, separate scene/word identity, reload recovery and compact shared progress/spinner. Cloud execution deferred by user; do not silently route black-white provider via cloud. Sources/classification version shifts after this urgent hotfix; FSRS remains unimplemented.
+
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
+
+- v0.43.2 urgent unlink hotfix is in acceptance; preserve scope boundaries and do not include pending source/index modules in this release.
 
 ## Current Goal
 
