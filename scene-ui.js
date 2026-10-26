@@ -409,7 +409,7 @@
     if(!editor.historyId&&!editor.standalone&&!standalone&&!query){status('请填写词条。',true);return}
     const latest=scenes(historyItem(editor.historyId)).find(row=>row.id===scene.id);
     scene.updatedAt=new Date(Math.max(Date.now(),(Date.parse(latest?.updatedAt)||0)+1,(Date.parse(scene.updatedAt)||0)+1)).toISOString();
-    const editing=editor,unchanged=editorState();editing.titleCancelled=false;setBusy(true);
+    const editing=editor,unchanged=editorState();editing.titleCancelled=false;editing.ai?.saving();setBusy(true);
     try{
       const duplicate=()=>editing.newScene&&(editing.standalone||standalone)?sceneGroups().find(group=>SceneData.sameMediaScene(scene,group.scene,{ignoreTitle:!form.get('title')?.trim()||editing.ai?.automaticTitle()})):null;
       let reused=duplicate();
@@ -429,7 +429,7 @@
       if(editor.standalone||standalone){
         const linked=getHistory().flatMap(item=>scenes(item).map(row=>({item,row}))).find(({row})=>row.groupId===scene.groupId);
         if(!reused){if(linked)saveToHistory(linked.item.id,{...scene,id:linked.row.id,targetKey:linked.row.targetKey,targetLabel:linked.row.targetLabel,featured:linked.row.featured,order:linked.row.order,exampleHighlights:linked.row.exampleHighlights,translationHighlights:linked.row.translationHighlights},{share:true,defaults:scene});else saveLibrary(scene)}
-        applyHomeDraft();setBusy(false);await close(true);renderHub();syncPending();if(stagedTerms.length)root.SceneWorkspace?.stageQueries(scene.groupId,stagedTerms);if(editing.fromHome)setHomeScene(scene);notify(reused?'已复用相同场景，未新增重复记录。':'场景已保存。','good','场景',true,{label:'打开场景',run:()=>openWorkspace(scene.groupId)});return scene;
+        await editing.ai?.saved(scene);applyHomeDraft();setBusy(false);await close(true);renderHub();syncPending();if(stagedTerms.length)root.SceneWorkspace?.stageQueries(scene.groupId,stagedTerms);if(editing.fromHome)setHomeScene(scene);notify(reused?'已复用相同场景，未新增重复记录。':'场景已保存。','good','场景',true,{label:'打开场景',run:()=>openWorkspace(scene.groupId)});return scene;
       }
       let id=editor.historyId;
       if(!id&&manual){
@@ -442,19 +442,19 @@
         await SceneData.putDraft(`pending:${normalizeSearch(query)}`,scene);
         const input=document.querySelector('#query-input');if(input){input.value=query;input.dispatchEvent(new Event('input',{bubbles:true}))}
       }
-      applyHomeDraft();setBusy(false);await close(true);
+      if(id)await editing.ai?.saved(scene);applyHomeDraft();setBusy(false);await close(true);
       if(manual&&id){currentHistoryId=id;currentFollowups=historyItem(id)?.followups||[];renderResult(historyItem(id).result)}
       notify(id?'场景已保存。':'场景已暂存，查询完成后自动加入词条。','good','场景记忆');
       if(id&&cloudUser)syncScene(id,scene.id,false);
     }catch(error){if(editor===editing&&!editing.titleCancelled){status(error.message,true);if(error.sceneTitle){const button=document.createElement('button');button.type='button';button.className='plain-btn';button.textContent='使用原句标题保存';button.onclick=()=>{if(editor!==editing)return;document.querySelector('#scene-editor [name="title"]').value=localSceneTitle(readForm(),query);save(manual,standalone,{skipTitle:true})};document.getElementById('scene-editor-status').append(button)}}}finally{if(editor===editing)setBusy(false)}
   }
   let submittingSceneQueries=false;
-  async function saveAndQuery(){
+  async function saveAndQuery(selectedTerms=null,entryIds={}){
     if(!editor||busy||submittingSceneQueries)return;
-    const owner=editor.owner,fromHome=editor.fromHome,form=new FormData(document.querySelector('#scene-editor-form')),terms=SceneData.highlights(form.get('lookupTerms')||form.get('entryTitle')||''),options=form.has('lookupDirection')?{direction:String(form.get('lookupDirection')||''),note:String(form.get('lookupNote')||'')}:{};
+    const owner=editor.owner,fromHome=editor.fromHome,form=new FormData(document.querySelector('#scene-editor-form')),terms=selectedTerms||SceneData.highlights(form.get('lookupTerms')||form.get('entryTitle')||''),options={entryIds,...(form.has('lookupDirection')?{direction:String(form.get('lookupDirection')||''),note:String(form.get('lookupNote')||'')}:{})};
     if(!terms.length){status('请先加入待查词组。',true);return}
     submittingSceneQueries=true;
-    try{const scene=await save(false,true);if(!scene||owner!==(cloudUser?.id||'local'))return;if(!fromHome)await openWorkspace(scene.groupId);const result=await queueSceneQueries(scene.groupId,terms,options);root.SceneWorkspace?.acceptQueries(scene.groupId,result.accepted);if(result.failed.length)notify('场景已保存；部分词组未提交，已保留在待查篮。','warn','查询')}catch(error){notify(error.message,'warn','查询未完成',false)}finally{submittingSceneQueries=false}
+    try{const scene=await save(false,true);if(!scene||owner!==(cloudUser?.id||'local'))return;root.SceneWorkspace?.stageQueries(scene.groupId,terms);if(!fromHome)await openWorkspace(scene.groupId);const result=await queueSceneQueries(scene.groupId,terms,options);root.SceneWorkspace?.acceptQueries(scene.groupId,result.accepted);if(result.failed.length)notify('场景已保存；部分词组未提交，已保留在待查篮。','warn','查询')}catch(error){notify(error.message,'warn','查询未完成',false)}finally{submittingSceneQueries=false}
   }
   async function attachPending(id,query,groupId=''){
     try{const key=`pending:${normalizeSearch(query)}`,scene=groupId?[...library(),...getHistory().flatMap(scenes)].find(row=>row.groupId===groupId):await SceneData.getDraft(key);if(groupId&&!scene)throw new Error('原场景已不存在');if(scene){if(!scenes(historyItem(id)).some(row=>row.groupId===scene.groupId))saveToHistory(id,groupId?{...scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:scene.featured}:scene);if(!groupId)await SceneData.deleteDraft(key)}return true}
@@ -824,6 +824,6 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
       openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,queryTargets:saveAndQuery,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

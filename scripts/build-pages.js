@@ -23,6 +23,8 @@ const files = [
   'scene-ai-data.js',
   'scene-ai-client.js',
   'scene-ai.js',
+  'scene-ai-tasks.js',
+  'scene-ai-tasks.css',
   'scene-ai.css',
   'scene-media.js',
   'ui-overlays.js',

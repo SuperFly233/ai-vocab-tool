@@ -2,11 +2,11 @@
 
 Last updated: 2026-10-26
 
-Urgent0.43.2 unlink hotfix candidate: row unlink has explicit entry/scene IDs and distinct command, cannot call library delete. Link-only legacy groups acquire an independent scene in the same history/settings atomic commit before removal. Other links/entry unchanged, guarded confirmation and Undo. Source catalog/UI/index work exists untracked and is NOT integrated or production-ready. User additionally requests direct-browser persistent AI task pool: no cancel on tab blur, save while analysis continues, separate scene/word identity, reload recovery and compact shared progress/spinner. Cloud execution deferred by user; do not silently route black-white provider via cloud. Sources/classification version shifts after this urgent hotfix; FSRS remains unimplemented.
+Urgent0.43.2 unlink hotfix RELEASED4bb1c98: preview7898f41d/productionec4de4bf,153 hashes and auth401 pass. Explicit entry/association command, atomic preservation for legacy link-only groups,20 responsive scenarios plus cancel/quota/account/concurrent/Undo tests. Source catalog/index/UI work is checkpointed in named git stash `wip source catalog and index before urgent unlink hotfix`; not integrated, migrated or shipped. Preserve it and finish after task release; never deploy that incomplete API accidentally. No private record restoration or native changes.
 
 This file exists so a new Cursor/Codex conversation can continue without relying on compressed chat history.
 
-- v0.43.2 urgent unlink hotfix is in acceptance; preserve scope boundaries and do not include pending source/index modules in this release.
+- v0.43.3 CANDIDATE: local-account IndexedDB task pool with Web Locks, direct-browser runs survive visibility changes/save, explicit interrupted recovery, editable/guarded proposals, no stored credentials or cloud execution. Numbered contextual targets can reorder/select existing entries/query chosen targets through existing queue; full entry and contextual meaning remain separate. RequestUI is compact/collapsed by default with spinner; batch scene/entry supplements share spinner. Local10 widths/themes, task safety, old sceneAI/safety390dark and8motion cases pass so far; final publication gates pending. Source/classification shifts to0.43.4; FSRS0.44.0 remains UNIMPLEMENTED. User deferred cloud execution, not local task safety. New tasks are local-only/exportable; do not advertise cross-device AI execution or closed-browser continuation.
 
 ## Current Goal
 
