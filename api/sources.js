@@ -2,10 +2,11 @@ const base=()=>process.env.SUPABASE_URL||'https://uoifrqehkfvpzqojaazh.supabase.
 const key=()=>process.env.SUPABASE_ANON_KEY||'sb_publishable_G-_4O-n-Q73TbJ4R2YmG9w_7WlKHC80';
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
+  if(req.method==='GET')return res.status(200).json({enabled:process.env.SOURCES_ENABLED==='true'});
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'').trim();
   if(!token)return res.status(401).json({error:'请先登录后核对来源。'});
-  if(process.env.SOURCES_ENABLED==='false')return res.status(503).json({error:'来源服务暂未开放，原内容保持不变。'});
+  if(process.env.SOURCES_ENABLED!=='true')return res.status(503).json({error:'来源服务暂未开放，原内容保持不变。'});
   const {action,args={}}=req.body||{};
   if(!['list','save','search','coverage'].includes(action)||!args||typeof args!=='object'||Array.isArray(args)||JSON.stringify(args).length>20000)return res.status(400).json({error:'来源请求格式无效。'});
   const safe={...args};delete safe.userId;delete safe.user_id;

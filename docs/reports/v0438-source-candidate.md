@@ -38,3 +38,7 @@ The Supabase migration connector failed twice with `Invalid or expired requestSt
 5. Proceed with FSRS0.44.0, batch0.44.1, migration0.45.0, consolidation0.45.1, media/optional component0.46.0 and AI crop0.46.1 in order. None is completed by this candidate.
 
 Physical iPhone, actual device playback and Anki cloud sync remain unverified, as explicitly agreed. No native software, old Anki templates, existing cards or review scheduling was modified.
+# Superseding Partial Release Decision (2026-10-27)
+
+User requested publishing verified local inspection/classification only, leaving cloud sources/Teyvat and later work for next time. See v0438-local-organization-release.md for current release evidence. The candidate account/index testing below remains historical; production cloud capability defaults OFF. No successful production migration or corpus import is implied.
+
