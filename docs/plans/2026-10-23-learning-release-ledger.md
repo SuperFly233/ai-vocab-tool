@@ -2,13 +2,21 @@
 
 Approved scope: full-content cards and screenshot learning, 6 reliability / 6 refinements / 6 additions. Status below is evidence, not a completion claim.
 
-## Current checkpoint,2026-10-25
+## Current checkpoint,2026-10-26
+
+Production0.43.1 / Bridge0.4.1: scene-editor image/text analysis, contextual targets, supplied-sense selection and reviewed scene supplementation are live; runtime4e74b3a, preview20da9ace, production169f8dc6.153 hashes/auth401 and production390dark smoke pass. Actual Sonnet synthetic image -> local scene -> existing entry -> card preview passed (Anki mocked; no private/native writes). See ../reports/v0431-scene-ai.md. This is approved stage A, not canonical source matching or FSRS scheduling. New approved order:0.43.2 canonical sources/Teyvat/classification ->0.44.0 contextual memory -> retained consolidation/storage/media/crop debt. Independent batch screenshot workspace remains preview-only.
+
+| Added pending unit | Dependency | Acceptance | Next step |
+| --- | --- | --- | --- |
+| Scene-target spaced repetition | Explicit contextual target selection, pinned FSRS-6, independent authenticated events | Reveal then1-4 rating, due/curve/undo/offline/concurrency; never alter Anki scheduling | Approved0.44.0; current review remains browsing/manual state, no scheduling delivered |
+
+## Previous checkpoint,2026-10-25
 
 Production0.43.0 / Bridge0.4.1: onboarding/install released at runtime3ad2df9, preview4288e978 and production59372862;149 hashes/auth401 and deployed tutorial matrix pass. See ../reports/v0430-onboarding.md. Actual portable synthetic-deck acceptance and matching remote ZIP digest remain from0.42.2; no native binary change this stage. This changes no screenshot/Teyvat/media completion claim. Current approved order: verified screenshot recognition -> Teyvat attribution and evidence-qualified automatic learning -> reviewed duplicate consolidation -> history/settings IndexedDB -> non-destructive media editing -> confirmed AI crop. User selected saved Claude Sonnet5 for the real synthetic vision test. Older version/order statements below are historical checkpoints, not current production truth.
 
 | Pending unit | Dependency | Acceptance | Next step / evidence |
 | --- | --- | --- | --- |
-| Production screenshots | Saved claude-sonnet-5 channel now verified | Review/save/query/card-preview lifecycle and production gates | Actual browser random-digit and bilingual synthetic-image tests pass; default/manual settings and full production path still pending, see ../reports/v043-vision-channel.md |
+| Separate batch screenshot workspace | Scene-editor recognition now delivered | Independent batch intake/review/save/query/card-preview lifecycle | Scene-editor auto/manual settings and actual channel pass in0.43.1; separate batch workspace remains isolated preview |
 | Teyvat index / canonical sources | Incremental bilingual corpus and source version | Coverage visible, exact unique evidence vs ambiguity | Existing API investigation, not connected |
 | Automatic save/query | Structural checks plus independent source evidence | Explicit bounded opt-in, ambiguous items held | No automatic Anki approval; not delivered |
 | Reviewed consolidation | Shared identity and conflict preview | Atomic versions/folders/links/tombstones, guarded undo | Previously approved phase B still pending |
