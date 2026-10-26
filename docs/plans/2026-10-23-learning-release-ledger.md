@@ -1,5 +1,13 @@
 # v0.37-v0.38 delivery ledger
 
+## Authoritative checkpoint:2026-10-27 partial release
+
+User decision: publish verified local scene inspection/organization only, then stop. Evidence: ../reports/v0438-local-organization-release.md. Canonical sources/Teyvat remain disabled; all later stages remain TODO. The candidate checkpoint below is historical, not full source delivery.
+
+## Historical checkpoint:2026-10-26 source candidate
+
+Approved all-debt execution plan is `2026-10-26-unfinished-delivery.md`: source/classification -> FSRS -> batch intake/automatic learning -> history/settings migration -> reviewed consolidation -> media/optional Windows component -> AI crop. Production is still0.43.7 / Bridge0.4.1. Source candidate0.43.8 has local UI/SQL/API/legacy/Undo tests and an isolated preview, not production delivery. Supabase migration requests failed twice with invalid/expired request state; read-only confirmation shows source table/RPC absent. Public artifacts contain2946 lines in2 chapters of a1737-entry catalog, not production-index coverage. Do not claim any later stage delivered. See ../reports/v0438-source-candidate.md for evidence and precise resume gate. Original source stash remains intact.
+
 Approved scope: full-content cards and screenshot learning, 6 reliability / 6 refinements / 6 additions. Status below is evidence, not a completion claim.
 
 ## Current checkpoint,2026-10-26

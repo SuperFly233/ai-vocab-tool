@@ -1,5 +1,7 @@
 # UI SOP / Persistent User Preferences
 
+Source/classification review: scan without model calls, separate original content from editable evidence, preserve stable source identity across renames, and never silently bind approximate names or aliases. Prepare folder changes in the same review draft; only explicit final adoption writes scene and organization atomically. Preserve drafts and refuse all writes on account/revision conflict. Current index coverage must be visible; directory size is not indexed body coverage.
+
 ## Association safety and asynchronous generation (2026-10-26)
 
 Unlink is not scene deletion. Bind the entry ID and association ID explicitly on the command; never infer a library-delete target from an ancestor. Preserve a standalone scene atomically with association removal, including legacy link-only groups. Removing the last association must preserve original media, contextual targets, text, notes and source. Guard confirmations/Undo with account/object revisions; failure must not partially unlink. Existing already-lost private data is not automatically restored without evidence.
@@ -143,4 +145,8 @@ Bridge updates: display the selected computer's registered helper version separa
 Query editor values and model-only context are different ownership domains. Scene instructions/quotes may be appended to a model request but must never be copied back as user focus. Persist explicit userNote independently through queue recovery and retry; retain the actual model request/signature. Repair legacy draft contamination only with exact stored-task evidence, never keyword-stripping user-authored text.
 
 Legacy checks are read-only and missing structure is not the same as short prose. AI suggestions are explicitly unverified until reviewed; never label generated prose as official dictionary/database evidence. Adopt supplementation into a new version, not over an old one. Compare stable canonical fingerprints (JSON key order after reload is not a content change), retain original fields, and tombstone removed supplemental versions on guarded undo. Drafts remain local and credential-free. Shared supplemental dialogs must explicitly center in the viewport, with list/detail behavior on phones and a persistent bounded confirmation footer. Duplicate consolidation is a separate reviewed operation, never an incidental side effect of supplementation.
+
+# Partial Release Gates (2026-10-27)
+
+When the user requests shipping only verified work, release notes must name the usable subset and preserve the unfinished ledger. Cloud-dependent candidate controls stay hidden behind a default-OFF server capability, not merely client-side disabled buttons. Verify capability plus rejected token-bearing requests on preview/production. Local drafting/classification must remain functional without cloud source APIs. No failed migration or synthetic endpoint fixture counts as production completion.
 
