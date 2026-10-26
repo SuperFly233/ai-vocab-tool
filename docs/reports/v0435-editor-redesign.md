@@ -22,4 +22,6 @@
 
 ## Release and Limits
 
-Independent preview https://b44ce473.ai-vocab-tool.pages.dev:390light/1440dark deployed redesign fixtures passed;155 hashes matched, sync/Anki auth401 passed. Production evidence follows after release. No API, schema or helper update; no private records, paid provider requests or real Anki/Fushi changes in this release. Physical iPhone, actual media playback and Anki sync not retested. Canonical sources/Teyvat/FSRS, consolidation/storage/media backlog remains incomplete and separate; source WIP checkpoint untouched.
+Runtime commit `8ae0954` pushed to main. Independent preview https://b44ce473.ai-vocab-tool.pages.dev:390light/1440dark deployed redesign fixtures passed. Production https://143587fa.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev:155 hashes matched, sync/Anki auth401 passed, official390light populated editor/1/20-target/About flow passed. Supersedes initial identical-assets0f3cb9ed deployment.
+
+No API, schema or helper update; no private records, paid provider requests or real Anki/Fushi changes in this release. Physical iPhone, actual media playback and Anki sync not retested. Canonical sources/Teyvat/FSRS, consolidation/storage/media backlog remains incomplete and separate; source WIP checkpoint untouched.
