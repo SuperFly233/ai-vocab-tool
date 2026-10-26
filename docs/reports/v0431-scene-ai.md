@@ -45,3 +45,7 @@ Settings -> 模型采集 -> 场景 AI 分析 chooses the model, auto/manual mode
 v0.43.2 canonical source identities/aliases, Teyvat incremental bilingual evidence/coverage and folder proposals: not implemented. v0.44.0 FSRS scene-target enrollment, ratings1-4, due schedule, curves, independent event API/offline synchronization: not implemented; current review remains browsing/manual state. Separate batch-screenshot intake remains preview-only. General source matches are still editable AI suggestions, not verified canonical matches.
 
 Physical iPhone, real media playback, Anki own sync and a newly repeated native portable-deck acceptance are not verified in this stage. GIF/video remain supported as scene originals/display, not full-animation/video AI recognition or non-destructive editing. Consolidation, large learning-data migration, media editing and AI crop retain their previous ledger entries.
+
+## Isolated preview parity
+
+Common fixes merged as2110c61 and deployed to https://e824810e.ai-vocab-tool.pages.dev (capture-v038-preview).157 resources/auth401 match; capture data and10 viewport/theme cases, synthetic vision lifecycle, local common scene-AI390dark and deployed common scene-AI390dark pass. Capture provenance/import/dismiss hooks were explicitly retained with new contextual-target normalization. This does not release independent batch capture into production. Main is restored and rebuilt after parity.
