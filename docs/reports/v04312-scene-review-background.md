@@ -32,3 +32,5 @@ Open Help and About -> FAQ -> real acceptance steps. Select the user's existing 
 Final preview/commit/production verification is recorded below only after completion.
 
 Final preview: https://54065cee.ai-vocab-tool.pages.dev. All175 file SHA256 values and sync401 passed; source capabilityfalse/token503 passed. Final deployed390dark immediate-save/multiple-import/review/menu/heatmap flow passed. Manual acceptance UI passed five widths/both themes with4 groups/17 steps and no settings/learning writes. Unlink safety passed cancellation, storage failure, concurrency, account change and stale Undo. Actual comparison captures retained in `docs/design/scene-review-v04312-*-actual.png`.
+
+Production: runtime commit `7cdbe5a`, pushed to main; deployment https://b6d66c8b.ai-vocab-tool.pages.dev and official https://ai-vocab-tool.pages.dev. Official175 SHA256/sync401, sourcefalse/token503 and deployed390dark immediate-save/late-binding/continued-import/review/title/menu/heatmap synthetic path passed. No production database migration or native helper update was performed.
