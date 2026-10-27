@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-27
 
+- v0.43.10 status reconciliation only: authoritative audit docs/reports/2026-10-27-open-work-audit.md lists8 remaining functional workstreams and distinct real-model/device validations. Website Help/FAQ includes missing FSRS and truthful partial/preview/verification labels. Manual browser media remains delivered; Bridge0.4.1 unchanged. Do not claim this documentation/status patch implements missing functional stages. Historical stop boundary is superseded.
+
+Released aff8818: preview7cb1e028, production67b3a789/official173 hashes/auth401, source gate false/token503, official390dark status/media regression pass. Five widths/light-dark FAQ scroll/no-write checks and help safety passed. Remote Bridge0.4.1 asset size/SHA256 matches manifest; installation not inspected. Capture parity next.
+
 - v0.43.9 manual media editor: actual browser image/GIF/video crop, resize, trim, derivative preview/adoption and original restore. Real synthetic WASM animation/audio tests, responsive and safety evidence: docs/reports/v0439-manual-media.md. No AI crop or Bridge media capability claimed.
 
 RELEASED dd1ea9c: final previewa5c473f7, productiondfc8cab8/official173 hashes/auth401; source gate remains false/token503. Official390dark crop/save/reopen params/restore/failure/account checks pass. Actual CDN core download plus GIF6 frames/video96x60/1.2s/audio decode, five-width/light-dark and cancel/Undo/drag tests pass. Bridge0.4.1 unchanged. Capture parity follows separately; other unfinished phases not claimed delivered.
