@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check:scene-term-input": "node scripts/check-scene-term-input.cjs",
     "check:highlight-pairs": "node scripts/check-highlight-pairs-data.cjs && node scripts/check-highlight-pairs-ui.cjs && node scripts/check-highlight-pairs-integration.cjs",
     "check:media-crop-ai": "node --check media-crop-ai.js && node scripts/check-media-crop-ai.cjs",
     "check:memory-scheduler": "node scripts/check-memory-scheduler.cjs",
