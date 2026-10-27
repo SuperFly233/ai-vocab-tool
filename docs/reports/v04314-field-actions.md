@@ -23,3 +23,10 @@
 - 人工检查 `docs/design/field-actions-v04314-desktop.png` 和 `field-actions-v04314-mobile.png`：两个操作现在集中在同一右侧组，不再漂在正文中间。
 - 独立预览 https://d9e69d31.ai-vocab-tool.pages.dev ，1873px实际部署位置及保存／刷新回归通过。资源核对与正式部署结果随后追加。
 - 不调用真实模型，不写Anki；实体设备不计入浏览器合成验收。
+
+## 正式交付
+
+- 功能提交 `7639f31`（字段操作对齐）、`a5f8d5c`（Enter与词组篮），已Push至main。正式部署 https://31bfb068.ai-vocab-tool.pages.dev ，入口 https://ai-vocab-tool.pages.dev 。
+- 最新独立预览125f7baf的178个资源SHA256／sync401通过；正式站1440明暗主题的新词输入回归通过。首次远程导航遇到网络超时，后续独立上下文重跑正式站成功，不把失败记为通过。
+- 多语言十组回归通过，包含逐行替换、中文／日文候选、IME、候选关闭、词典禁用及无模型调用。
+- 正式来源开关仍false，带令牌请求503。未改生产数据库、Bridge或用户数据。
