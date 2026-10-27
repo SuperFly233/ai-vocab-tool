@@ -36,7 +36,7 @@
     const history=getHistory().map(item=>{
       if(!chosen.has(String(item.id))||link(item,gid))return item;
       const baseline=SceneData.reconcile(getSettings().sceneLibrary,getSettings().sceneLibraryTombstones).items.find(scene=>scene.groupId===gid);
-      const scene=SceneData.normalizeScene({...group.scene,id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:group.scene.featured,exampleHighlights:baseline?.exampleHighlights||[],translationHighlights:baseline?.translationHighlights||[],studyState:'new',studyUpdatedAt:'',createdAt:group.scene.createdAt||clock,updatedAt:group.scene.updatedAt||clock});
+      const {highlightPairs,...plainScene}=group.scene;const scene=SceneData.normalizeScene({...plainScene,...(baseline&&Object.hasOwn(baseline,'highlightPairs')?{highlightPairs:baseline.highlightPairs}:{}),id:crypto.randomUUID(),targetKey:'',targetLabel:'',featured:group.scene.featured,exampleHighlights:baseline?.exampleHighlights||[],translationHighlights:baseline?.translationHighlights||[],studyState:'new',studyUpdatedAt:'',createdAt:group.scene.createdAt||clock,updatedAt:group.scene.updatedAt||clock});
       added.push({id:item.id,scene});return {...item,scenes:[...records(item),scene],updatedAt:clock};
     });
     if(!added.length)return 0;
@@ -70,20 +70,10 @@
   function openHighlights(id,gid,draft=null){
     const item=entry(id),scene=link(item,gid);if(!scene)return;
     const expected=JSON.stringify(records(item).filter(row=>row.groupId===gid)),account=owner(),node=dialog(`高亮 · ${historyDisplayTitle(item)}`);node.id='scene-highlight-editor';
-    node.querySelector('.scene-dialog-body').innerHTML=`<form><label class="scene-field"><span>原句高亮</span><textarea name="quote" rows="2" maxlength="4000" placeholder="多个片段用顿号或换行分隔">${esc(scene.exampleHighlights.join('\n'))}</textarea></label><label class="scene-field"><span>译文高亮</span><textarea name="translation" rows="2" maxlength="4000" placeholder="多个片段用顿号或换行分隔">${esc(scene.translationHighlights.join('\n'))}</textarea></label><div class="scene-highlight-preview"></div><footer><button class="plain-btn primary-btn" type="submit">保存高亮</button></footer></form>`;
-    const form=node.querySelector('form');
-    for(const [key,label] of [['quote','原句高亮（可选）'],['translation','译文高亮（可选）']]){
-      const control=form.elements[key],field=control.closest('label');field.classList.add('visual-field-hinted');
-      field.insertAdjacentHTML('beforeend',visualHintHTML(key,{[key]:[label,'复制对应原文中实际出现的片段；多个用顿号或换行分隔。',key==='quote'?'clocked、the detail':'注意到、细节']}));
-      if(draft)control.value=draft[key];
-    }
-    node.classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
-    const preview=()=>{node.querySelector('.scene-highlight-preview').innerHTML=`<blockquote>${highlightText(scene.quote,splitVisualList(form.elements.quote.value))}</blockquote><p>${highlightText(scene.translation,splitVisualList(form.elements.translation.value))}</p>`};form.oninput=preview;preview();
-    UIOverlays.guardDialog(node,{getState:()=>({quote:form.elements.quote.value,translation:form.elements.translation.value}),initialState:{quote:scene.exampleHighlights.join('\n'),translation:scene.translationHighlights.join('\n')},canRestore:()=>JSON.stringify(records(entry(id)).filter(row=>row.groupId===gid))===expected,restore:values=>openHighlights(id,gid,values)});
-    form.onsubmit=event=>{event.preventDefault();try{if(account!==owner())throw new Error('账号已切换，请重新打开。');update(id,gid,{exampleHighlights:splitVisualList(form.elements.quote.value),translationHighlights:splitVisualList(form.elements.translation.value)},{expected});node.close()}catch(error){node.querySelector('[role="status"]').textContent=error.message}};
+    const content=node.querySelector('.scene-dialog-body');content.innerHTML='<div class="scene-highlight-preview"></div><div data-highlight-editor></div><footer><button class="plain-btn primary-btn" data-save-pairs>保存高亮</button></footer>';let pairs=HighlightPairsData.fromScene(draft?{...scene,highlightPairs:draft.highlightPairs}:scene);const draw=()=>content.querySelector('.scene-highlight-preview').innerHTML=HighlightPairs.block({...scene,highlightPairs:pairs},{scope:false});const widget=HighlightPairs.mount(content.querySelector('[data-highlight-editor]'),{scene:{...scene,highlightPairs:pairs},read:()=>scene,scope:content,onChange:values=>{pairs=values;draw()}});draw();UIOverlays.guardDialog(node,{getState:()=>widget.get(),initialState:pairs,canRestore:()=>JSON.stringify(records(entry(id)).filter(row=>row.groupId===gid))===expected,restore:values=>openHighlights(id,gid,{highlightPairs:values})});content.querySelector('[data-save-pairs]').onclick=()=>{try{if(account!==owner())throw Error('账号已切换，请重新打开。');const highlightPairs=widget.get();update(id,gid,{highlightPairs,...HighlightPairsData.compatibility(highlightPairs)},{expected});node.close()}catch(error){node.querySelector(':scope>.scene-dialog-status').textContent=error.message}};return;
   }
   function exportData(groups){
-    return {format:'lexi-scene-learning',version:1,exportedAt:new Date().toISOString(),scenes:groups.map(({scene,links})=>({scene:SceneData.normalizeScene(scene),entries:links.map(item=>{const associated=link(item,scene.groupId);return {id:item.id,title:historyDisplayTitle(item),origin:item.query,coreMeaning:meaning(item),studyState:state(item,scene.groupId),exampleHighlights:associated?.exampleHighlights||[],translationHighlights:associated?.translationHighlights||[]}})}))};
+    return {format:'lexi-scene-learning',version:1,exportedAt:new Date().toISOString(),scenes:groups.map(({scene,links})=>({scene:SceneData.normalizeScene(scene),entries:links.map(item=>{const associated=link(item,scene.groupId);return {id:item.id,title:historyDisplayTitle(item),origin:item.query,coreMeaning:meaning(item),studyState:state(item,scene.groupId),...(associated&&Object.hasOwn(associated,'highlightPairs')?{highlightPairs:associated.highlightPairs}:{}),exampleHighlights:associated?.exampleHighlights||[],translationHighlights:associated?.translationHighlights||[]}})}))};
   }
   function exportList(groups,format){
     const data=exportData(groups);
