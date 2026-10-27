@@ -1,5 +1,9 @@
 # Remaining Learning Work Delivery
 
+## Current Authoritative Status: 2026-10-27
+
+See ../reports/2026-10-27-open-work-audit.md for the complete current audit:8 remaining functional workstreams plus separate real-model/device validation. v0.43.9 browser manual image/GIF/video editing is delivered; only Windows heavy-media fallback and AI cropping remain from that workstream. v0.43.10 corrects published status only. The prior stop instruction below was superseded by the user's implementation request; do not treat it as a current pause or count a new release as completion of unrelated features.
+
 Approved baseline: v0.43.7 / Bridge0.4.1. Execute in order, preserving all production safety fixes. Separate evidence is required for each stage; no stage or UI entrance counts as completion of later work.
 
 | Release | Deliverable | Acceptance / status |
@@ -9,14 +13,14 @@ Approved baseline: v0.43.7 / Bridge0.4.1. Execute in order, preserving all produ
 |0.44.1|Batch screenshot intake and opt-in evidence-qualified save/query|Pending; shared pipeline,20-item and20-lookup budget, originals and manual edits protected, no automatic Anki approval|
 |0.45.0|History/settings IndexedDB migration|Pending; durable async commits, verified readback before legacy removal, accounts, multi-tab, backup/sync and quota recovery|
 |0.45.1|Reviewed duplicate consolidation|Pending; identity/language/direction matching, atomic versions/folders/links/tombstones, explicit memory conflicts, guarded Undo|
-|0.46.0 / Bridge0.5.0|Non-destructive image/GIF/video editing|Pending; retained originals/audio/animation, single-worker time/resource limits, optional verified Windows media component, bounded operations only|
+|0.46.0 / Bridge0.5.0|Windows heavy-media component and integration|PARTIAL: browser manual image/GIF/video editing delivered in0.43.9. Optional verified Windows component, authorized transport and helper fallback still pending|
 |0.46.1|Confirmed AI crop and end-to-end closure|Pending; editable suggestions and deterministic derivatives, tutorial/download updates, full learning-to-card-preview acceptance|
 
 All new UI uses the shared theme, Lucide, bottom-rule content editors, drag handles, dangerous-action red and common more menus. No new main navigation or local learning editor. For each stage: generate/inspect reference, record decisions, implement, independent preview, inspect five widths/light-dark screenshots, safety tests, commit/push, deploy and verify resource/auth/download hashes. Databases are additive and isolated before production migration. Native operations use synthetic content and Lexi acceptance deck only. Bridge build180s/selftest45s, full package hashes; a real BSOD stops external native operations.
 
 Physical iPhone, actual device playback and Anki cloud sync remain explicitly unverified until evidence is available. They do not block unrelated software delivery and cannot be represented by simulated results. Once all functional stages pass, stop without adding another round.
 
-## Stop Boundary: 2026-10-27
+## Historical Stop Boundary (Superseded): 2026-10-27
 
 User requested publishing the verified usable subset now and continuing remaining work next time. Do not start FSRS or later stages in this round. Canonical source/Teyvat production gates remain unresolved; connector failed twice and source tables/RPC are absent. No production corpus imported. See ../reports/v0438-local-organization-release.md.
 

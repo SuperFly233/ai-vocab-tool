@@ -38,7 +38,7 @@
   ['怎样手动编辑图片、GIF或视频？','在场景中打开编辑场景，点击素材旁的裁剪图标。拖动裁剪框或输入尺寸；GIF和视频可填写截段时间。生成副本后先预览，再点击使用副本并保存场景。原件保留，可从同一编辑入口恢复。GIF和视频需明确确认下载本机处理组件，不上传素材；超时或失败保留原件。AI裁剪建议和电脑助手媒体组件尚未开放。'],
   ['截图识别与语录匹配呢？','场景编辑器可配置指定模型分析静态图片，先核对再保存；不支持的通道会明确失败并保留原件。独立批量截图、Teyvat 来源索引、间隔重复调度、重复归并及存储迁移仍未全部完成。']
  ];
- function ledgerHTML(){return '<details class="help-faq help-ledger"><summary>未完成事项与验收条件</summary><p>依次收尾，未通过验收的能力不作为可用功能；以下均未完成。</p>'+LearningHelpData.ledger.map(row=>`<section><h3>${esc(row.title)} <small>待完成</small></h3><p>依赖：${esc(row.dependency)}</p><p>验收：${esc(row.acceptance)}</p><p>下一步：${esc(row.next)}</p><p class="help-note">证据边界：${esc(row.evidence)}</p></section>`).join('')+'</details>'}
+ function ledgerHTML(){return '<details class="help-faq help-ledger"><summary>未完成事项与验收条件</summary><p>以下区分部分完成、仅预览、待实现和待验证；已上线的手动媒体编辑不再列为未实现。</p>'+LearningHelpData.ledger.map(row=>`<section><h3>${esc(row.title)} <small>${esc(row.status||'待完成')}</small></h3><p>依赖：${esc(row.dependency)}</p><p>验收：${esc(row.acceptance)}</p><p>下一步：${esc(row.next)}</p><p class="help-note">证据边界：${esc(row.evidence)}</p></section>`).join('')+'</details>'}
  async function open(tab='about'){
   closeWelcome('seen');if(tour)endTour();
   if(!state().welcome){state().welcome='seen';persist()}

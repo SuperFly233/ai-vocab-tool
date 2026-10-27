@@ -1,6 +1,10 @@
 # v0.37-v0.38 delivery ledger
 
-## Authoritative checkpoint:2026-10-27 partial release
+## Authoritative checkpoint:2026-10-27 current audit
+
+Current functional release0.43.9 / Bridge0.4.1; status correction0.43.10 does not deliver new functional stages. Complete audit: ../reports/2026-10-27-open-work-audit.md . Manual browser media editing is delivered, source/Teyvat remains default-OFF, FSRS is unimplemented and batch capture is preview-only. The dated checkpoints below are historical, not current completion claims.
+
+## Historical checkpoint:2026-10-27 partial release
 
 User decision: publish verified local scene inspection/organization only, then stop. Evidence: ../reports/v0438-local-organization-release.md. Canonical sources/Teyvat remain disabled; all later stages remain TODO. The candidate checkpoint below is historical, not full source delivery.
 
