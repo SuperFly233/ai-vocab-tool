@@ -103,7 +103,7 @@
     document.querySelectorAll('.scene-favorite-row>.scene-organize-actions').forEach(node=>SharedUI.more(node,'[data-organize="pin"]'));
     root.EntryMaintenance?.enhanceControls();
     document.querySelectorAll('.result-icons,.folder-head-actions').forEach(node=>SharedUI.more(node,'button[aria-label^="导出"],button[aria-label="复制 JSON"],button[aria-label="重命名收藏夹"],[data-entry-maintenance]'));
-    document.querySelectorAll('.scene-library-head>.scene-actions').forEach(node=>{if(!node.querySelector('[data-source-workspace]'))node.insertAdjacentHTML('beforeend','<button class="icon-btn" data-source-workspace aria-label="场景检查与整理" data-tip="场景检查与整理">'+icon('list')+'</button>');SharedUI.more(node,'[data-fushi-browser],[data-scene-action="supplement"],[data-scene-action="import"],[data-scene-action="backup"],[data-scene-export],[data-source-workspace]')});
+    document.querySelectorAll('.scene-library-head>.scene-actions').forEach(node=>{if(!node.querySelector('[data-source-workspace]'))node.insertAdjacentHTML('beforeend','<button class="icon-btn" data-source-workspace aria-label="场景检查与整理" data-tip="场景检查与整理">'+icon('list')+'</button>');SharedUI.more(node,'[data-fushi-browser],[data-scene-action="supplement"],[data-scene-action="import"],[data-scene-action="backup"],[data-scene-export],[data-source-workspace],[data-scene-insights]')});
   }
   const targetFromKey=value=>{const split=value.indexOf(':');return {type:value.slice(0,split),id:value.slice(split+1)}};
   function toggle(scope,target){const id=key(target),selected=selections[scope];if(selected.has(id))selected.delete(id);else selected.add(id);enhanceSelection(scope)}

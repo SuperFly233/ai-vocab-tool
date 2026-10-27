@@ -1,6 +1,6 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.11",
+  "version": "0.43.12",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "check:media-editor": "node --check media-editor.js && node --check media-editor-engine.js && node scripts/check-media-data.cjs && node scripts/check-media-editor.cjs && node scripts/check-media-editor-safety.cjs && node scripts/check-media-motion.cjs",
     "check:sources": "node --check learning-store.js && node --check source-data.js && node --check source-workspace.js && node scripts/check-sources.cjs && node scripts/check-sources-api.cjs",
     "check:sources-ui": "node scripts/check-source-workspace.cjs",
-    "check:scene-ai": "node --check scene-ai.js && node --check scene-ai-client.js && node --check scene-ai-data.js && node scripts/check-scene-ai.cjs && node scripts/check-scene-ai-safety.cjs",
+    "check:scene-ai": "node --check scene-ai.js && node --check scene-ai-client.js && node --check scene-ai-data.js && node scripts/check-scene-ai.cjs && node scripts/check-scene-ai-safety.cjs && node scripts/check-scene-ai-immediate-save.cjs",
     "check:learning-help": "node --check learning-help.js && node --check learning-help-data.js && node scripts/check-learning-help.cjs && node scripts/check-learning-help-safety.cjs",
     "check:bridge-release": "node --check bridge-release.js && node scripts/check-bridge-release.cjs",
     "check:bridge-connections": "node scripts/check-bridge-connections.cjs",

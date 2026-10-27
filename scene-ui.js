@@ -435,7 +435,7 @@
       if(manual&&id){currentHistoryId=id;currentFollowups=historyItem(id)?.followups||[];renderResult(historyItem(id).result)}
       notify(id?'场景已保存。':'场景已暂存，查询完成后自动加入词条。','good','场景记忆');
       if(id&&cloudUser)syncScene(id,scene.id,false);
-    }catch(error){if(editor===editing)status(error.message,true)}finally{if(editor===editing)setBusy(false)}
+    }catch(error){editing.ai?.failed();if(editor===editing)status(error.message,true)}finally{if(editor===editing)setBusy(false)}
   }
   let submittingSceneQueries=false;
   async function saveAndQuery(selectedTerms=null,entryIds={}){

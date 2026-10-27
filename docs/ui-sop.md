@@ -1,5 +1,9 @@
 # UI SOP / Persistent User Preferences
 
+2026-10-27: Screenshot analysis owns an immutable input snapshot before ANY asynchronous configuration or database work. Save may finish before task creation: retain the saved group and its save-time revision, and bind late tasks without authorizing overwrites of later edits. Closing an editor or supplementation view detaches presentation, not execution; explicit Stop and account changes still cancel. Keep a global task entry with running versus generated status. Direct browser requests cannot promise survival after browser shutdown or OS suspension.
+
+Supplementation uses one scene list plus one review workspace, original media/text above aligned editable comparisons, full-width draggable learning targets; phone list and detail are separate views. Nonempty title proposals default selected, but deliberate stored deselection and in-flight manual edits win. Recognizable works may be proposed from visual clues or user-provided common titles; label inference, keep visible evidence separate, never silently create canonical/verified sources. Statistics count actual retained records and disclose that creation heatmaps are not review/retention measurements.
+
 Source/classification review: scan without model calls, separate original content from editable evidence, preserve stable source identity across renames, and never silently bind approximate names or aliases. Prepare folder changes in the same review draft; only explicit final adoption writes scene and organization atomically. Preserve drafts and refuse all writes on account/revision conflict. Current index coverage must be visible; directory size is not indexed body coverage.
 
 ## Association safety and asynchronous generation (2026-10-26)
