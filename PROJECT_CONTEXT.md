@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-27
 
+- v0.43.11 ACTIVE full-debt implementation after approved plan: source migration retried only after isolated SQL passed; connector again returned invalid/expired requestState. No bypass/import/source enablement. Independent AI crop implemented in existing editor with explicit current-frame consent, model probe, bounded rectangles, preview/manual adjustment and original-preserving derivatives. Reference docs/design/crop-ai04311-reference.png inspected. User explicitly chose to perform real-model/device acceptance; Help/FAQ now provides synthetic PNG and detailed steps. Do not mark that acceptance passed. Candidate report docs/reports/v04311-ai-crop-candidate.md. FSRS5.4.2/explicit21-weight FSRS-6 core and resumable bounded public-corpus staging tools tested in isolation; no deployed memory UI/service. Other stages remain active, not complete. Release evidence appended only after actual gates.
+
+Released runtime8f35663: independent previewa77a370b, production0559d2c8/official175 hashes/auth401, source gate false/token503 and deployed390dark crop/acceptance-download checks pass. Full media image/GIF/video safety and synthetic WASM animation/audio remain good. Real model/device acceptance explicitly assigned to user, with site steps and synthetic PNG; not claimed passed. Bridge unchanged. Capture parity follows separately.
+
 - v0.43.10 status reconciliation only: authoritative audit docs/reports/2026-10-27-open-work-audit.md lists8 remaining functional workstreams and distinct real-model/device validations. Website Help/FAQ includes missing FSRS and truthful partial/preview/verification labels. Manual browser media remains delivered; Bridge0.4.1 unchanged. Do not claim this documentation/status patch implements missing functional stages. Historical stop boundary is superseded.
 
 Released aff8818: preview7cb1e028, production67b3a789/official173 hashes/auth401, source gate false/token503, official390dark status/media regression pass. Five widths/light-dark FAQ scroll/no-write checks and help safety passed. Remote Bridge0.4.1 asset size/SHA256 matches manifest; installation not inspected. Capture parity next.

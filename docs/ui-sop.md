@@ -148,5 +148,7 @@ Legacy checks are read-only and missing structure is not the same as short prose
 
 # Partial Release Gates (2026-10-27)
 
+When the user elects to perform actual model/device acceptance, provide exact on-site steps, a non-private synthetic download, expected behavior, failure recovery and explicit pending status. Never convert simulated tests into real acceptance. AI crop shares the media editor: per-edit current-frame upload consent, no background model call, validated configuration, suggested rectangles only, explicit preview then deterministic derivative and scene save. Returning a suggestion must not move the crop or replace the original; in-flight manual edits and changed identities invalidate late output.
+
 When the user requests shipping only verified work, release notes must name the usable subset and preserve the unfinished ledger. Cloud-dependent candidate controls stay hidden behind a default-OFF server capability, not merely client-side disabled buttons. Verify capability plus rejected token-bearing requests on preview/production. Local drafting/classification must remain functional without cloud source APIs. No failed migration or synthetic endpoint fixture counts as production completion.
 

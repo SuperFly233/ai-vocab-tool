@@ -34,6 +34,8 @@ const files = [
   'media-editor-data.js',
   'media-editor-engine.js',
   'media-editor.js',
+  'media-crop-ai.js',
+  'assets/acceptance/crop-synthetic.png',
   'media-editor.css',
   'ui-overlays.js',
   'ui-consistency.js',
