@@ -26,7 +26,14 @@
 - 独立预览：[4037f49b](https://4037f49b.ai-vocab-tool.pages.dev)，178个资源 SHA256 一致，同步匿名请求401；实际部署390深色配对保存／刷新路径通过。
 - 人工截图：`docs/design/highlight-pairs-desktop-actual.png`、`docs/design/highlight-pairs-mobile-actual.png`。
 
-## 用户真实验收步骤
+## 发布结果
+
+- 正式功能提交 `24badf7` 已 Push；正式部署 [2af1532b](https://2af1532b.ai-vocab-tool.pages.dev)，正式入口 [ai-vocab-tool.pages.dev](https://ai-vocab-tool.pages.dev)。178个资源 SHA256 与本地构建一致，同步401；来源能力 false、带令牌请求503。
+- 正式站1440深色合成回归：阅读／输入、联动、排序、重复位置、正文重定位、保存／重开／刷新通过。
+- 公共组件已合入隔离截图分支，合并提交 `e9dc6a9` 已 Push；[隔离部署 e5b72574](https://e5b72574.ai-vocab-tool.pages.dev)182个资源 SHA256、同步401和390深色配对路径通过。分支完整基础检查、采集十组、识图模拟安全与配对集成通过。
+- 已返回 main，恢复74图标／178文件构建。没有改生产数据库、Bridge、Anki 或用户学习记录；真实模型和实体设备仍按下方步骤验收。
+
+## 用户真实验收
 
 1. 新建场景，粘贴双语截图，等 AI 建议进入核对；检查两侧片段是否确实同义。模型未返回配对时显示待配对，而非擅自连接。
 2. 选择一组原文和译文，悬停查看联动；编辑原文，检查重复词提示选择具体位置。拖动后保存、刷新重开，顺序及位置应保持。

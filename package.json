@@ -1,11 +1,13 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.13",
+  "version": "0.43.14",
   "private": true,
   "type": "module",
   "scripts": {
     "check:capture": "node --check capture-ui.js && node --check vision-client.js && node scripts/check-capture-data.cjs",
     "check:capture-ui": "node scripts/check-capture-ui.cjs && node scripts/check-capture-vision.cjs",
+    "check:scene-term-input": "node scripts/check-scene-term-input.cjs",
+
     "check:highlight-pairs": "node scripts/check-highlight-pairs-data.cjs && node scripts/check-highlight-pairs-ui.cjs && node scripts/check-highlight-pairs-integration.cjs",
 
     "check:media-crop-ai": "node --check media-crop-ai.js && node scripts/check-media-crop-ai.cjs",
