@@ -15,6 +15,7 @@
   if(new Set(result.learningTargets.map(v=>v.phrase)).size!==result.learningTargets.length)throw Error('学习目标重复，请核对。');
   result.translationOrigin=['visible','machine','none'].includes(data.translationOrigin)?data.translationOrigin:result.translation?'machine':'none';
   result.sourceEvidence=strings(data.sourceEvidence??[]);result.warnings=strings(data.warnings??[]);
+  result.sourceCandidates=strings(data.sourceCandidates??[]);if(result.sourceCandidates.some(v=>v.length>100))throw Error('作品候选名称过长。');result.sourceBasis=['text','visual','unknown'].includes(data.sourceBasis)?data.sourceBasis:'unknown';
   return result;
  }
  function identity(profile){return JSON.stringify([profile?.id,profile?.apiUrl,profile?.model,profile?.apiKey])}
@@ -27,5 +28,6 @@
   else if(key==='sourceUrl'){if(typeof value!=='string'||value.length>2048||value&&SceneData.sourceUrl(value)!==value)throw Error('来源链接无效。');patch[key]=value}
   else throw Error('不支持的场景补遗字段。');
  }const merged={...base,...patch};for(const [key,sentence] of [['exampleHighlights',merged.quote],['translationHighlights',merged.translation]])if(Object.hasOwn(patch,key)&&patch[key].some(v=>!String(sentence||'').includes(v)))throw Error('高亮必须是正文中的片段。');if(patch.learningTargets?.some(v=>!String(merged.quote||'').includes(v.phrase)))throw Error('学习目标必须出现在原句中。');return patch}
- root.SceneAIData=Object.freeze({fields,parse,identity,validatePatch});
+ function defaultUse(key,before,after){const has=value=>Array.isArray(value)?value.length>0:!!String(value??'').trim();return has(after)&&(key==='title'||!has(before))}
+ root.SceneAIData=Object.freeze({fields,parse,identity,validatePatch,defaultUse});
 })(globalThis);

@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.11',
+  version:'0.43.12',
   releaseDate:'2026-10-27',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.12',date:'2026-10-27',title:'场景后台分析与集中核对',items:['修复截图粘贴后立即保存的任务交接；关闭编辑器、补遗窗口和切标签不取消已提交分析，顶部任务池区分分析中与已生成。','补遗重绘为列表与单场景核对区，底线编辑、拖动排序；标题建议默认勾选，人工取消和后续编辑保留。','常见作品与画面推测仅作来源候选；场景更多提供只读统计和新增记录热力图，不代表复习效果。真实模型与实体设备验收步骤在常见问题中。']},
   {version:'0.43.11',date:'2026-10-27',title:'可核对的 AI 裁剪与站内验收',items:['素材编辑器增加主体／字幕裁剪建议；明确发送当前画面，先预览建议再生成副本，原件保留。','常见问题提供合成验收图片和逐步操作；真实模型质量、实体设备及Anki自身同步由用户验收，未冒充通过。','来源公共索引导入和FSRS调度核心已有代码及隔离测试，生产数据库迁移仍受阻；来源、记忆及其余阶段未宣称交付。']},
   {version:'0.43.10',date:'2026-10-27',title:'交付状态与剩余事项校正',items:['帮助与常见问题完整区分部分完成、仅预览、待实现和待实测，补回语境记忆与真实模型验收。','手动图片、GIF和视频编辑已上线，不再误列为未实现；电脑媒体组件与AI裁剪分别说明。','本版只校正状态与说明，不冒充来源匹配、FSRS、批量自动学习、存储迁移或归并已经交付。']},
   {version:'0.43.9',date:'2026-10-27',title:'手动媒体编辑',items:['场景编辑的素材工具新增裁剪：拖动与数值精调、比例选择、缩放和副本预览；确认后加入草稿，保存场景才生效。','GIF和视频可裁剪、缩放和截段；保留动画及视频声音，按需确认下载锁定处理组件，仅在浏览器本机处理。','原件与编辑参数分别保留，可恢复原件；取消、存储失败或账号变化不会覆盖原素材。AI裁剪、电脑媒体组件及其余功能仍未交付。']},
@@ -1876,7 +1877,7 @@ function normalizeSettings(raw={}){
     ...DEFAULT_SETTINGS,
     ...source,
     updatedAt:sourceClock,
-    sceneAI:{auto:source.sceneAI?.auto!==false,useImage:source.sceneAI?.useImage!==false,mode:source.sceneAI?.mode==='manual'?'manual':'default',profileId:typeof source.sceneAI?.profileId==='string'?source.sceneAI.profileId.slice(0,200):'',updatedAt:SettingsData.normalizeClock(source.sceneAI?.updatedAt)},
+    sceneAI:{auto:source.sceneAI?.auto!==false,useImage:source.sceneAI?.useImage!==false,mode:source.sceneAI?.mode==='manual'?'manual':'default',profileId:typeof source.sceneAI?.profileId==='string'?source.sceneAI.profileId.slice(0,200):'',commonWorks:Array.isArray(source.sceneAI?.commonWorks)?[...new Set(source.sceneAI.commonWorks.filter(v=>typeof v==='string'&&v.trim()&&v.trim().length<=100).map(v=>v.trim()))].slice(0,20):[],updatedAt:SettingsData.normalizeClock(source.sceneAI?.updatedAt)},
     apiProfiles:profiles,
     apiProfileTombstones,
     apiProfileOrder,
