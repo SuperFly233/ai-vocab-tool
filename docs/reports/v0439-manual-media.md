@@ -20,3 +20,7 @@ Limits: one processing job per page,60-second deadline including component downl
 - Also passed actual optional-core CDN download, SHA256 validation and synthetic GIF/audio processing (not a route fixture). Component-declined and tampered-byte responses are rejected, concurrent jobs denied, cancellation releases processing. Video UI screenshots wait for a decoded frame, not just a nonempty container.
 - Independent preview https://6f3df4e8.ai-vocab-tool.pages.dev :173 resource hashes and sync/anki-jobs/sources401 pass;390dark deployed crop/resize/save/reopen-parameters/restore plus failure/account guards pass. Final preview https://a5c473f7.ai-vocab-tool.pages.dev additionally rejects malformed edit provenance during backup import;173 hashes/auth401 and1440light deployed editor pass. `npm run check`, scene unlink and AI safety regressions pass.
 - Production verification appended when completed. This report records executable results, not completion of FSRS/source/storage or other unrelated work.
+
+## Production: 2026-10-27
+
+Runtime dd1ea9c pushed to main; deployment https://dfc8cab8.ai-vocab-tool.pages.dev and official https://ai-vocab-tool.pages.dev . Official173 resources match SHA256; sync/anki-jobs/sources401, source default false/token-bearing503 verified. Official390dark synthetic manual edit/save/reopen/restore/storage failure/account guard pass. Browser editor needs no Bridge update; Windows media component and AI crop remain unavailable. Original Anki/Fushi data and private media were not operated on.

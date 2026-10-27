@@ -4,6 +4,8 @@ Last updated: 2026-10-27
 
 - v0.43.9 manual media editor: actual browser image/GIF/video crop, resize, trim, derivative preview/adoption and original restore. Real synthetic WASM animation/audio tests, responsive and safety evidence: docs/reports/v0439-manual-media.md. No AI crop or Bridge media capability claimed.
 
+RELEASED dd1ea9c: final previewa5c473f7, productiondfc8cab8/official173 hashes/auth401; source gate remains false/token503. Official390dark crop/save/reopen params/restore/failure/account checks pass. Actual CDN core download plus GIF6 frames/video96x60/1.2s/audio decode, five-width/light-dark and cancel/Undo/drag tests pass. Bridge0.4.1 unchanged. Capture parity follows separately; other unfinished phases not claimed delivered.
+
 - NEW USER AUTHORIZATION after0.43.8: implement unfinished features, explicitly manual media editing; do not stop at ledger updates. Active0.43.9 manual editor adds image crop/resize, animated GIF/video crop/trim/resize, explicit verified core download consent, original/derivative provenance and restore. Prior stop boundary is superseded. Source/Teyvat/FSRS and remaining work are not claimed complete. See docs/reports/v0439-manual-media.md for actual verification/release.
 
 - RELEASED v0.43.8 runtime d1b1795: preview7ca30297, production7b1db1bf/official159 SHA256+auth401, source gate false/token-bearing503, official390dark isolated local organization passed. Local five-width/light-dark, storage failure/Undo/refresh/account tests plus npm check/source contracts/SQL/AI/unlink safety pass. Bridge0.4.1 unchanged. Only local inspection/classification is delivered; source cloud/Teyvat and later stages stay TODO. Stop after release record/parity.
