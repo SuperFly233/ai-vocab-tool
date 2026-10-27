@@ -36,7 +36,7 @@
   {title:'可靠结果自动保存查词',dependency:'结构校验及独立来源证据',acceptance:'明确开启并限定范围；有冲突不自动保存',next:'在来源匹配通过后接入现有队列',evidence:'尚未交付；不自动批准 Anki 写入'},
   {title:'安全重复整理',dependency:'逐组预览和冲突核对',acceptance:'版本、收藏、场景关联原子迁移，可追踪与受保护撤销',next:'沿用已批准归并方案实现共享身份和迁移',evidence:'旧词条补遗已上线，重复归并仍未完成'},
   {title:'历史与设置大容量迁移',dependency:'事务、读回、账号与多标签页校验',acceptance:'验证成功才移除旧副本，失败可恢复及导出',next:'迁移至 IndexedDB，不以清空数据解决配额',evidence:'诊断日志已迁移；历史与设置尚未迁移'},
-  {title:'图片／GIF／视频轻编辑',dependency:'保留原件、编辑参数和派生文件',acceptance:'输出可解码；GIF 保留动画，视频保留声音',next:'先做非破坏编辑，再验证电脑处理降级',evidence:'尚未交付；已有素材展示不等于支持编辑'},
+  {title:'电脑助手重媒体处理',dependency:'手动浏览器编辑已支持图片／GIF／视频',acceptance:'可选组件包校验与授权传输、资源不足的安全降级',next:'实现受能力登记保护的电脑媒体组件',evidence:'浏览器手动编辑已接入；Bridge媒体组件尚未交付'},
   {title:'AI 裁剪建议',dependency:'非破坏媒体编辑与识图配置',acceptance:'先预览建议框，确认后生成副本，可恢复原件',next:'媒体编辑验收后增加可调整建议',evidence:'尚未交付；不静默替换素材'}
  ];
  root.LearningHelpData=Object.freeze({version:1,tours,ledger});

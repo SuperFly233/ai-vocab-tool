@@ -31,6 +31,10 @@ const files = [
   'scene-ai-tasks.css',
   'scene-ai.css',
   'scene-media.js',
+  'media-editor-data.js',
+  'media-editor-engine.js',
+  'media-editor.js',
+  'media-editor.css',
   'ui-overlays.js',
   'ui-consistency.js',
   'ui-consistency.css',
@@ -84,5 +88,7 @@ await mkdir(dirname(retiredLucideTarget),{recursive:true});
 await writeFile(retiredLucideTarget,'/* Retired: project icons are generated in /icons.js. */\n','utf8');
 await mkdir(join(dist,'vendor/basic-dictionaries'),{recursive:true});
 for(const file of await readdir(join(root,'vendor/basic-dictionaries')))await copyFile(join(root,'vendor/basic-dictionaries',file),join(dist,'vendor/basic-dictionaries',file));
+await mkdir(join(dist,'vendor/media-engine'),{recursive:true});
+for(const file of await readdir(join(root,'vendor/media-engine')))await copyFile(join(root,'vendor/media-engine',file),join(dist,'vendor/media-engine',file));
 
 console.log(`Cloudflare Pages static output written to ${dist}`);

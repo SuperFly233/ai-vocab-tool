@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.8",
+  "version": "0.43.9",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:media-editor": "node --check media-editor.js && node --check media-editor-engine.js && node scripts/check-media-data.cjs && node scripts/check-media-editor.cjs && node scripts/check-media-editor-safety.cjs && node scripts/check-media-motion.cjs",
     "check:sources": "node --check learning-store.js && node --check source-data.js && node --check source-workspace.js && node scripts/check-sources.cjs && node scripts/check-sources-api.cjs",
     "check:sources-ui": "node scripts/check-source-workspace.cjs",
     "check:scene-ai": "node --check scene-ai.js && node --check scene-ai-client.js && node --check scene-ai-data.js && node scripts/check-scene-ai.cjs && node scripts/check-scene-ai-safety.cjs",
@@ -72,6 +73,8 @@
     "check": "node --check app.js && node --check history-data.js && node --check settings-data.js && node --check storage-state.js && node --check lookup-tasks.js && node --check sync-state.js && node --check api/analyze.js && node --check api/followup.js && node --check api/models.js && node --check api/sync.js && node --check api/test-profile.js && node --check functions/_utils/vercel-adapter.js && npm run check:icons && npm run check:contracts && npm run check:history && npm run check:settings && npm run check:settings-app && npm run check:storage && npm run check:lookup && npm run check:sync && npm run check:sync-api"
   },
   "dependencies": {
+    "@ffmpeg/core": "0.12.10",
+    "@ffmpeg/ffmpeg": "0.12.15",
     "lucide": "1.28.0"
   }
 }
