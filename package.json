@@ -1,9 +1,13 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.10",
+  "version": "0.43.11",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:media-crop-ai": "node --check media-crop-ai.js && node scripts/check-media-crop-ai.cjs",
+    "check:memory-scheduler": "node scripts/check-memory-scheduler.cjs",
+    "check:teyvat-import": "node scripts/check-teyvat-import.cjs",
+    "check:manual-acceptance": "node scripts/check-manual-acceptance.cjs",
     "check:media-editor": "node --check media-editor.js && node --check media-editor-engine.js && node scripts/check-media-data.cjs && node scripts/check-media-editor.cjs && node scripts/check-media-editor-safety.cjs && node scripts/check-media-motion.cjs",
     "check:sources": "node --check learning-store.js && node --check source-data.js && node --check source-workspace.js && node scripts/check-sources.cjs && node scripts/check-sources-api.cjs",
     "check:sources-ui": "node scripts/check-source-workspace.cjs",
@@ -75,6 +79,7 @@
   "dependencies": {
     "@ffmpeg/core": "0.12.10",
     "@ffmpeg/ffmpeg": "0.12.15",
-    "lucide": "1.28.0"
+    "lucide": "1.28.0",
+    "ts-fsrs": "5.4.2"
   }
 }
