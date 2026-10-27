@@ -1,0 +1,1 @@
+module.exports=async(page,key,value)=>{const field=page.locator(`[name=${key}]`);if(!await field.isVisible())await page.locator(`[data-hp-edit=${key==='quote'?'original':'translation'}]`).click();await field.fill(value)};

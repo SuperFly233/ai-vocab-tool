@@ -124,8 +124,8 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
       const heading=host.querySelector('.scene-workbench>header h2'),headingGroup=document.createElement('div');headingGroup.className='scene-heading';heading.before(headingGroup);headingGroup.append(heading);headingGroup.insertAdjacentHTML('beforeend',SceneUI.timeMeta(scene));
       host.querySelector('.scene-workbench').dataset.sceneGroup=scene.groupId;
       if(!scene.title)heading.textContent=scene.quote||scene.sourceTitle||'未命名场景';heading.title=heading.textContent;heading.setAttribute('aria-label',heading.textContent);
-      const translation=host.querySelector('.scene-study-text>.scene-translation');if(translation)translation.innerHTML=highlightText(scene.translation,scene.translationHighlights||[]);
-      host.querySelector('.scene-study-text>.scene-source-line').insertAdjacentHTML('afterend',SceneUI.provenance(scene));
+      const translation=host.querySelector('.scene-study-text>.scene-translation');if(translation)translation.innerHTML=HighlightPairs.renderSide(scene,'translation');
+      host.querySelector('.scene-study-text').dataset.hpScope='';host.querySelector('.scene-study-text').classList.add('hp-scope');host.querySelector('.scene-study-text>.scene-source-line').insertAdjacentHTML('afterend',SceneUI.provenance(scene));
       const hasText=Boolean(scene.quote||scene.translation||scene.note||scene.sourceTitle||scene.chapter||scene.timeRange||scene.sourceUrl||scene.externalSource);host.querySelector('.scene-study-content').classList.toggle('scene-media-only',!hasText);host.querySelector('.scene-study-text').hidden=!hasText;
       const quote=host.querySelector('.scene-study-quote');if(quote)quote.dataset.label='原句';if(translation)translation.dataset.label='译文';
       host.querySelector('.scene-back').onclick=()=>review?exitReview():back();
@@ -175,7 +175,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
       const associated=SceneStudy.link(item,scene.groupId),result=displayedResultForHistory(item.id,item)||{};
       return associated?.exampleHighlights?.length?associated.exampleHighlights:resultQueryHighlightTerms(result);
     });
-    const highlighted=highlightText(scene.quote,scene.exampleHighlights?.length?scene.exampleHighlights:automatic);
+    const highlighted=HighlightPairs.renderSide(scene,'original',{legacy:scene.exampleHighlights?.length?scene.exampleHighlights:automatic});
     if(quote&&quote.innerHTML!==highlighted)quote.innerHTML=highlighted;
     renderTasks(group);
   }

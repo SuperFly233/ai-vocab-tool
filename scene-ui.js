@@ -113,14 +113,14 @@
     const source=[scene.sourceTitle,scene.chapter,scene.timeRange].filter(Boolean).join(' · ');
     const result=displayedResultForHistory(item.id,item);
     // Explicit selections take precedence over automatic headword/core-meaning matches.
-    const quote=highlightText(scene.quote,exampleHighlightTermsForItem(scene,scene.exampleHighlights.length?[]:resultQueryHighlightTerms(result)));
-    const translation=highlightText(scene.translation,translationHighlightTermsForItem(scene,{}));
+    const quote=HighlightPairs.renderSide(scene,'original',{legacy:exampleHighlightTermsForItem(scene,scene.exampleHighlights.length?[]:resultQueryHighlightTerms(result))});
+    const translation=HighlightPairs.renderSide(scene,'translation',{legacy:translationHighlightTermsForItem(scene,{})});
     const hero=scene.media.filter(ref=>scene.heroMedia.includes(ref.id));
     const syncError=syncErrors.get(syncKey(scene.id));
     return `<article class="scene-record ${hero.length?'scene-illustrated':''}" data-scene-group="${esc(scene.groupId)}" data-scene-id="${esc(scene.id)}" data-history-id="${esc(item.id)}">
       <header><div><h4><button type="button" class="scene-record-link" data-scene-action="workspace" aria-label="在场景页查看：${esc(scene.title||scene.sourceTitle||'此场景')}"><span>${esc(scene.title||scene.sourceTitle||'返回场景')}</span>${icon('arrow-up-right')}</button></h4>${scene.targetLabel?`<small>${esc(scene.targetLabel)}</small>`:''}${timeMeta(scene)}</div><div class="scene-actions"><button class="icon-btn scene-order-handle" type="button" aria-label="拖动场景排序" data-tip="拖动场景排序">${icon('grip-vertical')}</button>${action('query','从场景查另一个词条')}${action('feature',scene.featured?'取消主场景':'设为主场景',`aria-pressed="${scene.featured}"`)}${action('edit','编辑场景')}${action('remove','删除场景')}</div></header>
       <div class="scene-sync-error" data-scene-sync-status role="status" ${syncError?'':'hidden'}>${syncErrorHTML(syncError)}</div>
-      <div class="scene-context">
+      <div class="scene-context hp-scope" data-hp-scope>
       ${scene.quote?`<blockquote>${quote}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${translation}</p>`:''}
         ${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}${provenance(scene)}
       ${source||scene.sourceUrl?`<details class="scene-source" open><summary>${icon('chevron-down')}来源与备注</summary>${source?`<p>${esc(source)}</p>`:''}${scene.sourceUrl?`<a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</details>`:''}</div>
@@ -166,7 +166,7 @@
     const form=document.querySelector('#scene-editor-form');
     if(!editor||!form)return null;
     const data=Object.fromEntries(new FormData(form));
-    return SceneData.normalizeScene({...editor.scene,...data,exampleHighlights:SceneData.highlights(data.exampleHighlights),translationHighlights:SceneData.highlights(data.translationHighlights),featured:editor.scene.featured,media:editor.scene.media});
+    return SceneData.normalizeScene({...editor.scene,...data,...(editor.pairs?{highlightPairs:editor.pairs.get()}:{}),exampleHighlights:SceneData.highlights(data.exampleHighlights),translationHighlights:SceneData.highlights(data.translationHighlights),featured:editor.scene.featured,media:editor.scene.media});
   }
   function recentSources(){
     const unique=new Map();
@@ -193,7 +193,7 @@
       button.style.left=`${Math.max(8,Math.min(innerWidth-bounds.width-8,selected.left))}px`;button.style.top=`${Math.max(top+8,Math.min(bottom-bounds.height-8,y-bounds.height-8>=top?y-bounds.height-8:Math.min(rect.bottom,selected.bottom)+8))}px`;
     };
     source.addEventListener('select',update);source.addEventListener('keyup',event=>{if(event.key!=='Escape')update()});source.addEventListener('pointerup',update);source.addEventListener('scroll',()=>button.matches(':popover-open')&&update());source.addEventListener('input',hide);source.addEventListener('blur',hide);
-    button.onpointerdown=event=>event.preventDefault();button.onclick=()=>{if(!selection||source.value!==selection.value)return hide();target.value=SceneData.highlights([...SceneData.highlights(target.value),selection.text]).join('\n');target.dispatchEvent(new Event('input',{bubbles:true}));hide()};
+    button.onpointerdown=event=>event.preventDefault();button.onclick=()=>{if(!selection||source.value!==selection.value)return hide();if(editor?.pairs)editor.pairs.addSelection(sourceKey==='quote'?'original':'translation',source.value.slice(selection.start,selection.end),selection.start);else{target.value=SceneData.highlights([...SceneData.highlights(target.value),selection.text]).join('\n');target.dispatchEvent(new Event('input',{bubbles:true}))}hide()};
   }
   async function open(id=null,targetKey='',sceneId='',{fromHome=id===null}={}){
     if(editor)return;
@@ -231,6 +231,12 @@
       <section class="scene-editor-section scene-secondary-fields">${field('title','场景名称（可选）',scene.title)}${field('note','我的笔记',scene.note,true)}<details class="scene-source-fields" open><summary>${icon('chevron-down')}来源信息</summary>${sources.length?`<label class="scene-field"><span>最近来源</span><select id="scene-source-recent" aria-label="最近来源"><option value="">选择已用来源</option>${sources.map((source,index)=>`<option value="${index}">${esc([source.sourceTitle||source.sourceUrl||'来源',source.chapter,source.timeRange].filter(Boolean).join(' · ').slice(0,160))}</option>`).join('')}</select></label>`:''}<div class="scene-field-grid">${field('sourceTitle','作品 / 来源标题',scene.sourceTitle)}${field('chapter','章节 / 集数',scene.chapter)}${field('timeRange','时间段',scene.timeRange)}${field('sourceUrl','来源网址',scene.sourceUrl)}</div></details></section>
       </div><p id="scene-editor-status" role="status"></p><footer>${!item&&!standalone?'<button type="button" class="plain-btn" data-scene-action="manual">保存为自建词条</button><button type="button" class="plain-btn" data-scene-action="standalone">独立保存场景</button>':''}<button type="button" class="plain-btn primary-btn" data-scene-action="save">${item||standalone?'保存场景':'随查词保存'}</button></footer></form></section>`;
     document.body.append(layer);document.body.classList.add('modal-open');
+    const pairForm=layer.querySelector('form'),pairHost=layer.querySelector('.scene-text-content');
+    for(const key of ['quote','translation'])pairHost.append(pairForm.elements.namedItem(key).closest('label'));
+    for(const key of ['exampleHighlights','translationHighlights']){const label=pairForm.elements.namedItem(key).closest('label');label.hidden=true;label.classList.add('hp-legacy-field');pairHost.append(label)}
+    pairHost.querySelectorAll(':scope>.scene-field-pair').forEach(node=>node.remove());
+    editor.pairs=HighlightPairs.mount(pairHost,{scene,read:()=>({...editor?.scene,quote:pairForm.elements.quote.value,translation:pairForm.elements.translation.value}),fields:{quote:pairForm.elements.quote,translation:pairForm.elements.translation},onChange:pairs=>{if(!editor||editor.owner!==account)return;editor.scene.highlightPairs=pairs;const compat=HighlightPairsData.compatibility(pairs);pairForm.elements.exampleHighlights.value=compat.exampleHighlights.join('\n');pairForm.elements.translationHighlights.value=compat.translationHighlights.join('\n');pairForm.dispatchEvent(new Event('input',{bubbles:true}))}});
+    layer.highlightPairsEditor=editor.pairs;for(const key of ['exampleHighlights','translationHighlights'])pairForm.elements.namedItem(key).addEventListener('input',()=>editor?.pairs?.syncLegacy(SceneData.highlights(pairForm.elements.exampleHighlights.value),SceneData.highlights(pairForm.elements.translationHighlights.value)));
     const titleInput=layer.querySelector('[name="title"]'),titleField=titleInput.closest('label');
     titleField.insertAdjacentHTML('beforebegin',`<label class="scene-field"><span>名称留空时</span><select name="titleMode" aria-label="名称留空时">${[['text','使用原句摘要'],['source','使用来源与时间'],['manual','保持空白']].map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label>`);
     const titleMode=layer.querySelector('[name="titleMode"]');titleMode.value=getSettings().sceneTitleMode||'text';
@@ -261,12 +267,12 @@
     layer.addEventListener('drop',event=>{event.preventDefault();layer.classList.remove('dragging');addFiles(event.dataTransfer.files)});
     layer.querySelector('form').addEventListener('submit',event=>{event.preventDefault();save(false,!editor?.historyId)});
     layer.addEventListener('keydown',event=>{if(event.isComposing||event.keyCode===229)return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();save(false,!editor?.historyId)}});
-    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
+    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};pairForm.elements.quote.value=scene.quote||'';pairForm.elements.translation.value=scene.translation||'';editor.pairs.reload(scene);renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
   }
   function editorState(){
     const form=document.querySelector('#scene-editor-form');if(!form||!editor)return '';
     const fields=[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value]);
-    return JSON.stringify({fields,media:editor.scene.media,mediaEdits:editor.scene.mediaEdits,heroMedia:editor.scene.heroMedia,learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis});
+    return JSON.stringify({fields,media:editor.scene.media,mediaEdits:editor.scene.mediaEdits,heroMedia:editor.scene.heroMedia,highlightPairs:editor.pairs?.get(),learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis});
   }
   async function restoreEditor(snapshot){
     if((cloudUser?.id||'local')!==snapshot.owner)return notify('账号已切换，未恢复其他账号的草稿。','info','恢复草稿');
@@ -279,6 +285,7 @@
     editor.ai?.reload(editor.scene);
     const form=document.querySelector('#scene-editor-form');
     for(const [name,value] of snapshot.fields){const input=form.elements.namedItem(name);if(input){if(input.type==='checkbox')input.checked=value;else input.value=value;if(input.tagName==='SELECT')input.dispatchEvent(new Event('change',{bubbles:true}))}}
+    editor.pairs?.reload({...editor.scene,quote:form.elements.quote.value,translation:form.elements.translation.value});
     renderFiles();status('已恢复未保存的修改。');
   }
   function status(message,bad=false){const node=document.querySelector('#scene-editor-status');if(node){node.textContent=message;node.classList.toggle('bad',bad)}}
@@ -312,7 +319,7 @@
       if(editor!==closing)return;
       snapshot={historyId:editor.historyId,standalone:editor.standalone,fromHome:editor.fromHome,newScene:editor.newScene,base:editor.base,scene:structuredClone(editor.scene),owner:editor.owner,fields:[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value])};
     }
-    editor.ai?.close();document.querySelector('#scene-editor')?.remove();editor=null;
+    editor.ai?.close();editor.pairs?.destroy();document.querySelector('#scene-editor')?.remove();editor=null;
     if(!document.querySelector('.modal-layer.open,.confirm-layer.open'))document.body.classList.remove('modal-open');
     if(returnFocus?.isConnected)returnFocus.focus();
     if(snapshot)notify('已放弃未保存的场景修改。','info','场景',true,{label:'撤销',run:()=>restoreEditor(snapshot)});
@@ -324,7 +331,7 @@
     const shared=Object.fromEntries(fields.map(key=>[key,scene[key]])),changed=[];
     const previousDefaults=defaults?library().find(row=>row.groupId===scene.groupId):null;
     // Only inherited values follow scene defaults; association-specific edits stay independent.
-    const inherited=linked=>Object.fromEntries(['exampleHighlights','translationHighlights'].filter(key=>previousDefaults&&JSON.stringify(linked[key])===JSON.stringify(previousDefaults[key])).map(key=>[key,defaults[key]]));
+    const inherited=linked=>{const keys=['exampleHighlights','translationHighlights'].filter(key=>previousDefaults&&JSON.stringify(linked[key])===JSON.stringify(previousDefaults[key]));const values=Object.fromEntries(keys.map(key=>[key,defaults[key]]));if(keys.length===2&&Object.hasOwn(defaults||{},'highlightPairs')&&JSON.stringify(linked.highlightPairs)===JSON.stringify(previousDefaults.highlightPairs))values.highlightPairs=defaults.highlightPairs;return values};
     const history=getHistory().map(row=>{
       let records=String(row.id)===String(id)?data.items:scenes(row),touched=String(row.id)===String(id);
       if(share)records=records.map(linked=>{if(linked.groupId!==scene.groupId)return linked;touched=true;return {...linked,...shared,...inherited(linked),updatedAt:scene.updatedAt}});
@@ -800,7 +807,7 @@ if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(
     if(!Array.isArray(changes)||!changes.length||changes.length>20||new Set(changes.map(v=>v.id)).size!==changes.length)throw new Error('补遗每批1至20个不同场景，本批未保存。');
 const patches=new Map(),bases=new Map();for(const change of changes){if(!change.expected||supplementVersion(change.id)!==change.expected)throw new Error('场景或关联已有更新，请重新检查；本批未保存。');const base=sceneGroups().find(group=>group.scene.groupId===change.id).scene;bases.set(change.id,base);const patch=root.SceneAIData?SceneAIData.validatePatch(change.patch,base):Object.fromEntries(Object.entries(change.patch).filter(([key,value])=>['title','translation'].includes(key)&&typeof value==='string'&&value.length<=4000));patches.set(change.id,patch)}
     const now=new Date(Math.max(Date.now(),...changes.map(change=>(Date.parse(sceneGroups().find(group=>group.scene.groupId===change.id).scene.updatedAt)||0)+1))).toISOString(),settings=getSettings();
-    const update=scene=>{if(!patches.has(scene.groupId))return scene;const patch={...patches.get(scene.groupId)},base=bases.get(scene.groupId);for(const key of ['exampleHighlights','translationHighlights'])if(JSON.stringify(scene[key])!==JSON.stringify(base[key]))delete patch[key];return {...scene,...patch,updatedAt:now}};
+    const update=scene=>{if(!patches.has(scene.groupId))return scene;const patch={...patches.get(scene.groupId)},base=bases.get(scene.groupId);if(Object.hasOwn(scene,'highlightPairs')&&JSON.stringify(scene.highlightPairs)!==JSON.stringify(base.highlightPairs))delete patch.highlightPairs;for(const key of ['exampleHighlights','translationHighlights'])if(JSON.stringify(scene[key])!==JSON.stringify(base[key])){delete patch[key];delete patch.highlightPairs;}return {...scene,...patch,updatedAt:now}};
     const history=getHistory().map(item=>scenes(item).some(scene=>patches.has(scene.groupId))?{...item,scenes:scenes(item).map(update),updatedAt:new Date(Math.max(Date.parse(item.updatedAt)||0,Date.parse(now))).toISOString()}:item);
     let organized=settings;
     if(sourceOrganization){

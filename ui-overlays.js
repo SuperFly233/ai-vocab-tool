@@ -65,6 +65,7 @@
   function dismissDialog(node){if(!node?.open)return;const dismiss=dialogDismissers.get(node);if(dismiss)dismiss();else node.close()}
   document.addEventListener('keydown',event=>{
     if(globalThis.LearningHelp?.handleKey(event))return;
+    if(globalThis.HighlightPairs?.handleKey(event))return;
     if(event.key!=='Escape'||document.fullscreenElement)return;
     const dialog=topDialog();
     if(event.repeat&&(dialog||document.querySelector('.modal-layer.open,.confirm-layer.open'))){event.preventDefault();event.stopImmediatePropagation();return}
@@ -127,7 +128,7 @@
   }
   document.addEventListener('focusin',event=>{
     const field=event.target.closest('.visual-field-hinted');if(event.target.closest('.visual-hint-bubble'))return;
-    hideFieldHint();if(!field||field.closest('.hints-pinned')||document.body.classList.contains('hints-hidden'))return;
+    hideFieldHint();if(!field||field.matches('.hp-readable-field')&&!event.target.matches('input,textarea')||field.closest('.hints-pinned')||document.body.classList.contains('hints-hidden'))return;
     field.classList.remove('hint-dismissed');const bubble=field.querySelector('.visual-hint-bubble');if(!bubble)return;
     fieldHint=bubble;fieldAnchor=event.target;bubble.setAttribute('popover','manual');bubble.showPopover();positionFieldHint();
     if(!reducedMotion())bubble.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:140,easing:'ease'});
