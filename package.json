@@ -6,6 +6,7 @@
   "scripts": {
     "check:media-crop-ai": "node --check media-crop-ai.js && node scripts/check-media-crop-ai.cjs",
     "check:memory-scheduler": "node scripts/check-memory-scheduler.cjs",
+    "check:memory-journal": "node scripts/check-memory-journal.cjs",
     "check:teyvat-import": "node scripts/check-teyvat-import.cjs",
     "check:manual-acceptance": "node scripts/check-manual-acceptance.cjs",
     "check:media-editor": "node --check media-editor.js && node --check media-editor-engine.js && node scripts/check-media-data.cjs && node scripts/check-media-editor.cjs && node scripts/check-media-editor-safety.cjs && node scripts/check-media-motion.cjs",
