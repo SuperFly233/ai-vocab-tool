@@ -1,0 +1,17 @@
+{
+  "wrapper": "0.12.15",
+  "core": "0.12.10",
+  "singleThread": true,
+  "assets": {
+    "ffmpeg-core.js": {
+      "url": "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.js",
+      "size": 111804,
+      "sha256": "67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3"
+    },
+    "ffmpeg-core.wasm": {
+      "url": "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.wasm",
+      "size": 32232419,
+      "sha256": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7"
+    }
+  }
+}

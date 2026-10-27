@@ -84,7 +84,7 @@
       return {added:added.length,skipped,items,undo};
   }
   function action(name,label,attributes=''){
-    const glyph={add:'image-plus','new-library':'image-plus',supplement:'sparkles',edit:'pencil',remove:'trash-2',unlink:'unlink',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'panel-top',hero:'images',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
+    const glyph={add:'image-plus','new-library':'image-plus',supplement:'sparkles',edit:'pencil',mediaEdit:'crop',remove:'trash-2',unlink:'unlink',download:'download',backup:'download',close:'x',detach:'trash-2',sync:'refresh-cw',import:'file-up',feature:'panel-top',hero:'images',enlarge:'maximize-2',controls:'sliders-horizontal',tools:'settings-2',query:'search','viewer-close':'x'}[name]||'plus';
     return `<button type="button" class="icon-btn${['remove','unlink','detach'].includes(name)?' danger-icon':''}" data-scene-action="${name}" ${attributes} aria-label="${esc(label)}" data-tip="${esc(label)}">${icon(glyph)}</button>`;
   }
   function importCapture(row,account){
@@ -266,7 +266,7 @@
   function editorState(){
     const form=document.querySelector('#scene-editor-form');if(!form||!editor)return '';
     const fields=[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value]);
-    return JSON.stringify({fields,media:editor.scene.media,heroMedia:editor.scene.heroMedia,learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis});
+    return JSON.stringify({fields,media:editor.scene.media,mediaEdits:editor.scene.mediaEdits,heroMedia:editor.scene.heroMedia,learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis});
   }
   async function restoreEditor(snapshot){
     if((cloudUser?.id||'local')!==snapshot.owner)return notify('账号已切换，未恢复其他账号的草稿。','info','恢复草稿');
@@ -284,7 +284,7 @@
   function status(message,bad=false){const node=document.querySelector('#scene-editor-status');if(node){node.textContent=message;node.classList.toggle('bad',bad)}}
   function renderFiles(){
     const list=document.querySelector('#scene-file-list');if(!list||!editor)return;
-    list.innerHTML=editor.scene.media.map(ref=>`<div class="scene-file-row" data-media-id="${ref.id}"><button type="button" class="icon-btn scene-file-grip" aria-label="拖动素材排序" data-tip="拖动素材排序">${icon('grip-vertical')}</button>${assets([ref])}<label class="scene-file-name visual-field-hinted"><span>素材文件名</span><input type="text" name="mediaName_${ref.id}" data-media-name="${ref.id}" value="${esc(ref.name)}" maxlength="180" aria-label="素材文件名"><small>${ref.mime.split('/')[1].toUpperCase()} · ${ref.size<1024*1024?`${Math.ceil(ref.size/1024)} KB`:`${(ref.size/1024/1024).toFixed(2)} MB`}</small>${visualHintHTML('mediaName',fieldHints)}</label><div class="scene-file-actions">${action('hero',editor.scene.heroMedia.includes(ref.id)?'取消主素材':'设为主素材',`data-id="${ref.id}" aria-pressed="${editor.scene.heroMedia.includes(ref.id)}"`)}${action('detach','移除素材',`data-id="${ref.id}"`)}</div></div>`).join('');
+    list.innerHTML=editor.scene.media.map(ref=>`<div class="scene-file-row" data-media-id="${ref.id}"><button type="button" class="icon-btn scene-file-grip" aria-label="拖动素材排序" data-tip="拖动素材排序">${icon('grip-vertical')}</button>${assets([ref])}<label class="scene-file-name visual-field-hinted"><span>素材文件名</span><input type="text" name="mediaName_${ref.id}" data-media-name="${ref.id}" value="${esc(ref.name)}" maxlength="180" aria-label="素材文件名"><small>${ref.mime.split('/')[1].toUpperCase()} · ${ref.size<1024*1024?`${Math.ceil(ref.size/1024)} KB`:`${(ref.size/1024/1024).toFixed(2)} MB`}</small>${visualHintHTML('mediaName',fieldHints)}</label><div class="scene-file-actions">${action('mediaEdit','编辑素材',`data-id="${ref.id}"`)}${action('hero',editor.scene.heroMedia.includes(ref.id)?'取消主素材':'设为主素材',`data-id="${ref.id}" aria-pressed="${editor.scene.heroMedia.includes(ref.id)}"`)}${action('detach','移除素材',`data-id="${ref.id}"`)}</div></div>`).join('');
     list.querySelectorAll('[data-media-name]').forEach(input=>input.oninput=()=>{const ref=editor.scene.media.find(ref=>ref.id===input.dataset.mediaName);if(ref)ref.name=input.value.trim().replace(/[\\/\x00-\x1f]/g,'_').slice(0,180)||'素材'});
   }
   function setBusy(value){busy=value;document.querySelectorAll('#scene-editor button').forEach(button=>button.disabled=value)}
@@ -320,7 +320,7 @@
   function saveToHistory(id,scene,{share=false,defaults=null}={}){
     const item=historyItem(id);if(!item)throw new Error('词条已被删除，场景尚未保存。');
     const data=SceneData.reconcile([...(item.scenes||[]).filter(row=>row.id!==scene.id),scene],item.sceneTombstones);
-    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','heroMedia','externalSource','learningTargets','aiAnalysis'];
+    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','mediaEdits','heroMedia','externalSource','learningTargets','aiAnalysis'];
     const shared=Object.fromEntries(fields.map(key=>[key,scene[key]])),changed=[];
     const previousDefaults=defaults?library().find(row=>row.groupId===scene.groupId):null;
     // Only inherited values follow scene defaults; association-specific edits stay independent.
@@ -594,6 +594,7 @@
     else if(name==='close')close();
     else if(name==='pick')document.querySelector('#scene-file-picker').click();
     else if(name==='detach'&&editor)detachMedia(button.dataset.id);
+    else if(name==='mediaEdit'&&editor)editMedia(button.dataset.id);
     else if(name==='save')save(false,!editor?.historyId);
     else if(name==='manual')save(true);
     else if(name==='save-query')saveAndQuery();
@@ -613,11 +614,23 @@
       const id=button.dataset.id;editor.scene.heroMedia=editor.scene.heroMedia.includes(id)?editor.scene.heroMedia.filter(value=>value!==id):[...editor.scene.heroMedia,id];renderFiles();
     }
   },true);
+  async function editMedia(id){
+    const editing=editor,ref=editing?.scene.media.find(row=>row.id===id);if(!ref)return;
+    const expected=JSON.stringify([editing.scene.media,editing.scene.mediaEdits]),owner=editing.owner;
+    const valid=()=>editor===editing&&owner===(cloudUser?.id||'local')&&expected===JSON.stringify([editing.scene.media,editing.scene.mediaEdits]);
+    const previousEdit=(editing.scene.mediaEdits||[]).find(row=>row.id===id),original=previousEdit?.original||ref;
+    await MediaEditor.open(ref,{original,initialParams:previousEdit?.params,valid,onApply:(next,edit)=>{
+      if(!valid())throw Error('场景草稿或素材已有变化，未替换。');
+      if(editing.scene.media.some(row=>row.id!==id&&row.id===next.id))throw Error('此副本已在当前场景中，未重复加入。');
+      editing.scene.media=editing.scene.media.map(row=>row.id===id?next:row);editing.scene.heroMedia=editing.scene.heroMedia.map(value=>value===id?next.id:value);
+      editing.scene.mediaEdits=[...(editing.scene.mediaEdits||[]).filter(row=>row.id!==id),...(edit?[edit]:[])];renderFiles();
+    }});
+  }
   async function detachMedia(id){
     const owner=editor,ref=owner?.scene.media.find(row=>row.id===id);if(!ref)return;
     if(!await askConfirm('从当前场景草稿移除素材？原文件不会被立即删除。','移除素材')||editor!==owner)return;
-    const featured=owner.scene.heroMedia.includes(id);owner.scene.media=owner.scene.media.filter(row=>row.id!==id);owner.scene.heroMedia=owner.scene.heroMedia.filter(value=>value!==id);renderFiles();
-    notify('素材已从草稿移除。','good','场景',true,{label:'撤销',run:()=>{if(editor!==owner)return notify('原编辑草稿已关闭。','info','撤销');if(!owner.scene.media.some(row=>row.id===id)){owner.scene.media.push(ref);if(featured)owner.scene.heroMedia.push(id);renderFiles()}}});
+    const featured=owner.scene.heroMedia.includes(id),edit=owner.scene.mediaEdits?.find(row=>row.id===id);owner.scene.media=owner.scene.media.filter(row=>row.id!==id);owner.scene.heroMedia=owner.scene.heroMedia.filter(value=>value!==id);if(owner.scene.mediaEdits)owner.scene.mediaEdits=owner.scene.mediaEdits.filter(row=>row.id!==id);renderFiles();
+    notify('素材已从草稿移除。','good','场景',true,{label:'撤销',run:()=>{if(editor!==owner)return notify('原编辑草稿已关闭。','info','撤销');if(!owner.scene.media.some(row=>row.id===id)){owner.scene.media.push(ref);if(edit)owner.scene.mediaEdits=[...(owner.scene.mediaEdits||[]).filter(row=>row.id!==id),edit];if(featured)owner.scene.heroMedia.push(id);renderFiles()}}});
   }
   document.addEventListener('keydown',event=>{
     if(UIOverlays.topDialog())return;
@@ -669,7 +682,7 @@
     };
     try{
       showError('');
-      for(const ref of scene.media){
+      for(const ref of SceneData.mediaReferences(scene)){
         if(cloudUser?.id!==owner)return;
         await SceneMedia.upload(ref);
       }
@@ -685,7 +698,7 @@
       for(const item of getHistory())for(const scene of scenes(item)){
         if(!scene.media.length||cloudUser?.id!==owner)continue;
         let pending=false;
-        for(const ref of scene.media){
+        for(const ref of SceneData.mediaReferences(scene)){
           const record=await SceneData.getFile(ref.id);
           if(record?.blob&&!record.uploadedFor?.includes(owner))pending=true;
         }
@@ -703,7 +716,7 @@
   async function exportBackup(id){
     const item=id==='library'?{query:'场景库',scenes:library()}:historyItem(id);if(!item)return;
     try{
-      const records=scenes(item),refs=[...new Map(records.flatMap(scene=>scene.media).map(ref=>[ref.id,ref])).values()];
+      const records=scenes(item),refs=[...new Map(records.flatMap(scene=>SceneData.mediaReferences(scene)).map(ref=>[ref.id,ref])).values()];
       if(refs.reduce((sum,ref)=>sum+ref.size,0)>30*1024*1024)throw new Error('单次场景备份最多包含 30 MB 素材，请下载原文件或拆分词条。');
       const files=[];
       for(const ref of refs){
@@ -816,7 +829,8 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
       if(data.format!=='lexi-scenes'||data.version!==1||typeof data.query!=='string'||!data.query.trim()||!Array.isArray(data.scenes)||!data.scenes.length||data.scenes.length>100||!Array.isArray(data.files)||data.files.length>100)throw new Error('不是有效的场景备份。');
       const records=data.scenes.map(SceneData.normalizeScene);if(records.some(scene=>!scene))throw new Error('场景标识无效。');
       if(records.some((scene,index)=>(data.scenes[index].media||[]).length!==scene.media.length))throw new Error('场景素材引用无效，不能静默忽略。');
-      const refs=[...new Map(records.flatMap(scene=>scene.media).map(ref=>[ref.id,ref])).values()];
+      if(records.some((scene,index)=>Object.hasOwn(data.scenes[index],'mediaEdits')&&(!Array.isArray(data.scenes[index].mediaEdits)||data.scenes[index].mediaEdits.length!==(scene.mediaEdits||[]).length)))throw new Error('素材编辑记录无效，未忽略原件引用；请检查备份。');
+      const refs=[...new Map(records.flatMap(scene=>SceneData.mediaReferences(scene)).map(ref=>[ref.id,ref])).values()];
       if(refs.reduce((sum,ref)=>sum+ref.size,0)>30*1024*1024)throw new Error('素材总量超过备份限制。');
       const validated=[];
       for(const ref of refs){
