@@ -24,3 +24,5 @@ Limits: one processing job per page,60-second deadline including component downl
 ## Production: 2026-10-27
 
 Runtime dd1ea9c pushed to main; deployment https://dfc8cab8.ai-vocab-tool.pages.dev and official https://ai-vocab-tool.pages.dev . Official173 resources match SHA256; sync/anki-jobs/sources401, source default false/token-bearing503 verified. Official390dark synthetic manual edit/save/reopen/restore/storage failure/account guard pass. Browser editor needs no Bridge update; Windows media component and AI crop remain unavailable. Original Anki/Fushi data and private media were not operated on.
+
+Shared implementation merged selectively into the isolated capture branch at8784727. Capture data/vision,390light manual editor and npm check pass; independent deployment https://7a589c3c.ai-vocab-tool.pages.dev has177 matching resource hashes/auth401. Capture-only features remain outside main. Main checkout and173-resource build restored.
