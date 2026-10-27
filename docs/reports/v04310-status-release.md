@@ -9,3 +9,5 @@ Existing Help layout reused; text/status-only change needs no invented feature m
 Preview, production resources/authentication, existing media smoke and remote Bridge digest evidence appended after verification. A status update must never be described as delivery of FSRS/source matching or other missing features.
 
 Preview https://7cb1e028.ai-vocab-tool.pages.dev :173 hashes/auth401, source capability false/token503 and deployed390dark status/media paths passed. Remote GitHub Bridge0.4.1 asset25,001,587 bytes and SHA2565ccba21c528a53c22e5531e4d105d8fa94545e607de80a94f41ae3d505cac77d match the official manifest. This does not inspect the user's installed/running version or repeat the native-deck acceptance.
+
+Production runtime aff8818, deployment https://67b3a789.ai-vocab-tool.pages.dev / official https://ai-vocab-tool.pages.dev . Official173 hashes, sync/anki-jobs/sources401, source capability false/token503 and390dark status/media smoke all pass. No model, private record, native process or database operation performed.
