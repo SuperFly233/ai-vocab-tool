@@ -48,3 +48,4 @@ Independent preview only until static hashes, anonymous/authenticated API behavi
 
 - Independent preview: https://15e078f3.ai-vocab-tool.pages.dev (alias https://classification-memory-v04315.ai-vocab-tool.pages.dev).
 - All 186 deployed static files matched local SHA256 before the release script reached its API assertion. The assertion failed: anonymous POST `/api/sync` returned405 rather than401. This is a failed release gate, not a successful production deployment.
+- After 2026-10-28 00:00 UTC, all186 hashes plus sync401 passed on the same preview; source OFF/token503 and memory OFF/anonymous401/token503 passed. Recovery timing is consistent with daily quota reset, but account usage was not inspected, so cause remains unconfirmed. Actual390px light/dark preview classification save/Undo also passed with synthetic local data. Production promotion still requires its own verification.

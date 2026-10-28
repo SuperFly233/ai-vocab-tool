@@ -1,6 +1,6 @@
 # Project Context
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 - v0.43.15 candidate2026-10-28: source apply_migration retried through its own connector after fresh isolation; still invalid/expired requestState, subsequent read confirms no catalog/RPC. No execute_sql DDL bypass. Resumed1aa0bbb via cherry-pickd15a0a0; shared official FSRS-6, browser selection/reveal/ratings/offline/Undo, private service-only atomic SQL/API, account timezone and explicit conflict archives implemented/tested in isolation. MEMORY_ENABLED+MEMORY_VERIFIED_SCHEMA+server-only credential required; production remains OFF. Local source classification suggestions independently deliverable without cloud or model calls. Added strict JSON/sync receipt guards and fixed actual320px toolbar overlap. Preview15e078f3 has186 matching static hashes but API auth returned405, release blocked; official remains0.43.14. See docs/reports/v04315-classification-memory.md; later batch/storage/consolidation/Bridge media and real device gates remain pending.
 
