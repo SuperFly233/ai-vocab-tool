@@ -1,4 +1,4 @@
-# v0.43.15 Candidate: Classification And Memory
+# v0.43.15: Classification Release And Memory Candidate
 
 Date: 2026-10-28. Production baseline: v0.43.14 / Bridge 0.4.1.
 
@@ -49,3 +49,10 @@ Independent preview only until static hashes, anonymous/authenticated API behavi
 - Independent preview: https://15e078f3.ai-vocab-tool.pages.dev (alias https://classification-memory-v04315.ai-vocab-tool.pages.dev).
 - All 186 deployed static files matched local SHA256 before the release script reached its API assertion. The assertion failed: anonymous POST `/api/sync` returned405 rather than401. This is a failed release gate, not a successful production deployment.
 - After 2026-10-28 00:00 UTC, all186 hashes plus sync401 passed on the same preview; source OFF/token503 and memory OFF/anonymous401/token503 passed. Recovery timing is consistent with daily quota reset, but account usage was not inspected, so cause remains unconfirmed. Actual390px light/dark preview classification save/Undo also passed with synthetic local data. Production promotion still requires its own verification.
+
+## Production Release
+
+- Runtime commits: d15a0a0, b737639, 986e76d; pushed to main. Final independent preview f0ed327f:186 hashes/sync401 passed.
+- Production deployment: https://80ae967e.ai-vocab-tool.pages.dev ; entry https://ai-vocab-tool.pages.dev . Official186 file hashes match; sync401, source OFF/token503, memory OFF/anonymous401/token503 all passed.
+- The shipped capabilities are local classification suggestions and response/receipt protection. The memory candidate is bundled but OFF; this does not complete the contextual-memory stage, canonical-source/Teyvat stage or the full approved multi-stage plan.
+- Official390px light/dark local-synthetic classification adoption/save/Undo passed after deployment. Existing Bridge UI and connection-helper synthetic matrices also passed; no real Anki write was performed.
