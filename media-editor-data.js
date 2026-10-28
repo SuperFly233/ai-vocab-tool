@@ -16,7 +16,7 @@
   let data;try{data=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''))}catch{throw Error('裁剪建议不是有效 JSON，仍可手动编辑。')}
   if(!data||!Array.isArray(data.suggestions)||data.suggestions.length>4)throw Error('裁剪建议结构无效。');
   return data.suggestions.map(row=>{
-   if(!row||!['subject','subtitles'].includes(row.kind)||typeof row.reason!=='string'||!row.reason.trim()||row.reason.length>240)throw Error('裁剪建议说明无效。');
+   if(!row||!['frame','subject','subtitles'].includes(row.kind)||typeof row.reason!=='string'||!row.reason.trim()||row.reason.length>240)throw Error('裁剪建议说明无效。');
    const box=Object.fromEntries(['x','y','width','height'].map(k=>[k,row[k]]));
    if(Object.values(box).some(v=>typeof v!=='number'||!Number.isFinite(v))||box.x<0||box.y<0||box.width<=0||box.height<=0||box.x+box.width>1||box.y+box.height>1)throw Error('建议框超出原件，未采用。');
    return {kind:row.kind,reason:row.reason,...box};
