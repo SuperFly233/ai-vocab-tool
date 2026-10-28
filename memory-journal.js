@@ -30,5 +30,17 @@
   });
  }
  async function markConflict(account,eventId,remote){const receipt=eventKey(eventId);return LearningStore.atomic(account,[receipt],values=>{const row=values.get(receipt);if(!row||row.event.account!==account)throw conflict();return {writes:[[receipt,{...row,status:'conflict',remote}]],result:true}})}
- root.MemoryJournal=Object.freeze({targetKey,eventKey,enroll,append,pending,acknowledge,markConflict});
+ async function receive(account,state){
+  if(state.account!==account||!Number.isSafeInteger(state.revision)||state.revision<1||state.algorithm!=='ts-fsrs@5.4.2/FSRS-6')throw Error('远端记忆状态无效。');
+  const records=await pending(account),key=targetKey(state.groupId,state.targetId);
+  return LearningStore.atomic(account,[key,'memory:outbox'],values=>{const old=values.get(key),ids=values.get('memory:outbox')||[];if(ids.some(id=>!records.some(v=>v.event.eventId===id)))throw conflict();if(ids.some(id=>records.some(v=>v.event.eventId===id&&v.event.groupId===state.groupId&&v.event.targetId===state.targetId)))return {writes:[],result:old};if(old?.revision>state.revision)return {writes:[],result:old};if(old?.revision===state.revision&&!equal(old,state))throw conflict();return {writes:[[key,state]],result:state}});
+ }
+ async function resolveRemote(account,remote,expectedRevision){
+  if(remote.account!==account||!Number.isSafeInteger(remote.revision)||remote.revision<1||remote.algorithm!=='ts-fsrs@5.4.2/FSRS-6')throw conflict();
+  const all=await pending(account),records=all.filter(v=>v.event.groupId===remote.groupId&&v.event.targetId===remote.targetId),key=targetKey(remote.groupId,remote.targetId),ids=records.map(v=>v.event.eventId);if(!ids.length||ids.length>190)throw Error('请先导出并缩小待核对记录范围。');
+  return LearningStore.atomic(account,[key,'memory:outbox',...ids.map(eventKey)],values=>{const old=values.get(key),outbox=values.get('memory:outbox')||[];if(old?.revision!==expectedRevision||ids.some(id=>!outbox.includes(id))||outbox.some(id=>!all.some(v=>v.event.eventId===id)))throw conflict();
+   return {writes:[[key,remote],['memory:outbox',outbox.filter(id=>!ids.includes(id))],...ids.map(id=>{const receipt=values.get(eventKey(id));if(!receipt||receipt.event.account!==account)throw conflict();return [eventKey(id),{...receipt,status:'resolved',resolution:'remote',remote:{revision:remote.revision},resolvedAt:new Date().toISOString()}]})],result:remote};
+  });
+ }
+ root.MemoryJournal=Object.freeze({targetKey,eventKey,enroll,append,pending,acknowledge,markConflict,receive,resolveRemote});
 })(globalThis);

@@ -24,5 +24,14 @@
     return {method:'suggestion',candidates:live.filter(v=>normalize(v.name).includes(name)||name.includes(normalize(v.name))).slice(0,8)};
   }
   function health(group,sources){const s=group.scene,issues=[];if(!s.quote?.trim())issues.push('缺原句');if(!s.learningTargets?.some(v=>v.meaning?.trim()))issues.push('缺语境义');const m=match(s,sources);if(!s.sourceRef||m.method!=='identity')issues.push('来源待整理');return issues}
-  root.SourceData=Object.freeze({normalize,source,reference,match,health});
+  function classification(scene,groups,folders,organizations){
+    const names=new Set([scene.sourceTitle,...(scene.aiAnalysis?.sourceCandidates||[])].filter(v=>typeof v==='string'&&v.trim()).map(normalize)),votes=new Map(),allowed=new Map(folders.filter(v=>v.selectable!==false).map(v=>[v.id,v]));
+    for(const group of groups){const peer=group.scene;if(peer.groupId===scene.groupId)continue;const sharedIdentity=scene.sourceRef?.id&&peer.sourceRef?.id===scene.sourceRef.id,conflictingIdentity=scene.sourceRef?.id&&peer.sourceRef?.id&&peer.sourceRef.id!==scene.sourceRef.id;
+      if(!sharedIdentity&&(conflictingIdentity||!names.has(normalize(peer.sourceTitle))))continue;
+      for(const id of new Set(organizations[peer.groupId]?.folderIds||[]))if(allowed.has(id))votes.set(id,(votes.get(id)||0)+1);
+    }
+    const existing=[...allowed.values()].filter(f=>votes.has(f.id)||names.has(normalize(f.name))).map(f=>({id:f.id,name:f.name,count:votes.get(f.id)||0,basis:names.has(normalize(f.name))?'名称一致':'同来源记录'})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name)||a.id.localeCompare(b.id)).slice(0,4);
+    const title=String(scene.sourceTitle||scene.aiAnalysis?.sourceCandidates?.[0]||'').trim(),newNames=existing.length||!title||title.length>60||folders.some(f=>normalize(f.name)===normalize(title))?[]:[title];return {existing,newNames};
+  }
+  root.SourceData=Object.freeze({normalize,source,reference,match,health,classification});
 })(globalThis);

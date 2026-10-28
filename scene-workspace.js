@@ -178,7 +178,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
     if(quote&&quote.innerHTML!==highlighted)quote.innerHTML=highlighted;
     renderTasks(group);
   }
-  function startReview(ids=visibleGroups.map(group=>group.scene.groupId)){const known=new Set(SceneUI.sceneGroups().map(group=>group.scene.groupId));ids=[...new Set(ids)].filter(id=>known.has(id));if(!ids.length)return;review={ids,index:0,revealed:false,scroll:scrollY};paneKey='';render();scrollTo({top:0,behavior:'instant'})}
+  function startReview(ids=visibleGroups.map(group=>group.scene.groupId),browse=false){if(!browse&&root.MemoryWorkspace?.available()){SharedUI.menu(host.querySelector('[data-scene-review]'),[{label:'语境记忆',icon:'book-open',run:()=>MemoryWorkspace.open(SceneUI.sceneGroups().filter(g=>ids.includes(g.scene.groupId)))},{label:'浏览回顾',icon:'play',run:()=>startReview(ids,true)}]);return}const known=new Set(SceneUI.sceneGroups().map(group=>group.scene.groupId));ids=[...new Set(ids)].filter(id=>known.has(id));if(!ids.length)return;review={ids,index:0,revealed:false,scroll:scrollY};paneKey='';render();scrollTo({top:0,behavior:'instant'})}
   function exitReview(){const scroll=review?.scroll||0;review=null;paneKey='';render();scrollTo({top:scroll,behavior:'instant'})}
   async function loadThumb(ref,node,owner){
     try{

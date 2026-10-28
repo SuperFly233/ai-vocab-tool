@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.14',
+  version:'0.43.15',
   releaseDate:'2026-10-27',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.15',date:'2026-10-28',title:'分类建议与语境记忆验收基础',items:['场景检查与整理提供同来源记录、名称一致的收藏夹建议，明确采用后才保存，支持原有保护与撤销。','语境记忆的选取、评分、离线事件和私有服务已接通隔离测试；数据库迁移仍受阻，生产入口保持关闭，原回顾不变。']},
   {version:'0.43.14',date:'2026-10-27',title:'场景输入与操作对齐',items:['修复原句、译文字段的编辑与 AI 按钮分散问题，合并为靠右的等尺寸操作组。','联想不再默认选中；Enter保留原生输入，明确选择才采用候选。多词胶囊留在字段内，不再挤乱网格。','新增按钮位置与2／3／20词布局回归，保留双语配对和原有保存行为。']},
   {version:'0.43.13',date:'2026-10-27',title:'双语高亮配对',items:['原句和译文完整呈现，高亮配对移到正文下方，支持拖动排序、出现位置选择及解除配对。','悬停、聚焦和触屏选中可联动双语高亮；编辑、详情、核对及网页制卡预览共用渲染。','旧高亮保留为待配对，正文改动后的歧义保留为待定位；不改变 Bridge、Anki 协议及旧卡。']},
   {version:'0.43.12',date:'2026-10-27',title:'场景后台分析与集中核对',items:['修复截图粘贴后立即保存的任务交接；关闭编辑器、补遗窗口和切标签不取消已提交分析，顶部任务池区分分析中与已生成。','补遗重绘为列表与单场景核对区，底线编辑、拖动排序；标题建议默认勾选，人工取消和后续编辑保留。','常见作品与画面推测仅作来源候选；场景更多提供只读统计和新增记录热力图，不代表复习效果。真实模型与实体设备验收步骤在常见问题中。']},
@@ -2134,6 +2135,7 @@ function setCloudBusy(busy,visible=false){
 function cloudErrorMessage(error,action='同步'){
   const message=String(error?.message||error?.details||error||'未知错误');
   const code=String(error?.code||'');
+  if(code==='INVALID_API_RESPONSE')return `${action}未完成：服务返回异常，本机数据与待同步标记已保留，请稍后重试。`;
   if(error?.storageCommit)return storageFailureMessage(error,'同步数据')+' 云端同步尚未完成。';
   if(StorageState.isQuotaError(error))return `${action}未完成：存储额度不足。请先导出备份；需要检查是浏览器存储还是服务端额度，不要直接清除站点数据。`;
   if(code==='42P01'||/relation .*study_store.* does not exist|study_store.*does not exist/i.test(message)){
@@ -2185,9 +2187,9 @@ async function syncViaServer(action,payload={}){
     },
     body:JSON.stringify({action,...payload}),
   });
-  const data=await response.json().catch(()=>({}));
+  const data=await ApiResponse.read(response,'同步');
   if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);
-  return data;
+  return ApiResponse.sync(data,action,payload);
 }
 async function fetchCloudRows(keys=Object.values(CLOUD_KEYS)){
   try{

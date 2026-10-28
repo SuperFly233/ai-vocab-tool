@@ -1,9 +1,12 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.14",
+  "version": "0.43.15",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:api-response": "node --check api-response.js && node scripts/check-api-response.cjs",
+    "check:memory-service": "node scripts/check-memory-scheduler.cjs && node scripts/check-memory-service.cjs && node scripts/check-memory-api.cjs",
+    "check:memory-workspace": "node scripts/check-memory-workspace.cjs",
     "check:scene-term-input": "node scripts/check-scene-term-input.cjs",
     "check:highlight-pairs": "node scripts/check-highlight-pairs-data.cjs && node scripts/check-highlight-pairs-ui.cjs && node scripts/check-highlight-pairs-integration.cjs",
     "check:media-crop-ai": "node --check media-crop-ai.js && node scripts/check-media-crop-ai.cjs",
