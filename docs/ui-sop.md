@@ -160,3 +160,5 @@ When the user elects to perform actual model/device acceptance, provide exact on
 
 When the user requests shipping only verified work, release notes must name the usable subset and preserve the unfinished ledger. Cloud-dependent candidate controls stay hidden behind a default-OFF server capability, not merely client-side disabled buttons. Verify capability plus rejected token-bearing requests on preview/production. Local drafting/classification must remain functional without cloud source APIs. No failed migration or synthetic endpoint fixture counts as production completion.
 
+Default AI crop intent is the complete game/video viewport: preserve scenery, subtitles and internal HUD, remove confidently external browser chrome/black borders/streaming panels. Character or subtitle rectangles remain distinct optional purposes, never mislabeled as a full frame. Do not shrink the scene to remove embedded overlays, treat dark scenery as a border or force an aspect ratio. Uncertain boundaries stay pending/manual; do not auto-apply a crop.
+
