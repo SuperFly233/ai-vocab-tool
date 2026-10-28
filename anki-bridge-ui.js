@@ -7,7 +7,7 @@
   const account=cloudUser.id,token=await cloudAccessToken();if(cloudUser?.id!==account)throw new Error('账号已切换。');
   const timeout=AbortSignal.timeout(20000),signal=options.signal?AbortSignal.any([timeout,options.signal]):timeout;
   const result=await fetch('/api/anki-jobs',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action,args}),signal});
-  const value=await result.json();if(cloudUser?.id!==account)throw new Error('账号已切换，请重新打开。');if(!result.ok)throw new Error(value.error||'Anki 请求未完成。');return value.data;
+  const value=await ApiResponse.read(result,'Anki');if(cloudUser?.id!==account)throw new Error('账号已切换，请重新打开。');if(!result.ok)throw new Error(value.error||'Anki 请求未完成。');return value.data;
  }
  function dialog(title,{closeHint=true}={}){const node=document.createElement('dialog');node.className='scene-study-dialog anki-dialog';node.innerHTML=`<header><h2>${esc(title)}</h2><button class="icon-btn" aria-label="关闭" ${closeHint?'data-tip="关闭"':''}>${icon('x')}</button></header><div class="scene-dialog-body"></div><p class="scene-dialog-status" role="status"></p>`;node.querySelector('header button').onclick=()=>node.close();node.onclose=()=>node.remove();document.body.append(node);node.showModal();return node}
  function error(node,value){const status=node.querySelector('[role=status]');if(status)status.textContent=value}

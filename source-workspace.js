@@ -6,7 +6,7 @@
     const account=owner(),token=await cloudAccessToken();
     if(owner()!==account)throw Error('账号已切换，未发送请求。');
     const response=await fetch('/api/sources',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,args}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});
-    const result=await response.json();if(account!==owner())throw Error('账号已切换，旧来源结果未采用。');if(!response.ok)throw Error(result.error||'来源服务未完成请求。');return result.data;
+    const result=await ApiResponse.read(response,'来源');if(account!==owner())throw Error('账号已切换，旧来源结果未采用。');if(!response.ok)throw Error(result.error||'来源服务未完成请求。');return result.data;
   }
   async function catalog(signal){
     const account=owner(),rows=(await request('list',{},signal)).map(SourceData.source);
@@ -73,9 +73,13 @@
         sources=await catalog(controller.signal);assert();d.choice=input.id;d.sourceRevision=sources.find(s=>s.id===input.id).revision;d.catalogDraft=null;changed();show();status('来源目录已保存；场景尚未改变，仍需保存采用。');
       });
       function renderFolders(){
-        const proposals=folders().filter(f=>scene.sourceTitle&&SourceData.normalize(scene.sourceTitle)===SourceData.normalize(f.name)).map(f=>f.id);
-        check.querySelector('[data-source-folders]').innerHTML=folders().map(f=>'<label class="source-folder"><input type="checkbox" value="'+esc(f.id)+'" '+(d.folderIds.includes(f.id)?'checked':'')+'><span>'+esc(f.name)+(proposals.includes(f.id)?' · 名称一致建议':'')+'</span></label>').join('')||'<p class="source-muted">尚无自定义收藏夹，可就地准备一个。</p>';
+        const suggestions=SourceData.classification(scene,groups,folders(),Object.fromEntries(groups.map(g=>[g.scene.groupId,SceneOrganization.state(g.scene.groupId)]))),proposals=suggestions.existing.map(v=>v.id);
+        check.querySelector('[data-source-folders]').innerHTML=folders().map(f=>'<label class="source-folder"><input type="checkbox" value="'+esc(f.id)+'" '+(d.folderIds.includes(f.id)?'checked':'')+'><span>'+esc(f.name)+(proposals.includes(f.id)?' · 建议':'')+'</span></label>').join('')||'<p class="source-muted">尚无自定义收藏夹，可就地准备一个。</p>';
         check.querySelectorAll('.source-folder input').forEach(input=>input.onchange=()=>{d.folderIds=[...check.querySelectorAll('.source-folder input:checked')].map(v=>v.value);changed()});
+        check.querySelector('[data-classification-suggestions]')?.remove();const suggestionBox=document.createElement('div');suggestionBox.dataset.classificationSuggestions='';suggestionBox.className='source-classification-suggestions';
+        if(suggestions.existing.length){const why=document.createElement('p');why.className='source-muted';why.textContent=suggestions.existing.map(v=>v.name+' · '+(v.count?'同来源 '+v.count+' 个场景':v.basis)).join('；');const apply=document.createElement('button');apply.type='button';apply.className='plain-btn';apply.dataset.classificationApply='';apply.textContent='采用分类建议';apply.onclick=()=>{d.folderIds=[...new Set([...d.folderIds,...suggestions.existing.map(v=>v.id)])];changed();renderFolders();status('分类建议已放入草稿；加入本批并保存采用后才会修改。')};suggestionBox.append(why,apply)}
+        if(suggestions.newNames.length){const prepare=document.createElement('button');prepare.type='button';prepare.className='plain-btn';prepare.dataset.classificationPrepare='';prepare.textContent='准备分类：'+suggestions.newNames[0];prepare.onclick=()=>{check.querySelector('[data-source-folder-name]').value=suggestions.newNames[0];check.querySelector('[data-source-folder-name]').focus();status('仅填写建议名称；点击添加后仍需保存采用。')};suggestionBox.append(prepare)}
+        if(suggestionBox.childNodes.length)check.querySelector('[data-source-folders]').after(suggestionBox);
       }renderFolders();
       check.querySelector('[data-source-new-folder]').onclick=()=>{
         const name=check.querySelector('[data-source-folder-name]').value.trim();if(!name)return status('请填写收藏夹名称。');
