@@ -8,9 +8,9 @@
   if(!integer(p.x,0,width-1)||!integer(p.y,0,height-1)||!integer(p.width,1,width-p.x)||!integer(p.height,1,height-p.y))throw Error('裁剪范围超出原件，请调整裁剪框。');
   if(!integer(p.outputWidth,1,4096)||!integer(p.outputHeight,1,4096)||p.outputWidth*p.outputHeight>8000000)throw Error('输出尺寸需在4096像素及800万像素以内。');
   if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<0||end>600||start>=600||(end&&end<=start)||duration&&(start>=duration||end>duration+.05))throw Error('截段起止时间无效，单次最多处理10分钟。');
-  return {...p,start,end};
+  return {...p,start,end,...(Object.hasOwn(input,'annotations')?{annotations:AnnotationData.normalize(input.annotations,width,height)}:{})};
  }
- function edits(rows){return (Array.isArray(rows)?rows:[]).slice(0,6).flatMap(row=>{const original=root.SceneData.normalizeMedia([row?.original])[0];if(!root.SceneData.hashId(row?.id)||!original||original.id===row.id||!row.params||typeof row.params!=='object')return [];try{return [{id:row.id,original,params:parameters(row.params,row.sourceWidth,row.sourceHeight),sourceWidth:row.sourceWidth,sourceHeight:row.sourceHeight,createdAt:Number.isFinite(Date.parse(row.createdAt))?row.createdAt:''}]}catch{return []}})}
+ function edits(rows){return (Array.isArray(rows)?rows:[]).slice(0,6).flatMap(row=>{const original=root.SceneData.normalizeMedia([row?.original])[0];if(!root.SceneData.hashId(row?.id)||!original||original.id===row.id||!row.params||typeof row.params!=='object')return [];try{const params=parameters(row.params,row.sourceWidth,row.sourceHeight);return [{id:row.id,original,params,...(row.privateOriginal===true||root.AnnotationData?.privateOriginal(params.annotations)?{privateOriginal:true}:{}),sourceWidth:row.sourceWidth,sourceHeight:row.sourceHeight,createdAt:Number.isFinite(Date.parse(row.createdAt))?row.createdAt:''}]}catch{return []}})}
  function cropSuggestions(raw){
   if(typeof raw!=='string'||raw.length>12000)throw Error('裁剪建议超过安全长度，未采用。');
   let data;try{data=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''))}catch{throw Error('裁剪建议不是有效 JSON，仍可手动编辑。')}

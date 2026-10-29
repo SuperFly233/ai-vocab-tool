@@ -78,6 +78,7 @@
       const preferred=!previous||time(item.updatedAt)>time(previous.updatedAt)||(time(item.updatedAt)===time(previous.updatedAt)&&JSON.stringify(item)>JSON.stringify(previous))?item:previous;
       const study=!previous||time(item.studyUpdatedAt)>time(previous.studyUpdatedAt)||(time(item.studyUpdatedAt)===time(previous.studyUpdatedAt)&&item.studyState>previous.studyState)?item:previous;
       const preserve={};for(const key of ['learningTargets','aiAnalysis','sourceRef','mediaEdits','highlightPairs'])if(!Object.hasOwn(preferred,key)){const fallback=Object.hasOwn(item,key)?item:previous;if(fallback&&Object.hasOwn(fallback,key))preserve[key]=fallback[key]}
+      if(previous&&preferred.mediaEdits){const other=preferred===item?previous:item;preserve.mediaEdits=preferred.mediaEdits.map(row=>{const old=other.mediaEdits?.find(v=>v.id===row.id&&v.original.id===row.original.id);return old?.params.annotations&&!Object.hasOwn(row.params,'annotations')?{...row,params:{...row.params,annotations:old.params.annotations},...(old.privateOriginal?{privateOriginal:true}:{})}:row})}
       found.set(item.id,{...preferred,...preserve,studyState:study.studyState,studyUpdatedAt:study.studyUpdatedAt});
     }
     const kept=[];
@@ -144,6 +145,6 @@
   const putDraft=(key,value)=>transaction('drafts','readwrite',store=>store.put(value,key));
   const deleteDraft=key=>transaction('drafts','readwrite',store=>store.delete(key));
   const clearPreviews=()=>transaction('drafts','readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(String(cursor.key).startsWith('thumbnail-v1:'))cursor.delete();cursor.continue()};return null});
-  const mediaReferences=scene=>[...new Map([...(scene.media||[]),...(scene.mediaEdits||[]).map(row=>row.original)].filter(Boolean).map(ref=>[ref.id,ref])).values()];
+  const mediaReferences=scene=>[...new Map([...(scene.media||[]),...(scene.mediaEdits||[]).filter(row=>!row.privateOriginal&&!root.AnnotationData?.privateOriginal(row.params?.annotations)).map(row=>row.original)].filter(Boolean).map(ref=>[ref.id,ref])).values()];
   root.SceneData={MAX_FILE_SIZE,MAX_FILES,hashId,mimeTypes,sourceUrl,highlights,sameMediaScene,normalizeMedia,normalizeScene,mediaReferences,reconcile,mergeOrganization,detectMime,inspectFile,getFile,putFile,putRecord,getDraft,putDraft,deleteDraft,clearPreviews};
 })(globalThis);

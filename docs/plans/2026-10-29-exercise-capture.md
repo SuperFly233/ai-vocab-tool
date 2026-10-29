@@ -2,6 +2,8 @@
 
 Reference: ../design/exercise-capture-reference.png. Inspected before implementation.
 
+User follow-up supersedes modal layout: independent /exercise page, runner icon, concise instructions, complete session summary. Generated and inspected ../design/exercise-page-reference.png BEFORE implementing the change. Preserve original navigation only outside this page; no extra main navigation item. Actual populated desktop/mobile/summary screenshots are required.
+
 ## Layout Decisions
 
 - Keep existing navigation. Enter from home/scene action icons; no generated navigation labels are copied.

@@ -1,6 +1,6 @@
 (function(root){
  'use strict';
- function attach({node,body,element,meta,owner,current,snapshot,processing,preview,signal}){
+ function attach({node,body,element,meta,owner,current,snapshot,processing,preview,signal,frameSource=()=>element}){
   const area=document.createElement('fieldset');area.className='media-ai-crop';
   area.innerHTML='<legend><span>'+icon('sparkles')+'裁剪建议</span><button type="button" class="plain-btn" data-crop-analyze>分析</button></legend><p class="media-ai-status" role="status" aria-live="polite"></p><div data-crop-suggestions></div>';
   body.querySelector('.media-edit-fields').prepend(area);
@@ -19,11 +19,12 @@
     if(!profile||!valid()||id!==serial||local.signal.aborted)return;
     const identity=SceneAIData.identity(profile),profileNow=()=>getSettings().apiProfiles.find(v=>v.id===profile.id);
     if(element.tagName==='VIDEO')element.pause();
-    const width=element.videoWidth||element.naturalWidth,height=element.videoHeight||element.naturalHeight;
+    const source=await frameSource();if(!valid()||local.signal.aborted)return;
+    const width=source.videoWidth||source.naturalWidth||source.width,height=source.videoHeight||source.naturalHeight||source.height;
     if(!width||!height||width!==meta.width||height!==meta.height)throw Error('当前画面尚未就绪，请稍后重试。');
     const factor=Math.min(1,1600/Math.max(width,height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*factor));canvas.height=Math.max(1,Math.round(height*factor));
-    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(element,0,0,canvas.width,canvas.height);
-    const frame=canvas.toDataURL('image/jpeg',.86);canvas.width=canvas.height=1;
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(source,0,0,canvas.width,canvas.height);
+    const frame=canvas.toDataURL('image/jpeg',.86);canvas.width=canvas.height=1;if(source!==element&&source.tagName==='CANVAS')source.width=source.height=1;
     status.innerHTML='<span class="lexi-progress-spinner" aria-hidden="true"></span><span>正在分析当前画面…</span>';
     const rows=await SceneAIClient.suggestCrop(profile,frame,{signal:local.signal});
     rows.sort((a,b)=>['frame','subtitles','subject'].indexOf(a.kind)-['frame','subtitles','subject'].indexOf(b.kind));

@@ -34,6 +34,7 @@ const VIEW_ROUTES={
   history:'/history',
   folders:'/favorites',
   scenes:'/scenes',
+  exercise:'/exercise',
   settings:'/settings',
   about:'/about',
   account:'/account',
@@ -184,12 +185,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.18',
+  version:'0.43.19',
   releaseDate:'2026-10-27',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.19',date:'2026-10-29',title:'运动整页与截图标注',items:['运动采集改为独立整页，跑步小人入口、大字操作、简短指引和结束小结；未提交词组与待办完整保留。','素材编辑器加入矩形、椭圆、箭头、序号、文字、聚光灯、马赛克和实色遮挡；图层可拖动排序，支持撤销重做。','原件、标注和副本分开保留；有遮挡时AI与分享使用处理后画面，原件默认留在本机。GIF／视频保持原有编辑，不强行转为静态图。']},
   {version:'0.43.18',date:'2026-10-29',title:'运动采集与对话定位',items:['大字运动采集：截图先保存，后台最多两项分析，清晰单句自动填写；Backlog点选一句即可继续。','重点一键查询，手输多词原样提交；刷新不自动重复请求，人工修改和账号隔离继续保护。','本版为网页采集；静态标注与Bridge快捷截图分阶段交付。']},
   {version:'0.43.17',date:'2026-10-28',title:'简化裁剪分析',items:['不再勾选或选择范围：一次分析同时提供完整画面、字幕和主体建议；移除常驻说明，只保留进度及必要反馈。','首次模型确认、手动预览、停止分析和原件保护不变。']},
   {version:'0.43.16',date:'2026-10-28',title:'保留完整画面的裁剪建议',items:['AI裁剪默认优先完整游戏／视频画面，只去外围黑边、浏览器栏与直播装饰栏，保留字幕及游戏内界面。','字幕和主体区域仍可单独选择；建议先预览、手动调整，确认生成副本，不覆盖原件。']},
@@ -2873,6 +2875,7 @@ function showView(id,button,options={}){
   const changed=activeView!==next;
   if(changed)stopSpeech();
   activeView=next;
+  document.body.classList.toggle('exercise-page-active',next==='exercise');
   updateViewRoute(next,options.route||'push');
   document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${next}`));
   document.querySelectorAll('[data-view]').forEach(item=>item.classList.toggle('active',item.dataset.view===next));
@@ -2880,6 +2883,7 @@ function showView(id,button,options={}){
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
   if(next==='scenes')globalThis.SceneUI?.renderHub();
+  if(next==='exercise')globalThis.ExerciseCapture?.onRoute();
   if(next==='settings')renderSettings();
   if(next==='about')renderAbout();
   if(next==='account')renderAuthGate();
