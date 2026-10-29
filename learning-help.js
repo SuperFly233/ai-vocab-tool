@@ -99,6 +99,7 @@
   }
   async function renderConnection(){
    content.innerHTML=connectionHTML();SharedUI.enhanceSelects(content);renderDiagnostic();updateCheck();
+   const steps=content.querySelector('.help-install-steps'),receiving=document.createElement('li');receiving.textContent='需要录入时，在助手点“开始连接（10分钟）”；默认不接单，用完点“停止连接”。已领取任务仍安全完成。';steps.insertBefore(receiving,steps.lastElementChild);
    const quick=document.createElement('button');quick.className='plain-btn help-check-shortcut';quick.textContent='已安装？直接核对连接';quick.onclick=()=>content.querySelector('[data-help-cloud]').closest('section').scrollIntoView({block:'start',behavior:'instant'});content.querySelector('.help-platform').after(quick);
    content.querySelectorAll('[data-platform]').forEach(b=>b.onclick=()=>{platform=b.dataset.platform;stop();renderConnection()});
    content.querySelector('[data-help-check-cloud]').onclick=refreshDevices;content.querySelector('[data-help-device]').onchange=selected;content.querySelector('[data-help-check-device]').onclick=checkDevice;

@@ -3,6 +3,7 @@
 ## Implemented
 
 - Removed unconditional15second cloud sync. Dirty-data debounced saves, focus/visibility merge and explicit user sync remain. No learning data is discarded.
+- Removed the network indicator's periodic60second static HEAD probe too; initial load, connectivity/visibility events and explicit recheck remain. That static probe was unnecessary but is not established as a Functions-quota source.
 - Task manager polls only while visible, with pending jobs, within a10minute viewing session. Empty/terminal/closed/hidden views do not poll. Four consecutive failures stop retries; manual Refresh restarts the session.
 - Helper startup defaults stopped. Explicit Start connection authorizes600seconds; Stop/expiry prevents new auth, registration, device commands and job polling. Already claimed jobs retain necessary heartbeat/review and safe completion; no new claim afterward.
 - Local status refresh reads saved identity without calling network auth. Login/logout stop receiving; logout removes the last active owner but preserves per-account device identities. Loopback origin/token/Host guards unchanged.

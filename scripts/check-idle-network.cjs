@@ -19,4 +19,5 @@ check([{status:'running'}],true,4,200,0);
 check([{status:'running'}],true,0,100,0);
 assert.match(source,/function scheduleCloudSync\(delay=180\)/);
 assert.match(source,/window\.addEventListener\('focus'/);
+assert.doesNotMatch(fs.readFileSync('request-ui.js','utf8'),/setInterval\([^\n]*check\(\)/,'Network indicator must not make recurring idle probes');
 console.log('Idle sync: zero intervals; task polling: empty/terminal/hidden/expired/repeated failure stop, active visible work remains.');
