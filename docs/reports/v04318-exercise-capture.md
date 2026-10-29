@@ -20,3 +20,9 @@
 - Earlier independent previews18034d9f and728b09ae passed189 resource hashes and sync/Anki/source401; final desktop arrangement follows after screenshot inspection. Final release evidence appended only after deployment.
 
 Model responses are synthetic/mocked, not paid private-image quality testing. Physical iPhone, native Bridge capture, live exercise readability and real Backlog OCR quality remain unverified.
+
+## Release
+
+- Runtime9493184 pushed to main. Final preview https://260bf5c0.ai-vocab-tool.pages.dev :189 SHA256 resources plus sync/Anki/source401, actual1440dark synthetic flow passed.
+- Production https://4aed30ae.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev :189 SHA256 resources plus sync/Anki/source401; actual official390dark capture/Backlog/auto-save/refresh passed.
+- Screenshots desktop.png/mobile.png in v04318 folder were manually inspected. No real model or physical device claims.
