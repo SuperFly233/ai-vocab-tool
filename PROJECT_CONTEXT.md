@@ -1,6 +1,8 @@
 # Project Context
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
+
+- v0.43.19 final preview1cde9196 (runtimefe0f3fd+fb271cb): all194 static hashes matched; anonymous sync POST failed405, also confirmed on existing official production at14:57UTC. Root cause unconfirmed; production promotion withheld, official remains0.43.18 with cloud API operational failure, not healthy. Final deployed390dark exercise/annotation flows passed; annotation simulated-touch and keyboard layer reorder/Undo passed locally. Checker retries complete body reads, bounded4 workers/3 attempts; no weakened auth gate. Resume by verifying current API health and rerunning final preview resource/auth gate before push/deploy promotion. No automatic monitor or native Bridge capture delivered.
 
 - v0.43.19 CANDIDATE: independent /exercise page with licensed runner, hidden ordinary navigation, concise large UI and complete persistent session summary. Generated/inspected exercise-page-reference before change. Eight static annotation tools in existing editor, Konva10.9.0/MIT lazy same-origin, native text/layers/Undo/Redo; deterministic original-coordinate derivatives, private-original reference exclusion and baked AI crop. Ten width/theme exercise+annotation cases, safety/schema/motion and actual synthetic GIF/video/audio passed. Previewa2c51a80 under verification. Production0.43.18/Bridge0.4.1 until release evidence; system capture not delivered. Report docs/reports/v04319-exercise-page-annotations.md.
 

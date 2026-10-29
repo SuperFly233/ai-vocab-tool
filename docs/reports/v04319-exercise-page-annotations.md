@@ -23,3 +23,12 @@
 ## Boundaries
 
 Bridge remains0.4.1. System-global capture and its new portable-package acceptance are not delivered by this web stage. Browser paste works without upgrading Bridge. No Anki protocol/template/scheduling change, no source or memory service activation. Paid model quality, live exercise readability, native mobile behavior and real Backlog extraction remain user-run acceptance; synthetic tests do not establish those.
+
+## Final Preview and Release Gate (2026-10-29)
+
+- Runtime commits: fe0f3fd and fb271cb. Final immutable preview: https://1cde9196.ai-vocab-tool.pages.dev/exercise . This is a preview, not a production release.
+- All194 static resources matched local SHA256. The checker then failed the required authentication gate: anonymous POST /api/sync returned405 instead of401. A separate curl request confirmed the same405 on the existing official production domain at14:57UTC, so this is not unique to the new runtime. Root cause is unconfirmed; do not label it a verified quota diagnosis.
+- Final-preview390px dark exercise and annotation synthetic flows passed. Additional390px annotation checks passed actual simulated-touch layer drag and keyboard reorder, including Undo. They do not establish physical-device touch behavior.
+- The release checker now retries bounded whole-response downloads, including body-read failures, without weakening hash/status checks. Maximum4 workers and3 attempts; no recurring polling or background monitor added.
+- Production promotion is withheld until authentication routes recover and the final resource/auth gate passes. Production remainsv0.43.18; its current cloud API failure is a separate operational issue, not reported as healthy.
+- User acceptance: open the preview, enter exercise collection from Home or Scenes, paste a non-private synthetic screenshot, confirm the configured model on first use, leave/return while analysis runs, then End and inspect pending items. Verify live-stream reading distance and real Backlog quality separately. Closing the browser does not continue execution in the cloud.
