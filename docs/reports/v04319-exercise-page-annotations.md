@@ -26,6 +26,8 @@ Bridge remains0.4.1. System-global capture and its new portable-package acceptan
 
 ## Final Preview and Release Gate (2026-10-29)
 
+The candidate below was subsequently included in thev0.43.20 emergency on-demand mitigation deployment2072f099. See v04320-on-demand-connections.md. Its local features are now shipped, but the cloud authentication gate remains failed; do not read this candidate history as a current release-health statement.
+
 - Runtime commits: fe0f3fd and fb271cb. Final immutable preview: https://1cde9196.ai-vocab-tool.pages.dev/exercise . This is a preview, not a production release.
 - All194 static resources matched local SHA256. The checker then failed the required authentication gate: anonymous POST /api/sync returned405 instead of401. A separate curl request confirmed the same405 on the existing official production domain at14:57UTC, so this is not unique to the new runtime. Root cause is unconfirmed; do not label it a verified quota diagnosis.
 - Final-preview390px dark exercise and annotation synthetic flows passed. Additional390px annotation checks passed actual simulated-touch layer drag and keyboard reorder, including Undo. They do not establish physical-device touch behavior.
