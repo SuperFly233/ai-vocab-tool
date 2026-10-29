@@ -634,6 +634,7 @@
   },true);
   async function receiveOutsideEditor(event,files){
     if(editor||!files.length)return;
+    if(root.ExerciseCapture?.receiving()){event.preventDefault();event.stopPropagation();return root.ExerciseCapture.receive(files)}
     const target=event.target.closest?.('#workspace,#modal-card-page,#scene-hub');
     if(!target)return;
     event.preventDefault();event.stopPropagation();

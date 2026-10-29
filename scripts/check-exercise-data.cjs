@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+for(const file of ['scene-ai-data.js','exercise-data.js'])vm.runInThisContext(fs.readFileSync(file,'utf8'));
+const row=(quote='The secret matters.',y=.1)=>({title:'秘密',quote,translation:'秘密很重要。',translationOrigin:'machine',complete:true,speaker:'A',rect:{x:.1,y,width:.8,height:.15},learningTargets:[{phrase:'secret',meaning:'秘密'}]});
+let result=ExerciseData.parse(JSON.stringify({dialogues:[row()]}));assert.equal(result.selectedDialogueId,'line-1');
+result=ExerciseData.parse(JSON.stringify({dialogues:[row(),row('A secret matters.',.5)]}));assert.equal(result.selectedDialogueId,null);assert.equal(result.dialogues.length,2);
+result=ExerciseData.parse(JSON.stringify({dialogues:[row(),row('A secret matters.',.5)]}),{x:.3,y:.55});assert.equal(result.selectedDialogueId,'line-2');assert.equal(ExerciseData.patch({...result,model:'test',generatedAt:new Date().toISOString()}).quote,'A secret matters.');
+assert.equal(ExerciseData.parse(JSON.stringify({dialogues:[row()]}),null,true).selectedDialogueId,null);
+assert.equal(ExerciseData.parse(JSON.stringify({dialogues:[{...row(),complete:false}]})).selectedDialogueId,null);
+assert.equal(ExerciseData.parse(JSON.stringify({dialogues:[row(),row()]}),{x:.3,y:.15}).selectedDialogueId,null);
+assert.equal(ExerciseData.parse(JSON.stringify(row())).selectedDialogueId,null,'Legacy schema cannot claim a complete Backlog');
+for(const rect of [{x:-1,y:0,width:1,height:1},{x:0,y:0,width:2,height:1},{x:0,y:0,width:0,height:1}])assert.throws(()=>ExerciseData.parse(JSON.stringify({dialogues:[{...row(),rect}]})));
+assert.throws(()=>ExerciseData.parse(JSON.stringify({dialogues:Array(21).fill(row())})));
+assert.throws(()=>ExerciseData.parse('x'.repeat(40001)));
+assert.throws(()=>ExerciseData.parse(JSON.stringify({dialogues:[{...row(),learningTargets:[{phrase:'invented',meaning:'错误'}]}]})));
+assert.equal(ExerciseData.parse('{"dialogues":[]}').dialogues.length,0);
+console.log('Exercise candidate bounds, pointer ambiguity, no guessed line, legacy fallback and patch validation passed.');

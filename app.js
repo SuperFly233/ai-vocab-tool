@@ -184,12 +184,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.17',
+  version:'0.43.18',
   releaseDate:'2026-10-27',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.18',date:'2026-10-29',title:'运动采集与对话定位',items:['大字运动采集：截图先保存，后台最多两项分析，清晰单句自动填写；Backlog点选一句即可继续。','重点一键查询，手输多词原样提交；刷新不自动重复请求，人工修改和账号隔离继续保护。','本版为网页采集；静态标注与Bridge快捷截图分阶段交付。']},
   {version:'0.43.17',date:'2026-10-28',title:'简化裁剪分析',items:['不再勾选或选择范围：一次分析同时提供完整画面、字幕和主体建议；移除常驻说明，只保留进度及必要反馈。','首次模型确认、手动预览、停止分析和原件保护不变。']},
   {version:'0.43.16',date:'2026-10-28',title:'保留完整画面的裁剪建议',items:['AI裁剪默认优先完整游戏／视频画面，只去外围黑边、浏览器栏与直播装饰栏，保留字幕及游戏内界面。','字幕和主体区域仍可单独选择；建议先预览、手动调整，确认生成副本，不覆盖原件。']},
   {version:'0.43.15',date:'2026-10-28',title:'场景分类建议与同步保护',items:['场景检查与整理提供同来源记录、名称一致的收藏夹建议，明确采用后才保存，支持原有保护与撤销。','异常接口响应不再当成同步成功，本机待同步记录继续保留。','语境记忆通过隔离测试，但云端尚未开放；原回顾不变。']},
