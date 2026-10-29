@@ -146,12 +146,13 @@
  }
  async function open({navigate=true,review=false,newSession=false}={}){
   await SceneAITasks.ready;if(navigate&&activeView!=='exercise'){returnView=activeView;showView('exercise');return routeTask}
-  sessionOwner=owner();node=document.querySelector('#view-exercise');if(!node)return;
+  const account=owner();sessionOwner=account;node=document.querySelector('#view-exercise');if(!node)return;
   if(summaryMode&&!newSession){await render();return}
-  enabled=!review;summaryMode=false;
-  const previous=await read(sessionOwner);if(previous.session?.finishedAt&&!review&&!newSession){enabled=false;summaryMode=true;await render();return}
-  await change(sessionOwner,data=>{if(newSession||!data.session)data.session={id:crypto.randomUUID(),startedAt:new Date().toISOString()}});
-  const data=await read(sessionOwner);if(sessionOwner!==owner()||activeView!=='exercise')return;
+  enabled=false;summaryMode=false;
+  const previous=await read(account);if(account!==owner()||activeView!=='exercise')return;if(previous.session?.finishedAt&&!review&&!newSession){enabled=false;summaryMode=true;await render();return}
+  await change(account,data=>{if(newSession||!data.session)data.session={id:crypto.randomUUID(),startedAt:new Date().toISOString()}});
+  const data=await read(account);if(account!==owner()||activeView!=='exercise')return;
+  enabled=!review;
   node.innerHTML=`<header class="exercise-page-head"><h1>${icon('run')}运动采集</h1><div><button class="plain-btn" data-ex-back>返回</button><button class="plain-btn" data-ex-end>${enabled?'结束':'采集小结'}</button></div></header><div class="exercise-body"><header class="exercise-toolbar">${enabled?`<label class="plain-btn">${icon('image-plus')}添加截图<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden data-ex-files></label>`:'<button class="plain-btn" data-ex-continue>继续采集</button>'}<p>粘贴截图，自动保存；点词即可查询</p><details><summary>偏好</summary><label><input type="checkbox" data-ex-manual>每次手选句子</label><button class="plain-btn" data-ex-profile>模型配置</button></details></header><div class="exercise-columns"><nav data-ex-list aria-label="最近截图"></nav><section data-ex-detail></section></div><form class="exercise-query"><textarea class="content-editor" rows="1" data-ex-query aria-label="输入要查的词组，每行一个" placeholder="老师提到的词，输入后回车"></textarea><button class="plain-btn primary-btn" data-ex-submit aria-label="查询输入的词组">${icon('search')}查词</button></form><p data-ex-status role="status"></p></div>`;
   const body=node.querySelector('.exercise-body');
   const filePicker=body.querySelector('[data-ex-files]');if(filePicker)filePicker.onchange=e=>{receive(e.target.files);e.target.value=''};

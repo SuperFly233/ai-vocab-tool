@@ -13,6 +13,7 @@
 
 - Generated and inspected exercise-page-reference.png before the independent-page change; annotation layout uses the inspected third view of exercise-capture-reference.png. No generated data, extra navigation or backgrounds copied.
 - Five widths320/390/768/1024/1440 x light/dark: independent route, runner, large controls, background2-slot execution, Backlog selection, Enter, refresh, input retention and complete ending summary passed.
+- Additional lifecycle test confirms an ended summary survives direct-route refresh, review does not restart intake, and explicit Continue persists a new session identity before accepting screenshots. An async account switch during page loading cannot initialize another account's capture pool.
 - Ten annotation viewport/theme cases: all8 tools, native text, Undo/Redo, reset-crop independence, saved derivative/original, privacy refs and reopened parameters passed. Pixel assertion verifies AI crop reads the redacted area instead of the raw original.
 - Strict bounded annotation schema and malformed payload tests pass, including legacy-missing versus explicit-clear roundtrip. Original scene save-failure/manual-edit/account guards pass.
 - Actual pinned WASM synthetic video96x60/1.2s retained audio; synthetic GIF retained6 frames. Component consent/checksum/cancel/video preview and single-frame crop pass. Old motion test was corrected to the already-shipped no-checkbox Analyze authorization.

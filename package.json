@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "check:annotations": "node scripts/check-annotation-data.cjs && node scripts/check-annotations.cjs",
-    "check:exercise": "node scripts/check-exercise-data.cjs && node scripts/check-exercise-capture.cjs && node scripts/check-exercise-safety.cjs",
+    "check:exercise": "node scripts/check-exercise-data.cjs && node scripts/check-exercise-capture.cjs && node scripts/check-exercise-safety.cjs && node scripts/check-exercise-summary.cjs",
     "check:api-response": "node --check api-response.js && node scripts/check-api-response.cjs",
     "check:memory-service": "node scripts/check-memory-scheduler.cjs && node scripts/check-memory-service.cjs && node scripts/check-memory-api.cjs",
     "check:memory-workspace": "node scripts/check-memory-workspace.cjs",
