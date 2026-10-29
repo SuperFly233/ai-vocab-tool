@@ -1,11 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=require('./browser-test-server.cjs').createServer();
 (async()=>{let browser;try{
- await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=process.env.QA_ORIGIN||`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_PATH});fs.mkdirSync('tmp/dialog-qa/capture-v038',{recursive:true});
- for(const width of [320,390,768,1024,1440])for(const theme of ['light','dark']){
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=process.env.QA_ORIGIN||`http://127.0.0.1:${server.address().port}`,proxyURL=process.env.QA_USE_PROXY&&(process.env.HTTPS_PROXY||process.env.HTTP_PROXY),proxy=proxyURL?new URL(proxyURL):null;browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_PATH,...(proxy?{proxy:{server:proxy.origin,username:decodeURIComponent(proxy.username),password:decodeURIComponent(proxy.password)}}:{})});fs.mkdirSync('tmp/dialog-qa/capture-v038',{recursive:true});
+ for(const width of process.env.QA_WIDTH?[+process.env.QA_WIDTH]:[320,390,768,1024,1440])for(const theme of process.env.QA_THEME?[process.env.QA_THEME]:['light','dark']){
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(t=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');localStorage.setItem('ai_vocab_tool_theme',t)},theme);await page.route('https://**/*',r=>new URL(r.request().url()).hostname===new URL(base).hostname?r.continue():r.abort());
-  await page.goto(base+'/scenes');await page.waitForFunction(()=>typeof CaptureUI!=='undefined');
+  await page.goto(base+'/scenes',{waitUntil:'domcontentloaded',timeout:60000});await page.waitForFunction(()=>typeof CaptureUI!=='undefined');
   await page.evaluate(async()=>{await appReady;await cloudInitPromise;SceneUI.syncPending=()=>{};syncAllToCloud=async()=>true;await CaptureUI.open()});
   await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.capture-dialog'));
   await page.evaluate(()=>CaptureUI.open());await page.waitForSelector('.capture-dialog');
