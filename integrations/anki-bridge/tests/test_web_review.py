@@ -47,6 +47,7 @@ class WebReviewTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.cloud = ReviewCloud()
         self.state = State(self.temp.name, cloud=self.cloud)
+        self.state.set_receiving(True)
         self.anki = FakeAnki()
         self.state.anki = lambda: self.anki
         self.state.bind_account()

@@ -21,28 +21,27 @@ class ConnectorTray:
             pystray.MenuItem('检查连接', self.check),
             pystray.MenuItem('更新与连接指南', lambda: webbrowser.open(settings_url + '&update=1')),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem(lambda _: '恢复接单' if state.paused.is_set() else '暂停接单', self.pause),
+            pystray.MenuItem(lambda _: '开始连接（10分钟）' if state.paused.is_set() else '停止连接', self.pause),
             pystray.MenuItem('退出', self.exit)))
 
     def status(self):
         if self.state.closed.is_set(): return '正在退出'
-        if self.state.paused.is_set(): return '暂停接单'
         if self.state.active: return '任务处理中'
+        if self.state.paused.is_set(): return '未连接云端'
         if self.state.worker_error: return '连接待检查'
         checks = self.state.latest_diagnostics
         if time.monotonic() - self.state.diagnostics_checked > 120: return '需重新检查'
         return '基础制卡连接正常' if all(checks.get(key, {}).get('ok') for key in ('cloud', 'anki')) else '连接待检查'
 
     def exit(self):
-        self.state.paused.set()
+        self.state.set_receiving(False)
         if self.state.active:
             webbrowser.open(self.settings_url)
         else:
             self.state.closed.set()
 
     def pause(self):
-        if self.state.paused.is_set(): self.state.paused.clear()
-        else: self.state.paused.set()
+        self.state.set_receiving(self.state.paused.is_set())
         self.icon.update_menu()
 
     def check(self):

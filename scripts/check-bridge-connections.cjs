@@ -22,6 +22,6 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=requi
   assert.ok(await dialog.evaluate(n=>n.scrollWidth<=n.clientWidth));
   await page.screenshot({path:path.join(screenshots,`connections-${width}-${theme}.png`)});
   await page.locator('[data-help-check-device]').click();const diagnostic=page.locator('[data-help-diagnostic]');await diagnostic.getByText(/需重新检查/).waitFor();assert.match(await diagnostic.innerText(),/可选/);
-  await page.keyboard.press('Escape');await page.keyboard.press('Escape');assert.equal(await page.locator('.anki-dialog').count(),0);assert.deepEqual(errors,[]);await context.close();console.log(`Connections ${width} ${theme}: release guide, actual-device version, optional sources, stale diagnostic and nested dismissal passed.`);
+  await page.keyboard.press('Escape');await page.keyboard.press('Escape');await page.waitForFunction(()=>document.querySelectorAll('.anki-dialog').length===0);assert.equal(await page.locator('.anki-dialog').count(),0);assert.deepEqual(errors,[]);await context.close();console.log(`Connections ${width} ${theme}: release guide, actual-device version, optional sources, stale diagnostic and nested dismissal passed.`);
  }
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}})().catch(e=>{console.error(e);process.exitCode=1});

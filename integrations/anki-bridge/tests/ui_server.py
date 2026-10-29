@@ -12,6 +12,7 @@ temp = tempfile.TemporaryDirectory()
 cloud = FakeCloud()
 cloud.release = lambda: json.loads((Path(__file__).resolve().parents[3] / 'bridge-release.json').read_text('utf-8'))
 state = State(Path(temp.name), cloud=cloud)
+state.bind_account()
 anki = FakeAnki()
 state.anki = lambda: anki
 state.fushi = type('FushiFixture', (), {

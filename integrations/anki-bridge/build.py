@@ -62,6 +62,7 @@ finally:
     report['seconds'] = round(time.monotonic() - started, 2)
     (OUT / 'portable-build-result.json').write_text(json.dumps(report, indent=2), 'utf-8')
 shutil.copyfile(ROOT / 'node_modules' / 'lucide' / 'LICENSE', licenses / 'lucide-LICENSE')
+shutil.copyfile(ROOT / 'vendor' / 'tabler' / 'LICENSE', licenses / 'tabler-LICENSE')
 bundle = OUT / NAME
 (bundle/(NAME+'.exe')).replace(bundle/EXECUTABLE)
 shutil.copyfile(HERE / 'README.md', bundle / 'README.md')

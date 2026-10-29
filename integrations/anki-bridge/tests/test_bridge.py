@@ -233,6 +233,7 @@ class Tests(unittest.TestCase):
 
     def test_loopback_auth_and_no_cors(self):
         state = State(Path(self.temp.name) / 'state', cloud=FakeCloud())
+        state.bind_account()
         app = create_app(state, 34567, 'secret')
         with TestClient(app, base_url='http://127.0.0.1:34567') as client:
             self.assertEqual(client.post('/api/status', json={}).status_code, 403)

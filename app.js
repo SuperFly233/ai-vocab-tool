@@ -185,12 +185,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.19',
+  version:'0.43.20',
   releaseDate:'2026-10-27',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.43.20',date:'2026-10-29',title:'按需连接与空闲请求治理',items:['取消网页常驻定时云同步，保留修改后保存、返回页面同步和手动操作；空任务与后台任务窗口不再反复查询。','Bridge 0.4.2默认停止接单，明确开启10分钟连接；停止后已领取任务安全完成，不重复领取新任务。','包含运动独立整页、结束小结和八种静态截图标注；保留本机原件与人工修改保护。']},
   {version:'0.43.19',date:'2026-10-29',title:'运动整页与截图标注',items:['运动采集改为独立整页，跑步小人入口、大字操作、简短指引和结束小结；未提交词组与待办完整保留。','素材编辑器加入矩形、椭圆、箭头、序号、文字、聚光灯、马赛克和实色遮挡；图层可拖动排序，支持撤销重做。','原件、标注和副本分开保留；有遮挡时AI与分享使用处理后画面，原件默认留在本机。GIF／视频保持原有编辑，不强行转为静态图。']},
   {version:'0.43.18',date:'2026-10-29',title:'运动采集与对话定位',items:['大字运动采集：截图先保存，后台最多两项分析，清晰单句自动填写；Backlog点选一句即可继续。','重点一键查询，手输多词原样提交；刷新不自动重复请求，人工修改和账号隔离继续保护。','本版为网页采集；静态标注与Bridge快捷截图分阶段交付。']},
   {version:'0.43.17',date:'2026-10-28',title:'简化裁剪分析',items:['不再勾选或选择范围：一次分析同时提供完整画面、字幕和主体建议；移除常驻说明，只保留进度及必要反馈。','首次模型确认、手动预览、停止分析和原件保护不变。']},
@@ -2805,8 +2806,8 @@ function flushQueuedCloudSync(){
 }
 function startCloudAutoSync(){
   if(cloudAutoTimer)clearInterval(cloudAutoTimer);
-  if(!cloudClient||!cloudUser)return;
-  cloudAutoTimer=setInterval(()=>bootstrapCloudSync('merge',false,{probe:true}),15000);
+  cloudAutoTimer=null;
+  // Edits and returning to the app trigger sync; idle tabs must not poll.
 }
 function stopCloudAutoSync(){
   if(cloudAutoTimer)clearInterval(cloudAutoTimer);

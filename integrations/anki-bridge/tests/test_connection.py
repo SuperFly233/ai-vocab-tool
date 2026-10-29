@@ -18,6 +18,7 @@ class ConnectionTests(unittest.TestCase):
     def test_required_checks_optional_sources_and_expiry(self):
         with tempfile.TemporaryDirectory() as directory:
             state = State(Path(directory), cloud=FakeCloud())
+            state.set_receiving(True)
             state.bind_account()
             state.anki = lambda: FakeAnki()
             def unavailable(action):

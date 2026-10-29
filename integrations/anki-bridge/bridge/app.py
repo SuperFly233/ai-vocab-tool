@@ -42,6 +42,8 @@ class State:
         self.worker_error = ''
         self.next_announcement = 0
         self.paused = threading.Event()
+        self.paused.set()
+        self.receiving_until = 0
         self.latest_diagnostics = {}
         self.diagnostics_checked = 0
         self.worker_done = threading.Event()
@@ -66,9 +68,25 @@ class State:
             self.save_config()
         return owner
 
+    def set_receiving(self, enabled):
+        with self.lock:
+            self.receiving_until = time.monotonic() + 600 if enabled else 0
+            if enabled:
+                self.next_announcement = 0
+                self.paused.clear()
+            else:
+                self.paused.set()
+
+    def background_allowed(self):
+        if not self.paused.is_set() and time.monotonic() >= self.receiving_until:
+            self.set_receiving(False)
+        return bool(self.active) or not self.paused.is_set()
+
     def renew(self):
         while not self.closed.wait(5):
             with self.lock:
+                if not self.background_allowed():
+                    continue
                 if self.active and not self.active.get('local'):
                     try:
                         result = self.cloud.call('heartbeat', **self.lease())
@@ -77,6 +95,10 @@ class State:
                     except BridgeError:
                         self.active = None
                 try:
+                    if self.paused.is_set():
+                        if self.active:
+                            self.web_tick()
+                        continue
                     self.bind_account()
                     if time.monotonic() >= self.next_announcement:
                         self.cloud.call('register', deviceId=self.config['deviceId'], name=self.config['name'],bridgeVersion=__version__,payloadVersions=[1,2,3,4])
@@ -401,22 +423,27 @@ def create_app(state, port, token):
                 if action == 'release':
                     return state.cloud.release()
                 if action == 'login':
+                    state.set_receiving(False)
                     state.active = None
                     state.cloud.login(str(body.get('email', '')), str(body.get('password', '')))
                     state.bind_account()
                     return {'ok': True}
                 if action == 'logout':
+                    state.set_receiving(False)
                     state.active = None
                     state.latest_diagnostics = {}
                     state.diagnostics_checked = 0
                     state.cloud.logout()
+                    state.config.pop('owner', None)
+                    state.save_config()
                     return {'ok': True}
                 if action == 'status':
-                    owner = state.bind_account()
+                    owner = state.config.get('owner')
+                    if not owner:
+                        raise BridgeError('请在本地程序独立登录 Lexi 账号。')
                     return {'version': __version__, 'owner': owner, 'active': bool(state.active), 'paused':state.paused.is_set(), 'workerError': '连接待检查' if state.worker_error else '', 'config': {k: state.config[k] for k in ['deviceId', 'name', 'port', 'deck']}}
                 if action == 'pause':
-                    if body.get('paused') is True:state.paused.set()
-                    else:state.paused.clear()
+                    state.set_receiving(body.get('paused') is not True)
                     return {'paused':state.paused.is_set()}
                 if action == 'diagnostics-export':
                     return {'version':__version__,'payloadVersions':[1,2,3,4],'paused':state.paused.is_set(),'checkedAt':state.latest_diagnostics.get('checkedAt'),'checks':{k:{'ok':v.get('ok') is True} for k,v in state.latest_diagnostics.items() if isinstance(v,dict)}}

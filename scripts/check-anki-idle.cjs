@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),{chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright'),server=require('./browser-test-server.cjs').createServer();
+(async()=>{let browser;try{
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({headless:true});const page=await browser.newPage();
+ await page.addInitScript(()=>localStorage.setItem('ai_vocab_tool_offline_mode','1'));await page.route('https://**/*',r=>r.abort());
+ let count=0,state='empty';await page.route('**/api/anki-jobs',route=>{const {action}=route.request().postDataJSON();if(action==='list')count++;const data=action!=='list'?{}:state==='empty'?[]:[{id:'fixture',status:state,payload:{confirmationMode:'web',cards:[{title:'synthetic'}]}}];return route.fulfill({json:{enabled:true,data}})});
+ await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.evaluate(async()=>{await appReady;await cloudInitPromise;cloudUser={id:'synthetic'};cloudAccessToken=async()=>'synthetic';await AnkiBridge.manage()});await page.clock.install();
+ assert.equal(count,1);await page.clock.runFor(90000);assert.equal(count,1,'Empty manager does not poll');
+ state='awaiting_device';await page.locator('[data-refresh-anki]').click();await page.locator('.anki-task-row').waitFor();const active=count;const next=page.waitForResponse(r=>r.url().endsWith('/api/anki-jobs')&&r.request().postDataJSON().action==='list');await page.clock.runFor(3100);await next;assert.ok(count>active,'Explicit active manager polls');
+ await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});const hidden=count;await page.clock.runFor(90000);assert.equal(count,hidden,'Hidden manager makes no requests');
+ state='complete';await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'))});await page.waitForFunction(()=>document.querySelector('.anki-task-row')?.textContent.includes('已写入 Anki'));const done=count;await page.clock.runFor(90000);assert.equal(count,done,'Terminal manager stops');
+ await page.locator('.anki-dialog header button').click();await page.clock.runFor(90000);assert.equal(count,done,'Closed manager stops');console.log('Browser virtual clock: empty/hidden/terminal/closed task manager zero polling; explicit active work still updates.');
+ }finally{await browser?.close();server.close()}})().catch(e=>{console.error(e);process.exitCode=1});
