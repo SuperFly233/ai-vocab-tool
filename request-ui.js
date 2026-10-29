@@ -40,5 +40,5 @@
   dot.onclick=()=>{paint();panel.showPopover();const rect=account.getBoundingClientRect();panel.style.left=`${Math.max(12,Math.min(innerWidth-panel.offsetWidth-12,rect.right-panel.offsetWidth))}px`;panel.style.top=`${Math.min(innerHeight-panel.offsetHeight-12,rect.bottom+10)}px`};
   root.NetworkUI={cloudStatus(message,type){cloudMessage=message;cloudBad=type==='bad';paint()},check};
   addEventListener('online',check);addEventListener('offline',paint);document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
-  setInterval(()=>{if(!document.hidden)check()},60000);check();
+  check();
 })(globalThis);

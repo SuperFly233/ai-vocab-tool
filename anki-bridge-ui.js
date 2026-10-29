@@ -10,7 +10,7 @@
   const value=await ApiResponse.read(result,'Anki');if(cloudUser?.id!==account)throw new Error('账号已切换，请重新打开。');if(!result.ok)throw new Error(value.error||'Anki 请求未完成。');return value.data;
  }
  function dialog(title,{closeHint=true}={}){const node=document.createElement('dialog');node.className='scene-study-dialog anki-dialog';node.innerHTML=`<header><h2>${esc(title)}</h2><button class="icon-btn" aria-label="关闭" ${closeHint?'data-tip="关闭"':''}>${icon('x')}</button></header><div class="scene-dialog-body"></div><p class="scene-dialog-status" role="status"></p>`;node.querySelector('header button').onclick=()=>node.close();node.onclose=()=>node.remove();document.body.append(node);node.showModal();return node}
- function error(node,value){const status=node.querySelector('[role=status]');if(status)status.textContent=value}
+ function error(node,value){const status=node.querySelector(':scope > .scene-dialog-status');if(status)status.textContent=value}
  function confirmIntent(message,title,label='确认'){
   return new Promise(resolve=>{const node=dialog(title),body=node.querySelector('.scene-dialog-body');body.innerHTML=`<p></p><footer><button class="plain-btn" data-cancel-intent>取消</button><button class="plain-btn primary-btn" data-accept-intent>${esc(label)}</button></footer>`;body.querySelector('p').textContent=message;body.querySelector('[data-cancel-intent]').onclick=()=>node.close();body.querySelector('[data-accept-intent]').onclick=()=>node.close('confirm');node.addEventListener('close',()=>resolve(node.returnValue==='confirm'),{once:true})});
  }
@@ -60,9 +60,9 @@
   const node=dialog('Anki 制卡任务'),body=node.querySelector('.scene-dialog-body'),account=cloudUser?.id;
   body.innerHTML=`<div class="anki-task-toolbar"><span data-task-status role="status">正在获取任务…</span><button class="icon-btn" data-refresh-anki aria-label="刷新任务" data-tip="刷新任务">${icon('refresh-cw')}</button></div><div data-task-list></div><section data-receipts aria-live="polite"></section>`;
   const list=body.querySelector('[data-task-list]'),receipts=body.querySelector('[data-receipts]'),status=body.querySelector('[data-task-status]');
-  let jobs=[],timer=null,pending=false,failures=0,selected='',receiptKey='',controller=null;
+  let jobs=[],timer=null,pending=false,failures=0,selected='',receiptKey='',controller=null,pollUntil=Date.now()+600000;
   function available(){if(node.isConnected&&cloudUser?.id!==account){node.close();return false}return node.isConnected&&node.open&&!document.hidden&&(!root.UIOverlays?.topDialog()||root.UIOverlays.topDialog()===node)}
-  function schedule(){clearTimeout(timer);if(node.isConnected)timer=setTimeout(()=>refresh(),Math.min(30000,3000*2**failures))}
+  function schedule(){clearTimeout(timer);if(available()&&Date.now()<pollUntil&&failures<4&&jobs.some(job=>['awaiting_device','awaiting_confirmation','running'].includes(job.status)))timer=setTimeout(()=>refresh(),Math.min(30000,3000*2**failures))}
   function rowHTML(job){
    const terminal=['complete','partial','error','cancelled'].includes(job.status),web=job.payload.confirmationMode==='web';
    return `<div><strong>${esc(job.payload.cards[0]?.title||'场景制卡')}</strong><p>${job.payload.cards.length} 张 · ${esc(job.cancel_requested&&job.status==='running'?'正在停止，已完成内容保留':labels[job.status]||job.status)}</p></div><div class="scene-actions">${web&&terminal?`<button class="icon-btn" data-remote-undo="${esc(job.id)}" aria-label="安全撤销本批写入" data-tip="安全撤销本批写入">${icon('rotate-ccw')}</button>`:''}${web&&job.status==='awaiting_confirmation'?`<button class="plain-btn" data-review-job="${esc(job.id)}">${icon('scan-eye')}预览与确认</button>`:''}<button class="icon-btn" data-results="${esc(job.id)}" aria-label="查看逐项回执" data-tip="查看逐项回执" aria-pressed="${selected===job.id}">${icon('list')}</button>${['error','partial','cancelled'].includes(job.status)?`<button class="icon-btn" data-retry="${esc(job.id)}" aria-label="重新排队未完成项" data-tip="重新排队未完成项">${icon('refresh-cw')}</button>`:''}${!['complete','cancelled'].includes(job.status)?`<button class="icon-btn" data-cancel="${esc(job.id)}" aria-label="取消剩余任务" data-tip="取消剩余任务">${icon('x')}</button>`:''}</div>`;
@@ -90,10 +90,10 @@
    if(pending||!available()){schedule();return}
    pending=true;controller=new AbortController();
    try{jobs=await request('list',{}, {signal:controller.signal});if(!available())return;renderJobs();await renderReceipts(controller.signal);failures=0;status.textContent='任务与回执已更新';error(node,'')}
-   catch(e){if(node.isConnected&&!controller.signal.aborted){failures=Math.min(failures+1,4);status.textContent='连接暂不可用，将自动重试';error(node,e.message)}}
+   catch(e){if(node.isConnected&&!controller.signal.aborted){failures=Math.min(failures+1,4);status.textContent=failures<4?'连接暂不可用，将重试':'连接暂不可用，点击刷新重试';error(node,e.message)}}
    finally{pending=false;schedule()}
   }
-  body.querySelector('[data-refresh-anki]').onclick=refresh;
+  body.querySelector('[data-refresh-anki]').onclick=()=>{pollUntil=Date.now()+600000;failures=0;refresh()};
   list.addEventListener('click',async event=>{
    const button=event.target.closest('[data-results],[data-retry],[data-cancel]');if(!button||pending)return;
    if(button.dataset.results){selected=button.dataset.results;receiptKey='';await refresh();return}

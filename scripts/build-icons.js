@@ -2,7 +2,9 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 const iconNames=[
+  'run',
   'arrow-down','arrow-left','arrow-up','arrow-up-right','check','chevron-down','chevron-left','chevron-right','chevrons-up','maximize-2','pencil','scan-eye','crop',
+  'mouse-pointer-2','circle','list-ordered','type','grid-2x2','circle-dot','redo-2',
   'bookmark','bookmark-x','circle-alert','circle-check','circle-help','code-2','copy','download','folder','folder-heart','folder-plus','grip-vertical','info',
   'history','house','list','monitor','moon','plus','quote','refresh-cw','scan-search','scan-text','search','bell','highlighter',
   'cloud','log-out','settings','settings-2','sliders-horizontal','star','sun','table-2','trash-2','unlink','user-round','x','pause','undo-2',
@@ -13,12 +15,13 @@ const toExportName=name=>name.split('-').map(part=>part.charAt(0).toUpperCase()+
 const lucide=await import('lucide');
 const icons={};
 for(const name of iconNames){
+  if(name==='run'){icons[name]=JSON.parse((await readFile(resolve('vendor/tabler/run.json'),'utf8')).replace(/^\uFEFF/,''));continue}
   const definition=lucide[toExportName(name)];
   if(!definition)throw new Error(`Missing Lucide export for ${name}.`);
   icons[name]=definition;
 }
 
-const sourceText=(await Promise.all(['index.html','app.js','scene-ui.js','scene-workspace.js','scene-organization.js','scene-study.js','anki-bridge-ui.js','learning-cards-ui.js','entry-maintenance.js','fushi-workspace.js','experience-ui.js','request-ui.js','ui-consistency.js','input-suggestions.js','learning-help.js','scene-ai.js','scene-ai-tasks.js','source-workspace.js','media-editor.js','highlight-pairs.js','memory-workspace.js','capture-ui.js'].map(file=>readFile(resolve(file),'utf8')))).join('\n');
+const sourceText=(await Promise.all(['index.html','app.js','scene-ui.js','scene-workspace.js','scene-organization.js','scene-study.js','anki-bridge-ui.js','learning-cards-ui.js','entry-maintenance.js','fushi-workspace.js','experience-ui.js','request-ui.js','ui-consistency.js','input-suggestions.js','learning-help.js','scene-ai.js','scene-ai-tasks.js','exercise-capture.js','source-workspace.js','media-editor.js','media-crop-ai.js','media-annotations.js','highlight-pairs.js','memory-workspace.js','capture-ui.js'].map(file=>readFile(resolve(file),'utf8')))).join('\n');
 const usedIcons=new Set([
   ...[...sourceText.matchAll(/data-lucide="([a-z0-9-]+)"/g)].map(match=>match[1]),
   ...[...sourceText.matchAll(/icon\('([a-z0-9-]+)'\)/g)].map(match=>match[1]),
@@ -26,7 +29,7 @@ const usedIcons=new Set([
 const missingIcons=[...usedIcons].filter(name=>!iconNames.includes(name));
 if(missingIcons.length)throw new Error(`Icon subset is missing: ${missingIcons.join(', ')}`);
 
-const generated=`/* Generated from lucide v1.28.0 (ISC). Run npm run build:icons after changing icon usage. */
+const generated=`/* Generated from lucide v1.28.0 (ISC) plus Tabler Run (MIT, vendor/tabler/LICENSE). Run npm run build:icons after changing icon usage. */
 (function attachIcons(root){
   const iconNodes=${JSON.stringify(icons)};
   const namespace='http://www.w3.org/2000/svg';
@@ -90,9 +93,9 @@ if(process.argv.includes('--check')){
     console.error('Icon subset is stale. Run npm run build:icons.');
     process.exitCode=1;
   }else{
-    console.log(`Icon subset check passed: ${iconNames.length} Lucide icons, ${Buffer.byteLength(generated)} bytes.`);
+    console.log(`Icon subset check passed: ${iconNames.length} icons (Lucide + Tabler Run), ${Buffer.byteLength(generated)} bytes.`);
   }
 }else{
   await writeFile(target,generated,'utf8');
-  console.log(`Generated ${iconNames.length} Lucide icons at ${target}.`);
+  console.log(`Generated ${iconNames.length} icons (Lucide + Tabler Run) at ${target}.`);
 }

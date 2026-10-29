@@ -1,0 +1,23 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('app.js','utf8');
+const start=source.slice(source.indexOf('function startCloudAutoSync(){'),source.indexOf('function stopCloudAutoSync(){'));
+let intervals=0,clears=0;
+const context={cloudAutoTimer:12,clearInterval(){clears++},setInterval(){intervals++},cloudClient:{},cloudUser:{},bootstrapCloudSync(){throw Error('Unexpected idle sync')}};
+vm.createContext(context);vm.runInContext(start+'; startCloudAutoSync(); startCloudAutoSync();',context);
+assert.equal(intervals,0);assert.equal(clears,1);assert.equal(context.cloudAutoTimer,null);
+const bridge=fs.readFileSync('anki-bridge-ui.js','utf8');
+const schedule=bridge.slice(bridge.indexOf('  function schedule(){'),bridge.indexOf('  function rowHTML('));
+let timers=0;
+const polling={timer:0,clearTimeout(){},setTimeout(){timers++;return 1},available:()=>true,Date:{now:()=>100},pollUntil:200,failures:0,jobs:[],refresh(){}};
+vm.createContext(polling);
+function check(jobs,visible,failures,until,expected){timers=0;Object.assign(polling,{jobs,available:()=>visible,failures,pollUntil:until});vm.runInContext(schedule+';schedule();',polling);assert.equal(timers,expected)}
+check([],true,0,200,0);
+check([{status:'complete'}],true,0,200,0);
+check([{status:'awaiting_device'}],false,0,200,0);
+check([{status:'awaiting_device'}],true,0,200,1);
+check([{status:'running'}],true,4,200,0);
+check([{status:'running'}],true,0,100,0);
+assert.match(source,/function scheduleCloudSync\(delay=180\)/);
+assert.match(source,/window\.addEventListener\('focus'/);
+assert.doesNotMatch(fs.readFileSync('request-ui.js','utf8'),/setInterval\([^\n]*check\(\)/,'Network indicator must not make recurring idle probes');
+console.log('Idle sync: zero intervals; task polling: empty/terminal/hidden/expired/repeated failure stop, active visible work remains.');
