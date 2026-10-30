@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.43.22 - 2026-10-30
+
+- 修复图片裁剪框贴边时四角手柄被预览遮罩裁掉的问题；保留遮罩，手柄自动内侧避让。
+- 拖动按初始角点和指针位移计算，不因手柄内移而跳动；缩放／窗口变化重新定位。
+- 独立兼容性补丁，不包含仍在真实批次验收中的0.44功能，不改模型或Bridge。
+
 Release classification correction: historical0.43.x mixed features and patches. Published identities below remain unchanged; candidate reports do not imply production release. Future numbering follows [version policy](docs/versioning.md), independently of old roadmap labels.
 
 ## v0.43.21 - 2026-10-30

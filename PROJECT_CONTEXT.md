@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-30
 
+- v0.43.22 narrow compatible hotfix: crop handles clamped within clipped image, pointer-delta corner resize, ResizeObserver reposition/cleanup.10 width-theme edge/hit/drag/scale cases and10 media save/restore cases passed. Cherry-picked only media-editor.js/test/evidence from0.44 candidate; no candidate exercise/footer/model logic in production. Release evidence docs/reports/v04322-crop-handles.md.0.44 remains independently blocked by real batch429; patch classification follows version policy.
+
 - Version policy corrected after user feedback: docs/versioning.md and AGENTS.md now distinguish feature/workflow minor releases from compatible patch fixes. Historical0.43.x identities stay immutable;0.43.21 should have been a minor workflow release. Next feature release0.44.0, not another default0.43 patch. Old FSRS/storage roadmap numbers are superseded planning labels, not reserved numbers or completed milestones. No runtime renumbering or deployment for this documentation correction.
 
 - v0.43.21 shared capture parity: mergea8263a9 pushed, preview54dfab9b/capture-v038-preview passed198 hashes and sync/Anki/source401; capture data/10 UI cases/synthetic vision/shared390light redesign/idle and deployed390light capture passed. Main restored84icons/194files, no preview-only intake promoted to production. Evidence in v04321 report.
