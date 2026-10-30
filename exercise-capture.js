@@ -2,9 +2,10 @@
  'use strict';
  const owner=()=>cloudUser?.id||'local',esc=v=>escapeHTML(String(v??''));
  const key=account=>'exercise-capture:'+account;
- let enabled=false,sessionOwner='',node=null,current='',revision=0,tail=Promise.resolve(),applying=false,settleAgain=false,querying=false,renderTimer=0,choosing=null,summaryMode=false,returnView='home',routeTask=null;
+ let enabled=false,sessionOwner='',node=null,current='',revision=0,tail=Promise.resolve(),applying=false,settleAgain=false,querying=false,renderTimer=0,choosing=null,summaryMode=false,returnView='home',routeTask=null,preferences=null;
  const visible=()=>node?.isConnected&&activeView==='exercise';
  const busyImports=new Set(),urls=new Set();
+ const thumbnails=new Map();let thumbnailObserver=null,thumbnailEpoch=0,thumbnailTail=Promise.resolve();
  const labels={saved:'已收下',queued:'等待分析',running:'正在分析',check:'分析完成',reviewed:'已保存',interrupted:'待恢复',error:'分析失败',cancelled:'已停止'};
  async function read(account=owner()){return await SceneData.getDraft(key(account))||{version:1,manual:false,items:[]}}
  async function change(account,run){
@@ -57,10 +58,10 @@
      const data=await read(account);if(data.items.length>=100)throw Error('采集池已有100张，请先从更多操作移除已完成任务；剩余文件未接收，请保留原文件。');
      const inspected=await SceneData.inspectFile(file);
      if(!['image/png','image/jpeg','image/webp'].includes(inspected.ref.mime))throw Error('运动采集支持 PNG、JPEG、WebP；动画和视频请使用原素材编辑入口。');
-     const bitmap=await createImageBitmap(inspected.blob);try{if(bitmap.width*bitmap.height>24000000)throw Error('图片超过2400万像素，请先缩小。')}finally{bitmap.close()}
+     const bitmap=await createImageBitmap(inspected.blob),dimensions={width:bitmap.width,height:bitmap.height};try{if(bitmap.width*bitmap.height>24000000)throw Error('图片超过2400万像素，请先缩小。')}finally{bitmap.close()}
      const ref=await SceneData.putFile(file);if(account!==owner())break;
      const id=crypto.randomUUID(),now=new Date().toISOString(),scene=SceneData.normalizeScene({id,groupId:id,title:'截图 '+new Date().toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}),media:[ref],createdAt:now,updatedAt:now});
-     const item={id,scene,createdAt:now,sessionId:data.session?.id||'',jobId:'',error:''};
+     const item={id,scene,dimensions,createdAt:now,sessionId:data.session?.id||'',jobId:'',error:''};
      await change(account,pool=>{if(pool.items.length>=100)throw Error('采集池已满，未接收此文件。');pool.items.unshift(item)});
      current=id;
      try{saveRaw(item,account)}catch(error){await change(account,pool=>{pool.items.find(v=>v.id===id).error=error.message});schedule();continue}
@@ -96,24 +97,53 @@
  }
  function schedule(){clearTimeout(renderTimer);renderTimer=setTimeout(()=>render().catch(error=>status(error.message)),60)}
  function clearURLs(){for(const url of urls)URL.revokeObjectURL(url);urls.clear()}
+ function clearThumbnails(){thumbnailEpoch++;thumbnailObserver?.disconnect();thumbnailObserver=null;for(const url of thumbnails.values())URL.revokeObjectURL(url);thumbnails.clear()}
+ function observeThumbnail(image,account){
+  if(!thumbnailObserver)thumbnailObserver=new IntersectionObserver((entries,observer)=>{for(const entry of entries){if(!entry.isIntersecting)continue;const image=entry.target;observer.unobserve(image);const epoch=thumbnailEpoch;thumbnailTail=thumbnailTail.catch(()=>{}).then(async()=>{if(!visible()||!image.isConnected||account!==owner()||epoch!==thumbnailEpoch)return;const id=image.dataset.exThumb;if(thumbnails.has(id)){image.src=thumbnails.get(id);return}const record=await SceneData.getFile(id);if(!record?.blob)return;const bitmap=await createImageBitmap(record.blob,{resizeWidth:96,resizeQuality:'low'});try{const canvas=document.createElement('canvas');canvas.width=96;canvas.height=64;const context=canvas.getContext('2d'),scale=Math.min(96/bitmap.width,64/bitmap.height);context.drawImage(bitmap,(96-bitmap.width*scale)/2,(64-bitmap.height*scale)/2,bitmap.width*scale,bitmap.height*scale);const blob=await new Promise(r=>canvas.toBlob(r,'image/webp',.7));if(!blob||account!==owner()||epoch!==thumbnailEpoch)return;const url=URL.createObjectURL(blob);thumbnails.set(id,url);if(image.isConnected)image.src=url}finally{bitmap.close()}}).catch(()=>{image.hidden=true})}},{root:node.querySelector('[data-ex-list]')});
+  thumbnailObserver.observe(image);
+ }
+ function taskCounts(data,jobs){const result={running:0,queued:0,choose:0,failed:0,waiting:0};for(const item of data.items){const job=jobs.find(v=>v.id===item.jobId);if(item.error||job?.captureError||['error','interrupted','cancelled'].includes(job?.state))result.failed++;else if(job?.state==='running')result.running++;else if(job?.state==='queued')result.queued++;else if(job?.state==='check'&&!job.captureSelection&&!job.result?.selectedDialogueId)result.choose++;else if(!job)result.waiting++}return result}
+ async function openPreferences(trigger){
+  if(preferences?.isConnected)return;const account=sessionOwner,data=await read(account);if(account!==owner()||!visible())return;
+  const dialog=AnkiBridge.dialog('采集偏好');preferences=dialog;dialog.classList.add('exercise-preferences');
+  dialog.querySelector('.scene-dialog-body').innerHTML=`<label class="scene-feature-switch"><span>每次手选句子</span><input type="checkbox" data-ex-manual ${data.manual?'checked':''}></label><button class="plain-btn" data-ex-profile>${icon('sliders-horizontal')}模型配置</button>`;
+  dialog.querySelector('[data-ex-manual]').onchange=async event=>{try{await change(account,pool=>{pool.manual=event.target.checked})}catch(error){event.target.checked=!event.target.checked;dialog.querySelector('.scene-dialog-status').textContent=error.message}};
+  dialog.querySelector('[data-ex-profile]').onclick=()=>{dialog.close();SceneAI.chooseProfile(true)};
+  dialog.addEventListener('close',()=>{if(preferences===dialog)preferences=null;if(trigger.isConnected&&visible())trigger.focus({preventScroll:true})},{once:true});
+  dialog.querySelector('header button').focus({preventScroll:true});
+ }
  async function render(){
   if(!visible())return;const account=sessionOwner,stamp=++revision,data=await read(account),jobs=await SceneAITasks.list(account);
   if(!visible()||account!==owner()||stamp!==revision)return;
   if(summaryMode){renderSummary(data,jobs);return}
   if(!data.items.some(v=>v.id===current))current=data.items[0]?.id||'';
   const list=node.querySelector('[data-ex-list]'),detail=node.querySelector('[data-ex-detail]');
-  list.innerHTML=data.items.map((item,index)=>{const job=jobs.find(v=>v.id===item.jobId),state=item.error?'保存／分析待重试':job?.captureError?'内容变化':job?.state==='check'&&!job.result?.selectedDialogueId?'请选择一句':labels[job?.state||'saved']||'待处理';return `<button type="button" class="exercise-task ${current===item.id?'active':''}" data-ex-item="${item.id}" aria-pressed="${current===item.id}"><strong>${data.items.length-index}</strong><span>${esc(state)}${job&&['running','queued'].includes(job.state)?'<span class="lexi-progress-spinner" aria-hidden="true"></span>':''}</span></button>`}).join('');
-  list.querySelectorAll('[data-ex-item]').forEach(button=>button.onclick=()=>{current=button.dataset.exItem;schedule()});
-  node.querySelector('[data-ex-manual]').checked=data.manual;
-  if(detail.dataset.item===current&&detail.contains(document.activeElement)&&document.activeElement.matches('input,textarea'))return;
-  clearURLs();const item=data.items.find(v=>v.id===current);detail.dataset.item=current;
-  if(!item){detail.innerHTML='<p class="exercise-empty">粘贴截图，或选择图片</p>';return}
+  if(!list||!detail)return;
+  const total=taskCounts(data,jobs);node.dataset.empty=String(!data.items.length);list.hidden=!data.items.length;
+  node.querySelector('[data-ex-add]').hidden=!data.items.length&&enabled;
+  node.querySelector('[data-ex-count]').textContent=data.items.length?`已收下 ${data.items.length} 张`:'准备接收';
+  node.querySelector('[data-ex-progress]').textContent=[total.running?`${total.running} 分析中`:'',total.queued?`${total.queued} 等待分析`:'',total.choose?`${total.choose} 待选句`:'',total.failed?`${total.failed} 需处理`:''].filter(Boolean).join(' · ');
+  const previous=new Map([...list.children].map(row=>[row.dataset.exItem,row]));
+  for(const [index,item] of data.items.entries()){
+   const job=jobs.find(v=>v.id===item.jobId),state=item.error?'保存待重试':job?.captureError?'内容变化':job?.state==='check'&&!job.captureSelection&&!job.result?.selectedDialogueId?'待选句':labels[job?.state||'saved']||'待处理';
+   const row=previous.get(item.id)||document.createElement('button');previous.delete(item.id);row.type='button';row.className='exercise-task'+(current===item.id?' active':'');row.dataset.exItem=item.id;row.setAttribute('aria-pressed',String(current===item.id));
+   const html=`<img data-ex-thumb="${item.scene.media[0].id}" alt=""><strong>${data.items.length-index}</strong><span>${esc(state)}${job&&['running','queued'].includes(job.state)?'<span class="lexi-progress-spinner" aria-hidden="true"></span>':''}</span>`;if(row._html!==html){row.innerHTML=html;row._html=html;observeThumbnail(row.querySelector('img'),account)}
+   row.onclick=()=>{current=item.id;schedule()};if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
+  }for(const row of previous.values())row.remove();
+  const item=data.items.find(v=>v.id===current);node.querySelector('[data-ex-association]').textContent=item?`关联第 ${data.items.length-data.items.indexOf(item)} 张截图`:'普通查词';
+  if(!item){if(detail.dataset.item!=='empty'){clearURLs();detail.dataset.item='empty';detail.innerHTML=`<div class="exercise-empty"><span class="exercise-empty-icon">${icon('image-plus')}</span><h2>${enabled?'粘贴截图':'本次暂无截图'}</h2><button class="plain-btn primary-btn" data-ex-pick ${enabled?'':'hidden'}>${icon('image-plus')}选择图片</button></div>`;detail.querySelector('[data-ex-pick]').onclick=()=>node.querySelector('[data-ex-files]').click()}return}
   const job=jobs.find(v=>v.id===item.jobId),scene=savedScene(item.scene.groupId)||item.scene,rows=job?.result?.dialogues||[],selected=job?.captureSelection||job?.result?.selectedDialogueId;
-  detail.innerHTML=`<div class="exercise-picture"><img alt="当前采集截图"><div data-ex-boxes></div></div><div class="exercise-lines">${rows.length>1||rows.length===1&&!selected?rows.map((row,i)=>`<button class="exercise-line ${selected===row.id?'active':''}" data-ex-line="${row.id}"><b>${i+1}</b><span>${esc(row.quote)}</span></button>`).join(''):''}</div><p class="exercise-quote">${esc(scene.quote||(!rows.length?'截图已保存，分析后显示句子':'点击要学习的一句'))}</p>${scene.translation?`<p class="exercise-translation">${esc(scene.translation)}</p>`:''}<div class="exercise-targets">${(scene.learningTargets||[]).map(v=>`<button class="exercise-target" data-ex-term="${esc(v.phrase)}"><strong>${esc(v.phrase)}</strong><span>${esc(v.meaning)}</span></button>`).join('')}</div><p class="exercise-error" role="status">${esc(item.error||job?.captureError||job?.error||'')}</p><details class="exercise-extra"><summary>更多操作</summary><div><button class="plain-btn" data-ex-analyze>${job?.state==='interrupted'?'确认恢复分析（可能重复计费）':'分析此图'}</button><button class="plain-btn" data-ex-edit>编辑场景</button><button class="plain-btn" data-ex-pool>AI 任务与建议</button><button class="plain-btn danger-icon" data-ex-remove>移出采集池</button></div>${scene.sourceTitle?`<p>来源线索：${esc(scene.sourceTitle)} · ${scene.aiAnalysis?.sourceBasis==='visual'?'画面推测':'未验证'}</p>`:''}</details>`;
-  const reading=document.createElement('div');reading.className='exercise-reading';while(detail.children.length>1)reading.append(detail.children[1]);detail.append(reading);
-  if(selected&&rows.length>1){const list=detail.querySelector('.exercise-lines'),choices=document.createElement('details'),summary=document.createElement('summary');choices.className='exercise-lines';summary.textContent='换一句';choices.append(summary,...list.children);list.replaceWith(choices)}
-  const record=await SceneData.getFile(item.scene.media[0].id);if(!visible()||stamp!==revision)return;
-  if(record?.blob){const url=URL.createObjectURL(record.blob);urls.add(url);const img=detail.querySelector('img');img.onload=()=>img.parentElement.style.setProperty('--ex-ratio',img.naturalWidth/img.naturalHeight);img.src=url}
+  const contentKey=JSON.stringify([scene,rows,selected,item.error,job?.state,job?.captureError,job?.error]);if(detail.dataset.item===current&&detail._contentKey===contentKey)return;
+  const selection=getSelection();if(detail.dataset.item===current&&(detail.contains(document.activeElement)&&document.activeElement.matches('input,textarea')||selection&&!selection.isCollapsed&&detail.contains(selection.anchorNode))){detail.dataset.deferred='true';return}
+  const focused=detail.contains(document.activeElement)?[...document.activeElement.attributes].find(a=>a.name.startsWith('data-ex-')):null;
+  const same=detail.dataset.item===current,top=detail.getBoundingClientRect().top,extraOpen=detail.querySelector('.exercise-extra')?.open,linesOpen=detail.querySelector('details.exercise-lines')?.open;
+  if(!same){clearURLs();detail.innerHTML='<div class="exercise-picture"><img alt="当前采集截图"><div data-ex-boxes></div></div><div class="exercise-reading"></div>'}
+  detail.dataset.item=current;detail._contentKey=contentKey;delete detail.dataset.deferred;
+  const reading=detail.querySelector('.exercise-reading');reading.innerHTML=`<div class="exercise-lines">${rows.length>1||rows.length===1&&!selected?rows.map((row,i)=>`<button class="exercise-line ${selected===row.id?'active':''}" data-ex-line="${row.id}"><b>${i+1}</b><span>${esc(row.quote)}</span></button>`).join(''):''}</div><span class="exercise-section-label">${scene.quote?'原句':'当前截图'}</span><p class="exercise-quote">${esc(scene.quote||(rows.length?'请选择要学习的一句':job?.state==='running'?'截图已收下，正在分析':job?.state==='queued'?'截图已收下，等待分析':job?.state==='error'?'截图已收下，分析未完成':job?.state==='interrupted'?'截图已收下，等待恢复':'截图已收下，尚未分析'))}</p>${scene.translation?`<p class="exercise-translation">${esc(scene.translation)}</p>`:''}<div class="exercise-targets">${(scene.learningTargets||[]).map(v=>`<button class="exercise-target" data-ex-term="${esc(v.phrase)}"><strong>${esc(v.phrase)}</strong><span>${esc(v.meaning)}</span>${icon('search')}</button>`).join('')}</div><p class="exercise-error" role="status">${esc(item.error||job?.captureError||job?.error||'')}</p><details class="exercise-extra"><summary data-ex-extra-toggle>更多操作</summary><div><button class="plain-btn" data-ex-analyze>${job?.state==='interrupted'?'确认恢复分析（可能重复计费）':'分析此图'}</button><button class="plain-btn" data-ex-edit>编辑场景</button><button class="plain-btn" data-ex-pool>AI 任务与建议</button><button class="plain-btn danger-icon" data-ex-remove>移出采集池</button></div>${scene.sourceTitle?`<p>来源线索：${esc(scene.sourceTitle)} · ${scene.aiAnalysis?.sourceBasis==='visual'?'画面推测':'未验证'}</p>`:''}</details>`;
+  if(same)reading.querySelector('.exercise-extra').open=extraOpen;
+  if(selected&&rows.length>1){const list=detail.querySelector('.exercise-lines'),choices=document.createElement('details'),summary=document.createElement('summary');choices.className='exercise-lines';summary.dataset.exSwitch='';summary.textContent='换一句';choices.append(summary,...list.children);list.replaceWith(choices)}
+  if(same&&linesOpen&&detail.querySelector('details.exercise-lines'))detail.querySelector('details.exercise-lines').open=true;
+  detail.querySelector('[data-ex-boxes]').replaceChildren();
   const choose=async id=>{try{if(account!==owner())return;await apply(job,account,id);schedule()}catch(error){await SceneAITasks.update(account,job.id,{captureCandidate:id,captureError:error.message});status(error.message)}};
   if(item.error||['error','interrupted','cancelled'].includes(job?.state)){const retry=document.createElement('button');retry.className='plain-btn';retry.textContent=job?.state==='interrupted'?'恢复分析（可能再次计费）':'重试此项';retry.onclick=()=>start([item.id],{retry:true});detail.querySelector('.exercise-error').after(retry)}
   if(job?.captureError&&job.result){const review=document.createElement('button');review.className='plain-btn';review.textContent='检查已有建议';review.onclick=()=>{const candidate=rows.find(v=>v.id===(job.captureCandidate||selected));if(!candidate)return status('请先点选一句。');const base=savedScene(scene.groupId);if(!base)return status('场景已删除，建议仍保留。');const patch={...candidate,model:job.result.model,generatedAt:job.result.generatedAt};SceneAI.openSupplement([{id:base.groupId,scene:structuredClone(base),expected:SceneUI.supplementVersion(base.groupId),selected:true,patch,use:SceneAIData.reviewFields(patch).filter(k=>SceneAIData.defaultUse(k,base[k],patch[k])),status:'已有分析，无需重新调用',taskId:job.id}])};detail.querySelector('.exercise-error').after(review)}
@@ -124,24 +154,29 @@
   detail.querySelector('[data-ex-edit]').onclick=()=>{leave('scenes');SceneUI.open('library','',scene.id)};
   detail.querySelector('[data-ex-pool]').onclick=()=>SceneAITasks.open();
   detail.querySelector('[data-ex-remove]').onclick=async()=>{if(job&&['queued','running'].includes(job.state)){status('请先在 AI 任务中停止或等待完成，场景不会删除。');return}await change(account,pool=>{pool.items=pool.items.filter(v=>v.id!==item.id)});schedule()};
+  if(focused)detail.querySelector(`[${focused.name}="${CSS.escape(focused.value)}"]`)?.focus({preventScroll:true});
+  if(!same){const image=detail.querySelector('img'),picture=image.parentElement;if(item.dimensions?.width>0&&item.dimensions?.height>0)picture.style.aspectRatio=`${item.dimensions.width}/${item.dimensions.height}`;image.onload=()=>{picture.style.aspectRatio=`${image.naturalWidth}/${image.naturalHeight}`;picture.dataset.ready='true'};SceneData.getFile(item.scene.media[0].id).then(record=>{if(!visible()||account!==owner()||!image.isConnected||!detail.contains(image))return;if(record?.blob){const url=URL.createObjectURL(record.blob);urls.add(url);image.src=url}}).catch(error=>status(error.message))}
+  if(same&&scrollY>0){const delta=detail.getBoundingClientRect().top-top;if(delta)scrollBy(0,delta)}
  }
  async function query(terms){
-  if(querying)return;const account=sessionOwner,data=await read(account),item=data.items.find(v=>v.id===current),input=node?.querySelector('[data-ex-query]'),submitted=input?.value;if(!item||account!==owner())return;
-  if(!savedScene(item.scene.groupId)?.quote){status('先选择一句，再关联查词。');return}
+  if(querying)return;const account=sessionOwner,target=current,input=node?.querySelector('[data-ex-query]'),submitted=input?.value;if(account!==owner())return;
   const clean=[...new Set(terms.map(v=>v.trim()).filter(Boolean))];if(!clean.length)return;if(clean.length>20||clean.some(v=>v.length>200)){status('每次最多20个词组，每个不超过200字。');return}
   const button=node.querySelector('[data-ex-submit]');button.disabled=true;querying=true;
-  try{const accepted=[];for(const term of clean){const candidates=getHistory().filter(row=>[row.query,historyDisplayTitle(row)].some(v=>normalizeSearch(v)===normalizeSearch(term)));let entry;
+  try{const data=await read(account),item=data.items.find(v=>v.id===target);if(account!==owner())return;const accepted=[],reused=[];for(const term of clean){const candidates=getHistory().filter(row=>[row.query,historyDisplayTitle(row)].some(v=>normalizeSearch(v)===normalizeSearch(term)));let entry;
     if(candidates.length>1){entry=await chooseEntry(candidates,term);if(entry===null)continue}
     if(account!==owner())return;
-    const result=await SceneUI.queueSceneQueries(item.scene.groupId,[term],{entryIds:entry?{[normalizeSearch(term)]:entry}:{},direction:'',note:''});accepted.push(...result.accepted);
-   }status(accepted.length?`已提交 ${accepted.length} 个词组`:'未提交，输入已保留');if(input&&input.value===submitted&&accepted.length===clean.length){input.value='';await change(account,pool=>{if(pool.quickInput===submitted)pool.quickInput=''})}
+    if(item){const result=await SceneUI.queueSceneQueries(item.scene.groupId,[term],{entryIds:entry?{[normalizeSearch(term)]:entry}:{},direction:'',note:''});accepted.push(...result.accepted)}else{const existing=getHistory().find(row=>String(row.id)===String(entry||candidates[0]?.id));if(existing)reused.push(existing.id);else enqueueLookup({query:term,direction:'',note:'',folderIds:lookupFolderIds},{silent:true});accepted.push(term)}
+   }if(!item)processNextLookup();status(accepted.length?`已提交 ${accepted.length} 个词组${reused.length?` · 复用 ${reused.length} 个已有词条`:''}`:'未提交，输入已保留');if(reused.length)notify('已复用已有词条，没有重复调用模型。','good','查词',true,{label:'查看词条',run:()=>{if(owner()===account&&getHistory().some(v=>v.id===reused[0]))openHistoryModal(reused[0])}});const inputTerms=[...new Set((submitted||'').split('\n').map(v=>v.trim()).filter(Boolean))];if(input&&input.value===submitted&&JSON.stringify(clean)===JSON.stringify(inputTerms)&&accepted.length===clean.length){input.value='';await change(account,pool=>{if(pool.quickInput===submitted)pool.quickInput=''})}
   }catch(error){status(error.message)}finally{querying=false;if(button.isConnected)button.disabled=false}
  }
  function chooseEntry(entries,term){return new Promise(resolve=>{const account=owner(),dialog=AnkiBridge.dialog('选择已有词条：'+term),body=dialog.querySelector('.scene-dialog-body');let done=false;body.innerHTML=entries.map(row=>`<button class="plain-btn" data-ex-existing="${esc(row.id)}">${esc(historyDisplayTitle(row))} · ${esc(displayedResultForHistory(row.id,row)?.headword?.coreMeaning||row.query)}</button>`).join('');body.querySelectorAll('[data-ex-existing]').forEach(b=>b.onclick=()=>{done=true;resolve(account===owner()?b.dataset.exExisting:null);dialog.close()});dialog.addEventListener('close',()=>{if(!done)resolve(null)},{once:true})})}
- function leave(view=returnView){revision++;clearURLs();showView(view==='exercise'?'home':view)}
+ function leave(view=returnView){revision++;preferences?.close();clearURLs();clearThumbnails();showView(view==='exercise'?'home':view)}
  function renderSummary(data,jobs){
-  const items=data.items.filter(v=>v.sessionId===data.session?.id),jobFor=v=>jobs.find(j=>j.id===v.jobId),counts={saved:items.filter(v=>savedScene(v.id)).length,running:items.filter(v=>['queued','running'].includes(jobFor(v)?.state)).length,choose:items.filter(v=>jobFor(v)?.state==='check'&&!jobFor(v).result?.selectedDialogueId).length,failed:items.filter(v=>v.error||jobFor(v)?.captureError||['error','interrupted','cancelled'].includes(jobFor(v)?.state)).length,waiting:items.filter(v=>!v.jobId&&!v.error).length};
-  node.innerHTML=`<header class="exercise-page-head"><h1>${icon('run')}采集已结束</h1><button class="plain-btn" data-ex-back>返回学习</button></header><section class="exercise-summary"><h2>本次采集</h2><dl>${[['saved','已保存'],['running','分析中'],['choose','待选句'],['failed','需处理'],['waiting','尚未分析']].map(([key,label])=>`<div><dt>${label}</dt><dd>${counts[key]}</dd></div>`).join('')}</dl>${data.quickInput?`<p>未提交词组：${esc(data.quickInput)}</p>`:''}<p>已提交的分析继续；关闭浏览器可能中断，重开后需明确恢复。</p><div><button class="plain-btn primary-btn" data-ex-review>处理待办</button><button class="plain-btn" data-ex-continue>继续采集</button><button class="plain-btn" data-ex-queries>查看查词任务</button></div></section>`;
+  const items=data.items.filter(v=>v.sessionId===data.session?.id),jobFor=v=>jobs.find(j=>j.id===v.jobId),counts={saved:items.length,...taskCounts({items},jobs)};
+  const pending=Object.values(counts).slice(1).some(Boolean);
+  if(!node.querySelector('.exercise-summary'))node.innerHTML=`<header class="exercise-page-head"><h1>${icon('run')}采集已结束</h1><button class="plain-btn" data-ex-back>返回学习</button></header><section class="exercise-summary"><span class="exercise-section-label">本次采集</span><dl></dl><p data-ex-unsent></p><p class="exercise-summary-note">已提交的分析继续；关闭浏览器可能中断，重开后需明确恢复。</p><div><button class="plain-btn primary-btn" data-ex-review>处理待办</button><button class="plain-btn" data-ex-continue>继续采集</button><button class="plain-btn" data-ex-queries>查看查词任务</button></div></section>`;
+  const rows=[['saved','已收下'],['running','分析中'],['queued','等待分析'],['choose','待选句'],['failed','需处理'],['waiting','尚未分析']].filter(([key])=>key==='saved'||counts[key]);const html=rows.map(([key,label])=>`<div class="${key==='saved'?'exercise-summary-total':''}"><dt>${label}</dt><dd>${counts[key]}</dd></div>`).join(''),list=node.querySelector('.exercise-summary dl');if(list.innerHTML!==html)list.innerHTML=html;
+  const unsent=node.querySelector('[data-ex-unsent]');unsent.textContent=data.quickInput?'未提交词组：'+data.quickInput:'';unsent.hidden=!data.quickInput;node.querySelector('[data-ex-review]').textContent=pending?'处理待办':'查看本次截图';
   node.querySelector('[data-ex-back]').onclick=()=>leave();node.querySelector('[data-ex-review]').onclick=()=>{current=items.find(v=>v.error||jobFor(v)?.captureError||['check','error','interrupted','cancelled'].includes(jobFor(v)?.state)||!v.jobId)?.id||items[0]?.id||current;summaryMode=false;open({navigate:false,review:true})};node.querySelector('[data-ex-continue]').onclick=()=>{summaryMode=false;open({navigate:false,newSession:true})};node.querySelector('[data-ex-queries]').onclick=()=>leave('home');
  }
  async function open({navigate=true,review=false,newSession=false}={}){
@@ -153,23 +188,26 @@
   await change(account,data=>{if(newSession||!data.session)data.session={id:crypto.randomUUID(),startedAt:new Date().toISOString()}});
   const data=await read(account);if(account!==owner()||activeView!=='exercise')return;
   enabled=!review;
-  node.innerHTML=`<header class="exercise-page-head"><h1>${icon('run')}运动采集</h1><div><button class="plain-btn" data-ex-back>返回</button><button class="plain-btn" data-ex-end>${enabled?'结束':'采集小结'}</button></div></header><div class="exercise-body"><header class="exercise-toolbar">${enabled?`<label class="plain-btn">${icon('image-plus')}添加截图<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden data-ex-files></label>`:'<button class="plain-btn" data-ex-continue>继续采集</button>'}<p>粘贴截图，自动保存；点词即可查询</p><details><summary>偏好</summary><label><input type="checkbox" data-ex-manual>每次手选句子</label><button class="plain-btn" data-ex-profile>模型配置</button></details></header><div class="exercise-columns"><nav data-ex-list aria-label="最近截图"></nav><section data-ex-detail></section></div><form class="exercise-query"><textarea class="content-editor" rows="1" data-ex-query aria-label="输入要查的词组，每行一个" placeholder="老师提到的词，输入后回车"></textarea><button class="plain-btn primary-btn" data-ex-submit aria-label="查询输入的词组">${icon('search')}查词</button></form><p data-ex-status role="status"></p></div>`;
+  clearThumbnails();
+  node.innerHTML=`<header class="exercise-page-head"><div class="exercise-heading"><h1>${icon('run')}运动采集</h1><p><span data-ex-count>准备接收</span><span data-ex-progress></span></p></div><div class="exercise-header-actions"><button class="plain-btn" data-ex-back>返回</button><button class="plain-btn" data-ex-preferences aria-haspopup="dialog">${icon('sliders-horizontal')}偏好</button><button class="plain-btn" data-ex-end>${enabled?'结束':'采集小结'}</button></div></header><div class="exercise-body"><div class="exercise-recent"><nav data-ex-list aria-label="最近截图"></nav>${enabled?`<button class="plain-btn" data-ex-add>${icon('image-plus')}添加截图</button>`:'<button class="plain-btn" data-ex-add data-ex-continue>继续采集</button>'}</div><input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden data-ex-files><div class="exercise-columns"><section data-ex-detail></section></div><form class="exercise-query"><label class="exercise-query-field"><span>快速查词<small data-ex-association>普通查词</small></span><textarea class="content-editor" rows="1" data-ex-query aria-label="输入要查的词组，每行一个" placeholder="老师提到的词"></textarea></label><button class="plain-btn primary-btn" data-ex-submit aria-label="查询输入的词组">${icon('search')}查词</button></form><p data-ex-status role="status" aria-live="polite"></p></div>`;
   const body=node.querySelector('.exercise-body');
   const filePicker=body.querySelector('[data-ex-files]');if(filePicker)filePicker.onchange=e=>{receive(e.target.files);e.target.value=''};
-  body.querySelector('[data-ex-manual]').onchange=async e=>{try{await change(sessionOwner,pool=>{pool.manual=e.target.checked})}catch(error){status(error.message)}};
-  body.querySelector('[data-ex-profile]').onclick=()=>SceneAI.chooseProfile(true);
+  node.querySelector('[data-ex-preferences]').onclick=e=>openPreferences(e.currentTarget).catch(error=>status(error.message));
+  if(enabled)body.querySelector('[data-ex-add]').onclick=()=>filePicker.click();
   node.querySelector('[data-ex-back]').onclick=()=>leave();
-  node.querySelector('[data-ex-end]').onclick=async()=>{enabled=false;await change(sessionOwner,pool=>{pool.session.finishedAt=new Date().toISOString()});summaryMode=true;await render()};
+  node.querySelector('[data-ex-end]').onclick=async()=>{enabled=false;await change(sessionOwner,pool=>{pool.session.finishedAt=new Date().toISOString()});summaryMode=true;await render();scrollTo({top:0,behavior:'instant'})};
   body.querySelector('[data-ex-continue]')?.addEventListener('click',()=>open({navigate:false,newSession:true}));
   const input=body.querySelector('[data-ex-query]');input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();query(input.value.split(/\n/))}};
   input.placeholder='老师提到的词';input.value=data.quickInput||'';input.addEventListener('input',()=>change(sessionOwner,pool=>{pool.quickInput=input.value}).catch(error=>status(error.message)));
   body.querySelector('form').onsubmit=e=>{e.preventDefault();query(input.value.split(/\n/))};
   await render();
  }
- function receiving(){return enabled&&visible()&&sessionOwner===owner()&&!document.querySelector('#scene-editor')&&!document.querySelector('.media-editor[open]')&&!document.querySelector('.exercise-summary')}
+ function receiving(){return enabled&&visible()&&!preferences?.open&&sessionOwner===owner()&&!document.querySelector('#scene-editor')&&!document.querySelector('.media-editor[open]')&&!document.querySelector('.exercise-summary')}
  function buttons(){for(const host of document.querySelectorAll('.topbar-actions,.scene-library-head>.scene-actions')){if(host.querySelector('[data-exercise-open]'))continue;const button=document.createElement('button');button.className='icon-btn';button.type='button';button.dataset.exerciseOpen='';button.setAttribute('aria-label','运动采集');button.dataset.tip='运动采集';button.innerHTML=icon('run');button.onclick=()=>open().catch(e=>notify(e.message,'warn','运动采集'));host.prepend(button)}}
  document.addEventListener('dragover',event=>{if(receiving()&&[...(event.dataTransfer?.types||[])].includes('Files'))event.preventDefault()},true);
- document.addEventListener('lexi-auth-context',()=>{enabled=false;summaryMode=false;clearURLs();if(node)node.replaceChildren();sessionOwner='';current='';if(activeView==='exercise')leave('home')});
+ document.addEventListener('lexi-auth-context',()=>{enabled=false;summaryMode=false;preferences?.close();clearURLs();clearThumbnails();if(node)node.replaceChildren();sessionOwner='';current='';if(activeView==='exercise')leave('home')});
+ document.addEventListener('selectionchange',()=>{if(visible()&&getSelection()?.isCollapsed&&node.querySelector('[data-deferred]'))schedule()});
+ document.addEventListener('focusout',()=>{if(visible()&&node.querySelector('[data-deferred]'))schedule()});
  SceneAITasks.subscribe(()=>{settle().catch(error=>status(error.message));schedule()});
  SceneAITasks.ready.then(()=>{settle();if(activeView==='exercise')open({navigate:false})}).catch(()=>{});
  new MutationObserver(buttons).observe(document.body,{childList:true,subtree:true});buttons();

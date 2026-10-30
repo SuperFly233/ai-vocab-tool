@@ -786,7 +786,7 @@
     for(const query of queries){
       if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未继续提交场景任务。');
       try{
-      const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,userNote:note,note:[note,`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`].filter(Boolean).join('\n'),folderIds:lookupFolderIds};
+      const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,userNote:note,note:[note,scene.quote?`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`:''].filter(Boolean).join('\n'),folderIds:lookupFolderIds};
       const existing=findExisting(query,entryIds[normalizeSearch(query)]);
 if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(query))){const linked=await attachPending(existing.id,query,groupId);if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未更新任务状态。');taskResult(request,linked?'complete':'error',linked?'':'场景关联尚未完成');(linked?accepted:failed).push(query);continue}
       if(existing)request.existingId=existing.id;
