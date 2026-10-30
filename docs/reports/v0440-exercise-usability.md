@@ -4,6 +4,19 @@
 
 ### Production Promotion Authorization
 
+**RELEASED:** runtime/release commit `a6a7436` pushed to main; Cloudflare deployment
+https://1117cbff.ai-vocab-tool.pages.dev and official https://ai-vocab-tool.pages.dev .
+Official app.js independently reports0.44.0. All194 static SHA256 hashes match;
+anonymous sync/Anki/source401. Deployed390light normal-controls fixture journey
+passed import, lookup/full entry, protected arrivals, ending, refresh and explicit
+recovery. No live model generation was repeated during release.
+
+Initial deployment auth refresh hit TLS ECONNRESET; rerunning the CLI with Node's
+explicit `--use-env-proxy` using the existing proxy restored login and deployment.
+No credentials were cleared and no system proxy settings changed. This release
+does not claim private cloud writes, live Anki, physical iPhone or exercise-distance
+acceptance. Continuous real-model batch quality remains user-led as authorized.
+
 On2026-10-30 the user explicitly requested: "那这个验收我自己来，你跟我讲。先上线".
 This supersedes the previous promotion hold for the real-model quality gate only.
 Promote the tested0.44 candidate to Cloudflare; do not treat the outstanding
