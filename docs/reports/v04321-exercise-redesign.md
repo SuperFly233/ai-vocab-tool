@@ -31,3 +31,14 @@ No new backend, database migration, provider fallback, Bridge release, real paid
 ## Production
 
 Runtime commit7fbaf7b pushed to main. Production https://e54fff80.ai-vocab-tool.pages.dev and https://ai-vocab-tool.pages.dev/exercise deployed2026-10-30; official194 resource hashes and sync/Anki/source401 passed. Official390px light full synthetic redesign flow passed, including preferences,1/3/20 screenshots, input/selection protection, Backlog and summary. Bridge remains0.4.2; no helper reinstall required for this UI update.
+
+## Shared Preview Parity
+
+Mergea8263a9 pushed to feat/capture-intake-preview. https://54dfab9b.ai-vocab-tool.pages.dev / capture-v038-preview passed198 exact hashes and sync/Anki/source401; capture data, all10 width/theme UI cases, synthetic vision lifecycle, shared390light redesign, idle-zero-poll and deployed390light capture passed. Capture-only import/metadata/top-layer logic retained; it is not merged into production. Main checkout restored,84icons/194files rebuilt after checks.
+
+## User-Run Acceptance
+
+1. Refresh https://ai-vocab-tool.pages.dev/exercise . Open Preferences in the light empty state; the intake area must not move. Close it and paste three screenshots consecutively. Each receipt must appear only after local storage succeeds; queued and analyzing states must be distinguishable.
+2. Submit a word, immediately select another screenshot and type another word. The submitted lookup must remain linked to its original screenshot and the new input must survive. Select text while a result completes; selection and open additional actions must remain.
+3. Switch tabs while analysis runs; return and inspect results. End with outstanding work: the summary must retain the input and report pending categories without pretending analysis completed. Browser shutdown can interrupt browser execution; recovery is explicit and must not silently repeat paid requests.
+4. Test large-motion viewing distance and actual iPhone keyboard/clipboard, then real livestream Backlog recognition. These are not passed by local synthetic fixtures. Live private sync/Anki approval remains separate; this patch performs no real card writes.
