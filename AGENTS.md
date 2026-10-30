@@ -2,6 +2,10 @@
 
 Read PROJECT_CONTEXT.md for current architecture and release boundaries.
 
+## Release Classification
+
+Follow docs/versioning.md. New capabilities and substantial workflow redesigns require a minor release; patch numbers are for compatible fixes, not successive feature milestones. Do not default to another0.43.x release. Preserve historical published identities; old planned version numbers do not reserve future releases or establish completion. Website, Bridge and protocol versions are independent.
+
 ## UI Workflow (User Preference)
 
 For substantial UI/layout changes, call the image generation model FIRST to produce a concrete design reference. Then inspect the generated result, write the scoped bug/optimization/new-feature plan, implement real components, and validate screenshots before publishing. Do not use the generated mockup as the webpage background or copy invented navigation/data from it.

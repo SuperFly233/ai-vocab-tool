@@ -1,5 +1,7 @@
 # Changelog
 
+Release classification correction: historical0.43.x mixed features and patches. Published identities below remain unchanged; candidate reports do not imply production release. Future numbering follows [version policy](docs/versioning.md), independently of old roadmap labels.
+
 ## v0.43.21 - 2026-10-30
 
 - 运动采集按采集优先重新设计：专用空态、紧凑状态栏、横向缩略图与更宽阅读区，偏好独立限宽展示。
