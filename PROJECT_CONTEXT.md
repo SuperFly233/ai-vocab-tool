@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-30
 
+- v0.44 public-fix capture parity complete: e3172e7/3068ec22,198SHA and anonymous401 gates, capture data/ten UI cases/synthetic vision and deployed390light shared exercise journey passed. Capture-only features not promoted. Main checkout/build restored84icons/194files.
+
 - v0.44.0 RELEASED with explicit user-led real-model acceptance: maina6a7436, CF1117cbff/officialalias;194SHA, sync-Anki-source anonymous401 and deployed390light normal-control fixture journey/recovery passed. Official app independently reports0.44.0. Initial OAuth refresh TLS reset resolved with Node--use-env-proxy/current proxy, no credential/system changes. No further model calls/DB/Bridge changes. Remaining real batch429/physical checks NOT passed; concrete six-step user guide in v0440 report. Supersedes production holds and0.43.22 current-version statements below.
 
 - User explicitly authorized0.44 production promotion with real-model quality acceptance delegated to them ("那这个验收我自己来，你跟我讲。先上线"). This supersedes the model-quality promotion hold below, not the actual unpassed429 batch/physical-device status. Deploy tested candidate toCF, verify static hashes/auth/version, then supply concrete user steps from docs/reports/v0440-exercise-usability.md. Vercel remains deferred; no additional model spending, DB or Bridge changes.

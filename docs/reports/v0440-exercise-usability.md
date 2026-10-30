@@ -26,6 +26,12 @@ Vercel remains deferred. Record actual deployment verification separately below.
 
 ### User Acceptance Steps
 
+Public-fix parity also completed: capture-preview merge `e3172e7`, deployment
+https://3068ec22.ai-vocab-tool.pages.dev / capture-v038-preview. All198 hashes and
+sync/Anki/source401 passed, plus capture data, ten width/theme UI cases, synthetic
+vision safety and deployed390light shared normal-controls journey. Capture-only
+modules remain isolated. Main checkout/build restored84icons/194files.
+
 1. Refresh the official site, verify About shows0.44.0, then enter运动采集.
 2. Paste one bilingual screenshot. Wait for已收下, then analysis/saved status;
    check quote, translation and title. Click a learning target, wait for lookup,
