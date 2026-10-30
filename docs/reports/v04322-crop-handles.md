@@ -1,0 +1,11 @@
+# 0.43.22 Crop Edge Handle Hotfix
+
+Scope: narrow compatible media-editor defect correction, independently of the unaccepted0.44 exercise candidate. No AI/model/API/Bridge changes.
+
+The image stage must clip the outside-crop shade, but this also clipped handle hitboxes at full-image edges. Keep the clipped stage and shade unchanged; position handles within image bounds using intrinsic stage client dimensions. ResizeObserver repositions on scale/layout changes and disconnects when the editor closes. Pointer resizing now uses movement relative to the original corner so an inset handle cannot cause a first-move jump.
+
+- `check-crop-edge-handles.cjs`:320/390/768/1024/1440, light/dark. All four boxes fully within clipped bounds, actual hit tests, all four real mouse drags without jump, scaled stage and resized viewport passed.
+- `check-media-editor.cjs`:same10 cases, crop/output dimensions, explicit copy adoption, failed storage/account protection, saved edit provenance and restore passed.
+- [Manually inspected mobile screenshot](v04322-crop-handles.png). No reference-image generation for this localized defect, no new layout or control.
+
+Production evidence follows after promotion.0.44 real-batch429 gate remains separate and is not bypassed by this hotfix.
