@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { upstreamFailure } from '../api/upstream-error.js';
+import { upstreamFailure } from '../upstream-error.js';
 const blocked='<html lang="zh"><head><title>访问已被拦截</title><style>body{background:url(data:image/jpeg;base64,'+'A'.repeat(50000)+')}</style></head><body>Blocked</body></html>';
 const failure=upstreamFailure({status:403},blocked);
 assert.equal(failure.code,'UPSTREAM_ACCESS_BLOCKED');

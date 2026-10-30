@@ -1,5 +1,5 @@
-import { relayIfIpv6Blocked } from './relay.js';
-import { upstreamFailure } from './upstream-error.js';
+import { relayIfIpv6Blocked } from '../server/relay.js';
+import { upstreamFailure } from '../upstream-error.js';
 
 function inferModelsUrl(apiUrl) {
   const raw = String(apiUrl || '').trim();

@@ -74,7 +74,7 @@
     "check:responsive": "node scripts/check-responsive.cjs",
     "build:icons": "node scripts/build-icons.js",
     "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",
-    "check:contracts": "node scripts/check-contracts.js",
+    "check:contracts": "node scripts/check-contracts.js && node scripts/check-vercel-layout.cjs",
     "check:history": "node scripts/check-history-data.js",
     "check:settings": "node scripts/check-settings-data.js",
     "check:settings-app": "node scripts/check-settings-app.js",

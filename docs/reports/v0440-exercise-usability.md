@@ -2,6 +2,43 @@
 
 ## Status
 
+### 2026-10-30 Follow-Up
+
+The user selected Cloudflare as the release target and deferred Vercel logs.
+Production independently reads **0.43.22**, with sync/Anki/source anonymous
+requests returning401. Earlier0.43.21 status paragraphs below are historical.
+
+Merged all published crop fixes into the0.44 branch (`0895655`); release date now
+matches October30. No additional0.43 patch is being released.
+
+Fresh bounded real-model acceptance used the current saved vision/lookup profile,
+six additional requests maximum, in isolated storage with synthetic images. The
+first settings read failed transiently before sending any model request; a safe
+diagnostic confirmed settings access and a subsequent read succeeded. Backlog
+import/selection, persisted contextual lookup/full entry, protected arrivals,
+ending and refresh completed. A continuous-batch request returned429, so full
+long/untranslated-image quality remains unaccepted. Stopped without switching
+provider or retrying the failed request. Historical twelve-request budget was not
+reset; the new budget is separately recorded in tmp/exercise0440/live-followup-budget.json.
+
+The run exposed a false-positive in the test: it waited for tasks to stop without
+requiring all analyses to succeed. The old run printed a successful journey despite
+429. This is **partial evidence only**, not a passing whole-batch result. Added
+quota/auth stop assertion, per-task successful-state assertions and long-text /
+machine-translation checks. Live OPTIONS requests are no longer mocked. Saved
+videos have unique filenames, but generic screenshot filenames are reused by
+fixture runs; do not label those reused definition screenshots real-model evidence.
+
+Final follow-up preview: https://5664dceb.ai-vocab-tool.pages.dev/exercise . All194
+static SHA256 hashes match; anonymous sync/Anki/source401. Deployed390light
+normal-controls journey with HTTP fixtures passed. Locally reran full npm check,
+four normal-control fixture journeys, ten footer cases, ten crop-edge cases and
+four streaming cases. No private edits, Anki writes, DB or Bridge changes.
+
+Production promotion remains held by the real continuous-batch quality gate.
+Vercel's concrete helper-directory and direct-route defects were fixed and tested,
+but its historical deployment error was not retrieved; see vercel-2026-10-30.md.
+
 Implementation and isolated UI/safety acceptance completed; production promotion HELD. Real current-provider testing returned HTTP429 during the final continuous batch. Maximum12 upstream attempts reached across three runs; no more paid-model requests authorized by this acceptance budget. Production remains0.43.21 / Bridge0.4.2. No Anki writes, private learning changes, backend or database migration.
 
 ## Implemented

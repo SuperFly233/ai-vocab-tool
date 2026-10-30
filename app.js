@@ -186,7 +186,7 @@ const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
   version:'0.44.0',
-  releaseDate:'2026-10-27',
+  releaseDate:'2026-10-30',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
