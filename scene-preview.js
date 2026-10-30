@@ -15,7 +15,7 @@
   async function generate(ref){
     if(cache.has(ref.id))return cache.get(ref.id);
     try{const saved=await SceneData.getDraft(key(ref.id));if(saved instanceof Blob&&saved.type==='image/jpeg'){cache.set(ref.id,saved);return saved}}catch{}
-    const file=await SceneMedia.resolve(ref),url=URL.createObjectURL(file.blob),video=ref.mime.startsWith('video/'),media=document.createElement(video?'video':'img');
+    const file=await SceneMedia.resolve(ref,{localOnly:true}),url=URL.createObjectURL(file.blob),video=ref.mime.startsWith('video/'),media=document.createElement(video?'video':'img');
     try{
       await new Promise((resolve,reject)=>{
         const timer=setTimeout(()=>finish(new Error('预览暂不可用')),10000);

@@ -15,7 +15,7 @@ const server=require('./browser-test-server.cjs').createServer();
    let unavailable=true,requests=0;
    await page.addInitScript(theme=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');if(!localStorage.getItem('ai_vocab_tool_settings_v1'))localStorage.setItem('ai_vocab_tool_settings_v1',JSON.stringify({sceneAI:{auto:false}}));localStorage.setItem('ai_vocab_tool_theme',theme)},theme);
    await page.route('https://**/*',route=>route.abort());
-   await page.route('**/api/media',route=>{
+   await page.route('**/api/media-v2',route=>{
     requests++;const data=route.request().postDataJSON();
     return unavailable?route.fulfill({status:503,json:{error:'Test unavailable'}}):route.fulfill({json:data.action==='manifest'?{manifest:null}:data.action==='complete'?{complete:true}:{count:data.chunks.length}});
    });

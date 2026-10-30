@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-30
 
+- v0.44.1 media incident fix in progress. Human explicitly authorized global temporary cloud-media pause, verified from user reply in quota investigation chat. Formal83213989 excludes/api/media from Functions, POST405/static; other private APIs retain401. Preserve the pause for old clients; restoring the identical old route would revive stale-page traffic. Fixes: local-only preview generation, remote-only upload scan skip, per-owner failed-transfer circuit breaker and explicit retry. Baseline20 repeated missing-manifest calls -> fixed1; actual page30 remote scenes/5 sync-focus-online cycles/25 renders/20s exercise idle yields0media. Live incident exact action is not yet proven; no blanket claim that every historical request is explained.
+
 - v0.44 public-fix capture parity complete: e3172e7/3068ec22,198SHA and anonymous401 gates, capture data/ten UI cases/synthetic vision and deployed390light shared exercise journey passed. Capture-only features not promoted. Main checkout/build restored84icons/194files.
 
 - v0.44.0 RELEASED with explicit user-led real-model acceptance: maina6a7436, CF1117cbff/officialalias;194SHA, sync-Anki-source anonymous401 and deployed390light normal-control fixture journey/recovery passed. Official app independently reports0.44.0. Initial OAuth refresh TLS reset resolved with Node--use-env-proxy/current proxy, no credential/system changes. No further model calls/DB/Bridge changes. Remaining real batch429/physical checks NOT passed; concrete six-step user guide in v0440 report. Supersedes production holds and0.43.22 current-version statements below.

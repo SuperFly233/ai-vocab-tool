@@ -9,9 +9,9 @@ const server=require('./browser-test-server.cjs').createServer();
   const chunks=new Map(),manifests=new Map();let corrupted=false,offline=false;
   async function open(){
    const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();
-   await page.addInitScript(()=>localStorage.setItem('ai_vocab_tool_offline_mode','1');if(!localStorage.getItem('ai_vocab_tool_settings_v1'))localStorage.setItem('ai_vocab_tool_settings_v1',JSON.stringify({sceneAI:{auto:false}})));
+   await page.addInitScript(()=>{localStorage.setItem('ai_vocab_tool_offline_mode','1');if(!localStorage.getItem('ai_vocab_tool_settings_v1'))localStorage.setItem('ai_vocab_tool_settings_v1',JSON.stringify({sceneAI:{auto:false}}))});
    await page.route('https://**/*',route=>route.abort());
-   await page.route('**/api/media',async route=>{
+   await page.route('**/api/media-v2',async route=>{
     const data=route.request().postDataJSON();
     if(offline)return route.fulfill({status:503,json:{error:'Test unavailable'}});
     if(data.action==='manifest')return route.fulfill({json:{manifest:manifests.get(data.id)||null}});
@@ -54,6 +54,8 @@ const server=require('./browser-test-server.cjs').createServer();
   try{await first.page.waitForFunction(()=>document.querySelector('.scene-asset video')?.readyState>=1,{},{timeout:5000})}catch(error){console.log(await first.page.locator('.scene-record').innerText());console.log(await first.page.locator('.scene-asset').evaluateAll(nodes=>nodes.map(node=>({html:node.innerHTML,title:node.title,error:node.querySelector('video')?.error?.message}))));throw error}
   const playback=await first.page.locator('.scene-asset video').evaluate(video=>({paused:video.paused,controls:video.controls,width:video.videoWidth,autoplay:video.autoplay}));
   assert.deepEqual(playback,{paused:true,controls:true,width:320,autoplay:false});
+  await first.page.locator('.scene-record video').scrollIntoViewIfNeeded();
+  await first.page.locator('.scene-record video').evaluate(video=>new Promise(resolve=>{const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();requestAnimationFrame(()=>requestAnimationFrame(resolve))}});observer.observe(video)}));
   await first.page.locator('.scene-asset video').evaluate(async video=>{video.muted=true;await video.play()});
   await first.page.waitForFunction(()=>document.querySelector('.scene-asset video').currentTime>.1);
   await first.page.locator('.scene-asset video').evaluate(video=>video.pause());
@@ -103,8 +105,8 @@ const server=require('./browser-test-server.cjs').createServer();
   const corrupt=await third.page.evaluate(async ref=>{try{await SceneMedia.resolve(ref);return false}catch{return !await SceneData.getFile(ref.id)}},video);
   assert.ok(corrupt,'Corrupt media is rejected before cache commit');corrupted=false;
   offline=true;
-  const retry=await third.page.evaluate(async ref=>{try{await SceneMedia.resolve(ref);return false}catch{return true}},video);assert.ok(retry);offline=false;
-  await third.page.evaluate(ref=>SceneMedia.resolve(ref).then(()=>{}),video);
+  const retry=await third.page.evaluate(async ref=>{try{await SceneMedia.resolve(ref,{refresh:true});return false}catch{return true}},video);assert.ok(retry);offline=false;
+  await third.page.evaluate(ref=>SceneMedia.resolve(ref,{refresh:true}).then(()=>{}),video);
   const jpeg=await first.page.screenshot({type:'jpeg'});
   const padded=Buffer.concat([jpeg,Buffer.alloc(1024*1024,173)]);
   const large=await first.page.evaluate(async encoded=>{const bytes=Uint8Array.from(atob(encoded),char=>char.charCodeAt(0));const file=new Blob([bytes],{type:'image/jpeg'});file.name='large-scene.jpg';return SceneData.putFile(file)},padded.toString('base64'));

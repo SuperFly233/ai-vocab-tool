@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.44.0",
+  "version": "0.44.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:media-budget": "node scripts/check-media-request-budget.cjs && node scripts/check-media-idle-ui.cjs",
     "check:exercise-journey": "node scripts/check-exercise-journey.cjs",
     "check:scene-query-footer": "node scripts/check-scene-query-footer.cjs",
     "check:exercise-redesign": "node scripts/check-exercise-redesign.cjs",

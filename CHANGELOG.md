@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.44.1 - 2026-10-30
+
+- Pause cloud media routing as explicitly authorized; preserve local originals and non-media APIs.
+- Skip remote-only library references during automatic upload scans; thumbnails read local files only.
+- Stop automatic retry after missing manifests, transfer failures or storage failures; retain explicit retry and account guards.
+- Add baseline request amplification and real-page idle budget acceptance.
+
 ## v0.44.0 - Candidate
 
 - 运动采集就地显示查词状态、核心义与完整释义；结束页直接打开本次查询结果。

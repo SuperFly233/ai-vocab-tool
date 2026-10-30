@@ -11,6 +11,10 @@ const { pathToFileURL } = require('node:url');
     assert.equal(typeof api.default, 'function', `${file} must be a real HTTP handler, not a helper`);
   }
   const config = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+  const routing = JSON.parse(fs.readFileSync('pages-routes.json', 'utf8'));
+  assert.deepEqual(routing.include, ['/api/*']);
+  assert.ok(routing.exclude.includes('/api/media'), 'Old clients must not invoke legacy media functions');
+  assert.ok(!routing.exclude.includes('/api/media-v2'), 'New authenticated transport must remain reachable');
   for (const route of ['/exercise', '/account']) {
     assert.ok(config.rewrites.some(rule => rule.source === route && rule.destination === '/'));
   }

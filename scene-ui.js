@@ -499,12 +499,12 @@
       }});
     }finally{unlinking.delete(key)}
   }
-  async function loadAsset(node){
+  async function loadAsset(node,{retry=false}={}){
     const id=node.dataset.sceneAsset;if(!id||node.dataset.loading)return;
     node.dataset.loading='true';node.setAttribute('aria-busy','true');
     try{
       const ref=[...library(),...getHistory().flatMap(scenes)].flatMap(scene=>scene.media).find(item=>item.id===id);
-      const file=ref?await SceneMedia.resolve(ref):await SceneData.getFile(id);if(!file?.blob)throw new Error('本机尚无此素材');
+      const file=ref?await SceneMedia.resolve(ref,{refresh:retry}):await SceneData.getFile(id);if(!file?.blob)throw new Error('本机尚无此素材');
       node.removeAttribute('title');
       let url=urls.get(id);if(!url){url=URL.createObjectURL(file.blob);urls.set(id,url)}
       const video=file.ref.mime.startsWith('video/'),displayName=node.getAttribute('aria-label')||ref?.name||file.ref.name;
@@ -588,7 +588,7 @@
     else if(name==='manual')save(true);
     else if(name==='save-query')saveAndQuery();
     else if(name==='standalone')save(false,true);
-    else if(name==='load')loadAsset(button.closest('[data-scene-asset]'));
+    else if(name==='load')loadAsset(button.closest('[data-scene-asset]'),{retry:true});
     else if(name==='download')downloadAsset(button.dataset.id,button.dataset.name);
     else if(name==='enlarge')openViewer(button.dataset.id,button.dataset.name);
     else if(name==='tools'){const asset=button.closest('.scene-asset'),style=getComputedStyle(asset.querySelector('.scene-media-tools'));asset.dataset.tools=style.display==='none'||Number(style.opacity)===0?'shown':'hidden'}
@@ -674,7 +674,7 @@
       showError('');
       for(const ref of SceneData.mediaReferences(scene)){
         if(cloudUser?.id!==owner)return;
-        await SceneMedia.upload(ref);
+        await SceneMedia.upload(ref,()=>{},{retry:announce});
       }
       showError('');if(announce&&cloudUser?.id===owner)notify('场景素材已同步。','good','场景记忆');
     }
@@ -685,16 +685,15 @@
     if(syncJob||!cloudUser)return syncJob;
     const owner=cloudUser.id;
     syncJob=(async()=>{
-      for(const item of getHistory())for(const scene of scenes(item)){
+      for(const [id,scene] of [...getHistory().flatMap(item=>scenes(item).map(scene=>[item.id,scene])),...library().map(scene=>['library',scene])]){
         if(!scene.media.length||cloudUser?.id!==owner)continue;
         let pending=false;
         for(const ref of SceneData.mediaReferences(scene)){
           const record=await SceneData.getFile(ref.id);
           if(record?.blob&&!record.uploadedFor?.includes(owner))pending=true;
         }
-        if(pending)await syncScene(item.id,scene.id,false);
+        if(pending)await syncScene(id,scene.id,false);
       }
-      for(const scene of library())if(cloudUser?.id===owner)await syncScene('library',scene.id,false);
     })().catch(error=>pushLog(error.message,'warn','素材同步')).finally(()=>{syncJob=null});
     return syncJob;
   }
