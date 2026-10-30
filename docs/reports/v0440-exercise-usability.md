@@ -2,6 +2,39 @@
 
 ## Status
 
+### Production Promotion Authorization
+
+On2026-10-30 the user explicitly requested: "那这个验收我自己来，你跟我讲。先上线".
+This supersedes the previous promotion hold for the real-model quality gate only.
+Promote the tested0.44 candidate to Cloudflare; do not treat the outstanding
+continuous-batch quality or physical-device checks as passed. No new model calls,
+provider changes, database migrations or Anki writes are authorized by this release.
+Vercel remains deferred. Record actual deployment verification separately below.
+
+### User Acceptance Steps
+
+1. Refresh the official site, verify About shows0.44.0, then enter运动采集.
+2. Paste one bilingual screenshot. Wait for已收下, then analysis/saved status;
+   check quote, translation and title. Click a learning target, wait for lookup,
+   then open the actual complete entry without returning home.
+3. Paste three distinct screenshots successively (long dialogue, untranslated
+   dialogue, Backlog). Switch browser tabs during analysis. Return and confirm
+   each original remains with its own status; select a numbered Backlog sentence.
+4. Type a word but do not submit, then add another screenshot. The input and
+   current reading target must remain; use新收下 and上一张/下一张 to navigate.
+5. End collection while tasks remain. Verify the summary distinguishes saved,
+   pending selection and failed items, and opens the exact lookup result. Refresh:
+   interrupted requests require deliberate confirmation, not automatic recharging.
+6. Edit a disposable scene: select learning targets and use保存并查询 beside保存场景.
+   Verify only selected targets are queried. Crop the image to all four edges and
+   check all corner handles can be dragged. Removing one linked entry must not
+   delete the scene.
+
+If429 appears, leave the preserved screenshots in place and do not repeatedly
+retry; retry only a failed item after checking the provider's quota. Report the
+step, screenshot and short error, never API keys. Use disposable test scenes and
+do not approve Anki writes for this acceptance.
+
 ### 2026-10-30 Follow-Up
 
 The user selected Cloudflare as the release target and deferred Vercel logs.
