@@ -1,5 +1,5 @@
-import { ipv6Blocked, relayIfIpv6Blocked } from './relay.js';
-import { upstreamFailure } from './upstream-error.js';
+import { ipv6Blocked, relayIfIpv6Blocked } from '../server/relay.js';
+import { upstreamFailure } from '../upstream-error.js';
 
 async function assertCanUseEnvironmentKey(request, payload) {
   if (payload.apiKey) return;

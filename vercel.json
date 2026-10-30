@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/exercise", "destination": "/" },
+    { "source": "/account", "destination": "/" },
     { "source": "/scenes", "destination": "/" },
     { "source": "/batch", "destination": "/" },
     { "source": "/history", "destination": "/" },

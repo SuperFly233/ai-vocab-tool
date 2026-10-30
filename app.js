@@ -185,12 +185,14 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.43.22',
-  releaseDate:'2026-10-27',
+  version:'0.44.0',
+  releaseDate:'2026-10-30',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.44.0',date:'2026-10-30',title:'运动采集查词闭环',items:['点重点或手输后，就地显示查询状态、核心义和完整释义入口；结束小结直接打开本次结果。','上一张／下一张与新图提醒；有未提交输入、选中文字或打开释义时不切走。','查询携带稳定身份；刷新后的中断查询需确认恢复，运动页不再被新手提示遮挡。']},
+
   {version:'0.43.22',date:'2026-10-30',title:'裁剪手柄边缘修复',items:['修复裁剪框贴边时四角拖动手柄被遮住的问题。','手柄自动在图片内避让，拖动起点不跳动，窗口缩放后保持定位。','仅兼容性缺陷修复，不包含尚未完成验收的0.44运动采集功能。']},
   {version:'0.43.21',date:'2026-10-30',title:'运动采集布局与连续操作',items:['按采集优先重做空态、横向截图序列和正文区；偏好使用独立限宽面板，不再撑高工具栏。','大字阅读与底线查词分层，无截图也可普通查词；后台更新保留输入、选择和展开状态，提交绑定当刻截图。','结束小结区分已收下、分析中、等待和需处理；保留后台任务、人工修改保护与空闲零轮询。']},
   {version:'0.43.20',date:'2026-10-29',title:'按需连接与空闲请求治理',items:['取消网页常驻定时云同步，保留修改后保存、返回页面同步和手动操作；空任务与后台任务窗口不再反复查询。','Bridge 0.4.2默认停止接单，明确开启10分钟连接；停止后已领取任务安全完成，不重复领取新任务。','包含运动独立整页、结束小结和八种静态截图标注；保留本机原件与人工修改保护。']},
@@ -4289,7 +4291,7 @@ function scheduleRecoveredLookups(){
   if(!lookupRecoveryPending||lookupBusy||!lookupQueue.length||!canEnterApp())return;
   if(cloudUser&&!cloudBootstrapped)return;
   lookupRecoveryPending=false;
-  const count=lookupQueue.length;
+  const count=lookupQueue.filter(v=>!v.exerciseLookupId).length;if(!count)return;
   notify(`已恢复 ${count} 个未完成查询，将从中断处继续。`,'info','恢复查询');
   setTimeout(processNextLookup,80);
 }
@@ -4350,10 +4352,15 @@ function clearLookupQueue(){
 }
 function processNextLookup(){
   if(lookupBusy||!lookupQueue.length)return;
-  const next=lookupQueue.shift();
+  const index=lookupQueue.findIndex(v=>!v.recovered||!v.exerciseLookupId);if(index<0)return;
+  const [next]=lookupQueue.splice(index,1);
   renderLookupQueue();
   applyLookupRequestToEditor(next);
   performLookup(next);
+}
+function resumeExerciseLookup(id){
+  const request=lookupQueue.find(v=>v.exerciseLookupId===id&&v.exerciseOwner===(cloudUser?.id||'local'));if(!request)return false;
+  request.recovered=false;persistLookupTasks();processNextLookup();return true;
 }
 function applyLookupRequestToEditor(request){
   if(!request)return;
@@ -4364,8 +4371,8 @@ function applyLookupRequestToEditor(request){
   renderLookupFolderPicker();
   updateEditorState();
 }
-async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,userNote,folderIds=[],recovered=false,sceneGroupId='',batchId=''}){
-  const request={query,existingId,sourceItem,direction,note,...(typeof userNote==='string'?{userNote}:{}),folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId,batchId};
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,userNote,folderIds=[],recovered=false,sceneGroupId='',batchId='',exerciseLookupId='',exerciseOwner=''}){
+  const request={query,existingId,sourceItem,direction,note,...(typeof userNote==='string'?{userNote}:{}),folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId,batchId,exerciseLookupId,exerciseOwner};
   const settings=currentApiSettings();
   lookupBusy=true;
   globalThis.SceneUI?.taskResult(request,'running');
@@ -4396,7 +4403,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     currentHistoryId=persisted?saved.id:null;
     currentFollowups=persisted?saved.followups||[]:[];
     const linked=persisted?await SceneUI.attachPending(saved.id,query,request.sceneGroupId):false;
-    globalThis.SceneUI?.taskResult(request,persisted&&linked?'complete':'error',persisted&&linked?'':persisted?'场景关联尚未完成':'结果未能保存');
+    globalThis.SceneUI?.taskResult({...request,entryId:persisted?saved.id:null},persisted&&(!request.sceneGroupId||linked)?'complete':'error',persisted&&(!request.sceneGroupId||linked)?'':persisted?'场景关联尚未完成':'结果未能保存');
     renderResult(saved?.result||data,{animate:false,modelInfo});
     globalThis.RequestUI?.finish(persisted&&(!request.sceneGroupId||linked));
     if(persisted&&!request.sceneGroupId&&!request.batchId)notify(existingId?'新版本已保存。':'结果已生成。','good','查询完成');

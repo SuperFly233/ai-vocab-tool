@@ -223,7 +223,7 @@ expect(
 expect(app.includes("renderHistoryFilterGroup('time','时间'")&&app.includes('historyMatchesTimeFilter'), 'History must provide explicit time-range filtering');
 expect(!app.includes('data-tip="查看" aria-label="查看"'), 'History rows must not duplicate the row-level open action');
 
-const requiredRoutes = ['/history', '/favorites', '/scenes', '/batch', '/settings', '/about'];
+const requiredRoutes = ['/history', '/favorites', '/scenes', '/batch', '/settings', '/about', '/exercise', '/account'];
 for(const module of ['experience-ui.js','request-ui.js','scene-workspace.js'])expect(html.includes(`src="/${module}?v=${packageInfo.version}`),`Missing versioned reading module ${module}`);
 const rewriteSources = new Set((vercelInfo.rewrites || []).map(item => item.source));
 for (const route of requiredRoutes) {

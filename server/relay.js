@@ -1,4 +1,4 @@
-import { upstreamFailure } from './upstream-error.js';
+import { upstreamFailure } from '../upstream-error.js';
 
 const RELAY_HEADER = 'x-ai-vocab-relay';
 

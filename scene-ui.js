@@ -249,8 +249,8 @@
       const saveButton=footer.querySelector('[data-scene-action="save"]');saveButton.textContent='保存场景';
       const manual=footer.querySelector('[data-scene-action="manual"]');manual?.remove();
       const more=document.createElement('button');more.type='button';more.className='icon-btn';more.dataset.editorMore='';more.setAttribute('aria-label','更多保存方式');more.dataset.tip='更多保存方式';more.innerHTML=icon('ellipsis');footer.append(more);
-      more.onclick=()=>{const terms=SceneData.highlights(layer.querySelector('[name="lookupTerms"],[name="entryTitle"]').value);SharedUI.menu(more,[terms.length?{label:`保存并查询 ${terms.length} 个词组`,icon:'search',run:()=>saveAndQuery()}:null,manual?{label:'保存为自建词条…',icon:'file-text',run:()=>save(true)}:null])};
-      const words=layer.querySelector('[name="lookupTerms"],[name="entryTitle"]'),update=()=>more.hidden=!manual&&!SceneData.highlights(words.value).length;words.addEventListener('input',update);update();
+      more.onclick=()=>SharedUI.menu(more,[manual?{label:'保存为自建词条…',icon:'file-text',run:()=>save(true)}:null]);
+      more.hidden=!manual;
     }
     layer.querySelector('.scene-editor').classList.toggle('hints-pinned',normalizeBooleanSetting(getSettings().visualHintsPinned,false));
     if(!editor.newScene)layer.querySelector('.scene-editor>header>div').insertAdjacentHTML('beforeend',timeMeta(scene));
@@ -757,6 +757,7 @@
     try{for(const task of JSON.parse(sessionStorage.getItem(`lexi-scene-tasks:${owner}`)||'[]'))if(task?.request?.sceneGroupId&&typeof task.request.query==='string')tasks.set(`${task.request.sceneGroupId}:${normalizeSearch(task.request.query)}`,{...task,status:['queued','running'].includes(task.status)?'error':task.status,message:['queued','running'].includes(task.status)?'任务中断，检查队列或重试。':task.message})}catch{}
   }
   function taskResult(request,status,message=''){
+    if(request.exerciseLookupId)document.dispatchEvent(new CustomEvent('lexi-exercise-lookup',{detail:{id:request.exerciseLookupId,owner:request.exerciseOwner,status,message,signature:lookupRequestSignature(request),entryId:request.entryId??null}}));
     if(!request.sceneGroupId&&!request.batchId)return;
     restoreTasks();tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request:{query:request.query,sceneGroupId:request.sceneGroupId||request.batchId,...(typeof request.userNote==='string'?{userNote:request.userNote}:{}),...(typeof request.direction==='string'?{direction:request.direction}:{})},status,message});
     try{sessionStorage.setItem(`lexi-scene-tasks:${taskOwner}`,JSON.stringify([...tasks.values()].slice(-200)))}catch{}
@@ -778,7 +779,7 @@
     const byOrigin=findHistoryByQuery(query);if(byOrigin)return byOrigin;
     const titles=getHistory().filter(item=>normalizeSearch(historyDisplayTitle(item))===key);return titles.length===1?titles[0]:null;
   }
-  async function queueSceneQueries(groupId,queries,{forceQueries=[],entryIds={},direction,note=''}={}){
+  async function queueSceneQueries(groupId,queries,{forceQueries=[],entryIds={},direction,note='',exerciseLookupIds={},exerciseOwner=''}={}){
     const owner=cloudUser?.id||'local';
     const group=sceneGroups().find(row=>row.scene.groupId===groupId);if(!group)throw new Error('场景已不存在。');
     const {scene}=group;saveLibrary(scene);
@@ -786,11 +787,11 @@
     for(const query of queries){
       if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未继续提交场景任务。');
       try{
-      const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,userNote:note,note:[note,scene.quote?`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`:''].filter(Boolean).join('\n'),folderIds:lookupFolderIds};
+      const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,userNote:note,note:[note,scene.quote?`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`:''].filter(Boolean).join('\n'),folderIds:lookupFolderIds,...(exerciseLookupIds[normalizeSearch(query)]?{exerciseLookupId:exerciseLookupIds[normalizeSearch(query)],exerciseOwner}:{})};
       const existing=findExisting(query,entryIds[normalizeSearch(query)]);
-if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(query))){const linked=await attachPending(existing.id,query,groupId);if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未更新任务状态。');taskResult(request,linked?'complete':'error',linked?'':'场景关联尚未完成');(linked?accepted:failed).push(query);continue}
+if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(query))){const linked=await attachPending(existing.id,query,groupId);if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未更新任务状态。');taskResult({...request,entryId:existing.id},linked?'complete':'error',linked?'':'场景关联尚未完成');(linked?accepted:failed).push(query);continue}
       if(existing)request.existingId=existing.id;
-      if(lookupQueue.some(row=>lookupRequestSignature(row)===lookupRequestSignature(request))||activeLookupSignature===lookupRequestSignature(request)){accepted.push(query);continue}
+      if(lookupQueue.some(row=>lookupRequestSignature(row)===lookupRequestSignature(request))||activeLookupSignature===lookupRequestSignature(request)){if(request.exerciseLookupId){taskResult(request,'error','已有相同查询正在执行，完成后可再次点选关联。');failed.push(query)}else accepted.push(query);continue}
       taskResult(request,'queued');enqueueLookup(request,{silent:true});
       accepted.push(query);
       }catch(error){if(owner!==(cloudUser?.id||'local'))throw error;failed.push(query);taskResult({query,sceneGroupId:groupId},'error',error.message)}

@@ -1,7 +1,7 @@
-import { relayIfIpv6Blocked } from './relay.js';
-import { upstreamFailure } from './upstream-error.js';
+import { relayIfIpv6Blocked } from '../server/relay.js';
+import { upstreamFailure } from '../upstream-error.js';
 import { followupMessages } from '../provider-contract.js';
-import { modelEvents, streamHeaders } from './model-stream.js';
+import { modelEvents, streamHeaders } from '../model-stream.js';
 
 async function assertCanUseEnvironmentKey(request, payload) {
   if (payload.apiKey) return;

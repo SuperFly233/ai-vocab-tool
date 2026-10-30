@@ -1,11 +1,13 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.22",
+  "version": "0.44.0",
   "private": true,
   "type": "module",
   "scripts": {
     "check:capture": "node --check capture-ui.js && node --check vision-client.js && node scripts/check-capture-data.cjs",
     "check:capture-ui": "node scripts/check-capture-ui.cjs && node scripts/check-capture-vision.cjs",
+    "check:exercise-journey": "node scripts/check-exercise-journey.cjs",
+    "check:scene-query-footer": "node scripts/check-scene-query-footer.cjs",
     "check:exercise-redesign": "node scripts/check-exercise-redesign.cjs",
     "check:annotations": "node scripts/check-annotation-data.cjs && node scripts/check-annotations.cjs",
     "check:exercise": "node scripts/check-exercise-data.cjs && node scripts/check-exercise-capture.cjs && node scripts/check-exercise-safety.cjs && node scripts/check-exercise-summary.cjs",
@@ -77,7 +79,7 @@
     "check:responsive": "node scripts/check-responsive.cjs",
     "build:icons": "node scripts/build-icons.js",
     "build:pages": "node scripts/build-icons.js && node scripts/build-pages.js",
-    "check:contracts": "node scripts/check-contracts.js",
+    "check:contracts": "node scripts/check-contracts.js && node scripts/check-vercel-layout.cjs",
     "check:history": "node scripts/check-history-data.js",
     "check:settings": "node scripts/check-settings-data.js",
     "check:settings-app": "node scripts/check-settings-app.js",

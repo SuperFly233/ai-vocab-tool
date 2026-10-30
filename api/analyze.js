@@ -1,6 +1,6 @@
-import { relayIfIpv6Blocked } from './relay.js';
-import { modelEvents, streamHeaders } from './model-stream.js';
-import { upstreamFailure } from './upstream-error.js';
+import { relayIfIpv6Blocked } from '../server/relay.js';
+import { modelEvents, streamHeaders } from '../model-stream.js';
+import { upstreamFailure } from '../upstream-error.js';
 import { safeParseJSON, lookupUserPrompt } from '../provider-contract.js';
 
 const SYSTEM_PROMPT = `你是一个专门用于查单词、短语、表达和句子的结构化词汇分析助手。用户原始规则必须完整保留；JSON 只是为了让网页格式化排版的输出容器。你必须严格根据用户输入输出合法 JSON；不要输出 Markdown、代码块、解释性前言、总结套话或模型自我表态。
