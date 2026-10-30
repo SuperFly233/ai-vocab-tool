@@ -8,4 +8,4 @@ The image stage must clip the outside-crop shade, but this also clipped handle h
 - `check-media-editor.cjs`:same10 cases, crop/output dimensions, explicit copy adoption, failed storage/account protection, saved edit provenance and restore passed.
 - [Manually inspected mobile screenshot](v04322-crop-handles.png). No reference-image generation for this localized defect, no new layout or control.
 
-Production evidence follows after promotion.0.44 real-batch429 gate remains separate and is not bypassed by this hotfix.
+Runtimeac456ae / release4b0642b pushed. Previewddd17b91 and production646cbd83 / official alias deployed2026-10-30:194 exact SHA256 resources and anonymous sync/Anki/source401 verified. Deployed390light corner hit/drag/scale/resize acceptance passed on preview and official site.0.44 real-batch429 gate remains separate and is not bypassed by this hotfix.
