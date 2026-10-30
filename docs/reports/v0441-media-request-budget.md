@@ -71,6 +71,13 @@ Final production-page isolated synthetic trace passed20seconds idle0requests aft
 normal media roundtrip/WebM/backup/integrity/manual retry passed. Existing npm check
 and idle-network checks passed. No additional model calls or private-material writes.
 
+Public fixes synchronized to isolated capture preview: merge899899b,
+https://02d1940f.ai-vocab-tool.pages.dev ;198hashes, all four anonymous401 checks,
+old-media405 and deployed real-page20second idle0 passed. Capture data, ten UI
+width/theme cases and synthetic vision safety passed. Capture-only functionality
+remains isolated; main checkout/build restored84icons/194public files plus reserved
+_routes.json deployment metadata (not a public downloadable asset).
+
 The test runner encountered a Node/V8 lazy-compilation assertion once, not a system
 blue screen; the same tests passed with `node --no-lazy`. No driver/system changes.
 
