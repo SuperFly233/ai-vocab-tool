@@ -3,6 +3,7 @@
  const owner=()=>cloudUser?.id||'local',active=new Map(),listeners=new Set(),controllers=new Map(),emergency=new Map();let tail=Promise.resolve(),slot=0;
  const labels={queued:'等待分析',running:'正在分析',check:'待核对',reviewed:'已采用',rejected:'已拒绝',interrupted:'中断待恢复',error:'分析失败',cancelled:'已停止'};
  let channel=null;try{if(typeof BroadcastChannel==='function')channel=new BroadcastChannel('lexi-scene-ai-tasks')}catch{}
+ const blockedCaptureProfiles=new Set();
  channel?.addEventListener('message',event=>{if(event.data?.owner!==owner())return;if(event.data.cancel)controllers.get(event.data.id)?.abort();for(const listener of listeners)listener()});
  const fingerprint=async profile=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(SceneAIData.identity(profile)))),v=>v.toString(16).padStart(2,'0')).join('');
  const storage=account=>'scene-ai-task-pool:'+account;
@@ -19,23 +20,26 @@
   await change(account,jobs=>{if(jobs.length>=100)throw Error('本机已有100个分析任务，请先导出并移除已核对任务。');if(jobs.filter(j=>['queued','running'].includes(j.state)).length>=20)throw Error('最多同时保留20个未完成任务。');jobs.unshift(job)});return job;
  }
  async function update(account,id,fields){return change(account,jobs=>{const job=jobs.find(v=>v.id===id);if(!job)throw Error('分析任务已不存在。');Object.assign(job,fields,{updatedAt:new Date().toISOString()});return structuredClone(job)})}
- async function execute(job,profile){
+ async function execute(job,profile,{resume=false}={}){
   if(active.has(job.id))return active.get(job.id);
+  if(resume&&job.options?.capture)blockedCaptureProfiles.delete(job.owner+':'+job.profileHash);
   const work=async()=>{
    const account=job.owner,controller=new AbortController();let claimed=false;controllers.set(job.id,controller);
    try{
     if(account!==owner()||await fingerprint(profile)!==job.profileHash)throw Error('账号或模型配置已变化，未发送旧任务。');
     await change(account,jobs=>{const live=jobs.find(v=>v.id===job.id);if(!live||!['queued','interrupted','error','cancelled'].includes(live.state)||live.state==='cancelled'&&job.state!=='cancelled')throw Error('任务已停止或由其他页面处理，请刷新状态。');live.state='running';live.startedAt=new Date().toISOString();live.updatedAt=live.startedAt});claimed=true;
     if(account!==owner())throw Error('账号已切换，未发送旧任务。');
+    if(job.options?.capture&&blockedCaptureProfiles.has(job.owner+':'+job.profileHash))throw Error('该模型因权限或限流响应已暂停本批分析；截图已保留，请检查后手动重试。');
     const result=await SceneAIClient.analyze(profile,job.scene,{...job.options,signal:controller.signal});
     if(controller.signal.aborted||account!==owner())throw Error('分析已停止，原件和任务保留。');
     const liveProfile=getSettings().apiProfiles.find(v=>v.id===profile.id);
     if(await fingerprint(liveProfile)!==job.profileHash)throw Error('模型配置已变化，旧响应未采用。');
     try{await update(account,job.id,{result,state:'check',error:''})}catch(error){const current=(await list(account)).find(j=>j.id===job.id)||job;emergency.set(job.id,{...current,result,state:'check',error:'分析已返回，但本机写入失败。建议暂存于当前页面，请先导出任务，不要刷新。'});for(const listener of listeners)listener()}return result;
-   }catch(error){if(claimed)await update(account,job.id,{state:controller.signal.aborted?'cancelled':'error',error:error.message}).catch(()=>{});throw error}
+   }catch(error){if(job.options?.capture&&/HTTP\s*(429|401|403)/.test(error.message))blockedCaptureProfiles.add(job.owner+':'+job.profileHash);if(claimed)await update(account,job.id,{state:controller.signal.aborted?'cancelled':'error',error:error.message}).catch(()=>{});throw error}
    finally{controllers.delete(job.id);active.delete(job.id)}
   };
-  const promise=navigator.locks?navigator.locks.request('scene-ai-slot:'+(slot++%2),()=>navigator.locks.request('scene-ai-runtime:'+job.id,{ifAvailable:true},lock=>{if(!lock)throw Error('另一标签页正在执行此任务，请勿重复请求。');return work()})):Promise.reject(Error('当前浏览器缺少安全任务锁，请更新浏览器后再分析。'));
+  const lane=slot++%2;
+  const promise=navigator.locks?navigator.locks.request('scene-ai-runtime:'+job.id,{ifAvailable:true},lock=>{if(!lock)throw Error('另一标签页正在执行此任务，请勿重复请求。');return navigator.locks.request('scene-ai-slot:'+lane,work)}):Promise.reject(Error('当前浏览器缺少安全任务锁，请更新浏览器后再分析。'));
   active.set(job.id,promise);promise.finally(()=>active.delete(job.id)).catch(()=>{});return promise;
  }
  async function bind(id,scene,expected=SceneUI.supplementVersion(scene.groupId)){const account=owner();return change(account,jobs=>{if(account!==owner())throw Error('账号已切换，未绑定旧任务。');const job=jobs.find(v=>v.id===id);if(!job)throw Error('原分析任务已不存在。');job.bound={groupId:scene.groupId,expected,scene:structuredClone(scene)};if(job.result?.generatedAt&&scene.aiAnalysis?.generatedAt===job.result.generatedAt)job.state='reviewed';job.updatedAt=new Date().toISOString()})}

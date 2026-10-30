@@ -1,9 +1,11 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.43.21",
+  "version": "0.44.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:exercise-journey": "node scripts/check-exercise-journey.cjs",
+    "check:scene-query-footer": "node scripts/check-scene-query-footer.cjs",
     "check:exercise-redesign": "node scripts/check-exercise-redesign.cjs",
     "check:annotations": "node scripts/check-annotation-data.cjs && node scripts/check-annotations.cjs",
     "check:exercise": "node scripts/check-exercise-data.cjs && node scripts/check-exercise-capture.cjs && node scripts/check-exercise-safety.cjs && node scripts/check-exercise-summary.cjs",

@@ -18,7 +18,7 @@
  function status(node,message){const host=node?.querySelector('.scene-dialog-status');if(host)host.textContent=message}
  function eligible(){return !document.hidden&&typeof canEnterApp==='function'&&canEnterApp()&&!document.body.classList.contains('auth-required')}
  function offer(){
-  clearTimeout(promptTimer);if(!eligible()||state().welcome||help||tour||welcome)return;
+  clearTimeout(promptTimer);if(!eligible()||state().welcome||help||tour||welcome||activeView==='exercise')return;
   if(busyEditor()||document.querySelector('.request-card.is-streaming')||document.activeElement?.matches('textarea:focus,input:focus')&&document.activeElement.value){promptTimer=setTimeout(offer,4000);return}
   const node=document.createElement('aside');welcome=node;node.className='learning-welcome';node.setAttribute('popover','manual');node.setAttribute('aria-label','新手教程');
   node.innerHTML='<strong>用几步熟悉 Lexi</strong><p>只读演示，不查询、不保存，也不创建卡片。</p><div><button class="plain-btn primary-btn" data-start>开始</button><button class="plain-btn" data-later>稍后</button><button class="plain-btn" data-never>不再提示</button></div>';
@@ -155,6 +155,6 @@
  root.addEventListener('lexi-auth-context',authChanged);root.addEventListener('pagehide',()=>{endTour(false);help?.node.close();closeWelcome();clearTimeout(promptTimer)});root.addEventListener('popstate',()=>endTour(false));
  root.addEventListener('storage',event=>{if(event.key===storageKey(owner())){memory.delete(owner());if(welcome&&state().welcome){welcome.remove();welcome=null}}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){endTour(false);closeWelcome()}});
- root.LearningHelp={open,startTour,endTour,handleKey,tourActive:()=>Boolean(tour)};
+ root.LearningHelp={open,startTour,endTour,handleKey,tourActive:()=>Boolean(tour),suspendWelcome(){clearTimeout(promptTimer);if(welcome){welcome.remove();welcome=null}}};
  Promise.resolve(root.appReady).then(()=>cloudInitPromise).then(authChanged).catch(()=>{});
 })(globalThis);

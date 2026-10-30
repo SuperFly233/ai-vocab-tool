@@ -33,6 +33,7 @@
       startedAt:text(request.startedAt),
       ...(text(request.sceneGroupId)?{sceneGroupId:text(request.sceneGroupId)}:{}),
       ...(text(request.batchId)?{batchId:text(request.batchId)}:{}),
+      ...(text(request.exerciseLookupId)?{exerciseLookupId:text(request.exerciseLookupId),exerciseOwner:text(request.exerciseOwner)}:{}),
     };
     normalized.signature=requestSignature(normalized);
     return normalized;

@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-30
 
+- v0.44.0 CANDIDATE: exercise usability loop. Stable optional exerciseLookupId/owner retained in lookup snapshots, credential-free per-account receipts in existing capture draft; inline lookup states/core meaning/shared full entry modal, summary actual result navigation, previous/next and protected arrivals. Exercise lookup recovery requires confirmation; ordinary recovery unchanged. Real current-profile synthetic UI testing underway; production remains0.43.21 until real journey and regression gates pass. No DB/backend/Bridge changes.
+
+- v0.44.0 final isolated previewc5f30230:194 exact hashes and sync/Anki/source401, deployed390light normal-control HTTP-fixture journey/recovery passed. Real current-model Backlog3utterances/selection/contextual lookup/full entry reached; continuous long/untranslated/blank batch hit429,12-attempt cap exhausted. Production verified still0.43.21; no promotion or capture-preview merge. Latest user editor request implemented: footer Save-and-query beside Save, direct typed terms and selected-target precedence,10 geometry cases. Cross-tab runtime-before-slot locking,429 queued pause, tutorial/scroll-top obstruction fixes and explicit exercise lookup recovery tested. Report docs/reports/v0440-exercise-usability.md.
+
 - Version policy corrected after user feedback: docs/versioning.md and AGENTS.md now distinguish feature/workflow minor releases from compatible patch fixes. Historical0.43.x identities stay immutable;0.43.21 should have been a minor workflow release. Next feature release0.44.0, not another default0.43 patch. Old FSRS/storage roadmap numbers are superseded planning labels, not reserved numbers or completed milestones. No runtime renumbering or deployment for this documentation correction.
 
 - v0.43.21 shared capture parity: mergea8263a9 pushed, preview54dfab9b/capture-v038-preview passed198 hashes and sync/Anki/source401; capture data/10 UI cases/synthetic vision/shared390light redesign/idle and deployed390light capture passed. Main restored84icons/194files, no preview-only intake promoted to production. Evidence in v04321 report.
