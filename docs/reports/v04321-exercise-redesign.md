@@ -27,3 +27,7 @@ No new backend, database migration, provider fallback, Bridge release, real paid
 - Final preview: https://c3b8094b.ai-vocab-tool.pages.dev/exercise . All194 static resources matched local SHA256; anonymous sync/Anki/source routes returned401. This establishes route protection, not authenticated private writes or actual Anki readiness.
 - Full14-case redesign matrix rerun after the final literal clipboard instruction and target-click/input regression: passed. `npm run check`, idle-network, control-motion, immediate-save and unlink protections passed. Native zoom and physical keyboard/device behavior remain separate from simulated effective viewports.
 - Selected actual screenshots: [empty](v04321/empty-1440-light.png), [preferences](v04321/preferences-390-light.png), [desktop content](v04321/3-1440-light.png), [phone content](v04321/3-390-dark.png), [Backlog](v04321/backlog-1440-dark.png), [summary](v04321/summary-390-light.png). Manually inspected against the generated hierarchy; preference bounds/padding and empty clipboard instruction corrected before release.
+
+## Production
+
+Runtime commit7fbaf7b pushed to main. Production https://e54fff80.ai-vocab-tool.pages.dev and https://ai-vocab-tool.pages.dev/exercise deployed2026-10-30; official194 resource hashes and sync/Anki/source401 passed. Official390px light full synthetic redesign flow passed, including preferences,1/3/20 screenshots, input/selection protection, Backlog and summary. Bridge remains0.4.2; no helper reinstall required for this UI update.
