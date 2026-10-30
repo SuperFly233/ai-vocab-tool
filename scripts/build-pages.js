@@ -101,6 +101,7 @@ const files = [
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
+await copyFile(join(root, 'pages-routes.json'), join(dist, '_routes.json'));
 
 for (const file of files) {
   const target = join(dist, file);

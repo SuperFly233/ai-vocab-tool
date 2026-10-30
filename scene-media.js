@@ -1,12 +1,15 @@
 (function attachSceneMedia(root){
   const SIZE=512*1024;
-  const uploading=new Map(),downloading=new Map();
-  async function request(action,payload){
+  const uploading=new Map(),downloading=new Map(),failures=new Map();
+  async function request(action,payload,owner){
+    if(cloudUser?.id!==owner)throw new Error('账号已切换，素材请求已停止。');
     const token=await cloudAccessToken();
+    if(cloudUser?.id!==owner)throw new Error('账号已切换，素材请求已停止。');
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
     try{
-      const response=await fetch('/api/media',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action,...payload})});
+      const response=await fetch('/api/media-v2',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action,...payload})});
       const data=await response.json().catch(()=>({}));
+      if(response.status===405)throw new Error('云端素材同步暂时暂停，本机原件保留，请稍后手动重试。');
       if(!response.ok)throw new Error(data.error||`素材同步失败：HTTP ${response.status}`);
       return data;
     }catch(error){if(controller.signal.aborted)throw new Error('素材同步超时，本机原文件未受影响，可以重试。');throw error}
@@ -16,14 +19,17 @@
     let raw='';for(let start=0;start<bytes.length;start+=8192)raw+=String.fromCharCode(...bytes.subarray(start,start+8192));
     return btoa(raw);
   };
-  async function upload(ref,onProgress=()=>{}){
+  async function upload(ref,onProgress=()=>{},{retry=false}={}){
     if(!cloudUser)throw new Error('素材已保存在本机；登录后可同步。');
     const owner=cloudUser.id,key=`${owner}:${ref.id}`;
     if(uploading.has(key))return uploading.get(key);
+    const failureKey=`upload:${key}`;
+    if(retry)failures.delete(failureKey);
+    if(failures.has(failureKey))throw failures.get(failureKey);
     const work=(async()=>{
       const record=await SceneData.getFile(ref.id);
       if(record?.uploadedFor?.includes(owner))return;
-      const info=await request('manifest',{id:ref.id});
+      const info=await request('manifest',{id:ref.id},owner);
       if(info.manifest&&(info.manifest.size!==ref.size||info.manifest.mime!==ref.mime))throw new Error('云端素材元信息不一致，已停止同步。');
       if(info.manifest&&!record?.blob)return;
       if(!record?.blob)throw new Error('本机缺少原始素材，无法上传。');
@@ -33,14 +39,14 @@
           if(cloudUser?.id!==owner)throw new Error('账号已切换，素材同步已停止。');
           const chunks=[];
           for(let offset=index;offset<Math.min(count,index+2);offset++)chunks.push({index:offset,data:base64(new Uint8Array(await record.blob.slice(offset*SIZE,(offset+1)*SIZE).arrayBuffer()))});
-          await request('put',{...ref,chunks});onProgress(Math.round(Math.min(count,index+2)/count*100));
+          await request('put',{...ref,chunks},owner);onProgress(Math.round(Math.min(count,index+2)/count*100));
         }
-        await request('complete',ref);
+        await request('complete',ref,owner);
       }
       await SceneData.putRecord(ref.id,{...record,uploadedFor:[...new Set([...(record.uploadedFor||[]),owner])]});
     })();
     uploading.set(key,work);
-    try{return await work}finally{uploading.delete(key)}
+    try{return await work}catch(error){failures.set(failureKey,error);throw error}finally{uploading.delete(key)}
   }
   async function verify(ref,blob){
     if(!blob||blob.size!==ref.size||blob.size<=0||blob.size>20*1024*1024)throw new Error('素材大小不匹配。');
@@ -54,19 +60,23 @@
     const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(value=>value.toString(16).padStart(2,'0')).join('');
     if(mime!==ref.mime||hash!==ref.id)throw new Error('音频完整性或类型校验失败。');
   }
-  async function resolve(ref,{refresh=false}={}){
+  async function resolve(ref,{refresh=false,localOnly=false}={}){
     const cached=await SceneData.getFile(ref.id);if(cached?.blob&&!refresh)return cached;
+    if(localOnly)throw new Error('此设备尚无素材，打开原素材时再下载。');
     if(!cloudUser)throw new Error('本机没有此素材，请登录原账号后加载。');
     const owner=cloudUser.id,key=`${owner}:${ref.id}`;
     if(downloading.has(key))return downloading.get(key);
+    const failureKey=`download:${key}`;
+    if(refresh)failures.delete(failureKey);
+    if(failures.has(failureKey))throw failures.get(failureKey);
     const work=(async()=>{
-      const {manifest}=await request('manifest',{id:ref.id});
+      const {manifest}=await request('manifest',{id:ref.id},owner);
       if(!manifest||manifest.size!==ref.size||manifest.mime!==ref.mime||manifest.chunks!==Math.ceil(ref.size/SIZE))throw new Error('素材尚未同步完整，请在原设备重试上传。');
       const parts=[];
       for(let index=0;index<manifest.chunks;index+=2){
         if(cloudUser?.id!==owner)throw new Error('账号已切换，素材下载已停止。');
         const indexes=Array.from({length:Math.min(2,manifest.chunks-index)},(_,offset)=>index+offset);
-        const {chunks}=await request('get',{id:ref.id,indexes});
+        const {chunks}=await request('get',{id:ref.id,indexes},owner);
         for(const expected of indexes){
           const chunk=chunks?.find(item=>item.index===expected);if(!chunk)throw new Error('素材分片缺失，请重试同步。');
           const raw=atob(chunk.data),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
@@ -79,7 +89,7 @@
       const record={ref,blob,uploadedFor:[owner]};await SceneData.putRecord(ref.id,record);return record;
     })();
     downloading.set(key,work);
-    try{return await work}finally{downloading.delete(key)}
+    try{return await work}catch(error){failures.set(failureKey,error);throw error}finally{downloading.delete(key)}
   }
   root.SceneMedia={upload,resolve,verify};
 })(globalThis);

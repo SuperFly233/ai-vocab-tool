@@ -185,12 +185,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.44.0',
+  version:'0.44.1',
   releaseDate:'2026-10-30',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.44.1',date:'2026-10-30',title:'素材请求止血与按需加载',items:['缩略图只读取本机缓存，不在后台下载未打开的云端原件。','自动同步跳过本机没有原件的场景；加载或同步失败后停止自动重发，手动重试才恢复。','旧页面的素材通道已暂停；刷新使用新版按需通道。旧版助手云端素材下载暂不可用，原件和文字查词保留。']},
   {version:'0.44.0',date:'2026-10-30',title:'运动采集查词闭环',items:['点重点或手输后，就地显示查询状态、核心义和完整释义入口；结束小结直接打开本次结果。','上一张／下一张与新图提醒；有未提交输入、选中文字或打开释义时不切走。','查询携带稳定身份；刷新后的中断查询需确认恢复，运动页不再被新手提示遮挡。']},
 
   {version:'0.43.22',date:'2026-10-30',title:'裁剪手柄边缘修复',items:['修复裁剪框贴边时四角拖动手柄被遮住的问题。','手柄自动在图片内避让，拖动起点不跳动，窗口缩放后保持定位。','仅兼容性缺陷修复，不包含尚未完成验收的0.44运动采集功能。']},
@@ -2742,7 +2743,7 @@ async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
     setCloudBusy(false,false);
     if(lookupRecoveryPending)hydrateLookupTasks();
     flushQueuedCloudSync();
-    SceneUI.syncPending();
+    if(manual)SceneUI.syncPending(SceneUI.sceneGroups().map(group=>group.scene.groupId));
   }
 }
 async function uploadItemsToCloud(items,dirtySnapshot={}){

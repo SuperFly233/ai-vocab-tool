@@ -70,7 +70,7 @@
     if(!added.length)return {added:0,skipped,items};
     const data=SceneData.reconcile([...(settings.sceneLibrary||[]),...added],settings.sceneLibraryTombstones);
     if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:clock}))throw new Error('场景未能写入本机，选取内容仍保留。');
-    renderHub();syncPending();
+    renderHub();
       const undo=()=>{
       if(account!==(cloudUser?.id||'local'))return notify('账号已切换，未撤销导入。','warn','撤销');
       const latest=getSettings(),current=SceneData.reconcile(latest.sceneLibrary,latest.sceneLibraryTombstones).items,links=getHistory().flatMap(item=>scenes(item));
@@ -443,7 +443,7 @@
       if(editor.standalone||standalone){
         const linked=getHistory().flatMap(item=>scenes(item).map(row=>({item,row}))).find(({row})=>row.groupId===scene.groupId);
         if(!reused){if(linked)saveToHistory(linked.item.id,{...scene,id:linked.row.id,targetKey:linked.row.targetKey,targetLabel:linked.row.targetLabel,featured:linked.row.featured,order:linked.row.order,exampleHighlights:linked.row.exampleHighlights,translationHighlights:linked.row.translationHighlights},{share:true,defaults:scene});else saveLibrary(scene)}
-        await editing.ai?.saved(scene);applyHomeDraft();setBusy(false);await close(true);renderHub();syncPending();if(stagedTerms.length)root.SceneWorkspace?.stageQueries(scene.groupId,stagedTerms);if(editing.fromHome)setHomeScene(scene);notify(reused?'已复用相同场景，未新增重复记录。':'场景已保存。','good','场景',true,{label:'打开场景',run:()=>openWorkspace(scene.groupId)});return scene;
+        await editing.ai?.saved(scene);applyHomeDraft();setBusy(false);await close(true);renderHub();syncPending([scene.groupId]);if(stagedTerms.length)root.SceneWorkspace?.stageQueries(scene.groupId,stagedTerms);if(editing.fromHome)setHomeScene(scene);notify(reused?'已复用相同场景，未新增重复记录。':'场景已保存。','good','场景',true,{label:'打开场景',run:()=>openWorkspace(scene.groupId)});return scene;
       }
       let id=editor.historyId;
       if(!id&&manual){
@@ -517,12 +517,12 @@
       }});
     }finally{unlinking.delete(key)}
   }
-  async function loadAsset(node){
+  async function loadAsset(node,{retry=false}={}){
     const id=node.dataset.sceneAsset;if(!id||node.dataset.loading)return;
     node.dataset.loading='true';node.setAttribute('aria-busy','true');
     try{
       const ref=[...library(),...getHistory().flatMap(scenes)].flatMap(scene=>scene.media).find(item=>item.id===id);
-      const file=ref?await SceneMedia.resolve(ref):await SceneData.getFile(id);if(!file?.blob)throw new Error('本机尚无此素材');
+      const file=ref?await SceneMedia.resolve(ref,{refresh:retry}):await SceneData.getFile(id);if(!file?.blob)throw new Error('本机尚无此素材');
       node.removeAttribute('title');
       let url=urls.get(id);if(!url){url=URL.createObjectURL(file.blob);urls.set(id,url)}
       const video=file.ref.mime.startsWith('video/'),displayName=node.getAttribute('aria-label')||ref?.name||file.ref.name;
@@ -606,7 +606,7 @@
     else if(name==='manual')save(true);
     else if(name==='save-query')saveAndQuery();
     else if(name==='standalone')save(false,true);
-    else if(name==='load')loadAsset(button.closest('[data-scene-asset]'));
+    else if(name==='load')loadAsset(button.closest('[data-scene-asset]'),{retry:true});
     else if(name==='download')downloadAsset(button.dataset.id,button.dataset.name);
     else if(name==='enlarge')openViewer(button.dataset.id,button.dataset.name);
     else if(name==='tools'){const asset=button.closest('.scene-asset'),style=getComputedStyle(asset.querySelector('.scene-media-tools'));asset.dataset.tools=style.display==='none'||Number(style.opacity)===0?'shown':'hidden'}
@@ -692,31 +692,36 @@
       showError('');
       for(const ref of SceneData.mediaReferences(scene)){
         if(cloudUser?.id!==owner)return;
-        await SceneMedia.upload(ref);
+        await SceneMedia.upload(ref,()=>{},{retry:announce});
       }
       showError('');if(announce&&cloudUser?.id===owner)notify('场景素材已同步。','good','场景记忆');
     }
     catch(error){showError(`素材同步失败：${error.message}`);if(announce)notify(error.message,'warn','素材尚未同步');else pushLog(error.message,'warn','素材尚未同步')}
   }
   let syncJob=null;
-  function syncPending(){
-    if(syncJob||!cloudUser)return syncJob;
+  const syncGroups=new Map();
+  function syncPending(groupIds=[]){
+    if(!cloudUser||!groupIds.length)return syncJob;
     const owner=cloudUser.id;
+    let queued=syncGroups.get(owner);if(!queued){queued=new Set();syncGroups.set(owner,queued)}
+    groupIds.forEach(id=>queued.add(id));
+    if(syncJob)return syncJob;
     syncJob=(async()=>{
-      for(const item of getHistory())for(const scene of scenes(item)){
-        if(!scene.media.length||cloudUser?.id!==owner)continue;
+     while(queued.size&&cloudUser?.id===owner){
+      const allowed=new Set(queued);queued.clear();
+      for(const [id,scene] of [...getHistory().flatMap(item=>scenes(item).map(scene=>[item.id,scene])),...library().map(scene=>['library',scene])]){
+        if(!scene.media.length||cloudUser?.id!==owner||!allowed.has(scene.groupId))continue;
         let pending=false;
         for(const ref of SceneData.mediaReferences(scene)){
           const record=await SceneData.getFile(ref.id);
           if(record?.blob&&!record.uploadedFor?.includes(owner))pending=true;
         }
-        if(pending)await syncScene(item.id,scene.id,false);
+        if(pending)await syncScene(id,scene.id,false);
       }
-      for(const scene of library())if(cloudUser?.id===owner)await syncScene('library',scene.id,false);
-    })().catch(error=>pushLog(error.message,'warn','素材同步')).finally(()=>{syncJob=null});
+     }
+    })().catch(error=>pushLog(error.message,'warn','素材同步')).finally(()=>{syncGroups.delete(owner);syncJob=null;const next=syncGroups.get(cloudUser?.id);if(next?.size)syncPending([...next])});
     return syncJob;
   }
-  addEventListener('online',()=>syncPending());
   function renderReview(card){
     const item=historyItem(card.historyId);if(!item)return '';
     return scenes(item).filter(scene=>card.fragmentKey?scene.targetKey===card.fragmentKey:!scene.targetKey).map(scene=>renderCard(scene,item)).join('');
@@ -820,7 +825,7 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
     }
     if(!setHistoryAndSettings(history,{...organized,sceneLibrary:library().map(update),updatedAt:now}))throw new Error('写入失败，本批未保存；建议仍保留。');
     for(const item of history)if(item.scenes?.some(scene=>patches.has(scene.groupId)))refreshFragmentPinViews(item.id);
-    renderHub();renderHome();syncPending();
+    renderHub();renderHome();syncPending(changes.map(change=>change.id));
   }
   function openSupplement(restored=null){
     if(root.SceneAI)return root.SceneAI.openSupplement(restored);
@@ -852,13 +857,13 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
       }
       if(!await askConfirm(`将导入「${data.query.slice(0,180)}」的 ${records.length} 个场景及 ${refs.length} 个素材。已有同名词条会合并，不覆盖较新场景。`,'导入场景备份'))return;
       for(const record of validated)if(!await SceneData.getFile(record.ref.id))await SceneData.putRecord(record.ref.id,record);
-      if(data.standalone){records.forEach(saveLibrary);renderHub();syncPending();notify('独立场景备份已导入。','good','场景');return}
+      if(data.standalone){records.forEach(saveLibrary);renderHub();syncPending(records.map(scene=>scene.groupId));notify('独立场景备份已导入。','good','场景');return}
       const item=findHistoryByQuery(data.query.trim());let id;
       if(item){
         const merged=SceneData.reconcile([...(item.scenes||[]),...records],item.sceneTombstones);
         if(!setHistory(getHistory().map(row=>row.id===item.id?{...row,scenes:merged.items,sceneTombstones:merged.tombstones,updatedAt:new Date().toISOString()}:row)))throw new Error('导入写入失败。');id=item.id;
       }else id=createEntry(data.query.trim(),records);
-      openHistoryModal(id);syncPending();notify('场景备份已导入。','good','场景记忆');
+      openHistoryModal(id);syncPending(records.map(scene=>scene.groupId));notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
   root.SceneUI={render,open,renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,importCapture,syncPending,renderReview,renderHub,queryFromScene,queryTargets:saveAndQuery,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
