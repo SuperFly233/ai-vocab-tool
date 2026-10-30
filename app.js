@@ -2742,7 +2742,7 @@ async function bootstrapCloudSync(mode='ask',manual=false,{probe=false}={}){
     setCloudBusy(false,false);
     if(lookupRecoveryPending)hydrateLookupTasks();
     flushQueuedCloudSync();
-    SceneUI.syncPending();
+    if(manual)SceneUI.syncPending(SceneUI.sceneGroups().map(group=>group.scene.groupId));
   }
 }
 async function uploadItemsToCloud(items,dirtySnapshot={}){

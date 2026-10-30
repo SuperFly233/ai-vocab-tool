@@ -30,5 +30,9 @@ function setup(source,{storageFail=false}={}){
  assert.equal(storageCalls,2,'A verified download followed by storage failure must not redownload repeatedly');
  const switched=setup(current);switched.context.cloudAccessToken=async()=>{switched.context.cloudUser={id:'two'};return 'test-only'};
  await switched.context.SceneMedia.resolve(ref).catch(()=>{});assert.equal(switched.count(),0,'Account change while reading token must stop fetch');
+ const ui=fs.readFileSync('scene-ui.js','utf8'),auto=ui.slice(ui.indexOf('  function syncPending('),ui.indexOf('  function renderReview('));let uploadCount=0;
+ const scan={cloudUser:{id:'one'},syncJob:null,syncGroups:new Map(),library:()=>[{id:'scene',groupId:'scene',media:[ref]},{id:'next',groupId:'next',media:[ref]}],getHistory:()=>[],scenes:()=>[],SceneData:{getFile:async()=>({blob:new Blob(['test']),uploadedFor:[]}),mediaReferences:s=>s.media},syncScene:async()=>{uploadCount++},pushLog(){}};
+ vm.createContext(scan);vm.runInContext(auto+';globalThis.run=syncPending;',scan);await scan.run();assert.equal(uploadCount,0,'An unrequested scan cannot upload unedited local files');await scan.run(['scene']);assert.equal(uploadCount,1,'Explicitly saved group can upload its pending local file');
+ uploadCount=0;await Promise.all([scan.run(['scene']),scan.run(['next'])]);assert.equal(uploadCount,2,'A second save during synchronization must not lose its selected group');
  console.log('Media request budget: baseline20 repeated manifests -> fixed1; explicit retry1; local previews0; storage-failure redownload0; upload failure bounded; account guards passed.');
 })().catch(error=>{console.error(error);process.exitCode=1});

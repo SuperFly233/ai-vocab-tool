@@ -20,6 +20,11 @@ account signed out. A route exclusion stops old scripts before function executio
   an existing remote manifest with no local record returned without a local marker.
   Now both library and linked scenes require a local unsynced binary before
   automatic upload. Merely having a remote reference sends no request.
+  Ordinary login, automatic merges and online events no longer request bulk media
+  uploads. Save/import/adoption supplies the affected stable group IDs; manual
+  cloud synchronization explicitly requests the full scope. A per-owner scope queue
+  preserves a second save arriving while the first sync is running. Tests verify
+  unrequested unsynced local files send0 and two concurrent saves retain both groups.
 - ScenePreview generated list/home thumbnails by resolving remote full originals.
   Now it only uses saved JPEG thumbnails or local binaries. Opening a visible
   full-material detail still permits an authenticated, deduplicated fetch.
