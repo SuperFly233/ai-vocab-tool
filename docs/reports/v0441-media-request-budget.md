@@ -63,6 +63,17 @@ helper build is required before claiming that particular path restored.
 
 ## Release Evidence
 
+**RELEASED:** final runtime `b60c41c`, production
+https://cc04ef6b.ai-vocab-tool.pages.dev / https://ai-vocab-tool.pages.dev . All194
+public hashes match; sync/Anki/source/media-v2 anonymous401, legacy media static405.
+Final production-page isolated synthetic trace passed20seconds idle0requests after
+30remote scenes,5sync/focus/online cycles and25renders. Final local scope tests and
+normal media roundtrip/WebM/backup/integrity/manual retry passed. Existing npm check
+and idle-network checks passed. No additional model calls or private-material writes.
+
+The test runner encountered a Node/V8 lazy-compilation assertion once, not a system
+blue screen; the same tests passed with `node --no-lazy`. No driver/system changes.
+
 Preview2d9a19c4 passed194public SHA256 hashes, sync/Anki/source/new-media anonymous401,
 and old-media static405. One authenticated synthetic-ID manifest read returned null
 as expected, using existing credentials in memory only. No private material or
