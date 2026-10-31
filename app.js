@@ -185,12 +185,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.44.1',
+  version:'0.44.2',
   releaseDate:'2026-10-30',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.44.2',date:'2026-10-31',title:'分析记录不再堵塞，后台自动补全',items:['取消历史分析记录100条上限；所有状态均可删除，支持批量清理已完成，不删除场景、图片或词条。','移除场景AI逐字段批准流程；已保存且未修改的场景自动补全，冲突结果可直接打开编辑。','删除中的任务停止执行，晚返回不能复活记录；撤销删除不重新调用模型。','共用二次确认进入浏览器顶层，不再被图片、分析等弹窗遮挡。Anki写入仍独立确认。']},
   {version:'0.44.1',date:'2026-10-30',title:'素材请求止血与按需加载',items:['缩略图只读取本机缓存，不在后台下载未打开的云端原件。','自动同步跳过本机没有原件的场景；加载或同步失败后停止自动重发，手动重试才恢复。','旧页面的素材通道已暂停；刷新使用新版按需通道。旧版助手云端素材下载暂不可用，原件和文字查词保留。']},
   {version:'0.44.0',date:'2026-10-30',title:'运动采集查词闭环',items:['点重点或手输后，就地显示查询状态、核心义和完整释义入口；结束小结直接打开本次结果。','上一张／下一张与新图提醒；有未提交输入、选中文字或打开释义时不切走。','查询携带稳定身份；刷新后的中断查询需确认恢复，运动页不再被新手提示遮挡。']},
 
@@ -1389,6 +1390,7 @@ function dismissToast(key){
 }
 function askConfirm(message,title='确认操作'){
   if(!els.confirmLayer)return Promise.resolve(false);
+  if(confirmResolver)closeConfirm(false);
   resetConfirmUI();
   els.confirmTitle.textContent=title;
   els.confirmMessage.textContent=message;

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.44.2 - 2026-10-31
+
+- Remove the cumulative100-analysis-record blocker; expose deletion for every state and completed cleanup without deleting learning content.
+- Replace compulsory scene-AI approval with guarded automatic completion after saving and direct editing of retained results.
+- Preserve removal tombstones, legacy results/drafts, and protected Undo; deleting/restoring queued work never revives a paid execution.
+- Move shared confirmations into the native modal top layer; protect nested editors, focus and custom confirmation actions.
+- Keep independent Anki approval and the media-v2/legacy-route request-budget protections unchanged.
+
 ## v0.44.1 - 2026-10-30
 
 - Pause cloud media routing as explicitly authorized; preserve local originals and non-media APIs.
