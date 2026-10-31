@@ -98,3 +98,10 @@ Exercise journey four desktop/mobile theme cases passed with HTTP fixtures and
 explicit refresh recovery. Its interruption counter now waits for actual provider
 request arrival before refreshing, rather than counting a not-yet-sent request.
 No live model request was used to establish this release.
+
+Capture parity: merge61e9238 pushed; existing isolated alias updated to
+https://1480498a.ai-vocab-tool.pages.dev .198 static hashes, anonymous authentication
+and legacy405 gates passed, as did capture data/ten UI/synthetic vision and deployed
+390dark shared immediate-save flow. Three merge conflicts were reconciled retaining
+capture-only styles/scripts/importCapture and public closeEditor/lifecycle fixes.
+Main checkout restored and rebuilt84icons/194public files; no capture promotion.

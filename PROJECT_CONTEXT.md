@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-31
 
+- v0.44.2 capture parity complete:61e9238/1480498a,198SHA and sync-Anki-source-media-v2 anonymous401/legacy media405; capture data/ten UI/synthetic vision and deployed390dark shared immediate-save flow pass. Main checkout/build restored84icons/194public files. Preview-only intake was not promoted.
+
 - v0.44.2 RELEASED: runtime1c66a38, final previewe6b3b2e1 and production625fbabe/official;194SHA/auth sync-Anki-source-media-v2 anonymous401/legacy media405. Official390light three-delayed-image save/background flow and independently read0.44.2 passed. First production10500 internal error resolved with one bounded retry, no credential/security changes. Ten lifecycle/ten immediate-save/ten analysis/four nested-dialog/four exercise-journey synthetic cases, safety/Undo/motion/help and npm check passed. Sources/FSRS/Bridge/real-model gates unchanged. Public capture parity follows separately; no preview-only features promoted.
 
 - v0.44.2 candidate: scene analysis lifecycle repair, no cumulative100-job cap; all states deletable, completed cleanup/tombstone-protected Undo, no paid replay including waiting jobs. Compulsory scene review UI removed; exact account/media/revision-protected auto completion after saving; conflicts/unbound results open the existing editor. Old pool/drafts preserved, not bulk-applied. Shared confirm becomes native top-layer dialog; welcome yields to modals. Ten width/theme lifecycle, ten delayed-image save, ten scene analysis, four nested-dialog cases and safety suites passed with synthetic data; final production evidence follows separately. Media-v2 authenticated transport and legacy-media static exclusion remain unchanged. Bridge0.4.2 media pause remains, no DB/model calls/private records changed.
