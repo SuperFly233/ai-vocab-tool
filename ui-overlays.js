@@ -61,11 +61,22 @@
   document.addEventListener('scroll',()=>hide(true),true);
   addEventListener('resize',()=>hide(true));window.visualViewport?.addEventListener('resize',()=>hide(true));
   const dialogDismissers=new WeakMap();
-  function topDialog(){return [...document.querySelectorAll('dialog[open]')].filter(node=>node.matches(':modal')).at(-1)||null}
+  const confirmLayer=document.getElementById('confirm-layer'),confirmModal=document.createElement('dialog');
+  confirmModal.id='confirm-top-layer';confirmModal.className='confirm-top-layer';
+  confirmModal.setAttribute('aria-labelledby','confirm-title');confirmModal.setAttribute('aria-describedby','confirm-message');
+  if(confirmLayer){
+    confirmLayer.before(confirmModal);confirmModal.append(confirmLayer);
+    const syncConfirmation=()=>{if(confirmLayer.classList.contains('open')){if(!confirmModal.open)confirmModal.showModal()}else if(confirmModal.open)confirmModal.close()};
+    new MutationObserver(syncConfirmation).observe(confirmLayer,{attributes:true,attributeFilter:['class']});
+    dialogDismissers.set(confirmModal,()=>closeConfirm(false));
+    confirmModal.addEventListener('close',()=>{if(!confirmModal.open&&confirmLayer.classList.contains('open'))closeConfirm(false)});
+  }
+  function topDialog(){if(confirmModal.open)return confirmModal;return [...document.querySelectorAll('dialog[open]')].filter(node=>node.matches(':modal')).at(-1)||null}
+  new MutationObserver(()=>{if(document.querySelector('.learning-welcome')&&document.querySelector('.modal-layer.open,.confirm-layer.open,dialog[open]'))globalThis.LearningHelp?.suspendWelcome()}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','open']});
   function dismissDialog(node){if(!node?.open)return;const dismiss=dialogDismissers.get(node);if(dismiss)dismiss();else node.close()}
   document.addEventListener('keydown',event=>{
-    if(globalThis.LearningHelp?.handleKey(event))return;
-    if(globalThis.HighlightPairs?.handleKey(event))return;
+    if(!confirmModal.open&&globalThis.LearningHelp?.handleKey(event))return;
+    if(!confirmModal.open&&globalThis.HighlightPairs?.handleKey(event))return;
     if(event.key!=='Escape'||document.fullscreenElement)return;
     const dialog=topDialog();
     if(event.repeat&&(dialog||document.querySelector('.modal-layer.open,.confirm-layer.open'))){event.preventDefault();event.stopImmediatePropagation();return}

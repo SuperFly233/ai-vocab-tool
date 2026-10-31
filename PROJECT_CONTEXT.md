@@ -1,6 +1,8 @@
 # Project Context
 
-Last updated: 2026-10-30
+Last updated: 2026-10-31
+
+- v0.44.2 candidate: scene analysis lifecycle repair, no cumulative100-job cap; all states deletable, completed cleanup/tombstone-protected Undo, no paid replay including waiting jobs. Compulsory scene review UI removed; exact account/media/revision-protected auto completion after saving; conflicts/unbound results open the existing editor. Old pool/drafts preserved, not bulk-applied. Shared confirm becomes native top-layer dialog; welcome yields to modals. Ten width/theme lifecycle, ten delayed-image save, ten scene analysis, four nested-dialog cases and safety suites passed with synthetic data; final production evidence follows separately. Media-v2 authenticated transport and legacy-media static exclusion remain unchanged. Bridge0.4.2 media pause remains, no DB/model calls/private records changed.
 
 - v0.44.1 capture parity complete:899899b/02d1940f,198hashes, sync-Anki-source-media-v2 anonymous401, old-media405 and deployed20s media idle0. Capture data/10UI/synthetic vision pass; no preview-only promotion. Main checkout/build restored84icons/194public files+reserved routing metadata.
 

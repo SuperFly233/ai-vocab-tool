@@ -36,7 +36,7 @@
   ['Fushi 或词典必须连上吗？','不必。普通制卡需要云任务与 Anki；Fushi 来源和已安装词典是可选能力。已有快照不等于电脑此刻在线。'],
   ['写入成功就是手机已经同步了吗？','不是。写入 Anki、Lexi 云端回执、Anki 自身云同步是不同阶段。取消剩余任务不会删除已经写入的卡片。'],
   ['怎样手动编辑图片、GIF或视频？','在场景中打开编辑场景，点击素材旁的裁剪图标。拖动裁剪框或输入尺寸；GIF和视频可填写截段时间。生成副本后先预览，再点击使用副本并保存场景。原件保留，可从同一编辑入口恢复。GIF和视频需明确确认下载本机处理组件，不上传素材。AI裁剪需单独确认将当前画面发给所选模型，先预览建议再生成；真实效果按下方步骤核对。电脑助手媒体组件尚未开放。'],
-  ['截图识别与语录匹配呢？','场景编辑器可配置指定模型分析静态图片，先核对再保存；不支持的通道会明确失败并保留原件。独立批量截图、Teyvat 来源索引、间隔重复调度、重复归并及存储迁移仍未全部完成。']
+  ['截图识别与语录匹配呢？','场景编辑器可使用指定模型分析静态图片，保存不打断分析；未修改的已保存场景自动补全，随时可编辑。分析记录可直接删除或批量清理，不删除场景素材。不支持的通道明确失败并保留原件。独立批量截图、Teyvat 来源索引、间隔重复调度、重复归并及存储迁移仍未全部完成。']
  ];
  function ledgerHTML(){return '<details class="help-faq help-ledger"><summary>未完成事项与验收条件</summary><p>以下区分部分完成、仅预览、待实现和待验证；已上线的手动媒体编辑不再列为未实现。</p>'+LearningHelpData.ledger.map(row=>`<section><h3>${esc(row.title)} <small>${esc(row.status||'待完成')}</small></h3><p>依赖：${esc(row.dependency)}</p><p>验收：${esc(row.acceptance)}</p><p>下一步：${esc(row.next)}</p><p class="help-note">证据边界：${esc(row.evidence)}</p></section>`).join('')+'</details>'}
  function acceptanceHTML(){return '<details class="help-faq help-acceptance"><summary>真实验收步骤与合成图片</summary><p>真实模型质量、实体设备和Anki自身同步由你核对；尚未接通的能力不会标记通过。不要用私人素材作首次测试。</p><p><a href="/assets/acceptance/crop-synthetic.png" download="Lexi-crop-synthetic.png">下载合成验收图片</a> · 英文字幕：Small steps make a difference.</p>'+LearningHelpData.manualChecks.map(row=>'<section><h3>'+esc(row.title)+'</h3><ol>'+row.steps.map(step=>'<li>'+esc(step)+'</li>').join('')+'</ol></section>').join('')+'</details>'}

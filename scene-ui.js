@@ -177,14 +177,14 @@
     source.addEventListener('select',update);source.addEventListener('keyup',event=>{if(event.key!=='Escape')update()});source.addEventListener('pointerup',update);source.addEventListener('scroll',()=>button.matches(':popover-open')&&update());source.addEventListener('input',hide);source.addEventListener('blur',hide);
     button.onpointerdown=event=>event.preventDefault();button.onclick=()=>{if(!selection||source.value!==selection.value)return hide();if(editor?.pairs)editor.pairs.addSelection(sourceKey==='quote'?'original':'translation',source.value.slice(selection.start,selection.end),selection.start);else{target.value=SceneData.highlights([...SceneData.highlights(target.value),selection.text]).join('\n');target.dispatchEvent(new Event('input',{bubbles:true}))}hide()};
   }
-  async function open(id=null,targetKey='',sceneId='',{fromHome=id===null}={}){
+  async function open(id=null,targetKey='',sceneId='',{fromHome=id===null,initialScene=null,analysisTaskId=null}={}){
     if(editor)return;
     const account=cloudUser?.id||'local';
     const standalone=id==='library',item=id&&!standalone?historyItem(id):null;
     if(id&&!standalone&&!item)return notify('词条已被删除。','info','场景记忆');
     returnFocus=document.activeElement;
     const now=new Date().toISOString();
-    let scene=findScene(id,sceneId);
+    let scene=findScene(id,sceneId),originalScene=scene?JSON.stringify(scene):null;
     const query=item?.query||(!standalone||fromHome?document.querySelector('#query-input')?.value.trim():'')||'';
     if(!scene&&!item&&!standalone){
       try{scene=await SceneData.getDraft(`pending:${normalizeSearch(query)}`)}catch{}
@@ -197,9 +197,9 @@
         if(fragment){targetLabel=fragmentPinShape(kind,fragment).title||'';break}
       }
     }
-    scene=SceneData.normalizeScene(scene||{id:crypto.randomUUID(),targetKey,targetLabel,createdAt:now,updatedAt:now,media:[]});
+    scene=SceneData.normalizeScene(initialScene?{...initialScene,...(scene?{id:scene.id,groupId:scene.groupId}:{})}:scene||{id:crypto.randomUUID(),targetKey,targetLabel,createdAt:now,updatedAt:now,media:[]});
     const sources=recentSources();
-    editor={historyId:item?.id||null,standalone,fromHome,query,scene,newScene:!sceneId,owner:cloudUser?.id||'local',base:sceneId?JSON.stringify(scene):null};
+    editor={historyId:item?.id||null,standalone,fromHome,query,scene,newScene:!sceneId,owner:cloudUser?.id||'local',base:sceneId?originalScene:null};
     const layer=document.createElement('div');layer.id='scene-editor';layer.className='scene-editor-layer modal-layer open';
     layer.innerHTML=`<section class="scene-editor" role="dialog" aria-modal="true" aria-labelledby="scene-editor-title"><header><div><h2 id="scene-editor-title">${sceneId?'编辑':'添加'}场景</h2></div>${action('close','关闭场景编辑')}</header>
       <form id="scene-editor-form"><div class="scene-editor-body">
@@ -249,7 +249,7 @@
     layer.addEventListener('drop',event=>{event.preventDefault();layer.classList.remove('dragging');addFiles(event.dataTransfer.files)});
     layer.querySelector('form').addEventListener('submit',event=>{event.preventDefault();save(false,!editor?.historyId)});
     layer.addEventListener('keydown',event=>{if(event.isComposing||event.keyCode===229)return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();save(false,!editor?.historyId)}});
-    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};pairForm.elements.quote.value=scene.quote||'';pairForm.elements.translation.value=scene.translation||'';editor.pairs.reload(scene);renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
+    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,taskId:analysisTaskId,identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};pairForm.elements.quote.value=scene.quote||'';pairForm.elements.translation.value=scene.translation||'';editor.pairs.reload(scene);renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
   }
   function editorState(){
     const form=document.querySelector('#scene-editor-form');if(!form||!editor)return '';
@@ -848,6 +848,6 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
       openHistoryModal(id);syncPending(records.map(scene=>scene.groupId));notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,queryTargets:saveAndQuery,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,closeEditor:async()=>{await close();return !editor},renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,queryTargets:saveAndQuery,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

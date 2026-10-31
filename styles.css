@@ -1097,6 +1097,7 @@ body.modal-open{overflow:hidden}
 body.followup-busy .followup-compose .primary-btn{animation:pulse .9s ease-in-out infinite}
 .confirm-layer{position:fixed;inset:0;z-index:5000;display:none;place-items:center;padding:24px;background:rgba(0,0,0,.32);backdrop-filter:blur(12px)}
 .confirm-layer.open{display:grid}
+.confirm-top-layer{margin:0;padding:0;border:0;width:100vw;height:100dvh;max-width:none;max-height:none;background:transparent;color:var(--text);overflow:visible}.confirm-top-layer::backdrop{background:transparent}
 .confirm-card{width:min(420px,calc(100vw - 32px));border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 24px 80px rgba(0,0,0,.25);padding:18px;display:grid;gap:12px;animation:enter .16s ease both}
 .confirm-title{font-size:20px;font-weight:800}
 .confirm-message{font-size:15px;color:var(--muted);font-weight:750;line-height:1.55}
