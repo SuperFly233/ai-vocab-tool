@@ -80,3 +80,21 @@ three-delayed-image immediate-save/background-completion flow passed. Screenshot
 
 Local preview is available at http://127.0.0.1:5192 . Real-model, phone and Anki
 boundaries above remain unverified; no claim of their completion follows deployment.
+
+## Release
+
+Runtime commit1c66a38 pushed to main. Final independent preview
+https://e6b3b2e1.ai-vocab-tool.pages.dev passed194 SHA256 matches and anonymous
+sync/Anki/source/media-v2 401; legacy media remains static405. Initial preview
+dcf8de37 also passed194 hashes and deployed390dark immediate-save flow.
+
+Production: https://625fbabe.ai-vocab-tool.pages.dev and
+https://ai-vocab-tool.pages.dev . Official194 hashes/authentication/legacy405 and
+deployed390light three-delayed-image flow passed; independently read app version
+is0.44.2. First production attempt returned Cloudflare internal10500; one bounded
+retry succeeded without credential or security changes.
+
+Exercise journey four desktop/mobile theme cases passed with HTTP fixtures and
+explicit refresh recovery. Its interruption counter now waits for actual provider
+request arrival before refreshing, rather than counting a not-yet-sent request.
+No live model request was used to establish this release.
