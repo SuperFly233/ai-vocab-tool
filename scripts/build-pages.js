@@ -25,6 +25,8 @@ const files = [
   'highlight-pairs.js',
   'highlight-pairs.css',
   'source-data.js',
+  'source-directory.js',
+  'source-directory.css',
   'learning-store.js',
   'memory-algorithm.js',
   'memory-journal.js',

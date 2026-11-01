@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.45.0 - 2026-11-01
+
+- Add account-isolated canonical works, confirmed aliases and stable chapter identities with optional two-level paths.
+- Reuse known sources in the existing scene analysis call; confirm unknown works once without blocking screenshot saving.
+- Add hierarchical source browsing, scoped chapter editing and guarded legacy organization/Undo; preserve original source text and personal folders.
+- Apply additive, RLS-protected source migrations after isolated and rollback-only production SQL acceptance; expose authenticated catalog RPC.
+- Preserve background-analysis lifecycle and media request protections. No Teyvat corpus, FSRS or Bridge capability is implied.
+
 ## v0.44.2 - 2026-10-31
 
 - Remove the cumulative100-analysis-record blocker; expose deletion for every state and completed cleanup without deleting learning content.

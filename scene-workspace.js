@@ -2,12 +2,13 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const defaults={query:'',source:'',media:'',study:'',sort:'updated',group:'flat',favorite:''},filters={...defaults},drafts=new Map(),thumbs=new Map();
   let paneKey='',listKey='',selectedText='',savedListScroll=0,savedPageScroll=0,uiOwner=null,review=null,visibleGroups=[];
-  let listLimit=60,pagingKey='';
+  let listLimit=60,pagingKey='';const collapsedSources=new Set();
+  const sourceInfo=scene=>root.SourceDirectory?.describe(scene)||{key:scene.sourceTitle||'unknown',name:scene.sourceTitle||'未填写来源',nodes:[]};
   const uiKey=()=>`lexi-scene-view:${cloudUser?.id||'local'}`;
   function saveView(){try{sessionStorage.setItem(uiKey(),JSON.stringify({query:filters.query,listScroll:savedListScroll,pageScroll:savedPageScroll}))}catch{}if(uiOwner===(cloudUser?.id||'local'))rememberViewPreference('scenes',filters)}
   function restoreAccount(){
     const owner=cloudUser?.id||'local';if(owner===uiOwner)return;
-    uiOwner=owner;Object.assign(filters,defaults);review=null;paneKey='';listKey='';savedListScroll=0;savedPageScroll=0;
+    uiOwner=owner;collapsedSources.clear();Object.assign(filters,defaults);review=null;paneKey='';listKey='';savedListScroll=0;savedPageScroll=0;
     try{const value=JSON.parse(sessionStorage.getItem(uiKey())||'null');if(value){filters.query=typeof value.query==='string'?value.query:'';savedListScroll=Number(value.listScroll)||0;savedPageScroll=Number(value.pageScroll)||0}}catch{}
     Object.assign(filters,ViewPreferences.get('scenes',getSettings()));
     document.getElementById('scene-hub')?.replaceChildren();
@@ -115,11 +116,11 @@
   function renderDetail(group){
     const host=document.querySelector('.scene-detail');if(!host)return;
     if(!group){if(paneKey!=='empty'){host.innerHTML='<p class="scene-empty-text">选择一个场景，开始阅读与查词</p>';paneKey='empty'}return}
-    const {scene,item}=group,{studyState,studyUpdatedAt,...content}=scene,key=JSON.stringify([content,item.id,review&&[review.index,review.revealed]]);
+    const {scene,item}=group,{studyState,studyUpdatedAt,...content}=scene,key=JSON.stringify([root.SourceDirectory?.revision,content,item.id,review&&[review.index,review.revealed]]);
     if(key!==paneKey){
       paneKey=key;selectedText='';
       host.querySelectorAll('video').forEach(video=>video.pause());
-host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)}" data-scene-id="${esc(scene.id)}"><header><button class="scene-back plain-btn" aria-label="返回场景列表">${icon('arrow-left')}<span>场景</span></button><h2>${esc(scene.title||scene.sourceTitle||'未命名场景')}</h2><div class="scene-actions">${SceneUI.action('edit','编辑场景')}${SceneUI.action('remove',item.id==='library'?'删除独立场景':'移除此词条的场景关联')}</div></header><div class="scene-sync-error" data-scene-sync-status role="status" ${SceneUI.syncError(scene.id)?'':'hidden'}>${esc(SceneUI.syncError(scene.id))}${SceneUI.syncError(scene.id)?SceneUI.action('sync','重试同步素材'):''}</div><div class="scene-study-content">${scene.media.length?`<div class="scene-media">${SceneUI.assets(scene.media)}</div>`:''}<div class="scene-study-text">${scene.quote?`<blockquote class="scene-study-quote">${highlightText(scene.quote,scene.exampleHighlights||[])}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${esc(scene.translation)}</p>`:''}<p class="scene-source-line">${esc([scene.sourceTitle,scene.chapter,scene.timeRange].filter(Boolean).join(' · '))}${scene.sourceUrl?` <a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</p>${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}<button class="plain-btn selection-add" type="button" hidden>${icon('plus')}加入待查询</button></div></div><section class="scene-query-workspace"><h3>从这句话查词</h3><div class="scene-word-basket"></div><form class="scene-phrase-form"><label class="scene-word-input">${icon('search')}<input aria-label="添加单词或词组" placeholder="输入想查的单词或词组" autocomplete="off"></label><button class="icon-btn" type="button" data-add-scene-query aria-label="加入待查词组" data-tip="加入待查词组">${icon('plus')}</button><button class="plain-btn primary-btn" type="submit" data-run-scene>${icon('search')}<span>查询</span></button></form><div class="scene-query-footer"><span class="scene-detail-status" role="status"></span></div></section><section class="scene-associated"><h3>关联词条</h3><div class="scene-linked-results"></div></section></article>`;
+host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)}" data-scene-id="${esc(scene.id)}"><header><button class="scene-back plain-btn" aria-label="返回场景列表">${icon('arrow-left')}<span>场景</span></button><h2>${esc(scene.title||scene.sourceTitle||'未命名场景')}</h2><div class="scene-actions">${SceneUI.action('edit','编辑场景')}${SceneUI.action('remove',item.id==='library'?'删除独立场景':'移除此词条的场景关联')}</div></header><div class="scene-sync-error" data-scene-sync-status role="status" ${SceneUI.syncError(scene.id)?'':'hidden'}>${esc(SceneUI.syncError(scene.id))}${SceneUI.syncError(scene.id)?SceneUI.action('sync','重试同步素材'):''}</div><div class="scene-study-content">${scene.media.length?`<div class="scene-media">${SceneUI.assets(scene.media)}</div>`:''}<div class="scene-study-text">${scene.quote?`<blockquote class="scene-study-quote">${highlightText(scene.quote,scene.exampleHighlights||[])}</blockquote>`:''}${scene.translation?`<p class="scene-translation">${esc(scene.translation)}</p>`:''}<p class="scene-source-line">${esc([sourceInfo(scene).name,...sourceInfo(scene).nodes.map(n=>n.name),...(!sourceInfo(scene).nodes.length&&scene.chapter?[scene.chapter]:[]),scene.timeRange].filter(Boolean).join(' › '))}${scene.sourceUrl?` <a href="${esc(scene.sourceUrl)}" target="_blank" rel="noopener noreferrer">打开来源 ${icon('arrow-up-right')}</a>`:''}</p>${scene.note?`<p class="scene-note">${esc(scene.note)}</p>`:''}<button class="plain-btn selection-add" type="button" hidden>${icon('plus')}加入待查询</button></div></div><section class="scene-query-workspace"><h3>从这句话查词</h3><div class="scene-word-basket"></div><form class="scene-phrase-form"><label class="scene-word-input">${icon('search')}<input aria-label="添加单词或词组" placeholder="输入想查的单词或词组" autocomplete="off"></label><button class="icon-btn" type="button" data-add-scene-query aria-label="加入待查词组" data-tip="加入待查词组">${icon('plus')}</button><button class="plain-btn primary-btn" type="submit" data-run-scene>${icon('search')}<span>查询</span></button></form><div class="scene-query-footer"><span class="scene-detail-status" role="status"></span></div></section><section class="scene-associated"><h3>关联词条</h3><div class="scene-linked-results"></div></section></article>`;
       const heading=host.querySelector('.scene-workbench>header h2'),headingGroup=document.createElement('div');headingGroup.className='scene-heading';heading.before(headingGroup);headingGroup.append(heading);headingGroup.insertAdjacentHTML('beforeend',SceneUI.timeMeta(scene));
       host.querySelector('.scene-workbench').dataset.sceneGroup=scene.groupId;
       if(!scene.title)heading.textContent=scene.quote||scene.sourceTitle||'未命名场景';heading.title=heading.textContent;heading.setAttribute('aria-label',heading.textContent);
@@ -187,16 +188,26 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
       const media=new Image();media.alt='';media.setAttribute('aria-hidden','true');await new Promise((resolve,reject)=>{media.onload=resolve;media.onerror=reject;media.src=url});if(node.isConnected&&owner===uiOwner&&node._sceneRef?.id===ref.id){node.replaceChildren(media);node.dataset.ready='true';delete node.dataset.unavailable}
     }catch{if(node.isConnected){node.dataset.unavailable='true';node.dataset.tip='缩略图暂不可用，点击打开原素材';node.setAttribute('aria-label','缩略图暂不可用')}}
   }
+  function sourceTree(groups,renderRow,selected){
+    const roots=new Map();
+    for(const group of groups){const info=sourceInfo(group.scene);if(!roots.has(info.key))roots.set(info.key,{key:info.key,name:info.name,children:new Map(),rows:[],count:0,selected:false});let branch=roots.get(info.key);branch.count++;branch.selected||=group.scene.groupId===selected;
+      const path=info.nodes.length?info.nodes:[{id:'unlocated',name:'未定位章节'}];for(const node of path){const key=branch.key+'/'+node.id;if(!branch.children.has(key))branch.children.set(key,{key,name:node.name,children:new Map(),rows:[],count:0,selected:false});branch=branch.children.get(key);branch.count++;branch.selected||=group.scene.groupId===selected}branch.rows.push(group);
+    }
+    const draw=branch=>'<details class="source-group" data-source-branch="'+esc(branch.key)+'" '+(!collapsedSources.has(branch.key)||branch.selected?'open':'')+'><summary class="scene-source-heading"><span>'+esc(branch.name)+'</span><small>'+branch.count+'</small></summary>'+[...branch.children.values()].map(draw).join('')+branch.rows.map(renderRow).join('')+'</details>';
+    return [...roots.values()].map(draw).join('');
+  }
   function render(){
     const host=document.getElementById('scene-hub');if(!host)return;restoreAccount();setup(host);host.querySelector('.scene-search').dataset.helpTarget='scene-search';
     const actions=host.querySelector('.scene-library-head .scene-actions'),primary=actions.querySelector('.scene-add-command');if(primary&&actions.firstElementChild!==primary)actions.prepend(primary);
-    const groups=SceneUI.sceneGroups(),sources=[...new Set(groups.map(row=>row.scene.sourceTitle).filter(Boolean))].sort();
+    const groups=SceneUI.sceneGroups(),sources=[...new Map(groups.map(row=>{const info=sourceInfo(row.scene);return [info.key,info]})).values()].sort((a,b)=>a.name.localeCompare(b.name));
+    if(filters.source&&!/^(work:|proposal:|unknown$)/.test(filters.source))filters.source=sourceInfo({sourceTitle:filters.source}).key;
+    if(!actions.querySelector('[data-manage-sources]')){const button=document.createElement('button');button.type='button';button.className='icon-btn';button.dataset.manageSources='';button.setAttribute('aria-label','管理作品与来源');button.dataset.tip='作品与来源';button.innerHTML=icon('layers');button.onclick=()=>root.SourceDirectory?.open();actions.append(button)}
     const organize=id=>root.SceneOrganization?.state(id)||{favorite:false,pinned:false};
-    const source=host.querySelector('[data-filter="source"]'),options='<option value="">所有来源</option>'+sources.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('');
+    const source=host.querySelector('[data-filter="source"]'),options='<option value="">所有来源</option>'+sources.map(value=>`<option value="${esc(value.key)}">${esc(value.name)}</option>`).join('');
     if(source.innerHTML!==options){source.innerHTML=options;source.value=filters.source}
-    const rows=groups.filter(({scene,links})=>(!filters.source||scene.sourceTitle===filters.source)&&(!filters.media||(filters.media==='text'?!scene.media.length:scene.media.some(ref=>ref.mime.startsWith(filters.media))))&&(!filters.study||(links.length?links.some(item=>SceneStudy.state(item,scene.groupId)===filters.study):filters.study==='new'))&&normalize([scene.title,scene.quote,scene.translation,scene.note,scene.sourceTitle,...links.map(historyDisplayTitle)].join(' ')).includes(normalize(filters.query))).sort((a,b)=>Date.parse(b.scene[filters.sort==='created'?'createdAt':'updatedAt'])-Date.parse(a.scene[filters.sort==='created'?'createdAt':'updatedAt'])||a.scene.groupId.localeCompare(b.scene.groupId));
+    const rows=groups.filter(({scene,links})=>(!filters.source||sourceInfo(scene).key===filters.source)&&(!filters.media||(filters.media==='text'?!scene.media.length:scene.media.some(ref=>ref.mime.startsWith(filters.media))))&&(!filters.study||(links.length?links.some(item=>SceneStudy.state(item,scene.groupId)===filters.study):filters.study==='new'))&&normalize([scene.title,scene.quote,scene.translation,scene.note,scene.sourceTitle,sourceInfo(scene).name,...(sourceInfo(scene).work?.aliases||[]),...sourceInfo(scene).nodes.map(n=>n.name),...links.map(historyDisplayTitle)].join(' ')).includes(normalize(filters.query))).sort((a,b)=>Date.parse(b.scene[filters.sort==='created'?'createdAt':'updatedAt'])-Date.parse(a.scene[filters.sort==='created'?'createdAt':'updatedAt'])||a.scene.groupId.localeCompare(b.scene.groupId));
     for(let i=rows.length-1;i>=0;i--)if(filters.favorite&&!organize(rows[i].scene.groupId)[filters.favorite])rows.splice(i,1);
-    if(filters.group==='source')rows.sort((a,b)=>(a.scene.sourceTitle||'未填写来源').localeCompare(b.scene.sourceTitle||'未填写来源'));
+    if(filters.group==='source')rows.sort((a,b)=>sourceInfo(a.scene).name.localeCompare(sourceInfo(b.scene).name));
     rows.sort((a,b)=>Number(organize(b.scene.groupId).pinned)-Number(organize(a.scene.groupId).pinned));
     visibleGroups=rows;host.querySelector('[data-scene-review]').disabled=!rows.length;host.querySelector('[data-scene-export]').disabled=!rows.length;
     host.querySelector('[data-scene-review]').innerHTML=icon('book-open');host.querySelector('[data-reset-scene-filters]').innerHTML=icon('rotate-ccw');
@@ -210,18 +221,19 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
     const pageKey=JSON.stringify([uiOwner,filters]);if(pageKey!==pagingKey){pagingKey=pageKey;listLimit=60}
     const selectedIndex=rows.findIndex(row=>row.scene.groupId===id);if(selectedIndex>=listLimit)listLimit=Math.ceil((selectedIndex+1)/60)*60;
     const visible=rows.slice(0,listLimit);
-    const key=JSON.stringify([filters.group,getSettings().historyTimeMode,rows.length,listLimit,visible.map(({scene,links})=>[scene.groupId,scene.title,scene.quote,scene.sourceTitle,scene.createdAt,scene.updatedAt,scene.media[0]?.id,links.length])]);
+    const key=JSON.stringify([root.SourceDirectory?.revision,filters.group,getSettings().historyTimeMode,rows.length,listLimit,visible.map(({scene,links})=>[scene.groupId,scene.title,scene.quote,scene.sourceTitle,scene.createdAt,scene.updatedAt,scene.media[0]?.id,links.length])]);
     const list=host.querySelector('.scene-master');
     if(key!==listKey){listKey=key;const scroll=list.scrollTop;
       thumbObserver.disconnect();for(const job of thumbQueue)thumbPending.delete(job.node);thumbQueue.length=0;
-      let lastSource=null;list.innerHTML=visible.map(({scene,links})=>{
-        const source=scene.sourceTitle||'未填写来源',heading=filters.group==='source'&&source!==lastSource?`<h3 class="scene-source-heading">${esc(source)}</h3>`:'';lastSource=source;
-        const summary=scene.quote||scene.note||(scene.media.length?'素材场景':'纯文字场景');
-        return `${heading}<div class="scene-list-row" data-open-row data-select-scene="${esc(scene.groupId)}"><span class="scene-thumb">${icon(scene.media[0]?.mime.startsWith('video/')?'play':'images')}</span><span class="scene-list-copy"><strong><a data-row-link href="/scenes?scene=${encodeURIComponent(scene.groupId)}">${esc(scene.title||scene.quote||scene.sourceTitle||'未命名场景')}</a></strong><span>${esc(summary)}</span><small><span>${esc([scene.sourceTitle,`${links.length} 个词条`].filter(Boolean).join(' · '))}</span>${compactHistoryTimeHTML(scene,getSettings().historyTimeMode,filters.sort)}${root.SceneOrganization?.state(scene.groupId).pinned?icon('pin'):''}</small></span></div>`
-      }).join('')||'<div class="scene-empty-text">没有匹配的场景</div>';
+      const rowHTML=({scene,links})=>{
+        const info=sourceInfo(scene),summary=scene.quote||scene.note||(scene.media.length?'素材场景':'纯文字场景'),path=[info.name,...info.nodes.map(n=>n.name),scene.timeRange].filter(Boolean).join(' › ');
+        return `<div class="scene-list-row" data-open-row data-select-scene="${esc(scene.groupId)}"><span class="scene-thumb">${icon(scene.media[0]?.mime.startsWith('video/')?'play':'images')}</span><span class="scene-list-copy"><strong><a data-row-link href="/scenes?scene=${encodeURIComponent(scene.groupId)}">${esc(scene.title||scene.quote||info.name||'未命名场景')}</a></strong><span>${esc(summary)}</span><small><span>${esc([path,`${links.length} 个词条`].filter(Boolean).join(' · '))}</span>${compactHistoryTimeHTML(scene,getSettings().historyTimeMode,filters.sort)}${root.SceneOrganization?.state(scene.groupId).pinned?icon('pin'):''}</small></span></div>`;
+      };
+      list.innerHTML=(filters.group==='source'?sourceTree(visible,rowHTML,id):visible.map(rowHTML).join(''))||'<div class="scene-empty-text">没有匹配的场景</div>';
+      list.querySelectorAll('details[data-source-branch]').forEach(group=>group.addEventListener('toggle',()=>{group.open?collapsedSources.delete(group.dataset.sourceBranch):collapsedSources.add(group.dataset.sourceBranch)}));
       if(visible.length<rows.length){list.insertAdjacentHTML('beforeend',`<button class="history-load-more" type="button" data-scene-load-more>继续显示 ${Math.min(60,rows.length-visible.length)} 个场景</button>`);list.querySelector('[data-scene-load-more]').onclick=()=>{listLimit+=60;render()}}
       list.scrollTop=scroll;
-      visible.forEach(({scene},index)=>{if(scene.media[0]){const node=list.querySelectorAll('.scene-list-row')[index].querySelector('.scene-thumb');node._sceneRef=scene.media[0];thumbObserver.observe(node)}});
+      visible.forEach(({scene})=>{if(scene.media[0]){const row=[...list.querySelectorAll('[data-select-scene]')].find(n=>n.dataset.selectScene===scene.groupId),node=row?.querySelector('.scene-thumb');if(node){node._sceneRef=scene.media[0];thumbObserver.observe(node)}}});
     }
     list.querySelectorAll('[data-select-scene]').forEach(button=>{const active=button.dataset.selectScene===id;button.classList.toggle('active',active);button.setAttribute('aria-current',String(active))});
     renderDetail(group);
@@ -232,6 +244,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
     const valid=selection?.rangeCount&&quote.contains(selection.anchorNode)&&quote.contains(selection.focusNode);
     selectedText=valid?String(selection).trim():'';button.hidden=!selectedText||selectedText.length>200;
   });
+  document.addEventListener('lexi-source-directory',()=>{listKey='';if(activeView==='scenes')render()});
   addEventListener('resize',()=>{if(activeView==='scenes')render()});
   document.getElementById('clear-scene-previews')?.addEventListener('click',async event=>{const button=event.currentTarget;button.disabled=true;try{await root.SceneWorkspace.clearPreviews();notify('缩略图缓存已清理，原素材不受影响。','good','缓存')}catch(error){notify(error.message,'warn','缓存')}finally{button.disabled=false}});
   function retryThumbs(){document.querySelectorAll('.scene-thumb[data-unavailable]').forEach(node=>{thumbObserver.unobserve(node);thumbObserver.observe(node)})}

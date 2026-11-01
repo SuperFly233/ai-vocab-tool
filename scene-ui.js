@@ -92,7 +92,7 @@
   }
   const syncErrorHTML=message=>message?`<span>${esc(message)}</span>${action('sync','重试同步素材')}`:'';
   function renderCard(scene,item){
-    const source=[scene.sourceTitle,scene.chapter,scene.timeRange].filter(Boolean).join(' · ');
+    const info=root.SourceDirectory?.describe(scene),source=[info?.name||scene.sourceTitle,...(info?.nodes.length?info.nodes.map(n=>n.name):[scene.chapter]),scene.timeRange].filter(Boolean).join(' › ');
     const result=displayedResultForHistory(item.id,item);
     // Explicit selections take precedence over automatic headword/core-meaning matches.
     const quote=HighlightPairs.renderSide(scene,'original',{legacy:exampleHighlightTermsForItem(scene,scene.exampleHighlights.length?[]:resultQueryHighlightTerms(result))});
@@ -249,12 +249,12 @@
     layer.addEventListener('drop',event=>{event.preventDefault();layer.classList.remove('dragging');addFiles(event.dataTransfer.files)});
     layer.querySelector('form').addEventListener('submit',event=>{event.preventDefault();save(false,!editor?.historyId)});
     layer.addEventListener('keydown',event=>{if(event.isComposing||event.keyCode===229)return;if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();save(false,!editor?.historyId)}});
-    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,taskId:analysisTaskId,identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};pairForm.elements.quote.value=scene.quote||'';pairForm.elements.translation.value=scene.translation||'';editor.pairs.reload(scene);renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
+    renderFiles();editor.ai=root.SceneAI?.attachEditor(layer,{read:readForm,owner:editor.owner,newScene:editor.newScene,taskId:analysisTaskId,setSource:patch=>{if(editor)Object.assign(editor.scene,patch)},identity:()=>editor,object:editor,restore:scene=>{if(editor){editor.scene={...structuredClone(scene),id:editor.scene.id,groupId:editor.scene.groupId};pairForm.elements.quote.value=scene.quote||'';pairForm.elements.translation.value=scene.translation||'';editor.pairs.reload(scene);renderFiles()}},setMeta:(targets,analysis)=>{if(editor){editor.scene.learningTargets=targets;editor.scene.aiAnalysis=analysis}}});editor.directory=root.SourceDirectory?.attachEditor(layer,{read:readForm,set:patch=>{if(editor)Object.assign(editor.scene,patch)}});editor.initial=editorState();layer.querySelector('[name="entryTitle"],textarea')?.focus();
   }
   function editorState(){
     const form=document.querySelector('#scene-editor-form');if(!form||!editor)return '';
     const fields=[...form.elements].filter(node=>node.name&&node.type!=='file').map(node=>[node.name,node.type==='checkbox'?node.checked:node.value]);
-    return JSON.stringify({fields,media:editor.scene.media,mediaEdits:editor.scene.mediaEdits,heroMedia:editor.scene.heroMedia,highlightPairs:editor.pairs?.get(),learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis});
+    return JSON.stringify({fields,media:editor.scene.media,mediaEdits:editor.scene.mediaEdits,heroMedia:editor.scene.heroMedia,highlightPairs:editor.pairs?.get(),learningTargets:editor.scene.learningTargets,aiAnalysis:editor.scene.aiAnalysis,sourceRef:editor.scene.sourceRef,sourcePath:editor.scene.sourcePath,sourceSuggestion:editor.scene.sourceSuggestion});
   }
   async function restoreEditor(snapshot){
     if((cloudUser?.id||'local')!==snapshot.owner)return notify('账号已切换，未恢复其他账号的草稿。','info','恢复草稿');
@@ -309,7 +309,7 @@
   function saveToHistory(id,scene,{share=false,defaults=null}={}){
     const item=historyItem(id);if(!item)throw new Error('词条已被删除，场景尚未保存。');
     const data=SceneData.reconcile([...(item.scenes||[]).filter(row=>row.id!==scene.id),scene],item.sceneTombstones);
-    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','mediaEdits','heroMedia','externalSource','learningTargets','aiAnalysis'];
+    const fields=['title','quote','translation','note','sourceTitle','chapter','timeRange','sourceUrl','media','mediaEdits','heroMedia','externalSource','learningTargets','aiAnalysis','sourceRef','sourcePath','sourceSuggestion','sourceOriginal'];
     const shared=Object.fromEntries(fields.map(key=>[key,scene[key]])),changed=[];
     const previousDefaults=defaults?library().find(row=>row.groupId===scene.groupId):null;
     // Only inherited values follow scene defaults; association-specific edits stay independent.
@@ -410,6 +410,7 @@
     scene.updatedAt=new Date(Math.max(Date.now(),(Date.parse(latest?.updatedAt)||0)+1,(Date.parse(scene.updatedAt)||0)+1)).toISOString();
     const editing=editor;editing.ai?.saving();setBusy(true);
     try{
+      if(root.SourceDirectory)scene=SceneData.normalizeScene(await SourceDirectory.prepare(scene));
       const duplicate=()=>editing.newScene&&(editing.standalone||standalone)?sceneGroups().find(group=>SceneData.sameMediaScene(scene,group.scene,{ignoreTitle:!form.get('title')?.trim()||editing.ai?.automaticTitle()})):null;
       let reused=duplicate();
       if(reused)scene=structuredClone(reused.scene);
@@ -425,7 +426,7 @@
       if(editor.standalone||standalone){
         const linked=getHistory().flatMap(item=>scenes(item).map(row=>({item,row}))).find(({row})=>row.groupId===scene.groupId);
         if(!reused){if(linked)saveToHistory(linked.item.id,{...scene,id:linked.row.id,targetKey:linked.row.targetKey,targetLabel:linked.row.targetLabel,featured:linked.row.featured,order:linked.row.order,exampleHighlights:linked.row.exampleHighlights,translationHighlights:linked.row.translationHighlights},{share:true,defaults:scene});else saveLibrary(scene)}
-        await editing.ai?.saved(scene);applyHomeDraft();setBusy(false);await close(true);renderHub();syncPending([scene.groupId]);if(stagedTerms.length)root.SceneWorkspace?.stageQueries(scene.groupId,stagedTerms);if(editing.fromHome)setHomeScene(scene);notify(reused?'已复用相同场景，未新增重复记录。':'场景已保存。','good','场景',true,{label:'打开场景',run:()=>openWorkspace(scene.groupId)});return scene;
+        await editing.ai?.saved(scene);if(!editing.ai?.pending())root.SourceDirectory?.completeSaved(scene);applyHomeDraft();setBusy(false);await close(true);renderHub();syncPending([scene.groupId]);if(stagedTerms.length)root.SceneWorkspace?.stageQueries(scene.groupId,stagedTerms);if(editing.fromHome)setHomeScene(scene);notify(reused?'已复用相同场景，未新增重复记录。':'场景已保存。','good','场景',true,{label:'打开场景',run:()=>openWorkspace(scene.groupId)});return scene;
       }
       let id=editor.historyId;
       if(!id&&manual){
@@ -438,7 +439,7 @@
         await SceneData.putDraft(`pending:${normalizeSearch(query)}`,scene);
         const input=document.querySelector('#query-input');if(input){input.value=query;input.dispatchEvent(new Event('input',{bubbles:true}))}
       }
-      if(id)await editing.ai?.saved(scene);applyHomeDraft();setBusy(false);await close(true);
+      if(id){await editing.ai?.saved(scene);if(!editing.ai?.pending())root.SourceDirectory?.completeSaved(scene)}applyHomeDraft();setBusy(false);await close(true);
       if(manual&&id){currentHistoryId=id;currentFollowups=historyItem(id)?.followups||[];renderResult(historyItem(id).result)}
       notify(id?'场景已保存。':'场景已暂存，查询完成后自动加入词条。','good','场景记忆');
       if(id&&cloudUser)syncScene(id,scene.id,false);

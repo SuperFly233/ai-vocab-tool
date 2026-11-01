@@ -29,11 +29,12 @@
   const baseline=job.bound?.scene||job.scene,patch={};
   for(const key of SceneAIData.reviewFields(result)){
    if(Array.isArray(job.draft?.selected)&&!job.draft.selected.includes(key))continue;
-   if(job.options?.only&&key!==job.options.only)continue;
+   if(job.options?.only&&(job.options.only==='source'?!['sourceTitle','chapter','sourceSuggestion','sourceRef','sourcePath','sourceOriginal'].includes(key):key!==job.options.only))continue;
    if(JSON.stringify(current[key]??'')!==JSON.stringify(baseline[key]??''))continue;
    if(job.options?.only||SceneAIData.defaultUse(key,current[key],result[key]))patch[key]=structuredClone(result[key]);
   }
   const quote=patch.quote??current.quote;
+  if(patch.sourcePath&&patch.sourcePath.workId!==(patch.sourceRef||current.sourceRef)?.id)delete patch.sourcePath;
   if(result.quote!==quote)for(const key of ['translation','exampleHighlights','translationHighlights','highlightPairs','learningTargets'])delete patch[key];
   patch.aiAnalysis={model:result.model||job.model,generatedAt:result.generatedAt,translationOrigin:result.translationOrigin,sourceEvidence:result.sourceEvidence,sourceCandidates:result.sourceCandidates,sourceBasis:result.sourceBasis,warnings:result.warnings};
   return SceneAIData.validatePatch(patch,current);
@@ -48,7 +49,7 @@
    if(current.aiAnalysis?.generatedAt&&current.aiAnalysis.generatedAt===job.result.generatedAt)return update(account,id,{state:'reviewed',saveError:''});
    if(JSON.stringify(current.media?.map(v=>v.id))!==JSON.stringify(job.scene.media?.map(v=>v.id)))return update(account,id,{saveError:'素材已有变化，未将旧图片的分析填入当前场景。'});
    if(SceneUI.supplementVersion(job.bound.groupId)!==job.bound.expected)return update(account,id,{saveError:'场景已有修改，未覆盖；可打开结果继续编辑。'});
-   const patch=resultPatch(job,current),before=Object.fromEntries(Object.keys(patch).map(k=>[k,k==='highlightPairs'?HighlightPairsData.fromScene(current):current[k]??(k==='aiAnalysis'?null:k.endsWith('Highlights')||k==='learningTargets'?[]:'')]));
+   const patch=resultPatch(job,current),before=Object.fromEntries(Object.keys(patch).map(k=>[k,k==='highlightPairs'?HighlightPairsData.fromScene(current):current[k]??(['aiAnalysis','sourceRef','sourcePath','sourceSuggestion'].includes(k)?null:k.endsWith('Highlights')||k==='learningTargets'?[]:'')]));
    SceneUI.applySupplement([{id:job.bound.groupId,expected:job.bound.expected,patch}],account);
    await update(account,id,{state:'reviewed',saveError:'',autoSaved:true,undo:{id:job.bound.groupId,expected:SceneUI.supplementVersion(job.bound.groupId),patch:before}});
   }catch(error){await update(account,id,{saveError:error.message}).catch(()=>{})}finally{applying.delete(key)}

@@ -1,6 +1,8 @@
 # Project Context
 
-Last updated: 2026-10-31
+Last updated: 2026-11-01
+
+- v0.45.0 source hierarchy candidate: canonical works/aliases, optional two child levels, one grouped confirmation for new works without blocking capture, scoped editor suggestions and hierarchy browser. Both additive source migrations applied after isolated tests; production rollback-only auth/RLS/idempotency and actual preview47311829 authenticated HTTPS catalog passed.196SHA and anonymous401/old media405 passed. Ten directory and ten legacy classification UI cases, lifecycle/task/Undo/motion/media-budget gates passed. Public Teyvat lines0; no paid model/private scene/Bridge changes. Final promotion evidence follows in docs/reports/v0450-source-hierarchy.md.
 
 - v0.44.2 capture parity complete:61e9238/1480498a,198SHA and sync-Anki-source-media-v2 anonymous401/legacy media405; capture data/ten UI/synthetic vision and deployed390dark shared immediate-save flow pass. Main checkout/build restored84icons/194public files. Preview-only intake was not promoted.
 
