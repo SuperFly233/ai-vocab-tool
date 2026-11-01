@@ -2,6 +2,8 @@
 
 Last updated: 2026-11-01
 
+- v0.46.0 public capture parity: merge5c36ec6 at71ca469d/capture-v038-preview;201SHA/private401/legacy media405 and deployed390dark common dialogue/new-round flow passed. Capture data/ten UI/synthetic vision plus shared source/dialogue-round390dark and npm check passed. Preserve capture-only metadata/import hooks and85icons here; do not promote this branch to production. Official remains1441e53a/runtime8661e29.
+
 - v0.46.0 RELEASED: runtime8661e29 (featureb4135e2), previewb3089303 and production1441e53a/official. Final preview197SHA/private401/old media405 and deployed390dark normal-control sentence/round flow passed; official390light flow independently reports0.46.0. Actual authenticated production source catalog HTTPS read passed. No paid model/private-scene/Anki/Bridge changes. Source0.45 is included, Teyvat lines0/FSRS and other old milestones remain unfinished. Shared capture parity follows; do not promote preview-only intake.
 
 - v0.46.0 candidate: extend ordinary scene image analysis with shared numbered dialogue choices; tasks keep envelopes/selection, automatic completion only when unambiguous, saved-scene/manual edits protected. Exercise new rounds filter current items/lookups, reset input/current/unread, archive unsent text and preserve old tasks. Ten width/theme normal-control image->choose/save/reopen/end/new/archive/refresh cases passed, with390dark manual conflict and delayed old-round return. Immediate-save ambiguous background result/reopen test passed. Final preview/production evidence follows in v0460 report; no paid model/Bridge/DB changes in this follow-up.

@@ -62,6 +62,11 @@ recovers prior screenshots and unsent text. Ending never means deleting a scene.
   sync/Anki/sources/media-v2 anonymous401 and legacy media POST405 passed.
   Shared capture preview parity follows separately.
 
+Shared parity completed: merge5c36ec6 ->71ca469d/capture-v038-preview,201SHA/private401
+and legacy media405; capture data/ten UI/synthetic vision, shared source/dialogue
+390dark and deployed390dark normal-control fixture flow passed. Capture-only
+intake hooks/metadata remain isolated. No preview-only promotion to main.
+
 ## Scope
 
 Synthetic responses are HTTP fixtures, not paid real-model acceptance. Model
