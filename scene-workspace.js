@@ -197,6 +197,7 @@ host.innerHTML=`<article class="scene-workbench" data-history-id="${esc(item.id)
     return [...roots.values()].map(draw).join('');
   }
   function render(){
+    if(activeView==='scenes')root.SourceDirectory?.ensure().catch(()=>{});
     const host=document.getElementById('scene-hub');if(!host)return;restoreAccount();setup(host);host.querySelector('.scene-search').dataset.helpTarget='scene-search';
     const actions=host.querySelector('.scene-library-head .scene-actions'),primary=actions.querySelector('.scene-add-command');if(primary&&actions.firstElementChild!==primary)actions.prepend(primary);
     const groups=SceneUI.sceneGroups(),sources=[...new Map(groups.map(row=>{const info=sourceInfo(row.scene);return [info.key,info]})).values()].sort((a,b)=>a.name.localeCompare(b.name));
