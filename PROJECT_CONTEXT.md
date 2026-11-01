@@ -2,6 +2,10 @@
 
 Last updated: 2026-11-01
 
+- v0.46.0 candidate: extend ordinary scene image analysis with shared numbered dialogue choices; tasks keep envelopes/selection, automatic completion only when unambiguous, saved-scene/manual edits protected. Exercise new rounds filter current items/lookups, reset input/current/unread, archive unsent text and preserve old tasks. Ten width/theme normal-control image->choose/save/reopen/end/new/archive/refresh cases passed, with390dark manual conflict and delayed old-round return. Immediate-save ambiguous background result/reopen test passed. Final preview/production evidence follows in v0460 report; no paid model/Bridge/DB changes in this follow-up.
+
+- v0.45.0 RELEASED: commitb7d0790, CFfecdd569/official196SHA and private401/legacy media405 passed. Preview47311829 authenticated catalog HTTPS read and production rollback-only auth/RLS/confirmation tests passed; additive source tables live. Canonical works/aliases/two child levels and grouped first confirmation enabled. Source corpus0lines, real model quality user-led. Public fixes parity will include the following dialogue-round follow-up rather than promoting capture-only features.
+
 - v0.45.0 source hierarchy candidate: canonical works/aliases, optional two child levels, one grouped confirmation for new works without blocking capture, scoped editor suggestions and hierarchy browser. Both additive source migrations applied after isolated tests; production rollback-only auth/RLS/idempotency and actual preview47311829 authenticated HTTPS catalog passed.196SHA and anonymous401/old media405 passed. Ten directory and ten legacy classification UI cases, lifecycle/task/Undo/motion/media-budget gates passed. Public Teyvat lines0; no paid model/private scene/Bridge changes. Final promotion evidence follows in docs/reports/v0450-source-hierarchy.md.
 
 - v0.44.2 capture parity complete:61e9238/1480498a,198SHA and sync-Anki-source-media-v2 anonymous401/legacy media405; capture data/ten UI/synthetic vision and deployed390dark shared immediate-save flow pass. Main checkout/build restored84icons/194public files. Preview-only intake was not promoted.

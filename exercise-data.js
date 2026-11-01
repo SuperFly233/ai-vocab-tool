@@ -7,7 +7,8 @@
    const rect=row.rect;
    if(rect!==undefined&&(!rect||['x','y','width','height'].some(k=>typeof rect[k]!=='number'||!Number.isFinite(rect[k]))||rect.x<0||rect.y<0||rect.width<=0||rect.height<=0||rect.x+rect.width>1.001||rect.y+rect.height>1.001))throw Error('对话位置不在截图范围内。');
    const speaker=row.speaker??'';if(typeof speaker!=='string'||speaker.length>100)throw Error('说话人格式无效。');
-   return {...parsed,id:'line-'+(index+1),speaker,complete:row.complete===true,...(rect?{rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}}:{})};
+   if(row.imageIndex!==undefined&&(!Number.isInteger(row.imageIndex)||row.imageIndex<0||row.imageIndex>5))throw Error('对话所在图片编号无效。');
+   return {...parsed,id:'line-'+(index+1),speaker,complete:row.complete===true,...(row.imageIndex!==undefined?{imageIndex:row.imageIndex}:{}),...(rect?{rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}}:{})};
   });
  }
  function select(rows,point,manual=false){

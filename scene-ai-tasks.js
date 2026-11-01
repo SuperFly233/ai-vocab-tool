@@ -25,7 +25,7 @@
  }
  async function update(account,id,fields){return change(account,jobs=>{const job=jobs.find(v=>v.id===id);if(!job)throw Error('分析记录已删除。');Object.assign(job,fields,{updatedAt:new Date().toISOString()});return structuredClone(job)})}
  function resultPatch(job,current){
-  const result=job.draft?.result||job.result;if(!result)return {};
+  const envelope=job.draft?.result||job.result,result=envelope?.dialogues?SceneDialogues.chosen(envelope,job.dialogueSelection):envelope;if(!result)return {};
   const baseline=job.bound?.scene||job.scene,patch={};
   for(const key of SceneAIData.reviewFields(result)){
    if(Array.isArray(job.draft?.selected)&&!job.draft.selected.includes(key))continue;
@@ -43,6 +43,7 @@
   const key=account+':'+id;if(applying.has(key))return;applying.add(key);
   try{
    const job=(await list(account)).find(j=>j.id===id);
+   if(job?.result?.dialogues&&!SceneDialogues.chosen(job.result,job.dialogueSelection))return;
    if(!job?.result||job.options?.capture||job.options?.autoApply===false||job.state!=='check'||!job.bound||account!==owner())return;
    const current=SceneUI.sceneGroups().find(g=>g.scene.groupId===job.bound.groupId)?.scene;
    if(!current)return update(account,id,{saveError:'场景已删除，分析结果仍保留。'});
@@ -101,7 +102,7 @@
    if(!valid())return;try{
     node.close();if(!await SceneUI.closeEditor()||account!==owner())return;
     const group=SceneUI.sceneGroups().find(g=>g.scene.groupId===(job.bound?.groupId||job.scene.groupId));
-    if(job.options?.capture){node.close();await ExerciseCapture.open();return}
+    if(job.options?.capture&&(await SceneData.getDraft('exercise-capture:'+account))?.items?.some(v=>v.id===job.scene.groupId)){node.close();await ExerciseCapture.open({itemId:job.scene.groupId});return}
     if(job.result&&job.state!=='reviewed'){
      const current=group?.scene||job.scene,draft={...structuredClone(current),...resultPatch(job,current)};
      node.close();await SceneUI.open(group?.item.id||'library','',group?.scene.id||'',{initialScene:draft,analysisTaskId:job.id});return;
@@ -114,7 +115,7 @@
    const running=jobs.filter(j=>['queued','running'].includes(j.state)).length,finished=jobs.filter(terminal);
    body.querySelector('[data-pool-summary]').textContent=`${running} 项分析中 · ${jobs.length} 条记录`;
    body.querySelector('[data-pool-clear]').disabled=!finished.length;
-   const host=body.querySelector('[data-pool-list]');host.innerHTML=jobs.slice(0,limit).map(j=>`<article class="ai-record-row" data-pool-id="${esc(j.id)}"><div><strong>${esc(j.result?.title||j.bound?.scene.title||j.scene.title||j.scene.quote||'素材场景')}</strong><small>${['queued','running'].includes(j.state)?'<span class="lexi-progress-spinner" aria-hidden="true"></span>':''}${esc(labels[j.state]||'已生成')} · ${esc(j.model||'AI')}</small>${j.saveError||j.error?`<p>${esc(j.saveError||j.error)}</p>`:''}</div><div class="ai-record-actions"><button type="button" class="plain-btn" data-pool-open>${j.options?.capture?'打开采集':j.result&&j.state!=='reviewed'?'打开结果':'打开场景'}</button>${['error','interrupted','cancelled'].includes(j.state)?`<button type="button" class="icon-btn" data-pool-resume aria-label="重新分析" data-tip="重新分析">${icon('refresh-cw')}</button>`:''}${j.undo?`<button type="button" class="icon-btn" data-pool-undo aria-label="撤销自动保存" data-tip="撤销自动保存">${icon('undo-2')}</button>`:''}<button type="button" class="icon-btn danger-icon" data-pool-remove aria-label="删除分析记录" data-tip="删除记录">${icon('trash-2')}</button></div></article>`).join('')||'<p class="ai-record-empty">暂无分析记录</p>';
+   const host=body.querySelector('[data-pool-list]');host.innerHTML=jobs.slice(0,limit).map(j=>`<article class="ai-record-row" data-pool-id="${esc(j.id)}"><div><strong>${esc(j.result?.title||j.bound?.scene.title||j.scene.title||j.scene.quote||'素材场景')}</strong><small>${['queued','running'].includes(j.state)?'<span class="lexi-progress-spinner" aria-hidden="true"></span>':''}${esc(j.result?.dialogues?.length===0?'无可读句子':j.result?.dialogues&&!SceneDialogues.chosen(j.result,j.dialogueSelection)?'选择一句':labels[j.state]||'已生成')} · ${esc(j.model||'AI')}</small>${j.saveError||j.error?`<p>${esc(j.saveError||j.error)}</p>`:''}</div><div class="ai-record-actions"><button type="button" class="plain-btn" data-pool-open>${j.options?.capture?'打开采集':j.result&&j.state!=='reviewed'?'打开结果':'打开场景'}</button>${['error','interrupted','cancelled'].includes(j.state)?`<button type="button" class="icon-btn" data-pool-resume aria-label="重新分析" data-tip="重新分析">${icon('refresh-cw')}</button>`:''}${j.undo?`<button type="button" class="icon-btn" data-pool-undo aria-label="撤销自动保存" data-tip="撤销自动保存">${icon('undo-2')}</button>`:''}<button type="button" class="icon-btn danger-icon" data-pool-remove aria-label="删除分析记录" data-tip="删除记录">${icon('trash-2')}</button></div></article>`).join('')||'<p class="ai-record-empty">暂无分析记录</p>';
    if(jobs.length>limit){const more=document.createElement('button');more.className='plain-btn';more.textContent=`继续显示 ${Math.min(50,jobs.length-limit)} 条`;more.onclick=()=>{limit+=50;render()};host.append(more)}
    for(const row of host.querySelectorAll('[data-pool-id]')){
     const job=jobs.find(j=>j.id===row.dataset.poolId);row.querySelector('[data-pool-open]').onclick=()=>showResult(job);row.querySelector('[data-pool-remove]').onclick=()=>erase([job.id]);

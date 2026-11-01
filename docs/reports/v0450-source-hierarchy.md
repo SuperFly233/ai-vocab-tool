@@ -65,6 +65,11 @@ and never automatically reissues on refresh. Successful tasks remain available.
 
 ## Limits
 
+Production promotion: commitb7d0790 -> fecdd569.ai-vocab-tool.pages.dev and official
+alias; all196static SHA256 match, private sync/Anki/sources/media-v2 anonymous401,
+legacy media POST405. Official runtime0.45.0 verified. The next follow-up includes
+public capture parity; isolated capture-only intake is not promoted to main.
+
 No paid model calls this release; real recognition quality remains user-led.
 Public Teyvat lines currently0: corpus integration is not claimed. Physical phone,
 exercise-distance readability, native playback and Anki own sync not retested.

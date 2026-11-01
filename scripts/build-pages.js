@@ -41,6 +41,7 @@ const files = [
   'scene-ai-client.js',
   'scene-ai.js',
   'exercise-data.js',
+  'scene-dialogues.js',
   'exercise-capture.js',
   'exercise-capture.css',
   'scene-ai-tasks.js',
