@@ -11,9 +11,10 @@
   async function catalog(signal){
     const account=owner(),rows=(await request('list',{},signal)).map(SourceData.source);
     if(account!==owner())throw Error('账号已切换。');
-    await LearningStore.write(account,'sources:catalog',rows);return rows;
+    const cached=await LearningStore.read(account,'sources:catalog')||[];for(const row of rows)row.nodes=cached.find(s=>s.id===row.id)?.nodes||[];
+    if(account!==owner())throw Error('账号已切换。');await LearningStore.write(account,'sources:catalog',rows);return rows;
   }
-  async function open(initialId='',restored=null){
+  async function classify(initialId='',restored=null){
     if(document.querySelector('.source-workspace[open]'))return;
     const account=owner(),node=AnkiBridge.dialog('场景检查与整理'),body=node.querySelector('.scene-dialog-body'),controller=new AbortController();
     node.classList.add('source-workspace');node.querySelector('.scene-dialog-status').remove();
@@ -137,7 +138,7 @@
     const authChanged=()=>{if(account!==owner()){retainDraft=true;persist();node.close()}};
     addEventListener('lexi-auth-context',authChanged);
     node.addEventListener('close',()=>{removeEventListener('lexi-auth-context',authChanged);controller.abort();serial++;if(url)URL.revokeObjectURL(url);if(!retainDraft)writes=writes.then(()=>LearningStore.write(account,'sources:review',null)).catch(()=>{})},{once:true});
-    UIOverlays.guardDialog(node,{getState:snapshot,initialState:{rows:[],folders:[]},restore:saved=>open(initialId,saved),canRestore:()=>[...drafts].filter(([,d])=>d.dirty).every(([id,d])=>SceneUI.supplementVersion(id)===d.expected)});
+    UIOverlays.guardDialog(node,{getState:snapshot,initialState:{rows:[],folders:[]},restore:saved=>classify(initialId,saved),canRestore:()=>[...drafts].filter(([,d])=>d.dirty).every(([id,d])=>SceneUI.supplementVersion(id)===d.expected)});
     SharedUI.enhanceSelects(body);
     try{
       const saved=restored||await LearningStore.read(account,'sources:review');assert();if(saved){for(const [id,d] of saved.rows||[])if(groups.some(g=>g.scene.groupId===id))drafts.set(id,d);for(const f of saved.folders||[])newFolders.set(f.id,f)}
@@ -150,5 +151,6 @@
     return node;
   }
   document.addEventListener('click',e=>{const button=e.target.closest('[data-source-workspace]');if(button){e.preventDefault();open(button.dataset.sourceWorkspace)}});
-  root.SourceWorkspace=Object.freeze({open,request,catalog});
+  function open(initialId='',restored=null){return root.SourceDirectory&&!restored?SourceDirectory.open(initialId):classify(initialId,restored)}
+  root.SourceWorkspace=Object.freeze({open,classify,request,catalog});
 })(globalThis);

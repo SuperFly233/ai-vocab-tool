@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.46.0 - 2026-11-01
+
+- Extend numbered utterance selection to ordinary scene image analysis, sharing candidate validation and rendering with exercise capture.
+- Persist candidates and choices on existing analysis tasks; immediate saving, later opening, refresh and manual-edit protection remain supported without extra model calls.
+- Start new exercise rounds with empty current lists, counters and quick input; retain previous rounds, originals, tasks and unsent words explicitly.
+- Scope late analysis and lookup results by stable round/item identity; keep source0.45 and media request protections unchanged.
+
+## v0.45.0 - 2026-11-01
+
+- Add account-isolated canonical works, confirmed aliases and stable chapter identities with optional two-level paths.
+- Reuse known sources in the existing scene analysis call; confirm unknown works once without blocking screenshot saving.
+- Add hierarchical source browsing, scoped chapter editing and guarded legacy organization/Undo; preserve original source text and personal folders.
+- Apply additive, RLS-protected source migrations after isolated and rollback-only production SQL acceptance; expose authenticated catalog RPC.
+- Preserve background-analysis lifecycle and media request protections. No Teyvat corpus, FSRS or Bridge capability is implied.
+
 ## v0.44.2 - 2026-10-31
 
 - Remove the cumulative100-analysis-record blocker; expose deletion for every state and completed cleanup without deleting learning content.
