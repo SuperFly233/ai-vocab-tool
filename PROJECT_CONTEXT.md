@@ -2,6 +2,8 @@
 
 Last updated: 2026-11-01
 
+- v0.46.0 RELEASED: runtime8661e29 (featureb4135e2), previewb3089303 and production1441e53a/official. Final preview197SHA/private401/old media405 and deployed390dark normal-control sentence/round flow passed; official390light flow independently reports0.46.0. Actual authenticated production source catalog HTTPS read passed. No paid model/private-scene/Anki/Bridge changes. Source0.45 is included, Teyvat lines0/FSRS and other old milestones remain unfinished. Shared capture parity follows; do not promote preview-only intake.
+
 - v0.46.0 candidate: extend ordinary scene image analysis with shared numbered dialogue choices; tasks keep envelopes/selection, automatic completion only when unambiguous, saved-scene/manual edits protected. Exercise new rounds filter current items/lookups, reset input/current/unread, archive unsent text and preserve old tasks. Ten width/theme normal-control image->choose/save/reopen/end/new/archive/refresh cases passed, with390dark manual conflict and delayed old-round return. Immediate-save ambiguous background result/reopen test passed. Final preview/production evidence follows in v0460 report; no paid model/Bridge/DB changes in this follow-up.
 
 - v0.45.0 RELEASED: commitb7d0790, CFfecdd569/official196SHA and private401/legacy media405 passed. Preview47311829 authenticated catalog HTTPS read and production rollback-only auth/RLS/confirmation tests passed; additive source tables live. Canonical works/aliases/two child levels and grouped first confirmation enabled. Source corpus0lines, real model quality user-led. Public fixes parity will include the following dialogue-round follow-up rather than promoting capture-only features.

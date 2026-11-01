@@ -51,6 +51,17 @@ save. For immediate save, open the generated result from analysis records afterw
 Exercise: end -> start-new-round. Only the new round appears; past-round button
 recovers prior screenshots and unsent text. Ending never means deleting a scene.
 
+## Release Evidence
+
+- Runtime commit8661e29 (capability commitb4135e2), final independent preview
+  b3089303, production1441e53a and official alias ai-vocab-tool.pages.dev.
+- Final preview197SHA/private401/legacy media405, actual390dark fixture journey
+  and independent runtime0.46.0 passed. Official390light fixture journey passed;
+  actual authenticated production source catalog HTTPS read passed, no writes.
+- npm check passed on final version. Official197static SHA256 match, private
+  sync/Anki/sources/media-v2 anonymous401 and legacy media POST405 passed.
+  Shared capture preview parity follows separately.
+
 ## Scope
 
 Synthetic responses are HTTP fixtures, not paid real-model acceptance. Model
