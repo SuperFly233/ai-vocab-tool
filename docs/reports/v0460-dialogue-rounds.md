@@ -60,7 +60,13 @@ recovers prior screenshots and unsent text. Ending never means deleting a scene.
   actual authenticated production source catalog HTTPS read passed, no writes.
 - npm check passed on final version. Official197static SHA256 match, private
   sync/Anki/sources/media-v2 anonymous401 and legacy media POST405 passed.
-  Shared capture preview parity follows separately.
+  Shared capture preview parity completed separately, as recorded below.
+
+Shared parity completed: merge5c36ec6 ->71ca469d/capture-v038-preview,201SHA/private401
+and legacy media405; capture data/ten UI/synthetic vision, shared source/dialogue
+390dark and deployed390dark normal-control fixture flow passed. Capture-only
+intake hooks/metadata remain isolated. No preview-only promotion to main.
+Main build retains84icons/197public assets; capture preview has85icons/201assets.
 
 ## Scope
 
