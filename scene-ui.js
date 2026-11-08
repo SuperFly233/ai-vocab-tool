@@ -42,6 +42,14 @@
     if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:new Date().toISOString()}))throw new Error('场景未能写入本机。');
     if(activeView==='scenes')renderHub();
   }
+  function collectScenes(records,account){
+    if(account!==(cloudUser?.id||'local'))throw Error('账号已切换，未收集旧任务。');
+    if(!Array.isArray(records)||!records.length||records.length>20||records.some(s=>!s||!s.quote?.trim()||!SceneData.normalizeScene(s)))throw Error('收集场景格式不正确。');
+    const settings=getSettings(),existing=new Map(sceneGroups().map(g=>[g.scene.groupId,g.scene])),deleted=new Set((settings.sceneLibraryTombstones||[]).map(t=>t.key));
+    const fresh=records.filter(s=>{if(deleted.has(s.id)||deleted.has(s.groupId))throw Error('场景曾被删除，未自动恢复。');return !existing.has(s.groupId)});
+    if(fresh.length){const data=SceneData.reconcile([...(settings.sceneLibrary||[]),...fresh],settings.sceneLibraryTombstones);if(!setSettings({...settings,sceneLibrary:data.items,sceneLibraryTombstones:data.tombstones,updatedAt:new Date().toISOString()}))throw Error('场景保存失败，原件和结果保留。');}
+    renderHub();return records.map(s=>s.groupId);
+  }
   function planFushi(rows,account){
     if((cloudUser?.id||'local')!==account)throw new Error('账号已切换，未导入其他账号的来源。');
     if(!Array.isArray(rows)||!rows.length||rows.length>20)throw new Error('每次选择 1–20 个场景。');
@@ -749,6 +757,8 @@
     if(!request.sceneGroupId&&!request.batchId)return;
     restoreTasks();tasks.set(`${request.sceneGroupId||request.batchId}:${normalizeSearch(request.query)}`,{request:{query:request.query,sceneGroupId:request.sceneGroupId||request.batchId,...(typeof request.userNote==='string'?{userNote:request.userNote}:{}),...(typeof request.direction==='string'?{direction:request.direction}:{})},status,message});
     try{sessionStorage.setItem(`lexi-scene-tasks:${taskOwner}`,JSON.stringify([...tasks.values()].slice(-200)))}catch{}
+    document.dispatchEvent(new CustomEvent('lexi-scene-task',{detail:{owner:taskOwner,groupId:request.sceneGroupId||request.batchId,query:request.query,status,message}}));
+    root.ProcessingPage?.refresh();
     if(activeView==='scenes')renderHub();
   }
   function sceneGroups(){
@@ -767,7 +777,7 @@
     const byOrigin=findHistoryByQuery(query);if(byOrigin)return byOrigin;
     const titles=getHistory().filter(item=>normalizeSearch(historyDisplayTitle(item))===key);return titles.length===1?titles[0]:null;
   }
-  async function queueSceneQueries(groupId,queries,{forceQueries=[],entryIds={},direction,note='',exerciseLookupIds={},exerciseOwner=''}={}){
+  async function queueSceneQueries(groupId,queries,{forceQueries=[],entryIds={},direction,note='',exerciseLookupIds={},exerciseOwner='',processingLookupId='',processingOwner='',processingProfileHash=''}={}){
     const owner=cloudUser?.id||'local';
     const group=sceneGroups().find(row=>row.scene.groupId===groupId);if(!group)throw new Error('场景已不存在。');
     const {scene}=group;saveLibrary(scene);
@@ -776,6 +786,7 @@
       if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未继续提交场景任务。');
       try{
       const request={query,sceneGroupId:groupId,direction:direction??els.direction.value,userNote:note,note:[note,scene.quote?`场景原句：${scene.quote}\n解释「${query}」在该场景中的含义，并保留必要的其他常见用法。`:''].filter(Boolean).join('\n'),folderIds:lookupFolderIds,...(exerciseLookupIds[normalizeSearch(query)]?{exerciseLookupId:exerciseLookupIds[normalizeSearch(query)],exerciseOwner}:{})};
+      if(processingLookupId)Object.assign(request,{processingLookupId,processingOwner,processingProfileHash});
       const existing=findExisting(query,entryIds[normalizeSearch(query)]);
 if(existing&&!forceQueries.some(value=>normalizeSearch(value)===normalizeSearch(query))){const linked=await attachPending(existing.id,query,groupId);if(owner!==(cloudUser?.id||'local'))throw new Error('账号已切换，未更新任务状态。');taskResult({...request,entryId:existing.id},linked?'complete':'error',linked?'':'场景关联尚未完成');(linked?accepted:failed).push(query);continue}
       if(existing)request.existingId=existing.id;
@@ -811,6 +822,7 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
     renderHub();renderHome();syncPending(changes.map(change=>change.id));
   }
   function openSupplement(restored=null){
+    if(!restored&&root.ProcessingPage)return ProcessingPage.openSource('scenes');
     if(root.SceneAI)return root.SceneAI.openSupplement(restored);
     notify('场景 AI 模块尚未载入，请刷新后重试。','warn','检查与补遗');
   }
@@ -849,6 +861,6 @@ const patches=new Map(),bases=new Map();for(const change of changes){if(!change.
       openHistoryModal(id);syncPending(records.map(scene=>scene.groupId));notify('场景备份已导入。','good','场景记忆');
     }catch(error){notify(error.message,'bad','场景导入失败')}
   }
-  root.SceneUI={render,open,closeEditor:async()=>{await close();return !editor},renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,queryTargets:saveAndQuery,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
+  root.SceneUI={render,open,openWorkspace,collectScenes,closeEditor:async()=>{await close();return !editor},renderHome,homeScene,setHomeScene,openSupplement,supplementVersion,applySupplement,field,timeMeta,provenance,attachPending,planFushi,importFushi,syncPending,renderReview,renderHub,queryFromScene,queryTargets:saveAndQuery,taskResult,sceneGroups,findExisting,queueSceneQueries,retrySceneTask,assets,action,tasks:()=>{restoreTasks();return [...tasks.entries()]},syncError:id=>syncErrors.get(syncKey(id))||''};
   if(typeof activeView!=='undefined'&&activeView==='scenes')renderHub();
 })(globalThis);

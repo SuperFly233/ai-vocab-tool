@@ -1,9 +1,10 @@
 {
   "name": "ai-vocab-tool",
-  "version": "0.46.0",
+  "version": "0.47.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "check:batch-study": "node --check processing-page.js && node --check study-ledger.js && node --check study-page.js && node scripts/check-batch-study.cjs && node scripts/check-processing-recovery.cjs",
     "check:dialogue-rounds": "node scripts/check-exercise-data.cjs && node scripts/check-dialogue-rounds.cjs && node scripts/check-dialogue-background.cjs && node scripts/check-round-lookup-isolation.cjs",
     "check:source-hierarchy": "node scripts/check-source-hierarchy.cjs && node scripts/check-source-directory-ui.cjs",
     "check:analysis-lifecycle": "node scripts/check-analysis-lifecycle.cjs && node scripts/check-scene-ai-task-safety.cjs",

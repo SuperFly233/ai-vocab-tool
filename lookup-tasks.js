@@ -19,6 +19,7 @@
   }
 
   function normalizeRequest(request={}){
+    if(!request||typeof request!=='object'||Array.isArray(request))return null;
     const query=text(request.query);
     if(!query)return null;
     const folderIds=[...new Set((Array.isArray(request.folderIds)?request.folderIds:[]).map(text).filter(Boolean))];
@@ -34,6 +35,7 @@
       ...(text(request.sceneGroupId)?{sceneGroupId:text(request.sceneGroupId)}:{}),
       ...(text(request.batchId)?{batchId:text(request.batchId)}:{}),
       ...(text(request.exerciseLookupId)?{exerciseLookupId:text(request.exerciseLookupId),exerciseOwner:text(request.exerciseOwner)}:{}),
+      ...(text(request.processingLookupId)?{processingLookupId:text(request.processingLookupId),processingOwner:text(request.processingOwner),processingProfileHash:text(request.processingProfileHash)}:{}),
     };
     normalized.signature=requestSignature(normalized);
     return normalized;

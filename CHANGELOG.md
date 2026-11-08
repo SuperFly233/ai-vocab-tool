@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.47.0 - 2026-11-08 (Candidate)
+
+- Unify batch image import, existing analysis reuse and scene supplementation in a processing page; keep one global entry.
+- Preserve originals first, collect complete utterances and optionally submit at most20 contextual lookups per explicit run.
+- Add independent local-first FSRS-6 study for explicitly selected scene targets and history entries, with atomic scores, guarded Undo, pause, content checks, daily new limit, records, estimated curve and backup restore.
+- Cloud memory synchronization remains gated; this release does not claim provider recovery, public corpus coverage or automatic Anki approval.
+
 ## v0.46.0 - 2026-11-01
 
 - Extend numbered utterance selection to ordinary scene image analysis, sharing candidate validation and rendering with exercise capture.

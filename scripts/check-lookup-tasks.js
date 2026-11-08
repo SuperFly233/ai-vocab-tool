@@ -5,6 +5,9 @@ const failures=[];
 const expect=(condition,message)=>{if(!condition)failures.push(message)};
 
 expect(typeof recoverRequests==='function','LookupTasks production module did not load');
+expect(LookupTasks.normalizeRequest(null)===null,'A null active request must not crash startup');
+const guarded=normalizeSnapshot({active:null,queue:[{query:'context',processingLookupId:'batch-query',processingOwner:'local',processingProfileHash:'a'.repeat(64)}]});
+expect(guarded.queue.length===1&&guarded.queue[0].processingLookupId==='batch-query'&&guarded.queue[0].processingProfileHash==='a'.repeat(64),'Processing recovery must retain identity and model binding without credentials');
 const sceneRequest={query:'skewer',sceneGroupId:'scene-test',userNote:'侧重口语',note:'侧重口语\n场景原句：Private synthetic quote'};
 expect(LookupTasks.editorNote(LookupTasks.normalizeRequest(sceneRequest))==='侧重口语','Scene editor must receive only explicit user focus, including after task serialization');
 expect(LookupTasks.editorNote({query:'legacy',sceneGroupId:'old',note:'场景原句：legacy'})==='','Legacy model-only scene context must not enter the editor');

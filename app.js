@@ -34,6 +34,8 @@ const VIEW_ROUTES={
   history:'/history',
   folders:'/favorites',
   scenes:'/scenes',
+  processing:'/processing',
+  study:'/study',
   exercise:'/exercise',
   settings:'/settings',
   about:'/about',
@@ -185,12 +187,13 @@ const ABOUT_RELEASE_LIMIT=3;
 const HISTORY_NORMALIZED=Symbol('historyNormalized');
 const APP_INFO={
   name:'Lexi酱',
-  version:'0.46.0',
-  releaseDate:'2026-10-30',
+  version:'0.47.0',
+  releaseDate:'2026-11-08',
   site:'https://ai-vocab-tool.pages.dev',
   repo:'https://github.com/SuperFly233/ai-vocab-tool',
 };
 const CHANGELOG=[
+  {version:'0.47.0',date:'2026-11-08',title:'批量素材处理与独立学习',items:['素材处理统一导入图片、复用过往分析和补全旧场景；完整对话自动收集，自动查词每批最多20次。','全站只保留一个素材处理入口，学习拥有独立页面，不再藏在场景浏览内。','本机FSRS-6支持场景与历史词条明确加入、四档评分、到期优先、暂停、撤销、记录、估计曲线及导出恢复。','切页面不取消已提交任务；刷新不自动重复生成，账号、内容指纹和版本冲突受到保护。记忆云同步、真实模型质量和实体手机仍独立验收，Anki仍需确认。']},
   {version:'0.46.0',date:'2026-11-01',title:'普通场景也能选句，运动采集分轮整理',items:['普通场景图片分析共用多句识别：图中编号与候选对应，点击一句带入原句、译文和学习重点，不再调用模型。','分析中立即保存仍继续；多句结果从分析记录打开，保存和刷新后保留所选句，手动修改受到保护。','结束本轮后明确开始新一轮，当前截图、计数和查词界面重置；旧轮次的场景和后台分析保留，不串入新轮。','往期采集可找回截图与未提交词组。来源目录沿用0.45.0，Anki仍独立批准。']},
   {version:'0.45.0',date:'2026-11-01',title:'作品来源统一，章节分层浏览',items:['作品使用稳定身份和规范名称，已确认别名自动复用；新作品集中确认一次，不阻塞截图保存。','来源按作品、季／任务线、章节／集数分层浏览，时间段作为场景定位。个人收藏夹保持独立。','场景分析复用已有来源目录，明确的章节线索自动整理；来源猜测不冒充语录验证。','旧场景可批量整理并受保护撤销，保留原来源文字；账号隔离、名称冲突和版本保护已启用。']},
   {version:'0.44.2',date:'2026-10-31',title:'分析记录不再堵塞，后台自动补全',items:['取消历史分析记录100条上限；所有状态均可删除，支持批量清理已完成，不删除场景、图片或词条。','移除场景AI逐字段批准流程；已保存且未修改的场景自动补全，冲突结果可直接打开编辑。','删除中的任务停止执行，晚返回不能复活记录；撤销删除不重新调用模型。','共用二次确认进入浏览器顶层，不再被图片、分析等弹窗遮挡。Anki写入仍独立确认。']},
@@ -2893,6 +2896,8 @@ function showView(id,button,options={}){
   if(next==='history')renderHistory();
   if(next==='folders')renderFoldersView();
   if(next==='scenes')globalThis.SceneUI?.renderHub();
+  if(next==='processing')globalThis.ProcessingPage?.open();
+  if(next==='study')globalThis.StudyPage?.open();
   if(next==='exercise')globalThis.ExerciseCapture?.onRoute();
   if(next==='settings')renderSettings();
   if(next==='about')renderAbout();
@@ -4295,7 +4300,7 @@ function scheduleRecoveredLookups(){
   if(!lookupRecoveryPending||lookupBusy||!lookupQueue.length||!canEnterApp())return;
   if(cloudUser&&!cloudBootstrapped)return;
   lookupRecoveryPending=false;
-  const count=lookupQueue.filter(v=>!v.exerciseLookupId).length;if(!count)return;
+  const count=lookupQueue.filter(v=>!v.exerciseLookupId&&!v.processingLookupId).length;if(!count)return;
   notify(`已恢复 ${count} 个未完成查询，将从中断处继续。`,'info','恢复查询');
   setTimeout(processNextLookup,80);
 }
@@ -4330,6 +4335,7 @@ function renderLookupQueue(){
             <span>${item.recovered?'恢复任务 · ':''}${escapeHTML([item.direction,item.note,foldersFromIds(item.folderIds||[]).map(folder=>folder.name).join('、')].filter(Boolean).join(' · ')||'默认规则')}</span>
           </div>
           <button class="icon-btn danger-icon queue-remove" data-tip="移除" aria-label="移除" onclick="removeLookupQueueItem(${Number(item.id)})">${icon('x')}</button>
+          ${item.recovered&&item.processingLookupId?`<button class="plain-btn" onclick="resumeQueuedLookup(${Number(item.id)})">确认恢复</button>`:''}
         </article>
       `).join('')}
     </div>
@@ -4356,7 +4362,7 @@ function clearLookupQueue(){
 }
 function processNextLookup(){
   if(lookupBusy||!lookupQueue.length)return;
-  const index=lookupQueue.findIndex(v=>!v.recovered||!v.exerciseLookupId);if(index<0)return;
+  const index=lookupQueue.findIndex(v=>!v.recovered||!v.exerciseLookupId&&!v.processingLookupId);if(index<0)return;
   const [next]=lookupQueue.splice(index,1);
   renderLookupQueue();
   applyLookupRequestToEditor(next);
@@ -4365,6 +4371,12 @@ function processNextLookup(){
 function resumeExerciseLookup(id){
   const request=lookupQueue.find(v=>v.exerciseLookupId===id&&v.exerciseOwner===(cloudUser?.id||'local'));if(!request)return false;
   request.recovered=false;persistLookupTasks();processNextLookup();return true;
+}
+async function resumeQueuedLookup(id){
+  const request=lookupQueue.find(v=>v.id===id&&v.processingLookupId&&v.processingOwner===(cloudUser?.id||'local'));if(!request)return;
+  if(!await askConfirm('上次查询是否完成未知，恢复可能再次计费。确认继续这一项？','恢复查词'))return;
+  if(!lookupQueue.includes(request)||request.processingOwner!==(cloudUser?.id||'local'))return;
+  request.recovered=false;persistLookupTasks();processNextLookup();
 }
 function applyLookupRequestToEditor(request){
   if(!request)return;
@@ -4375,8 +4387,8 @@ function applyLookupRequestToEditor(request){
   renderLookupFolderPicker();
   updateEditorState();
 }
-async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,userNote,folderIds=[],recovered=false,sceneGroupId='',batchId='',exerciseLookupId='',exerciseOwner=''}){
-  const request={query,existingId,sourceItem,direction,note,...(typeof userNote==='string'?{userNote}:{}),folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId,batchId,exerciseLookupId,exerciseOwner};
+async function performLookup({query,existingId=null,sourceItem=null,direction=null,note=null,userNote,folderIds=[],recovered=false,sceneGroupId='',batchId='',exerciseLookupId='',exerciseOwner='',processingLookupId='',processingOwner='',processingProfileHash=''}){
+  const request={query,existingId,sourceItem,direction,note,...(typeof userNote==='string'?{userNote}:{}),folderIds:normalizeSelectableFolderIds(folderIds),recovered,sceneGroupId,batchId,exerciseLookupId,exerciseOwner,processingLookupId,processingOwner,processingProfileHash};
   const settings=currentApiSettings();
   lookupBusy=true;
   globalThis.SceneUI?.taskResult(request,'running');
@@ -4400,6 +4412,7 @@ async function performLookup({query,existingId=null,sourceItem=null,direction=nu
     systemPrompt:settings.modelPrompt||'',
   };
   try{
+    if(processingLookupId){const current=currentApiSettings(),hash=await SceneAITasks.fingerprint({id:current.activeApiProfileId,...current});if(processingOwner!==(cloudUser?.id||'local')||hash!==processingProfileHash)throw Error('批量查词的账号或模型配置已变化，未发送旧任务。');}
     const {result:data}=await fetchLookupWithRetry({query,payload,hasLocalEndpoint,runId});
     if(isStaleLookup(runId,query))return;
     globalThis.RequestUI?.mark('validate');

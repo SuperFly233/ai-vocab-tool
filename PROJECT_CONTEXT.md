@@ -1,6 +1,8 @@
 # Project Context
 
-Last updated: 2026-11-01
+Last updated: 2026-11-08
+
+- v0.47.0 CANDIDATE: provider incident explicitly paused. Processing page unifies imported originals, existing task results and old scene supplementation; optional20-query budget, shared2-slot analysis, version protection. Independent local-first study page uses pinned FSRS-6 and account-isolated IndexedDB transactions, not the gated cloud-memory ledger. Explicit enrollment, grading/Undo/pause/curve/records/export restore. Five-width/theme synthetic journey passed initially; additional budget, reuse/storage/account tests and final regression/release evidence follow. No production claim until final gates.
 
 - v0.46.0 public capture parity completed: merge5c36ec6 at71ca469d/capture-v038-preview;201SHA/private401/legacy media405 and deployed390dark common dialogue/new-round flow passed. Capture data/ten UI/synthetic vision plus shared source/dialogue-round390dark and npm check passed. Capture-only metadata/import hooks remain isolated (85icons/201assets); main retains84icons/197assets. Official remains1441e53a/runtime8661e29.
 
