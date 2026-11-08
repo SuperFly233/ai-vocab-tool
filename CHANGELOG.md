@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.47.0 - 2026-11-08 (Candidate)
+## v0.47.0 - 2026-11-08
 
 - Unify batch image import, existing analysis reuse and scene supplementation in a processing page; keep one global entry.
 - Preserve originals first, collect complete utterances and optionally submit at most20 contextual lookups per explicit run.
